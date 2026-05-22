@@ -69,6 +69,9 @@
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .painel-config { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 20px; }
         .painel-config h3 { margin: 0 0 14px; color: var(--primary-dark); font-size: 1rem; }
+        .painel-periodo { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 20px; }
+        .painel-periodo h3 { margin: 0 0 14px; color: var(--primary-dark); font-size: 1rem; }
+        .periodo-info { display:block; margin-top:10px; color:#64748b; font-size:0.82rem; font-weight:700; }
         .config-form { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; margin-bottom: 14px; }
         .config-form .input-group { margin: 0; min-width: 190px; }
         .btn-config { background: var(--primary-dark); }
@@ -120,6 +123,22 @@
             <button class="btn btn-atualizar" onclick="listarAgendamentos()"><i class="fa-solid fa-rotate"></i> Atualizar Lista</button>
             <button class="btn btn-excel" onclick="exportarExcel()"><i class="fa-solid fa-file-excel"></i> Exportar para Excel</button>
             <button class="btn btn-manual" onclick="abrirModal()"><i class="fa-solid fa-user-plus"></i> Inserir Encaixe Manual</button>
+        </div>
+        <div class="painel-periodo">
+            <h3><i class="fa-solid fa-calendar-range"></i> Período carregado no painel</h3>
+            <div class="config-form">
+                <div class="input-group">
+                    <label>Carregar de:</label>
+                    <input type="date" id="consulta-inicio">
+                </div>
+                <div class="input-group">
+                    <label>Até:</label>
+                    <input type="date" id="consulta-fim">
+                </div>
+                <button class="btn btn-atualizar" onclick="listarAgendamentos()"><i class="fa-solid fa-magnifying-glass"></i> Carregar período</button>
+                <button class="btn btn-sair" onclick="buscarHistoricoAgendamento()"><i class="fa-solid fa-clock-rotate-left"></i> Buscar histórico por CPF/protocolo</button>
+            </div>
+            <span class="periodo-info" id="info-periodo-lista">Por padrão, o painel carrega apenas agendamentos de ontem em diante.</span>
         </div>
         <div class="cards-resumo">
             <div class="card-kpi"><span>Hoje</span><strong id="kpi-hoje">0</strong></div>
@@ -387,8 +406,48 @@
             return somarDiasISO(hojeISO(), 1);
         }
 
+        function ontemISO() {
+            return somarDiasISO(hojeISO(), -1);
+        }
+
+        function fimPeriodoPadraoISO() {
+            return somarDiasISO(hojeISO(), 90);
+        }
+
+        function configurarPeriodoPadraoLista() {
+            const inicio = document.getElementById("consulta-inicio");
+            const fim = document.getElementById("consulta-fim");
+            if (inicio && !inicio.value) inicio.value = ontemISO();
+            if (fim && !fim.value) fim.value = fimPeriodoPadraoISO();
+        }
+
         function cpfNumeros(valor) {
             return String(valor || "").replace(/\D/g, "");
+        }
+
+        function cpfFormatado(cpf) {
+            const n = cpfNumeros(cpf);
+            return n.length === 11 ? `${n.slice(0, 3)}.${n.slice(3, 6)}.${n.slice(6, 9)}-${n.slice(9)}` : String(cpf || "");
+        }
+
+        function protocoloNormalizado(valor) {
+            return String(valor || "").trim().toUpperCase();
+        }
+
+        function ordenarAgendamentosCache() {
+            agendamentosCache.sort((a, b) => {
+                const da = `${a.dados.dataISO || ""}_${a.dados.hora || ""}`;
+                const dbb = `${b.dados.dataISO || ""}_${b.dados.hora || ""}`;
+                return da.localeCompare(dbb);
+            });
+        }
+
+        function deduplicarAgendamentos(lista) {
+            const mapa = new Map();
+            lista.forEach(ag => {
+                if (ag && ag.id && !mapa.has(ag.id)) mapa.set(ag.id, ag);
+            });
+            return [...mapa.values()];
         }
 
         function dataHoraAtendimento(dados) {
@@ -447,7 +506,9 @@
             return [
                 d.nome,
                 d.cpf,
+                cpfNumeros(d.cpf),
                 d.telefone,
+                cpfNumeros(d.telefone),
                 d.email,
                 d.protocolo,
                 dataBrISO(d.dataISO),
@@ -581,6 +642,7 @@
                 document.getElementById('remarcar-data').min = hojeISO();
                 document.getElementById('cfg-publicar-em-data').min = agoraSaoPauloInput();
                 document.getElementById('cfg-publicar-em-aviso').min = agoraSaoPauloInput();
+                configurarPeriodoPadraoLista();
                 listarAgendamentos();
                 carregarAgendaGestao();
             }
@@ -737,12 +799,96 @@
         async function listarAgendamentos() {
             const corpo = document.getElementById("corpo-tabela");
             corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Carregando...</td></tr>";
+            configurarPeriodoPadraoLista();
+            const inicio = document.getElementById("consulta-inicio").value || ontemISO();
+            const fim = document.getElementById("consulta-fim").value || fimPeriodoPadraoISO();
+            const info = document.getElementById("info-periodo-lista");
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio) || !/^\d{4}-\d{2}-\d{2}$/.test(fim)) {
+                alert("Informe um período válido.");
+                return;
+            }
+            if (fim < inicio) {
+                alert("A data final precisa ser igual ou posterior à data inicial.");
+                return;
+            }
             try {
-                const snap = await db.collection("dados_cidadaos").orderBy("dataISO").orderBy("hora").get();
+                const snap = await db.collection("dados_cidadaos")
+                    .where("dataISO", ">=", inicio)
+                    .where("dataISO", "<=", fim)
+                    .orderBy("dataISO")
+                    .limit(900)
+                    .get();
                 agendamentosCache = snap.docs.map(doc => ({ id: doc.id, dados: doc.data() }));
+                ordenarAgendamentosCache();
+                filtroRapidoAtual = "";
+                marcarFiltroRapidoVisual("");
+                if (info) {
+                    info.textContent = `Carregados ${agendamentosCache.length} agendamentos de ${dataBrISO(inicio)} até ${dataBrISO(fim)}.`
+                        + (snap.size >= 900 ? " Resultado limitado a 900 registros; reduza o período se faltar algo." : "");
+                }
                 atualizarResumo();
                 renderTabelaAgendamentos();
             } catch (e) { alert("Erro ao carregar lista."); }
+        }
+
+        async function buscarHistoricoAgendamento() {
+            const termo = document.getElementById("filtro-busca").value.trim();
+            const cpf = cpfNumeros(termo);
+            const protocolo = protocoloNormalizado(termo);
+            const corpo = document.getElementById("corpo-tabela");
+            const info = document.getElementById("info-periodo-lista");
+            if (cpf.length !== 11 && protocolo.length < 6) {
+                alert("Digite um CPF completo ou protocolo no campo Buscar.");
+                return;
+            }
+            corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Buscando histórico...</td></tr>";
+            try {
+                const consultas = [];
+                if (cpf.length === 11) {
+                    consultas.push(db.collection("dados_cidadaos").where("cpf", "==", cpfFormatado(cpf)).limit(20).get());
+                    consultas.push(db.collection("dados_cidadaos").where("cpf", "==", cpf).limit(20).get());
+                    consultas.push(db.collection("dados_cidadaos").where("bloqueioCpf", "==", cpf).limit(20).get());
+                } else {
+                    consultas.push(db.collection("dados_cidadaos").where("protocolo", "==", protocolo).limit(20).get());
+                }
+                const snaps = await Promise.all(consultas);
+                agendamentosCache = deduplicarAgendamentos(snaps.flatMap(snap => snap.docs.map(doc => ({ id: doc.id, dados: doc.data() }))));
+                ordenarAgendamentosCache();
+                filtroRapidoAtual = "";
+                marcarFiltroRapidoVisual("");
+                document.getElementById("filtro-futuros").checked = false;
+                if (info) info.textContent = `Busca histórica retornou ${agendamentosCache.length} registro(s) para ${cpf.length === 11 ? cpfFormatado(cpf) : protocolo}.`;
+                atualizarResumo();
+                renderTabelaAgendamentos();
+            } catch (e) {
+                console.error("Erro na busca histórica", e);
+                alert("Erro ao buscar histórico.");
+            }
+        }
+
+        async function carregarBloqueadosAtivos() {
+            const corpo = document.getElementById("corpo-tabela");
+            const info = document.getElementById("info-periodo-lista");
+            corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Carregando bloqueios...</td></tr>";
+            try {
+                const snap = await db.collection("dados_cidadaos")
+                    .where("bloqueioAtivo", "==", true)
+                    .limit(500)
+                    .get();
+                agendamentosCache = snap.docs
+                    .map(doc => ({ id: doc.id, dados: doc.data() }))
+                    .filter(ag => bloqueioAtivo(ag.dados));
+                ordenarAgendamentosCache();
+                filtroRapidoAtual = "bloqueados";
+                document.getElementById("filtro-futuros").checked = false;
+                marcarFiltroRapidoVisual("bloqueados");
+                if (info) info.textContent = `Carregados ${agendamentosCache.length} CPF(s) com bloqueio ativo.`;
+                atualizarResumo();
+                renderTabelaAgendamentos();
+            } catch (e) {
+                console.error("Erro ao carregar bloqueios", e);
+                alert("Erro ao carregar bloqueios.");
+            }
         }
 
         function atualizarResumo() {
@@ -889,6 +1035,10 @@
         }
 
         function filtroRapidoPainel(tipo) {
+            if (tipo === "bloqueados") {
+                carregarBloqueadosAtivos();
+                return;
+            }
             filtroRapidoAtual = tipo;
             document.getElementById("filtro-data").value = "";
             document.getElementById("filtro-status").value = "";

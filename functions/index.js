@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const admin = require("firebase-admin");
 const { HttpsError, onCall } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 
 admin.initializeApp();
 
@@ -9,7 +10,6 @@ const CANCELAMENTO_TTL_MS = 10 * 60 * 1000;
 const DIAS_INICIAIS = ["2026-05-15", "2026-05-19", "2026-05-20", "2026-05-21", "2026-05-22", "2026-05-26", "2026-05-27", "2026-05-28", "2026-05-29"];
 const HORAS_FALLBACK = ["14:20", "14:40", "15:00", "15:20", "15:40", "16:00", "16:20", "16:40"];
 const DATA_NOVAS_VAGAS_PADRAO = "01/06/2026";
-const ADMIN_EMAILS = ["gui.rib.pi@gmail.com"];
 const STATUS_VALIDOS = [
   "agendado",
   "compareceu",
@@ -19,6 +19,10 @@ const STATUS_VALIDOS = [
   "cancelado_camara",
   "remarcado"
 ];
+const STATUS_ANONIMIZAR_LGPD = new Set(["compareceu", "cancelado", "cancelado_cidadao", "cancelado_camara"]);
+const LGPD_RETENCAO_MESES = 6;
+const LGPD_MAX_LEITURAS_POR_EXECUCAO = 5000;
+const LGPD_TAMANHO_PAGINA = 250;
 
 const callableOptions = {
   cors: [
@@ -204,6 +208,22 @@ function dataBr(dataISO) {
   return partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : "";
 }
 
+function subtrairMesesISO(dataISO, meses) {
+  const partes = String(dataISO || "").split("-").map(Number);
+  if (partes.length !== 3 || partes.some((n) => !Number.isFinite(n))) return hojeSaoPauloISO();
+  const data = new Date(partes[0], partes[1] - 1, partes[2]);
+  data.setMonth(data.getMonth() - meses);
+  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
+}
+
+function statusParaAnonimizar(status) {
+  return STATUS_ANONIMIZAR_LGPD.has(String(status || ""));
+}
+
+function cpfNumeros(valor) {
+  return String(valor || "").replace(/\D/g, "");
+}
+
 function nomeSeguro(nome) {
   const partes = String(nome || "").trim().split(/\s+/).filter(Boolean);
   if (!partes.length) return "Cidadao";
@@ -276,9 +296,13 @@ async function buscarBloqueioAtivoCpf(cpfNum) {
     .sort((a, b) => b.comparador - a.comparador)[0] || null;
 }
 
-function assertAdmin(request) {
-  const email = request.auth && request.auth.token && request.auth.token.email;
-  if (!email || !ADMIN_EMAILS.includes(email)) {
+async function assertAdmin(request) {
+  const email = String(request.auth && request.auth.token && request.auth.token.email || "").trim().toLowerCase();
+  if (!email) {
+    throw new HttpsError("permission-denied", "Acesso administrativo negado.");
+  }
+  const adminDoc = await db.collection("admins").doc(email).get();
+  if (!adminDoc.exists || adminDoc.data().ativo !== true) {
     throw new HttpsError("permission-denied", "Acesso administrativo negado.");
   }
   return email;
@@ -319,6 +343,88 @@ async function aplicarRateLimit(request, acao, limite, janelaMs, extra = "") {
       atualizadoEm: admin.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
   });
+}
+
+async function anonimizarDadosAntigosLGPD() {
+  const corte = subtrairMesesISO(hojeSaoPauloISO(), LGPD_RETENCAO_MESES);
+  let ultimoDoc = null;
+  let totalLidos = 0;
+  let totalAnonimizados = 0;
+  let totalCpfMapsRemovidos = 0;
+
+  while (totalLidos < LGPD_MAX_LEITURAS_POR_EXECUCAO) {
+    let query = db.collection("dados_cidadaos")
+      .where("dataISO", "<=", corte)
+      .orderBy("dataISO")
+      .limit(Math.min(LGPD_TAMANHO_PAGINA, LGPD_MAX_LEITURAS_POR_EXECUCAO - totalLidos));
+    if (ultimoDoc) query = query.startAfter(ultimoDoc);
+
+    const snap = await query.get();
+    if (snap.empty) break;
+    totalLidos += snap.size;
+    ultimoDoc = snap.docs[snap.docs.length - 1];
+
+    let batch = db.batch();
+    let operacoes = 0;
+
+    const commitSeNecessario = async (forcar = false) => {
+      if (!operacoes || (!forcar && operacoes < 430)) return;
+      await batch.commit();
+      batch = db.batch();
+      operacoes = 0;
+    };
+
+    for (const doc of snap.docs) {
+      const dados = doc.data();
+      if (dados.anonimizadoLGPD === true || !statusParaAnonimizar(dados.status)) continue;
+
+      const cpfNum = cpfNumeros(dados.cpf);
+      batch.set(doc.ref, {
+        nome: "ANONIMIZADO",
+        cpf: admin.firestore.FieldValue.delete(),
+        telefone: admin.firestore.FieldValue.delete(),
+        email: admin.firestore.FieldValue.delete(),
+        dataNasc: admin.firestore.FieldValue.delete(),
+        nascimento: admin.firestore.FieldValue.delete(),
+        bloqueioCpf: admin.firestore.FieldValue.delete(),
+        bloqueioNome: admin.firestore.FieldValue.delete(),
+        bloqueioTelefone: admin.firestore.FieldValue.delete(),
+        anonimizadoLGPD: true,
+        anonimizadoLGPDEm: admin.firestore.FieldValue.serverTimestamp(),
+        anonimizadoLGPDCorte: corte
+      }, { merge: true });
+      operacoes += 1;
+
+      if (cpfNum.length === 11) {
+        batch.delete(db.collection("cpfs_agendados").doc(cpfDocId(cpfNum)));
+        batch.delete(db.collection("cpfs_agendados").doc(cpfNum));
+        operacoes += 2;
+        totalCpfMapsRemovidos += 2;
+      }
+
+      totalAnonimizados += 1;
+      await commitSeNecessario();
+    }
+
+    await commitSeNecessario(true);
+    if (snap.size < LGPD_TAMANHO_PAGINA) break;
+  }
+
+  await db.collection("logs_admin").add({
+    acao: "anonimizacao_lgpd",
+    detalhes: {
+      corte,
+      mesesRetencao: LGPD_RETENCAO_MESES,
+      totalLidos,
+      totalAnonimizados,
+      totalCpfMapsRemovidos
+    },
+    adminEmail: "sistema",
+    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    criado: new Date().toISOString()
+  });
+
+  return { corte, totalLidos, totalAnonimizados, totalCpfMapsRemovidos };
 }
 
 async function carregarAgenda() {
@@ -669,7 +775,7 @@ exports.cancelarAgendamentoCidadao = onCall(publicCallableOptions, async (reques
 });
 
 exports.criarEncaixeManual = onCall(callableOptions, async (request) => {
-  const adminEmail = assertAdmin(request);
+  const adminEmail = await assertAdmin(request);
   const nome = normalizarTexto(request.data.nome, "o nome", 2, 120);
   const cpfInformado = String(request.data.cpf || "").replace(/\D/g, "");
   const cpfNum = cpfInformado ? normalizarCpf(cpfInformado) : "";
@@ -743,7 +849,7 @@ exports.criarEncaixeManual = onCall(callableOptions, async (request) => {
 });
 
 exports.atualizarObservacaoAdmin = onCall(callableOptions, async (request) => {
-  const adminEmail = assertAdmin(request);
+  const adminEmail = await assertAdmin(request);
   const agendamentoId = String(request.data.agendamentoId || "").trim();
   const observacaoInterna = normalizarTextoOpcional(request.data.observacaoInterna, 800);
   if (!agendamentoId) {
@@ -775,7 +881,7 @@ exports.atualizarObservacaoAdmin = onCall(callableOptions, async (request) => {
 });
 
 exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
-  const adminEmail = assertAdmin(request);
+  const adminEmail = await assertAdmin(request);
   const agendamentoId = String(request.data.agendamentoId || "").trim();
   const dataISO = normalizarData(request.data.data);
   const hora = normalizarHora(request.data.hora);
@@ -871,7 +977,7 @@ exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
 });
 
 exports.listarLogsAdmin = onCall(callableOptions, async (request) => {
-  assertAdmin(request);
+  await assertAdmin(request);
   const limite = Math.min(Math.max(Number(request.data && request.data.limite) || 80, 10), 200);
   const snap = await db.collection("logs_admin").orderBy("criadoEm", "desc").limit(limite).get();
   return {
@@ -891,7 +997,7 @@ exports.listarLogsAdmin = onCall(callableOptions, async (request) => {
 });
 
 exports.gerarBackupAdmin = onCall(callableOptions, async (request) => {
-  const adminEmail = assertAdmin(request);
+  const adminEmail = await assertAdmin(request);
   const [agendaDoc, agendamentosSnap, logsSnap] = await Promise.all([
     db.collection("configuracoes").doc("agenda").get(),
     db.collection("dados_cidadaos").orderBy("dataISO").orderBy("hora").get(),
@@ -924,3 +1030,9 @@ exports.gerarBackupAdmin = onCall(callableOptions, async (request) => {
 
   return { backup };
 });
+
+exports.anonimizarDadosAntigosLGPD = onSchedule({
+  schedule: "0 3 1 * *",
+  timeZone: "America/Sao_Paulo",
+  maxInstances: 1
+}, async () => anonimizarDadosAntigosLGPD());

@@ -7,9 +7,13 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn()
-        && request.auth.token.email in [
-          "gui.rib.pi@gmail.com"
-        ];
+        && request.auth.token.email != null
+        && exists(/databases/$(database)/documents/admins/$(request.auth.token.email))
+        && get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.ativo == true;
+    }
+
+    match /admins/{adminEmail} {
+      allow get, list, create, update, delete: if isAdmin();
     }
 
     match /vagas_ocupadas/{slotId} {
