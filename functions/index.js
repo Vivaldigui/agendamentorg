@@ -1,0 +1,926 @@
+const crypto = require("crypto");
+const admin = require("firebase-admin");
+const { HttpsError, onCall } = require("firebase-functions/v2/https");
+
+admin.initializeApp();
+
+const db = admin.firestore();
+const CANCELAMENTO_TTL_MS = 10 * 60 * 1000;
+const DIAS_INICIAIS = ["2026-05-15", "2026-05-19", "2026-05-20", "2026-05-21", "2026-05-22", "2026-05-26", "2026-05-27", "2026-05-28", "2026-05-29"];
+const HORAS_FALLBACK = ["14:20", "14:40", "15:00", "15:20", "15:40", "16:00", "16:20", "16:40"];
+const DATA_NOVAS_VAGAS_PADRAO = "01/06/2026";
+const ADMIN_EMAILS = ["gui.rib.pi@gmail.com"];
+const STATUS_VALIDOS = [
+  "agendado",
+  "compareceu",
+  "nao_compareceu",
+  "cancelado",
+  "cancelado_cidadao",
+  "cancelado_camara",
+  "remarcado"
+];
+
+const callableOptions = {
+  cors: [
+    "https://agendamento-cin-itanhandu.web.app",
+    "https://agendamento-cin-itanhandu.firebaseapp.com",
+    "https://www.itanhandu.cam.mg.gov.br",
+    "https://itanhandu.cam.mg.gov.br"
+  ],
+  maxInstances: 10
+};
+
+const publicCallableOptions = {
+  ...callableOptions,
+  enforceAppCheck: process.env.APP_CHECK_ENFORCE_PUBLIC === "true"
+};
+
+function normalizarCpf(cpf) {
+  const cpfNum = String(cpf || "").replace(/\D/g, "");
+  if (cpfNum.length !== 11) {
+    throw new HttpsError("invalid-argument", "Informe um CPF valido.");
+  }
+  return cpfNum;
+}
+
+function normalizarTexto(valor, campo, min, max) {
+  const texto = String(valor || "").trim().replace(/\s+/g, " ");
+  if (texto.length < min || texto.length > max) {
+    throw new HttpsError("invalid-argument", `Informe ${campo} corretamente.`);
+  }
+  return texto;
+}
+
+function normalizarTextoOpcional(valor, max) {
+  const texto = String(valor || "").trim().replace(/\s+/g, " ");
+  if (texto.length > max) {
+    throw new HttpsError("invalid-argument", "Texto muito longo.");
+  }
+  return texto;
+}
+
+function normalizarEmail(valor) {
+  const email = String(valor || "").trim();
+  if (!email) return "";
+  if (email.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new HttpsError("invalid-argument", "Informe um e-mail valido.");
+  }
+  return email;
+}
+
+function normalizarTelefone(valor) {
+  const telefone = normalizarTexto(valor, "o telefone", 14, 20);
+  const digitos = telefone.replace(/\D/g, "");
+  if (digitos.length < 10 || digitos.length > 11) {
+    throw new HttpsError("invalid-argument", "Informe um telefone valido.");
+  }
+  return telefone;
+}
+
+function normalizarTelefoneOpcional(valor) {
+  const telefone = String(valor || "").trim();
+  if (!telefone) return "";
+  const digitos = telefone.replace(/\D/g, "");
+  if (digitos.length < 10 || digitos.length > 11) {
+    throw new HttpsError("invalid-argument", "Informe um telefone valido.");
+  }
+  return telefone;
+}
+
+function digitosTelefone(valor) {
+  return String(valor || "").replace(/\D/g, "");
+}
+
+function telefonesConferem(informado, salvo) {
+  const a = digitosTelefone(informado);
+  const b = digitosTelefone(salvo);
+  if (a.length < 10 || b.length < 10) return false;
+  return a === b || a.slice(-11) === b.slice(-11);
+}
+
+function normalizarProtocolo(valor) {
+  return String(valor || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "");
+}
+
+function formatarCpf(cpfNum) {
+  return cpfNum.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+}
+
+function normalizarData(valor) {
+  const texto = String(valor || "").trim();
+  let ano;
+  let mes;
+  let dia;
+
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(texto)) {
+    [dia, mes, ano] = texto.split("/").map(Number);
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
+    [ano, mes, dia] = texto.split("-").map(Number);
+  } else {
+    throw new HttpsError("invalid-argument", "Informe a data de nascimento corretamente.");
+  }
+
+  const data = new Date(ano, mes - 1, dia);
+  if (data.getFullYear() !== ano || data.getMonth() !== mes - 1 || data.getDate() !== dia) {
+    throw new HttpsError("invalid-argument", "Informe a data de nascimento corretamente.");
+  }
+
+  return `${String(ano).padStart(4, "0")}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+}
+
+function normalizarDataOpcional(valor) {
+  const texto = String(valor || "").trim();
+  return texto ? normalizarData(texto) : "";
+}
+
+function hojeSaoPauloISO() {
+  const partes = new Intl.DateTimeFormat("en", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date());
+  const valores = Object.fromEntries(partes.map((parte) => [parte.type, parte.value]));
+  return `${valores.year}-${valores.month}-${valores.day}`;
+}
+
+function agoraSaoPauloInput() {
+  const partes = new Intl.DateTimeFormat("en", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(new Date());
+  const valores = Object.fromEntries(partes.map((parte) => [parte.type, parte.value]));
+  return `${valores.year}-${valores.month}-${valores.day}T${valores.hour}:${valores.minute}`;
+}
+
+function normalizarPublicacaoDatas(valor) {
+  if (!valor || typeof valor !== "object" || Array.isArray(valor)) return {};
+  const limpo = {};
+  Object.keys(valor).forEach((data) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(data) && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(String(valor[data] || ""))) {
+      limpo[data] = String(valor[data]);
+    }
+  });
+  return limpo;
+}
+
+function avisoNovasVagasAtivo(agenda) {
+  const avisoProgramado = agenda && agenda.avisoNovasVagasProgramado && typeof agenda.avisoNovasVagasProgramado === "object"
+    ? agenda.avisoNovasVagasProgramado
+    : null;
+  if (avisoProgramado && avisoProgramado.publicarEm && avisoProgramado.publicarEm <= agoraSaoPauloInput() && avisoProgramado.dataNovasVagas) {
+    return avisoProgramado.dataNovasVagas;
+  }
+  return (agenda && agenda.dataNovasVagas) || DATA_NOVAS_VAGAS_PADRAO;
+}
+
+function normalizarHora(valor) {
+  const hora = String(valor || "").trim();
+  if (!/^[0-2][0-9]:[0-5][0-9]$/.test(hora)) {
+    throw new HttpsError("invalid-argument", "Informe o horario corretamente.");
+  }
+  return hora;
+}
+
+function cpfDocId(cpfNum) {
+  return "cpf_" + crypto.createHash("sha256").update(cpfNum).digest("hex");
+}
+
+function gerarProtocolo(agendamentoId) {
+  const base = String(agendamentoId || crypto.randomBytes(8).toString("hex"))
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .slice(0, 8)
+    .toUpperCase();
+  return `CIN-${base}`;
+}
+
+function dataBr(dataISO) {
+  const partes = String(dataISO || "").split("-");
+  return partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : "";
+}
+
+function nomeSeguro(nome) {
+  const partes = String(nome || "").trim().split(/\s+/).filter(Boolean);
+  if (!partes.length) return "Cidadao";
+  if (partes.length === 1) return partes[0];
+  return `${partes[0]} ${partes[partes.length - 1].charAt(0)}.`;
+}
+
+function respostaPublica(dados) {
+  return {
+    nome: nomeSeguro(dados.nome),
+    dataISO: dados.dataISO || "",
+    dataBR: dataBr(dados.dataISO),
+    hora: dados.hora || "",
+    protocolo: dados.protocolo || "",
+    status: STATUS_VALIDOS.includes(dados.status) ? dados.status : "agendado"
+  };
+}
+
+function agendamentoEstaAtivo(dados) {
+  const status = String(dados && dados.status || "agendado");
+  return !["cancelado", "cancelado_cidadao", "cancelado_camara"].includes(status);
+}
+
+function normalizarBloqueadoAte(valor) {
+  if (!valor) return null;
+  if (typeof valor === "string") {
+    const texto = valor.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
+      return {
+        ativo: texto > hojeSaoPauloISO(),
+        dataLiberacao: dataBr(texto),
+        comparador: new Date(`${texto}T23:59:59-03:00`).getTime()
+      };
+    }
+    const data = new Date(texto);
+    if (!Number.isNaN(data.getTime())) {
+      return {
+        ativo: data.getTime() > Date.now(),
+        dataLiberacao: data.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+        comparador: data.getTime()
+      };
+    }
+  }
+  if (valor && typeof valor.toDate === "function") {
+    const data = valor.toDate();
+    return {
+      ativo: data.getTime() > Date.now(),
+      dataLiberacao: data.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+      comparador: data.getTime()
+    };
+  }
+  return null;
+}
+
+async function buscarBloqueioAtivoCpf(cpfNum) {
+  const candidatos = [];
+  const docBloqueio = await db.collection("bloqueios_agendamento").doc(cpfNum).get();
+  if (docBloqueio.exists) candidatos.push(docBloqueio.data());
+
+  const snapCadastro = await db.collection("dados_cidadaos")
+    .where("bloqueioCpf", "==", cpfNum)
+    .limit(10)
+    .get();
+  snapCadastro.docs.forEach((doc) => candidatos.push(doc.data()));
+
+  return candidatos
+    .filter((dados) => dados && dados.liberado !== true && dados.bloqueioLiberado !== true && dados.bloqueioAtivo !== false)
+    .map((dados) => normalizarBloqueadoAte(dados.bloqueadoAte))
+    .filter((bloqueio) => bloqueio && bloqueio.ativo)
+    .sort((a, b) => b.comparador - a.comparador)[0] || null;
+}
+
+function assertAdmin(request) {
+  const email = request.auth && request.auth.token && request.auth.token.email;
+  if (!email || !ADMIN_EMAILS.includes(email)) {
+    throw new HttpsError("permission-denied", "Acesso administrativo negado.");
+  }
+  return email;
+}
+
+function fingerprintRequisicao(request, extra = "") {
+  const raw = request.rawRequest || {};
+  const forwarded = String(raw.headers && raw.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  const ip = forwarded || raw.ip || "sem-ip";
+  const userAgent = raw.headers && raw.headers["user-agent"] ? String(raw.headers["user-agent"]).slice(0, 120) : "";
+  return crypto.createHash("sha256").update(`${ip}|${userAgent}|${extra}`).digest("hex");
+}
+
+async function aplicarRateLimit(request, acao, limite, janelaMs, extra = "") {
+  const chave = crypto.createHash("sha256")
+    .update(`${acao}|${fingerprintRequisicao(request, extra)}`)
+    .digest("hex");
+  const ref = db.collection("rate_limits").doc(chave);
+  const agora = Date.now();
+
+  await db.runTransaction(async (t) => {
+    const doc = await t.get(ref);
+    const dados = doc.exists ? doc.data() : {};
+    const inicio = typeof dados.inicio === "number" ? dados.inicio : 0;
+    const contagemAtual = typeof dados.contagem === "number" ? dados.contagem : 0;
+    const dentroDaJanela = inicio && (agora - inicio) < janelaMs;
+    const proximaContagem = dentroDaJanela ? contagemAtual + 1 : 1;
+
+    if (dentroDaJanela && proximaContagem > limite) {
+      throw new HttpsError("resource-exhausted", "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.");
+    }
+
+    t.set(ref, {
+      acao,
+      inicio: dentroDaJanela ? inicio : agora,
+      contagem: proximaContagem,
+      expiraEm: admin.firestore.Timestamp.fromMillis(agora + janelaMs),
+      atualizadoEm: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  });
+}
+
+async function carregarAgenda() {
+  const agendaDoc = await db.collection("configuracoes").doc("agenda").get();
+  const agenda = agendaDoc.exists ? agendaDoc.data() : {};
+  const hoje = hojeSaoPauloISO();
+  const dias = Array.isArray(agenda.dias) && agenda.dias.length ? agenda.dias : DIAS_INICIAIS;
+  const horariosConfig = Array.isArray(agenda.horarios) ? agenda.horarios : [];
+  const publicacaoDatas = normalizarPublicacaoDatas(agenda.publicacaoDatas);
+  const agora = agoraSaoPauloInput();
+  return {
+    dias: dias.filter((dia) => typeof dia === "string" && dia >= hoje && (!publicacaoDatas[dia] || publicacaoDatas[dia] <= agora)).sort(),
+    horarios: [...new Set([...horariosConfig, ...HORAS_FALLBACK]
+      .filter((hora) => /^\d{2}:\d{2}$/.test(String(hora || ""))))].sort(),
+    dataNovasVagas: avisoNovasVagasAtivo(agenda)
+  };
+}
+
+async function validarSlotDisponivel(dataISO, hora) {
+  const agenda = await carregarAgenda();
+  if (dataISO < hojeSaoPauloISO()) {
+    throw new HttpsError("failed-precondition", "Data indisponivel para agendamento.");
+  }
+  if (!agenda.dias.includes(dataISO) || !agenda.horarios.includes(hora)) {
+    throw new HttpsError("failed-precondition", "Horario indisponivel para agendamento.");
+  }
+}
+
+async function buscarPorCpfDireto(cpfNum, dataNasc) {
+  const possiveisCpfs = [formatarCpf(cpfNum), cpfNum];
+
+  for (const cpf of possiveisCpfs) {
+    const snap = await db.collection("dados_cidadaos")
+      .where("cpf", "==", cpf)
+      .limit(5)
+      .get();
+
+    const encontrado = snap.docs.find((doc) => doc.data().dataNasc === dataNasc && agendamentoEstaAtivo(doc.data()));
+    if (encontrado) {
+      return {
+        agendamentoId: encontrado.id,
+        cpfDocIds: [cpfDocId(cpfNum), cpfNum],
+        slotId: encontrado.data().slotId || encontrado.id,
+        dados: encontrado.data()
+      };
+    }
+  }
+
+  return null;
+}
+
+function vagaContaNoSite(vaga) {
+  return vaga && vaga.contabilizaVaga !== false && vaga.origem !== "manual";
+}
+
+async function carregarDisponibilidadePublica() {
+  const agenda = await carregarAgenda();
+  const vagasSnap = await db.collection("vagas_ocupadas").get();
+  const ocupados = new Set();
+
+  vagasSnap.docs.forEach((doc) => {
+    const vaga = doc.data();
+    if (vagaContaNoSite(vaga) && agenda.dias.includes(vaga.dataISO) && agenda.horarios.includes(vaga.hora)) {
+      ocupados.add(`${vaga.dataISO}_${vaga.hora}`);
+    }
+  });
+
+  const dias = agenda.dias.map((dataISO) => {
+    const horarios = agenda.horarios.map((hora) => ({
+      hora,
+      disponivel: !ocupados.has(`${dataISO}_${hora}`)
+    }));
+    const vagas = horarios.filter((item) => item.disponivel).length;
+    return {
+      dataISO,
+      vagas,
+      lotado: vagas <= 0,
+      horarios
+    };
+  });
+
+  return {
+    dias,
+    horarios: agenda.horarios,
+    dataNovasVagas: agenda.dataNovasVagas,
+    totalVagasRestantes: dias.reduce((total, dia) => total + dia.vagas, 0)
+  };
+}
+
+exports.carregarAgendaPublica = onCall(publicCallableOptions, async (request) => {
+  await aplicarRateLimit(request, "carregar_agenda_publica", 120, 10 * 60 * 1000);
+  return carregarDisponibilidadePublica();
+});
+
+exports.verificarBloqueioCpf = onCall(publicCallableOptions, async (request) => {
+  const cpfNum = normalizarCpf(request.data && request.data.cpf);
+  await aplicarRateLimit(request, "verificar_bloqueio_cpf", 20, 10 * 60 * 1000, cpfNum);
+  const bloqueio = await buscarBloqueioAtivoCpf(cpfNum);
+  if (!bloqueio) return { bloqueado: false };
+  return {
+    bloqueado: true,
+    dataLiberacao: bloqueio.dataLiberacao,
+    mensagem: `Não foi possível realizar novo agendamento.\n\nConsta ausência em atendimento anterior.\nNovo agendamento permitido a partir de ${bloqueio.dataLiberacao}.\n\nEm caso de justificativa, entre em contato com a Câmara Municipal.`
+  };
+});
+
+function validarFatorExtra(dados, telefoneInformado, protocoloInformado) {
+  if (!dados.protocolo) return;
+
+  const protocolo = normalizarProtocolo(protocoloInformado);
+  const temProtocoloValido = protocolo && normalizarProtocolo(dados.protocolo) === protocolo;
+  const temTelefoneValido = telefonesConferem(telefoneInformado, dados.telefone);
+
+  if (!temProtocoloValido && !temTelefoneValido) {
+    throw new HttpsError("not-found", "Nenhum agendamento encontrado com os dados informados.");
+  }
+}
+
+async function localizarAgendamento(cpfInformado, nascimentoInformado, opcoes = {}) {
+  const cpfNum = normalizarCpf(cpfInformado);
+  const dataNasc = normalizarData(nascimentoInformado);
+  const cpfHashId = cpfDocId(cpfNum);
+
+  let cpfSnap = await db.collection("cpfs_agendados").doc(cpfHashId).get();
+  let cpfDocIds = [cpfHashId];
+
+  if (!cpfSnap.exists) {
+    cpfSnap = await db.collection("cpfs_agendados").doc(cpfNum).get();
+    cpfDocIds.push(cpfNum);
+  }
+
+  if (!cpfSnap.exists) {
+    const porCpf = await buscarPorCpfDireto(cpfNum, dataNasc);
+    if (porCpf) {
+      validarFatorExtra(porCpf.dados, opcoes.telefone, opcoes.protocolo);
+      return porCpf;
+    }
+    throw new HttpsError("not-found", "Nenhum agendamento encontrado com os dados informados.");
+  }
+
+  const agendamentoId = cpfSnap.data().agendamentoId;
+  if (!agendamentoId) {
+    throw new HttpsError("not-found", "Nenhum agendamento encontrado com os dados informados.");
+  }
+
+  const agDoc = await db.collection("dados_cidadaos").doc(agendamentoId).get();
+  if (!agDoc.exists || agDoc.data().dataNasc !== dataNasc || !agendamentoEstaAtivo(agDoc.data())) {
+    throw new HttpsError("not-found", "Nenhum agendamento encontrado com os dados informados.");
+  }
+
+  const dados = agDoc.data();
+  validarFatorExtra(dados, opcoes.telefone, opcoes.protocolo);
+  return {
+    agendamentoId,
+    cpfDocIds: [...new Set([...cpfDocIds, cpfHashId, cpfNum])],
+    slotId: dados.slotId || cpfSnap.data().slotId || `${dados.dataISO}_${dados.hora}`,
+    dados
+  };
+}
+
+exports.consultarAgendamentoCidadao = onCall(publicCallableOptions, async (request) => {
+  await aplicarRateLimit(request, "consultar_agendamento", 8, 10 * 60 * 1000, String(request.data && request.data.cpf || ""));
+  const encontrado = await localizarAgendamento(request.data.cpf, request.data.nascimento, {
+    telefone: request.data.telefone,
+    protocolo: request.data.protocolo
+  });
+  return {
+    encontrado: true,
+    agendamento: respostaPublica(encontrado.dados)
+  };
+});
+
+exports.criarAgendamentoCidadao = onCall(publicCallableOptions, async (request) => {
+  const nome = normalizarTexto(request.data.nome, "o nome completo", 5, 120);
+  const cpfNum = normalizarCpf(request.data.cpf);
+  await aplicarRateLimit(request, "criar_agendamento", 6, 10 * 60 * 1000, cpfNum);
+  const telefone = normalizarTelefone(request.data.telefone);
+  const email = normalizarEmail(request.data.email);
+  const dataNasc = normalizarData(request.data.nascimento);
+  const dataISO = normalizarData(request.data.data);
+  const hora = normalizarHora(request.data.hora);
+  const cpfFormatado = formatarCpf(cpfNum);
+  const cpfHashId = cpfDocId(cpfNum);
+  const slotId = `${dataISO}_${hora}`;
+
+  await validarSlotDisponivel(dataISO, hora);
+
+  const criado = new Date().toISOString();
+  const agendamentoRef = db.collection("dados_cidadaos").doc();
+  const protocolo = gerarProtocolo(agendamentoRef.id);
+  const slotRef = db.collection("vagas_ocupadas").doc(slotId);
+  const cpfRef = db.collection("cpfs_agendados").doc(cpfHashId);
+  const cpfLegadoRef = db.collection("cpfs_agendados").doc(cpfNum);
+
+  await db.runTransaction(async (t) => {
+    const [slotDoc, cpfDoc, cpfLegadoDoc] = await Promise.all([
+      t.get(slotRef),
+      t.get(cpfRef),
+      t.get(cpfLegadoRef)
+    ]);
+
+    let slotOcupado = slotDoc.exists;
+    let limparSlotObsoleto = false;
+    if (slotDoc.exists && slotDoc.data().agendamentoId) {
+      const agSlotDoc = await t.get(db.collection("dados_cidadaos").doc(slotDoc.data().agendamentoId));
+      if (!agSlotDoc.exists || !agendamentoEstaAtivo(agSlotDoc.data())) {
+        slotOcupado = false;
+        limparSlotObsoleto = true;
+      }
+    }
+
+    if (slotOcupado) {
+      throw new HttpsError("already-exists", "Este horario foi preenchido por outra pessoa. Escolha outro horario.");
+    }
+
+    const cpfRefs = [
+      { ref: cpfRef, doc: cpfDoc },
+      { ref: cpfLegadoRef, doc: cpfLegadoDoc }
+    ].filter((item, index, lista) => item.doc.exists && lista.findIndex((outro) => outro.ref.path === item.ref.path) === index);
+
+    let cpfAtivo = false;
+    const cpfRefsObsoletos = [];
+    for (const item of cpfRefs) {
+      const agendamentoId = item.doc.data().agendamentoId;
+      if (!agendamentoId) {
+        cpfRefsObsoletos.push(item.ref);
+        continue;
+      }
+      const agCpfDoc = await t.get(db.collection("dados_cidadaos").doc(agendamentoId));
+      if (agCpfDoc.exists && agendamentoEstaAtivo(agCpfDoc.data())) {
+        cpfAtivo = true;
+      } else {
+        cpfRefsObsoletos.push(item.ref);
+      }
+    }
+
+    if (cpfAtivo) {
+      throw new HttpsError("already-exists", "Este CPF ja possui um agendamento ativo.");
+    }
+
+    if (limparSlotObsoleto) t.delete(slotRef);
+    cpfRefsObsoletos.forEach((ref) => t.delete(ref));
+
+    t.set(slotRef, { dataISO, hora, contabilizaVaga: true, origem: "publico", agendamentoId: agendamentoRef.id, criado });
+    t.set(cpfRef, { agendamentoId: agendamentoRef.id, slotId, criado });
+    t.set(agendamentoRef, {
+      nome,
+      cpf: cpfFormatado,
+      telefone,
+      email,
+      dataNasc,
+      dataISO,
+      hora,
+      slotId,
+      protocolo,
+      status: "agendado",
+      criado,
+      statusAtualizadoEm: criado
+    });
+  });
+
+  return {
+    agendamento: {
+      id: agendamentoRef.id,
+      dataISO,
+      dataBR: dataBr(dataISO),
+      hora,
+      protocolo
+    }
+  };
+});
+
+exports.prepararCancelamentoCidadao = onCall(publicCallableOptions, async (request) => {
+  await aplicarRateLimit(request, "preparar_cancelamento", 6, 10 * 60 * 1000, String(request.data && request.data.cpf || ""));
+  const cpfNum = normalizarCpf(request.data.cpf);
+  const encontrado = await localizarAgendamento(request.data.cpf, request.data.nascimento, {
+    telefone: request.data.telefone,
+    protocolo: request.data.protocolo
+  });
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiraEm = admin.firestore.Timestamp.fromMillis(Date.now() + CANCELAMENTO_TTL_MS);
+
+  await db.collection("cancelamentos_pendentes").doc(token).set({
+    agendamentoId: encontrado.agendamentoId,
+    cpfDocIds: [...new Set([...(encontrado.cpfDocIds || []), cpfDocId(cpfNum), cpfNum])],
+    slotId: encontrado.slotId,
+    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    expiraEm
+  });
+
+  return {
+    token,
+    expiraEm: expiraEm.toMillis(),
+    agendamento: respostaPublica(encontrado.dados)
+  };
+});
+
+exports.cancelarAgendamentoCidadao = onCall(publicCallableOptions, async (request) => {
+  await aplicarRateLimit(request, "cancelar_agendamento", 10, 10 * 60 * 1000);
+  const token = String(request.data.token || "").trim();
+  if (!/^[a-f0-9]{64}$/.test(token)) {
+    throw new HttpsError("invalid-argument", "Solicitacao de cancelamento invalida.");
+  }
+
+  const tokenRef = db.collection("cancelamentos_pendentes").doc(token);
+
+  await db.runTransaction(async (t) => {
+    const tokenDoc = await t.get(tokenRef);
+    if (!tokenDoc.exists) {
+      throw new HttpsError("not-found", "Solicitacao de cancelamento expirada. Localize o agendamento novamente.");
+    }
+
+    const pendente = tokenDoc.data();
+    if (!pendente.expiraEm || pendente.expiraEm.toMillis() < Date.now()) {
+      t.delete(tokenRef);
+      throw new HttpsError("deadline-exceeded", "Solicitacao de cancelamento expirada. Localize o agendamento novamente.");
+    }
+
+    const agRef = db.collection("dados_cidadaos").doc(pendente.agendamentoId);
+    const agDoc = await t.get(agRef);
+    const dados = agDoc.exists ? agDoc.data() : {};
+    const slotId = pendente.slotId || dados.slotId || `${dados.dataISO}_${dados.hora}`;
+
+    if (slotId && slotId !== "undefined_undefined") {
+      t.delete(db.collection("vagas_ocupadas").doc(slotId));
+    }
+
+    if (agDoc.exists) {
+      const agora = new Date().toISOString();
+      t.set(agRef, {
+        status: "cancelado_cidadao",
+        canceladoEm: agora,
+        canceladoPor: "cidadao",
+        statusAtualizadoEm: agora,
+        ativo: false
+      }, { merge: true });
+    }
+
+    const cpfDocIds = Array.isArray(pendente.cpfDocIds) ? pendente.cpfDocIds : [];
+    cpfDocIds.forEach((docId) => {
+      if (docId) t.delete(db.collection("cpfs_agendados").doc(docId));
+    });
+
+    t.delete(tokenRef);
+  });
+
+  return { cancelado: true };
+});
+
+exports.criarEncaixeManual = onCall(callableOptions, async (request) => {
+  const adminEmail = assertAdmin(request);
+  const nome = normalizarTexto(request.data.nome, "o nome", 2, 120);
+  const cpfInformado = String(request.data.cpf || "").replace(/\D/g, "");
+  const cpfNum = cpfInformado ? normalizarCpf(cpfInformado) : "";
+  const telefone = normalizarTelefoneOpcional(request.data.telefone);
+  const dataNasc = normalizarDataOpcional(request.data.nascimento);
+  const dataISO = normalizarData(request.data.data);
+  const hora = normalizarHora(request.data.hora);
+  const cpfFormatado = cpfNum ? formatarCpf(cpfNum) : "";
+  const cpfHashId = cpfNum ? cpfDocId(cpfNum) : "";
+
+  if (dataISO < hojeSaoPauloISO()) {
+    throw new HttpsError("failed-precondition", "Data indisponivel para encaixe.");
+  }
+
+  const criado = new Date().toISOString();
+  const agendamentoRef = db.collection("dados_cidadaos").doc();
+  const protocolo = gerarProtocolo(agendamentoRef.id);
+  const slotId = `manual_${agendamentoRef.id}`;
+  const slotRef = db.collection("vagas_ocupadas").doc(slotId);
+  const cpfRef = cpfHashId ? db.collection("cpfs_agendados").doc(cpfHashId) : null;
+  const cpfLegadoRef = cpfNum ? db.collection("cpfs_agendados").doc(cpfNum) : null;
+
+  await db.runTransaction(async (t) => {
+    const cpfDoc = cpfRef ? await t.get(cpfRef) : null;
+    const cpfLegadoDoc = cpfLegadoRef ? await t.get(cpfLegadoRef) : null;
+
+    if ((cpfDoc && cpfDoc.exists) || (cpfLegadoDoc && cpfLegadoDoc.exists)) {
+      throw new HttpsError("already-exists", "Este CPF ja possui um agendamento ativo.");
+    }
+
+    t.set(slotRef, { dataISO, hora, contabilizaVaga: false, origem: "manual", agendamentoId: agendamentoRef.id });
+    if (cpfRef) {
+      t.set(cpfRef, { agendamentoId: agendamentoRef.id, slotId, criado });
+    }
+    t.set(agendamentoRef, {
+      nome,
+      cpf: cpfFormatado,
+      telefone,
+      email: "",
+      dataNasc,
+      dataISO,
+      hora,
+      slotId,
+      protocolo,
+      status: "agendado",
+      statusAtualizadoEm: criado,
+      insercaoManual: true,
+      criado,
+      criadoPor: adminEmail
+    });
+    t.set(db.collection("logs_admin").doc(), {
+      acao: "encaixe_manual",
+      agendamentoId: agendamentoRef.id,
+      protocolo,
+      dataISO,
+      hora,
+      adminEmail,
+      criadoEm: admin.firestore.FieldValue.serverTimestamp()
+    });
+  });
+
+  return {
+    agendamento: {
+      id: agendamentoRef.id,
+      dataISO,
+      dataBR: dataBr(dataISO),
+      hora,
+      protocolo
+    }
+  };
+});
+
+exports.atualizarObservacaoAdmin = onCall(callableOptions, async (request) => {
+  const adminEmail = assertAdmin(request);
+  const agendamentoId = String(request.data.agendamentoId || "").trim();
+  const observacaoInterna = normalizarTextoOpcional(request.data.observacaoInterna, 800);
+  if (!agendamentoId) {
+    throw new HttpsError("invalid-argument", "Agendamento invalido.");
+  }
+
+  const agRef = db.collection("dados_cidadaos").doc(agendamentoId);
+  const agDoc = await agRef.get();
+  if (!agDoc.exists) {
+    throw new HttpsError("not-found", "Agendamento nao encontrado.");
+  }
+
+  await agRef.set({
+    observacaoInterna,
+    observacaoAtualizadaEm: new Date().toISOString(),
+    observacaoAtualizadaPor: adminEmail
+  }, { merge: true });
+
+  await db.collection("logs_admin").add({
+    acao: "atualizar_observacao",
+    agendamentoId,
+    protocolo: agDoc.data().protocolo || "",
+    adminEmail,
+    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    criado: new Date().toISOString()
+  });
+
+  return { ok: true };
+});
+
+exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
+  const adminEmail = assertAdmin(request);
+  const agendamentoId = String(request.data.agendamentoId || "").trim();
+  const dataISO = normalizarData(request.data.data);
+  const hora = normalizarHora(request.data.hora);
+  const contabilizaVaga = request.data.contabilizaVaga === true;
+
+  if (!agendamentoId) {
+    throw new HttpsError("invalid-argument", "Agendamento invalido.");
+  }
+  if (dataISO < hojeSaoPauloISO()) {
+    throw new HttpsError("failed-precondition", "Nao e possivel remarcar para data passada.");
+  }
+
+  const agRef = db.collection("dados_cidadaos").doc(agendamentoId);
+  const novoSlotId = contabilizaVaga ? `${dataISO}_${hora}` : `manual_${agendamentoId}`;
+  const novoSlotRef = db.collection("vagas_ocupadas").doc(novoSlotId);
+  const agora = new Date().toISOString();
+  let retorno = null;
+
+  await db.runTransaction(async (t) => {
+    const agDoc = await t.get(agRef);
+    if (!agDoc.exists) {
+      throw new HttpsError("not-found", "Agendamento nao encontrado.");
+    }
+
+    const dados = agDoc.data();
+    const slotAntigoId = dados.slotId || `${dados.dataISO}_${dados.hora}`;
+    const slotAntigoRef = slotAntigoId ? db.collection("vagas_ocupadas").doc(slotAntigoId) : null;
+    const novoSlotDoc = await t.get(novoSlotRef);
+
+    if (contabilizaVaga && novoSlotDoc.exists && novoSlotId !== slotAntigoId) {
+      throw new HttpsError("already-exists", "Este horario ja esta ocupado. Escolha outro horario.");
+    }
+
+    if (slotAntigoRef && slotAntigoId !== novoSlotId) {
+      t.delete(slotAntigoRef);
+    }
+
+    t.set(novoSlotRef, {
+      dataISO,
+      hora,
+      contabilizaVaga,
+      origem: contabilizaVaga ? "admin_remarcacao" : "manual",
+      agendamentoId
+    }, { merge: true });
+
+    const remarcacao = {
+      deDataISO: dados.dataISO || "",
+      deHora: dados.hora || "",
+      paraDataISO: dataISO,
+      paraHora: hora,
+      contabilizaVaga,
+      adminEmail,
+      criado: agora
+    };
+
+    t.set(agRef, {
+      dataISO,
+      hora,
+      slotId: novoSlotId,
+      insercaoManual: !contabilizaVaga,
+      remarcadoEm: agora,
+      remarcadoPor: adminEmail,
+      remarcacoes: admin.firestore.FieldValue.arrayUnion(remarcacao)
+    }, { merge: true });
+
+    const cpfNum = String(dados.cpf || "").replace(/\D/g, "");
+    if (cpfNum.length === 11) {
+      t.set(db.collection("cpfs_agendados").doc(cpfDocId(cpfNum)), { agendamentoId, slotId: novoSlotId, atualizado: agora }, { merge: true });
+      t.set(db.collection("cpfs_agendados").doc(cpfNum), { agendamentoId, slotId: novoSlotId, atualizado: agora }, { merge: true });
+    }
+
+    t.set(db.collection("logs_admin").doc(), {
+      acao: "remarcar_agendamento",
+      agendamentoId,
+      protocolo: dados.protocolo || "",
+      detalhes: remarcacao,
+      adminEmail,
+      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      criado: agora
+    });
+
+    retorno = {
+      id: agendamentoId,
+      dataISO,
+      dataBR: dataBr(dataISO),
+      hora,
+      slotId: novoSlotId,
+      insercaoManual: !contabilizaVaga
+    };
+  });
+
+  return { agendamento: retorno };
+});
+
+exports.listarLogsAdmin = onCall(callableOptions, async (request) => {
+  assertAdmin(request);
+  const limite = Math.min(Math.max(Number(request.data && request.data.limite) || 80, 10), 200);
+  const snap = await db.collection("logs_admin").orderBy("criadoEm", "desc").limit(limite).get();
+  return {
+    logs: snap.docs.map((doc) => {
+      const dados = doc.data();
+      return {
+        id: doc.id,
+        acao: dados.acao || "",
+        adminEmail: dados.adminEmail || "",
+        agendamentoId: dados.agendamentoId || "",
+        protocolo: dados.protocolo || "",
+        detalhes: dados.detalhes || {},
+        criado: dados.criado || (dados.criadoEm && dados.criadoEm.toDate ? dados.criadoEm.toDate().toISOString() : "")
+      };
+    })
+  };
+});
+
+exports.gerarBackupAdmin = onCall(callableOptions, async (request) => {
+  const adminEmail = assertAdmin(request);
+  const [agendaDoc, agendamentosSnap, logsSnap] = await Promise.all([
+    db.collection("configuracoes").doc("agenda").get(),
+    db.collection("dados_cidadaos").orderBy("dataISO").orderBy("hora").get(),
+    db.collection("logs_admin").orderBy("criadoEm", "desc").limit(300).get()
+  ]);
+
+  const criado = new Date().toISOString();
+  const backup = {
+    geradoEm: criado,
+    geradoPor: adminEmail,
+    agenda: agendaDoc.exists ? agendaDoc.data() : {},
+    agendamentos: agendamentosSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
+    logsRecentes: logsSnap.docs.map((doc) => {
+      const dados = doc.data();
+      return {
+        id: doc.id,
+        ...dados,
+        criadoEm: dados.criadoEm && dados.criadoEm.toDate ? dados.criadoEm.toDate().toISOString() : dados.criadoEm || ""
+      };
+    })
+  };
+
+  await db.collection("logs_admin").add({
+    acao: "gerar_backup",
+    detalhes: { quantidadeAgendamentos: backup.agendamentos.length },
+    adminEmail,
+    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    criado
+  });
+
+  return { backup };
+});

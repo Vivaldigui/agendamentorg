@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Oficial CIN - V6</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #0056b3; --primary-dark: #003d82; --success: #1d6f42; --bg: #f4f7f9; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #1e293b; }
+        #login-screen { max-width: 400px; margin: 10vh auto; background: white; padding: 40px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.06); text-align: center; }
+        .input-group { margin-bottom: 15px; text-align: left; }
+        .input-group label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 5px; }
+        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; background: white; font-family: inherit; }
+        .input-group input.erro { border-color: #dc2626; background: #fef2f2; }
+        .obrigatorio { color: #dc2626; font-weight: 800; }
+        .btn-login { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        #painel-screen { display: none; max-width: 1400px; margin: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .controles { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap:wrap;}
+        .btn { padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; color: white; transition: 0.2s; }
+        .btn-atualizar { background: var(--primary); }
+        .btn-excel { background: var(--success); }
+        .btn-manual { background: #f59e0b; }
+        .btn-lote { background: #0ea5e9; }
+        .btn-sair { background: #64748b; }
+        .acoes-linha { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn-lembrete { background: #0ea5e9; font-size:0.75rem; padding: 8px 12px; text-decoration:none; color: white; border-radius: 6px; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; }
+        .btn-lembrete:hover { background: #0369a1; }
+        .btn-comprovante { background: #475569; }
+        .btn-comprovante:hover { background: #334155; }
+        .btn-remarcar { background: #ea580c; }
+        .cards-resumo { display: grid; grid-template-columns: repeat(5, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .card-kpi { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .card-kpi span { display: block; color: #64748b; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .card-kpi strong { display: block; margin-top: 6px; color: var(--primary-dark); font-size: 1.7rem; line-height: 1; }
+        .painel-filtros { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 20px; }
+        .filtros-grid { display: grid; grid-template-columns: 2fr 1fr 1fr auto auto auto; gap: 10px; align-items: end; }
+        .filtro-check { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 700; color: #475569; padding-bottom: 11px; }
+        .filtro-check input { width: 18px; height: 18px; }
+        .tabela-wrap { overflow-x: auto; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        table { width: 100%; border-collapse: collapse; background: white; min-width: 1100px; }
+        th, td { padding: 16px; text-align: left; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; }
+        th { background: #f8fafc; color: #64748b; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
+        .badge-manual { background: #fffbeb; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 800; border: 1px solid #fef3c7; }
+        .badge-status { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 900; border: 1px solid transparent; }
+        .st-agendado { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+        .st-compareceu { background:#ecfdf5; color:#047857; border-color:#a7f3d0; }
+        .st-nao_compareceu { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
+        .st-cancelado { background:#f8fafc; color:#475569; border-color:#e2e8f0; }
+        .st-remarcado { background:#fffbeb; color:#92400e; border-color:#fde68a; }
+        .select-status { min-width: 170px; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; color: #1e293b; }
+        .btn-pequeno { border: none; cursor: pointer; font-size:0.75rem; padding: 8px 12px; text-decoration:none; color: white; border-radius: 6px; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; }
+        .btn-acoes { background: var(--primary-dark); }
+        .acoes-menu-wrap { position: relative; display: inline-block; }
+        .acoes-menu { display: none; position: absolute; right: 0; top: 38px; min-width: 220px; background: white; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 14px 28px rgba(15,23,42,0.16); z-index: 20; padding: 6px; }
+        .acoes-menu.aberto { display: grid; gap: 4px; }
+        .acoes-menu button { border: none; background: transparent; color: #1e293b; text-align: left; padding: 10px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+        .acoes-menu button:hover { background: #f1f5f9; }
+        .acoes-menu button.perigo { color: #b91c1c; }
+        .filtros-rapidos { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+        .filtros-rapidos button { border: 1px solid #cbd5e1; background: white; color: #334155; border-radius: 999px; padding: 8px 12px; font-weight: 800; cursor: pointer; }
+        .filtros-rapidos button.ativo { background: var(--primary); color: white; border-color: var(--primary); }
+        .detalhe-pessoal { display:block; color:#64748b; font-size:0.75rem; margin-top:4px; font-weight:600; }
+        .bloqueio-badge { display:inline-flex; margin-top:6px; color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; border-radius:999px; padding:3px 8px; font-size:0.68rem; font-weight:900; }
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: white; padding: 30px; border-radius: 16px; width: 100%; max-width: 550px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .painel-config { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 20px; }
+        .painel-config h3 { margin: 0 0 14px; color: var(--primary-dark); font-size: 1rem; }
+        .config-form { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; margin-bottom: 14px; }
+        .config-form .input-group { margin: 0; min-width: 190px; }
+        .btn-config { background: var(--primary-dark); }
+        .lista-datas { display: flex; gap: 8px; flex-wrap: wrap; min-height: 38px; align-items: center; }
+        .chip-data { display: inline-flex; align-items: center; gap: 8px; background: #eff6ff; color: #003d82; border: 1px solid #bfdbfe; border-radius: 999px; padding: 8px 10px; font-weight: 700; font-size: 0.82rem; }
+        .chip-data.passada { background: #f8fafc; color: #64748b; border-color: #e2e8f0; }
+        .chip-data.programada { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+        .chip-data button { border: none; background: transparent; color: inherit; cursor: pointer; font-weight: 900; padding: 0 2px; }
+        @media (max-width: 1100px) { .cards-resumo { grid-template-columns: repeat(2, 1fr); } .filtros-grid { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 760px) {
+            body { padding: 10px; }
+            #painel-screen { max-width: 100%; }
+            .header { align-items: flex-start; gap: 12px; flex-direction: column; }
+            .header h2 { font-size: 1.2rem; margin: 0; }
+            .btn { width: 100%; justify-content: center; }
+            .controles, .config-form { flex-direction: column; align-items: stretch; }
+            .cards-resumo, .filtros-grid, .grid-2 { grid-template-columns: 1fr; }
+            .card-kpi { padding: 14px; }
+            .modal { align-items: flex-start; overflow:auto; padding: 10px; }
+            .modal-content { margin: 18px 0; padding: 18px; max-width: 100%; }
+            .tabela-wrap { overflow: visible; box-shadow: none; }
+            table, thead, tbody, tr, td { display:block; width:100%; min-width:0; }
+            table { background: transparent; }
+            thead { display:none; }
+            tr { background:white; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:12px; padding:10px; }
+            td { border:0; padding:9px 4px; font-size:0.9rem; }
+            td::before { content: attr(data-label); display:block; color:#64748b; font-size:0.7rem; font-weight:900; text-transform:uppercase; margin-bottom:3px; }
+            .acoes-linha .btn-pequeno, .select-status, .acoes-menu-wrap, .btn-acoes { width:100%; justify-content:center; }
+            .acoes-menu { position: static; width:100%; margin-top:6px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <img src="https://www.itanhandu.cam.mg.gov.br/img/header-logo.png" style="max-width:180px; margin-bottom:20px;">
+        <h2>Gestão Oficial CIN</h2>
+        <div class="input-group"><label>E-mail:</label><input type="email" id="email"></div>
+        <div class="input-group"><label>Senha:</label><input type="password" id="senha"></div>
+        <button class="btn-login" onclick="fazerLogin()">ACESSAR PAINEL SEGURO</button>
+    </div>
+
+    <div id="painel-screen">
+        <div class="header">
+            <h2><i class="fa-solid fa-users-gear"></i> Painel da Recepção (V6)</h2>
+            <button class="btn btn-sair" onclick="fazerLogout()">Sair</button>
+        </div>
+        <div class="controles">
+            <button class="btn btn-atualizar" onclick="listarAgendamentos()"><i class="fa-solid fa-rotate"></i> Atualizar Lista</button>
+            <button class="btn btn-excel" onclick="exportarExcel()"><i class="fa-solid fa-file-excel"></i> Exportar para Excel</button>
+            <button class="btn btn-manual" onclick="abrirModal()"><i class="fa-solid fa-user-plus"></i> Inserir Encaixe Manual</button>
+        </div>
+        <div class="cards-resumo">
+            <div class="card-kpi"><span>Hoje</span><strong id="kpi-hoje">0</strong></div>
+            <div class="card-kpi"><span>Amanhã</span><strong id="kpi-amanha">0</strong></div>
+            <div class="card-kpi"><span>Vagas Restantes</span><strong id="kpi-vagas">0</strong></div>
+            <div class="card-kpi"><span>Datas Lotadas</span><strong id="kpi-lotadas">0</strong></div>
+            <div class="card-kpi"><span>Atendimentos realizados</span><strong id="kpi-atendidos">0</strong></div>
+        </div>
+        <div class="painel-config">
+            <h3><i class="fa-solid fa-calendar-days"></i> Datas de Atendimento</h3>
+            <div class="config-form">
+                <div class="input-group">
+                    <label>Nova data:</label>
+                    <input type="date" id="cfg-data">
+                </div>
+                <div class="input-group">
+                    <label>Disponibilizar:</label>
+                    <select id="cfg-disponibilidade-data" onchange="alternarProgramacaoData()">
+                        <option value="agora">Agora</option>
+                        <option value="programar">Em data/hora</option>
+                    </select>
+                </div>
+                <div class="input-group" id="box-cfg-publicar-em-data" style="display:none;">
+                    <label>Liberar em:</label>
+                    <input type="datetime-local" id="cfg-publicar-em-data">
+                </div>
+                <button class="btn btn-config" onclick="adicionarDataAgenda()"><i class="fa-solid fa-plus"></i> Adicionar Data</button>
+                <button class="btn btn-atualizar" onclick="carregarAgendaGestao()"><i class="fa-solid fa-rotate"></i> Recarregar Datas</button>
+            </div>
+            <div class="lista-datas" id="lista-datas-agenda"></div>
+            <div class="config-form" style="margin-top:16px; padding-top:14px; border-top:1px solid #e2e8f0;">
+                <div class="input-group">
+                    <label>Novas vagas em:</label>
+                    <input type="date" id="cfg-data-novas-vagas">
+                </div>
+                <div class="input-group">
+                    <label>Disponibilizar aviso:</label>
+                    <select id="cfg-disponibilidade-aviso" onchange="alternarProgramacaoAviso()">
+                        <option value="agora">Agora</option>
+                        <option value="programar">Em data/hora</option>
+                    </select>
+                </div>
+                <div class="input-group" id="box-cfg-publicar-em-aviso" style="display:none;">
+                    <label>Exibir aviso em:</label>
+                    <input type="datetime-local" id="cfg-publicar-em-aviso">
+                </div>
+                <button class="btn btn-config" onclick="salvarAvisoNovasVagas()"><i class="fa-solid fa-floppy-disk"></i> Salvar Aviso</button>
+            </div>
+        </div>
+        <div class="painel-filtros">
+            <h3 style="margin:0 0 14px; color:var(--primary-dark); font-size:1rem;"><i class="fa-solid fa-filter"></i> Filtros da Lista</h3>
+            <div class="filtros-grid">
+                <div class="input-group">
+                    <label>Buscar:</label>
+                    <input id="filtro-busca" type="text" placeholder="Nome, CPF, telefone ou protocolo" oninput="renderTabelaAgendamentos()">
+                </div>
+                <div class="input-group">
+                    <label>Data:</label>
+                    <input id="filtro-data" type="date" onchange="renderTabelaAgendamentos()">
+                </div>
+                <div class="input-group">
+                    <label>Status:</label>
+                    <select id="filtro-status" onchange="renderTabelaAgendamentos()">
+                        <option value="">Todos</option>
+                        <option value="agendado">Agendado</option>
+                        <option value="compareceu">Compareceu</option>
+                        <option value="nao_compareceu">Não compareceu</option>
+                        <option value="cancelado">Cancelado</option>
+                        <option value="remarcado">Remarcado</option>
+                    </select>
+                </div>
+                <label class="filtro-check"><input type="checkbox" id="filtro-futuros" checked onchange="renderTabelaAgendamentos()"> Ocultar passados</label>
+                <button class="btn btn-sair" onclick="limparFiltros()"><i class="fa-solid fa-broom"></i> Limpar</button>
+            </div>
+            <div class="filtros-rapidos">
+                <button type="button" onclick="filtroRapidoPainel('hoje')">Hoje</button>
+                <button type="button" onclick="filtroRapidoPainel('amanha')">AmanhÃ£</button>
+                <button type="button" onclick="filtroRapidoPainel('semana')">Esta semana</button>
+                <button type="button" onclick="filtroRapidoPainel('agendados')">Agendados</button>
+                <button type="button" onclick="filtroRapidoPainel('compareceram')">Compareceram</button>
+                <button type="button" onclick="filtroRapidoPainel('faltaram')">NÃ£o compareceram</button>
+                <button type="button" onclick="filtroRapidoPainel('cancelados')">Cancelados</button>
+                <button type="button" onclick="filtroRapidoPainel('bloqueados')">Bloqueados</button>
+                <button type="button" onclick="filtroRapidoPainel('manuais')">Manuais</button>
+            </div>
+        </div>
+        <div class="tabela-wrap">
+            <table>
+                <thead><tr><th>Data/Hora</th><th>Cidadão</th><th>CPF / Nasc</th><th>Contato</th><th>Status</th><th>Ações</th></tr></thead>
+                <tbody id="corpo-tabela"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="modal-manual" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0; color:var(--primary-dark)">Inserir Encaixe Manual</h3>
+            <div class="grid-2">
+                <div class="input-group"><label>Data: <span class="obrigatorio">*</span></label><input type="date" id="m-data" required></div>
+                <div class="input-group"><label>Hora: <span class="obrigatorio">*</span></label><input type="time" id="m-hora" required></div>
+            </div>
+            <div class="input-group"><label>Nome: <span class="obrigatorio">*</span></label><input type="text" id="m-nome" required></div>
+            <div class="grid-2">
+                <div class="input-group"><label>CPF:</label><input type="text" id="m-cpf" oninput="mascaraCPF(this)" maxlength="14"></div>
+                <div class="input-group"><label>Nascimento:</label><input type="text" id="m-nasc" oninput="mascaraData(this)" maxlength="10" placeholder="DD/MM/AAAA"></div>
+            </div>
+            <div class="input-group"><label>Celular/WhatsApp:</label><input type="text" id="m-tel" oninput="mascaraTel(this)" maxlength="15"></div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn btn-sair" style="flex:1" onclick="fecharModal()">Cancelar</button>
+                <button class="btn btn-atualizar" style="flex:2" id="btnSalvar" onclick="salvarManual()">Salvar Encaixe</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-remarcar" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0; color:var(--primary-dark)">RemarcaÃ§Ã£o Manual</h3>
+            <input type="hidden" id="remarcar-id">
+            <div class="input-group"><label>CidadÃ£o:</label><input type="text" id="remarcar-nome" disabled></div>
+            <div class="grid-2">
+                <div class="input-group"><label>Nova data:</label><input type="date" id="remarcar-data"></div>
+                <div class="input-group"><label>Novo horÃ¡rio:</label><input type="time" id="remarcar-hora"></div>
+            </div>
+            <label class="filtro-check" style="padding:0; margin:8px 0 0;">
+                <input type="checkbox" id="remarcar-contabiliza">
+                Ocupa vaga da agenda pÃºblica
+            </label>
+            <div style="color:#64748b; font-size:0.82rem; margin-top:8px;">Deixe desmarcado para encaixe manual que nÃ£o altera as vagas exibidas no site.</div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn btn-sair" style="flex:1" onclick="fecharRemarcacao()">Cancelar</button>
+                <button class="btn btn-atualizar" style="flex:2" id="btnSalvarRemarcacao" onclick="salvarRemarcacao()">Salvar RemarcaÃ§Ã£o</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
+
+    <script>
+        var firebaseConfig = { apiKey: "AIzaSyBqmzQw8CtTD6O2C3fiXcm7_GBmkgite_c", authDomain: "agendamento-cin-itanhandu.firebaseapp.com", projectId: "agendamento-cin-itanhandu", storageBucket: "agendamento-cin-itanhandu.firebasestorage.app", messagingSenderId: "144820039253", appId: "1:144820039253:web:af179156ce8da4b73a6edc" };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore(); const auth = firebase.auth(); const functions = firebase.functions();
+        const DIAS_INICIAIS = ["2026-05-15","2026-05-19","2026-05-20","2026-05-21","2026-05-22","2026-05-26","2026-05-27","2026-05-28","2026-05-29"];
+        const HORARIOS_PADRAO = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
+        const STATUS_LABELS = {
+            agendado: "Agendado",
+            compareceu: "Compareceu",
+            nao_compareceu: "Não compareceu",
+            cancelado: "Cancelado",
+            remarcado: "Remarcado"
+        };
+        const STATUS_ORDEM = ["agendado", "compareceu", "nao_compareceu", "cancelado", "remarcado"];
+        let agendaDias = [];
+        let agendaHorarios = HORARIOS_PADRAO;
+        let agendaPublicacaoDatas = {};
+        let agendamentosCache = [];
+        let filtroRapidoAtual = "";
+
+        function textoSeguro(valor) {
+            return String(valor || "").replace(/[&<>"']/g, c => ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#039;"
+            }[c]));
+        }
+
+        function csvCampo(valor) {
+            let texto = String(valor || "");
+            if (/^[=+\-@\t\r]/.test(texto)) texto = "'" + texto;
+            return `"${texto.replace(/"/g, '""')}"`;
+        }
+
+        function hojeISO() {
+            const partes = new Intl.DateTimeFormat("en", {
+                timeZone: "America/Sao_Paulo",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit"
+            }).formatToParts(new Date());
+            const valores = Object.fromEntries(partes.map(parte => [parte.type, parte.value]));
+            return `${valores.year}-${valores.month}-${valores.day}`;
+        }
+
+        function agoraSaoPauloInput() {
+            const partes = new Intl.DateTimeFormat("en", {
+                timeZone: "America/Sao_Paulo",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                hourCycle: "h23"
+            }).formatToParts(new Date());
+            const valores = Object.fromEntries(partes.map(parte => [parte.type, parte.value]));
+            return `${valores.year}-${valores.month}-${valores.day}T${valores.hour}:${valores.minute}`;
+        }
+
+        function dataBrISO(dataISO) {
+            const p = String(dataISO || "").split("-");
+            return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : dataISO;
+        }
+
+        function dataHoraBr(valor) {
+            const texto = String(valor || "");
+            if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(texto)) return "";
+            return `${dataBrISO(texto.slice(0, 10))} às ${texto.slice(11, 16)}`;
+        }
+
+        function normalizarPublicacaoDatas(valor) {
+            if (!valor || typeof valor !== "object" || Array.isArray(valor)) return {};
+            const limpo = {};
+            Object.keys(valor).forEach(data => {
+                if (/^\d{4}-\d{2}-\d{2}$/.test(data) && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(String(valor[data] || ""))) {
+                    limpo[data] = String(valor[data]);
+                }
+            });
+            return limpo;
+        }
+
+        function estaProgramada(dataISO) {
+            const publicarEm = agendaPublicacaoDatas[dataISO];
+            return publicarEm && publicarEm > agoraSaoPauloInput();
+        }
+
+        function alternarProgramacaoData() {
+            const programar = document.getElementById("cfg-disponibilidade-data").value === "programar";
+            document.getElementById("box-cfg-publicar-em-data").style.display = programar ? "block" : "none";
+        }
+
+        function alternarProgramacaoAviso() {
+            const programar = document.getElementById("cfg-disponibilidade-aviso").value === "programar";
+            document.getElementById("box-cfg-publicar-em-aviso").style.display = programar ? "block" : "none";
+        }
+
+        function dataConfigParaInput(valor) {
+            const texto = String(valor || "").trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) return texto;
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(texto)) {
+                const p = texto.split("/");
+                return `${p[2]}-${p[1]}-${p[0]}`;
+            }
+            return "";
+        }
+
+        function ordenarDatas(dias) {
+            return [...new Set((dias || []).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)))].sort();
+        }
+
+        function ordenarHorarios(horarios) {
+            const base = Array.isArray(horarios) ? horarios : [];
+            return [...new Set([...base, ...HORARIOS_PADRAO].filter(h => /^\d{2}:\d{2}$/.test(String(h || ""))))].sort();
+        }
+
+        function somarDiasISO(dataISO, dias) {
+            const [a, m, d] = dataISO.split("-").map(Number);
+            const data = new Date(a, m - 1, d + dias);
+            return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
+        }
+
+        function amanhaISO() {
+            return somarDiasISO(hojeISO(), 1);
+        }
+
+        function cpfNumeros(valor) {
+            return String(valor || "").replace(/\D/g, "");
+        }
+
+        function dataHoraAtendimento(dados) {
+            return `${dataBrISO(dados.dataISO)} ${dados.hora || ""}`.trim();
+        }
+
+        function semanaFimISO() {
+            return somarDiasISO(hojeISO(), 6);
+        }
+
+        function bloqueioAtivo(dados) {
+            return dados.bloqueioAtivo === true && (!dados.bloqueadoAte || dados.bloqueadoAte >= hojeISO());
+        }
+
+        function criarDadosBloqueio(dados) {
+            const cpf = cpfNumeros(dados.cpf);
+            return {
+                bloqueioAtivo: true,
+                bloqueioCpf: cpf,
+                bloqueioNome: dados.nome || "",
+                bloqueioTelefone: dados.telefone || "",
+                bloqueioMotivo: "Não comparecimento",
+                bloqueioDataFalta: dataHoraAtendimento(dados),
+                bloqueadoAte: somarDiasISO(hojeISO(), 60),
+                bloqueioCriadoEm: new Date().toISOString(),
+                bloqueioOrigem: "gestaov6",
+                bloqueioLiberado: false
+            };
+        }
+
+        async function gerarCpfDocId(cpf) {
+            const limpo = cpfNumeros(cpf);
+            if (!limpo) return "";
+            if (!window.crypto || !window.crypto.subtle) return limpo;
+            const bytes = new TextEncoder().encode(limpo);
+            const hash = await crypto.subtle.digest("SHA-256", bytes);
+            return "cpf_" + Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+        }
+
+        function statusValor(dados) {
+            const status = dados.status;
+            if (status === "cancelado_cidadao" || status === "cancelado_camara") return "cancelado";
+            return STATUS_LABELS[status] ? status : "agendado";
+        }
+
+        function statusLabel(status) {
+            return STATUS_LABELS[status] || STATUS_LABELS.agendado;
+        }
+
+        function dataNascBR(valor) {
+            return String(valor || "").split("-").reverse().join("/");
+        }
+
+        function textoBusca(ag) {
+            const d = ag.dados;
+            return [
+                d.nome,
+                d.cpf,
+                d.telefone,
+                d.email,
+                d.protocolo,
+                dataBrISO(d.dataISO),
+                d.hora
+            ].join(" ").toLowerCase();
+        }
+
+        function mensagemLembrete(d) {
+            const dataBr = dataBrISO(d.dataISO);
+            return `Olá, ${d.nome}!\n\nPassando para lembrar que seu atendimento para emissão do RG/CIN está agendado para *${dataBr} às ${d.hora}* na *Câmara Municipal de Itanhandu*.\n\nNão se esqueça de levar os documentos necessários:\n\n1. A certidão deve ser ORIGINAL, sem rasgos, rasuras ou alterações.\n2. Certidão de nascimento original (se solteiro), certidão de casamento original (se casado). Se viúvo ou divorciado, a certidão de casamento deve estar averbada.\n3. CPF.\n4. Comprovante de residência.\n\nMenores de 16 anos devem estar acompanhados do responsável legal com documento (RG ou CNH).\n\nProtocolo: ${d.protocolo || "não informado"}.\n\nAté logo!`;
+        }
+
+        function documentosComprovanteHTML() {
+            return `
+                <ul>
+                    <li><strong>A certidão deve ser ORIGINAL, sem rasgos, rasuras ou alterações.</strong></li>
+                    <li>Certidão de nascimento original, se solteiro, ou certidão de casamento original, se casado.</li>
+                    <li>Se viúvo ou divorciado, a certidão de casamento deve estar averbada.</li>
+                    <li>CPF e comprovante de residência.</li>
+                    <li>Menores de 16 anos devem estar acompanhados do responsável legal com RG ou CNH.</li>
+                </ul>
+            `;
+        }
+
+        function linhaComprovante(rotulo, valor) {
+            if (!valor) return "";
+            return `<div class="linha"><span>${textoSeguro(rotulo)}</span><strong>${textoSeguro(valor)}</strong></div>`;
+        }
+
+        function emitirComprovantePDF(dados) {
+            const dataBR = dados.dataBR || dataBrISO(dados.dataISO);
+            const nascBR = dados.nascimentoBR || dataNascBR(dados.dataNasc);
+            const protocolo = dados.protocolo || "Não informado";
+            const janela = window.open("", "_blank");
+            if (!janela) {
+                alert("O navegador bloqueou a janela do comprovante. Permita pop-ups para emitir o PDF.");
+                return;
+            }
+
+            janela.document.write(`<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Comprovante ${textoSeguro(protocolo)}</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; margin: 0; background: #f1f5f9; color: #0f172a; }
+        .pagina { max-width: 760px; margin: 24px auto; background: white; padding: 34px; border: 1px solid #e2e8f0; }
+        .topo { text-align: center; border-bottom: 3px solid #0056b3; padding-bottom: 18px; margin-bottom: 24px; }
+        .topo img { max-width: 190px; margin-bottom: 12px; }
+        h1 { margin: 0; font-size: 22px; color: #003d82; text-transform: uppercase; }
+        .sub { margin: 6px 0 0; color: #475569; font-size: 14px; }
+        .protocolo { margin: 22px 0; padding: 16px; text-align: center; border: 1px dashed #94a3b8; border-radius: 10px; }
+        .protocolo strong { display: block; font-size: 24px; color: #0056b3; margin-top: 4px; letter-spacing: 1px; }
+        .linha { display: flex; justify-content: space-between; gap: 18px; padding: 11px 0; border-bottom: 1px solid #e2e8f0; }
+        .linha span { color: #64748b; font-weight: 700; }
+        .linha strong { text-align: right; color: #0f172a; }
+        .box { margin-top: 24px; background: #fffbeb; border: 1px solid #fde68a; border-left: 5px solid #f59e0b; padding: 16px 18px; border-radius: 10px; }
+        .box h2 { margin: 0 0 8px; font-size: 16px; color: #92400e; }
+        .box ul { margin: 0; padding-left: 20px; line-height: 1.55; color: #78350f; }
+        .rodape { margin-top: 26px; color: #64748b; font-size: 12px; text-align: center; }
+        .acoes { max-width: 760px; margin: 0 auto 24px; display: flex; justify-content: center; gap: 10px; }
+        button { border: none; border-radius: 8px; padding: 11px 18px; font-weight: 700; cursor: pointer; }
+        .imprimir { background: #0056b3; color: white; }
+        .fechar { background: #e2e8f0; color: #0f172a; }
+        @media print {
+            body { background: white; }
+            .pagina { margin: 0; max-width: none; border: none; }
+            .acoes { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="pagina">
+        <div class="topo">
+            <img src="https://www.itanhandu.cam.mg.gov.br/img/header-logo.png" alt="Câmara Municipal de Itanhandu">
+            <h1>Comprovante de Agendamento</h1>
+            <p class="sub">Carteira de Identidade Nacional - CIN</p>
+        </div>
+        <div class="protocolo">Protocolo<strong>${textoSeguro(protocolo)}</strong></div>
+        ${linhaComprovante("Nome", dados.nome)}
+        ${linhaComprovante("Data", dataBR)}
+        ${linhaComprovante("Horário", dados.hora)}
+        ${linhaComprovante("CPF", dados.cpf)}
+        ${linhaComprovante("Nascimento", nascBR)}
+        ${linhaComprovante("Telefone", dados.telefone)}
+        ${linhaComprovante("Local", "Câmara Municipal de Itanhandu")}
+        <div class="box">
+            <h2>Documentos necessários</h2>
+            ${documentosComprovanteHTML()}
+        </div>
+        <div class="rodape">Comprovante emitido em ${new Date().toLocaleString("pt-BR")} pelo sistema de agendamento da Câmara Municipal de Itanhandu.</div>
+    </div>
+    <div class="acoes">
+        <button class="imprimir" onclick="window.print()">Imprimir / Salvar em PDF</button>
+        <button class="fechar" onclick="window.close()">Fechar</button>
+    </div>
+    <script>setTimeout(() => window.print(), 600);<\/script>
+</body>
+</html>`);
+            janela.document.close();
+        }
+
+        function emitirComprovanteDaLista(id) {
+            const ag = buscarAgendamentoCache(id);
+            if (!ag) return alert("Agendamento não encontrado na lista atual.");
+            emitirComprovantePDF(ag.dados);
+            registrarLog("emitir_comprovante", { agendamentoId: id, protocolo: ag.dados.protocolo || "" });
+        }
+
+        async function registrarLog(acao, detalhes) {
+            try {
+                await db.collection("logs_admin").add({
+                    acao,
+                    detalhes: detalhes || {},
+                    adminEmail: auth.currentUser ? auth.currentUser.email : "",
+                    criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+                    criado: new Date().toISOString()
+                });
+            } catch (e) {
+                console.warn("Falha ao registrar log", e);
+            }
+        }
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById('login-screen').style.display='none';
+                document.getElementById('painel-screen').style.display='block';
+                document.getElementById('cfg-data').min = hojeISO();
+                document.getElementById('m-data').min = hojeISO();
+                document.getElementById('remarcar-data').min = hojeISO();
+                document.getElementById('cfg-publicar-em-data').min = agoraSaoPauloInput();
+                document.getElementById('cfg-publicar-em-aviso').min = agoraSaoPauloInput();
+                listarAgendamentos();
+                carregarAgendaGestao();
+            }
+            else { document.getElementById('login-screen').style.display='block'; document.getElementById('painel-screen').style.display='none'; }
+        });
+
+        function fazerLogin() { auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('senha').value).catch(e => alert("Acesso negado.")); }
+        function fazerLogout() { auth.signOut(); }
+        function abrirModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='flex'; }
+        function fecharModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='none'; }
+        function fecharRemarcacao() { document.getElementById('modal-remarcar').style.display='none'; }
+
+        function renderAgendaDatas() {
+            const lista = document.getElementById("lista-datas-agenda");
+            const hoje = hojeISO();
+            lista.innerHTML = "";
+            if (!agendaDias.length) {
+                lista.innerHTML = '<span style="color:#64748b; font-size:0.9rem;">Nenhuma data cadastrada.</span>';
+                return;
+            }
+            agendaDias.forEach(dataISO => {
+                const chip = document.createElement("span");
+                chip.className = "chip-data" + (dataISO < hoje ? " passada" : "") + (estaProgramada(dataISO) ? " programada" : "");
+                const label = document.createElement("span");
+                label.textContent = dataBrISO(dataISO)
+                    + (dataISO < hoje ? " - encerrada" : "")
+                    + (estaProgramada(dataISO) ? ` - libera ${dataHoraBr(agendaPublicacaoDatas[dataISO])}` : "");
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.title = "Remover data";
+                btn.textContent = "x";
+                btn.onclick = () => removerDataAgenda(dataISO);
+                chip.appendChild(label);
+                chip.appendChild(btn);
+                lista.appendChild(chip);
+            });
+        }
+
+        async function carregarAgendaGestao() {
+            const lista = document.getElementById("lista-datas-agenda");
+            lista.innerHTML = '<span style="color:#64748b; font-size:0.9rem;">Carregando datas...</span>';
+            try {
+                const doc = await db.collection("configuracoes").doc("agenda").get();
+                const cfg = doc.exists ? doc.data() : {};
+                agendaDias = ordenarDatas(Array.isArray(cfg.dias) && cfg.dias.length ? cfg.dias : DIAS_INICIAIS);
+                agendaHorarios = ordenarHorarios(cfg.horarios);
+                agendaPublicacaoDatas = normalizarPublicacaoDatas(cfg.publicacaoDatas);
+                const avisoProgramado = cfg.avisoNovasVagasProgramado && typeof cfg.avisoNovasVagasProgramado === "object" ? cfg.avisoNovasVagasProgramado : null;
+                const agora = agoraSaoPauloInput();
+                document.getElementById("cfg-data-novas-vagas").value = dataConfigParaInput(
+                    avisoProgramado && avisoProgramado.publicarEm && avisoProgramado.publicarEm <= agora
+                        ? avisoProgramado.dataNovasVagas
+                        : cfg.dataNovasVagas
+                );
+                if (avisoProgramado && avisoProgramado.publicarEm && avisoProgramado.publicarEm > agora) {
+                    document.getElementById("cfg-data-novas-vagas").value = dataConfigParaInput(avisoProgramado.dataNovasVagas);
+                    document.getElementById("cfg-disponibilidade-aviso").value = "programar";
+                    document.getElementById("cfg-publicar-em-aviso").value = avisoProgramado.publicarEm;
+                } else {
+                    document.getElementById("cfg-disponibilidade-aviso").value = "agora";
+                    document.getElementById("cfg-publicar-em-aviso").value = "";
+                }
+                alternarProgramacaoAviso();
+                renderAgendaDatas();
+                atualizarResumo();
+            } catch (e) {
+                lista.innerHTML = '<span style="color:#dc2626; font-size:0.9rem;">Erro ao carregar datas.</span>';
+            }
+        }
+
+        async function salvarAgendaGestao(msg) {
+            agendaPublicacaoDatas = normalizarPublicacaoDatas(agendaPublicacaoDatas);
+            Object.keys(agendaPublicacaoDatas).forEach(data => {
+                if (!agendaDias.includes(data)) delete agendaPublicacaoDatas[data];
+            });
+            await db.collection("configuracoes").doc("agenda").set({
+                dias: agendaDias,
+                horarios: agendaHorarios.length ? agendaHorarios : HORARIOS_PADRAO,
+                publicacaoDatas: agendaPublicacaoDatas,
+                atualizado: new Date().toISOString()
+            }, { merge: true });
+            renderAgendaDatas();
+            if (msg) alert(msg);
+        }
+
+        async function adicionarDataAgenda() {
+            const input = document.getElementById("cfg-data");
+            const data = input.value;
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return alert("Escolha uma data valida.");
+            if (data < hojeISO()) return alert("Nao e possivel adicionar data que ja passou.");
+            if (agendaDias.includes(data)) return alert("Esta data ja esta cadastrada.");
+            const modo = document.getElementById("cfg-disponibilidade-data").value;
+            const publicarEm = document.getElementById("cfg-publicar-em-data").value;
+            if (modo === "programar") {
+                if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(publicarEm)) return alert("Informe a data e hora de liberacao.");
+                if (publicarEm <= agoraSaoPauloInput()) return alert("Escolha uma data e hora futura para liberar a data.");
+                agendaPublicacaoDatas[data] = publicarEm;
+            } else {
+                delete agendaPublicacaoDatas[data];
+            }
+            agendaDias = ordenarDatas([...agendaDias, data]);
+            input.value = "";
+            try {
+                await salvarAgendaGestao("Data adicionada.");
+                document.getElementById("cfg-disponibilidade-data").value = "agora";
+                document.getElementById("cfg-publicar-em-data").value = "";
+                alternarProgramacaoData();
+                registrarLog("agenda_adicionar_data", { dataISO: data, publicarEm: agendaPublicacaoDatas[data] || "agora" });
+            }
+            catch (e) { alert("Erro ao salvar data."); carregarAgendaGestao(); }
+        }
+
+        async function removerDataAgenda(data) {
+            if (!confirm(`Remover a data ${dataBrISO(data)} da agenda?`)) return;
+            agendaDias = agendaDias.filter(d => d !== data);
+            delete agendaPublicacaoDatas[data];
+            try {
+                await salvarAgendaGestao("Data removida.");
+                registrarLog("agenda_remover_data", { dataISO: data });
+            }
+            catch (e) { alert("Erro ao remover data."); carregarAgendaGestao(); }
+        }
+
+        async function salvarAvisoNovasVagas() {
+            const input = document.getElementById("cfg-data-novas-vagas");
+            const data = input.value;
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return alert("Escolha uma data valida para o aviso.");
+            const modo = document.getElementById("cfg-disponibilidade-aviso").value;
+            const publicarEm = document.getElementById("cfg-publicar-em-aviso").value;
+            const payload = { atualizado: new Date().toISOString() };
+            if (modo === "programar") {
+                if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(publicarEm)) return alert("Informe a data e hora para exibir o aviso.");
+                if (publicarEm <= agoraSaoPauloInput()) return alert("Escolha uma data e hora futura para exibir o aviso.");
+                payload.avisoNovasVagasProgramado = {
+                    dataNovasVagas: dataBrISO(data),
+                    publicarEm
+                };
+            } else {
+                payload.dataNovasVagas = dataBrISO(data);
+                payload.avisoNovasVagasProgramado = null;
+            }
+            try {
+                await db.collection("configuracoes").doc("agenda").set(payload, { merge: true });
+                alert(modo === "programar" ? "Aviso de novas vagas programado." : "Aviso de novas vagas atualizado.");
+                registrarLog("agenda_salvar_aviso_novas_vagas", {
+                    dataNovasVagas: dataBrISO(data),
+                    publicarEm: modo === "programar" ? publicarEm : "agora"
+                });
+            } catch (e) {
+                alert("Erro ao salvar aviso.");
+            }
+        }
+
+        async function listarAgendamentos() {
+            const corpo = document.getElementById("corpo-tabela");
+            corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Carregando...</td></tr>";
+            try {
+                const snap = await db.collection("dados_cidadaos").orderBy("dataISO").orderBy("hora").get();
+                agendamentosCache = snap.docs.map(doc => ({ id: doc.id, dados: doc.data() }));
+                atualizarResumo();
+                renderTabelaAgendamentos();
+            } catch (e) { alert("Erro ao carregar lista."); }
+        }
+
+        function atualizarResumo() {
+            const hoje = hojeISO();
+            const amanha = amanhaISO();
+            const ativos = agendamentosCache.filter(ag => statusValor(ag.dados) !== "cancelado");
+            const totalHoje = ativos.filter(ag => ag.dados.dataISO === hoje).length;
+            const totalAmanha = ativos.filter(ag => ag.dados.dataISO === amanha).length;
+            const atendimentosRealizados = agendamentosCache.filter(ag => statusValor(ag.dados) === "compareceu").length;
+            const diasAtivos = agendaDias.filter(d => d >= hoje);
+            const vagasOcupadasAgenda = ativos.filter(ag => !ag.dados.insercaoManual && diasAtivos.includes(ag.dados.dataISO) && agendaHorarios.includes(ag.dados.hora)).length;
+            const vagasRestantes = Math.max(0, (diasAtivos.length * agendaHorarios.length) - vagasOcupadasAgenda);
+            const lotadas = diasAtivos.filter(data => {
+                const ocupadas = ativos.filter(ag => !ag.dados.insercaoManual && ag.dados.dataISO === data && agendaHorarios.includes(ag.dados.hora)).length;
+                return agendaHorarios.length && ocupadas >= agendaHorarios.length;
+            }).length;
+            document.getElementById("kpi-hoje").textContent = totalHoje;
+            document.getElementById("kpi-amanha").textContent = totalAmanha;
+            document.getElementById("kpi-vagas").textContent = vagasRestantes;
+            document.getElementById("kpi-lotadas").textContent = lotadas;
+            document.getElementById("kpi-atendidos").textContent = atendimentosRealizados;
+        }
+
+        function agendamentosFiltrados() {
+            const busca = document.getElementById("filtro-busca").value.trim().toLowerCase();
+            const data = document.getElementById("filtro-data").value;
+            const status = document.getElementById("filtro-status").value;
+            const soFuturos = document.getElementById("filtro-futuros").checked;
+            const hoje = hojeISO();
+            const fimSemana = semanaFimISO();
+            return agendamentosCache.filter(ag => {
+                const d = ag.dados;
+                const statusAtual = statusValor(d);
+                const exibindoCancelados = status === "cancelado" || filtroRapidoAtual === "cancelados";
+                if (busca && !textoBusca(ag).includes(busca)) return false;
+                if (statusAtual === "cancelado" && !exibindoCancelados) return false;
+                if (filtroRapidoAtual === "bloqueados" && !bloqueioAtivo(d)) return false;
+                if (filtroRapidoAtual === "manuais" && !d.insercaoManual) return false;
+                if (filtroRapidoAtual === "semana" && (d.dataISO < hoje || d.dataISO > fimSemana)) return false;
+                if (data && d.dataISO !== data) return false;
+                if (status && statusAtual !== status) return false;
+                if (soFuturos && d.dataISO < hoje && filtroRapidoAtual !== "bloqueados") return false;
+                return true;
+            });
+        }
+
+        function menuAcoes(ag) {
+            const id = textoSeguro(ag.id);
+            return `
+                <div class="acoes-menu-wrap">
+                    <button type="button" class="btn-pequeno btn-acoes" onclick="alternarMenuAcoes(event, '${id}')">
+                        <i class="fa-solid fa-ellipsis-vertical"></i> Ações
+                    </button>
+                    <div class="acoes-menu" id="menu-acoes-${id}">
+                        <button type="button" onclick="abrirZapLembrete('${id}')"><i class="fa-brands fa-whatsapp"></i> Enviar lembrete</button>
+                        <button type="button" onclick="emitirComprovanteDaLista('${id}')"><i class="fa-solid fa-file-pdf"></i> Gerar comprovante</button>
+                        <button type="button" onclick="abrirRemarcacao('${id}')"><i class="fa-solid fa-pen-to-square"></i> Remarcar</button>
+                        <button type="button" onclick="alterarStatus('${id}', 'compareceu')"><i class="fa-solid fa-check"></i> Marcar compareceu</button>
+                        <button type="button" onclick="alterarStatus('${id}', 'nao_compareceu')"><i class="fa-solid fa-user-xmark"></i> Marcar não compareceu</button>
+                        <button type="button" class="perigo" onclick="cancelarAgendamentoPainel('${id}')"><i class="fa-solid fa-ban"></i> Cancelar</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function fecharMenusAcoes() {
+            document.querySelectorAll(".acoes-menu.aberto").forEach(menu => menu.classList.remove("aberto"));
+        }
+
+        function alternarMenuAcoes(event, id) {
+            event.stopPropagation();
+            const menu = document.getElementById(`menu-acoes-${id}`);
+            if (!menu) return;
+            const aberto = menu.classList.contains("aberto");
+            fecharMenusAcoes();
+            if (!aberto) menu.classList.add("aberto");
+        }
+
+        document.addEventListener("click", fecharMenusAcoes);
+
+        function renderTabelaAgendamentos() {
+            const corpo = document.getElementById("corpo-tabela");
+            if (filtroRapidoAtual === "bloqueados") {
+                renderTabelaBloqueados(corpo);
+                return;
+            }
+            const lista = agendamentosFiltrados();
+            corpo.innerHTML = "";
+            if (!lista.length) {
+                corpo.innerHTML = "<tr><td colspan='6'>Nenhum agendamento encontrado para os filtros atuais.</td></tr>";
+                return;
+            }
+
+            lista.forEach(ag => {
+                const d = ag.dados;
+                const dataBr = dataBrISO(d.dataISO);
+                const manual = d.insercaoManual ? '<br><span class="badge-manual">MANUAL</span>' : '';
+                const status = statusValor(d);
+                const statusOptions = STATUS_ORDEM.map(s => `<option value="${s}" ${s === status ? "selected" : ""}>${statusLabel(s)}</option>`).join("");
+                const bloqueado = bloqueioAtivo(d) ? `<span class="bloqueio-badge">Bloqueado até ${textoSeguro(dataBrISO(d.bloqueadoAte))}</span>` : "";
+                corpo.innerHTML += `
+                    <tr>
+                        <td data-label="Data/Hora"><strong>${textoSeguro(dataBr)}</strong><br>${textoSeguro(d.hora)}${manual}</td>
+                        <td data-label="Cidadão" style="font-weight:700;">${textoSeguro(d.nome)}<span class="detalhe-pessoal">${textoSeguro(d.protocolo || "sem protocolo")}</span>${bloqueado}</td>
+                        <td data-label="CPF / Nasc">${textoSeguro(d.cpf || "CPF não informado")}<span class="detalhe-pessoal">${textoSeguro(dataNascBR(d.dataNasc) || "Nascimento não informado")}</span></td>
+                        <td data-label="Contato">${textoSeguro(d.telefone || "Sem telefone")}<span class="detalhe-pessoal">${textoSeguro(d.email || "")}</span></td>
+                        <td data-label="Status">
+                            <span class="badge-status st-${textoSeguro(status)}">${textoSeguro(statusLabel(status))}</span><br>
+                            <select class="select-status" onchange="alterarStatus('${textoSeguro(ag.id)}', this.value)">
+                                ${statusOptions}
+                            </select>
+                        </td>
+                        <td data-label="Ações">${menuAcoes(ag)}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderTabelaBloqueados(corpo) {
+            const lista = agendamentosFiltrados().sort((a, b) => String(a.dados.bloqueadoAte || "").localeCompare(String(b.dados.bloqueadoAte || "")));
+            corpo.innerHTML = "";
+            if (!lista.length) {
+                corpo.innerHTML = "<tr><td colspan='6'>Nenhum CPF bloqueado ativo encontrado.</td></tr>";
+                return;
+            }
+            lista.forEach(ag => {
+                const d = ag.dados;
+                corpo.innerHTML += `
+                    <tr>
+                        <td data-label="Data da falta"><strong>${textoSeguro(d.bloqueioDataFalta || dataHoraAtendimento(d))}</strong></td>
+                        <td data-label="Cidadão" style="font-weight:700;">${textoSeguro(d.bloqueioNome || d.nome)}<span class="bloqueio-badge">Bloqueado até ${textoSeguro(dataBrISO(d.bloqueadoAte))}</span></td>
+                        <td data-label="CPF">${textoSeguro(d.bloqueioCpf || cpfNumeros(d.cpf) || "CPF não informado")}</td>
+                        <td data-label="Telefone">${textoSeguro(d.bloqueioTelefone || d.telefone || "Sem telefone")}</td>
+                        <td data-label="Motivo"><span class="badge-status st-nao_compareceu">${textoSeguro(d.bloqueioMotivo || "Não comparecimento")}</span></td>
+                        <td data-label="Ações">
+                            <div class="acoes-linha">
+                                <button type="button" class="btn-pequeno btn-lembrete" onclick="abrirZapBloqueio('${textoSeguro(ag.id)}')"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+                                <button type="button" class="btn-pequeno btn-atualizar" onclick="liberarBloqueio('${textoSeguro(ag.id)}')"><i class="fa-solid fa-unlock"></i> Liberar bloqueio</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function filtroRapidoPainel(tipo) {
+            filtroRapidoAtual = tipo;
+            document.getElementById("filtro-data").value = "";
+            document.getElementById("filtro-status").value = "";
+            document.getElementById("filtro-futuros").checked = false;
+            if (tipo === "hoje") document.getElementById("filtro-data").value = hojeISO();
+            if (tipo === "amanha") document.getElementById("filtro-data").value = amanhaISO();
+            if (tipo === "agendados") document.getElementById("filtro-status").value = "agendado";
+            if (tipo === "compareceram") document.getElementById("filtro-status").value = "compareceu";
+            if (tipo === "faltaram") document.getElementById("filtro-status").value = "nao_compareceu";
+            if (tipo === "cancelados") document.getElementById("filtro-status").value = "cancelado";
+            marcarFiltroRapidoVisual(tipo);
+            renderTabelaAgendamentos();
+        }
+
+        function marcarFiltroRapidoVisual(tipo) {
+            document.querySelectorAll(".filtros-rapidos button").forEach(btn => {
+                btn.classList.toggle("ativo", btn.getAttribute("onclick").includes(`'${tipo}'`));
+            });
+        }
+
+        function limparFiltros() {
+            filtroRapidoAtual = "";
+            document.getElementById("filtro-busca").value = "";
+            document.getElementById("filtro-data").value = "";
+            document.getElementById("filtro-status").value = "";
+            document.getElementById("filtro-futuros").checked = true;
+            marcarFiltroRapidoVisual("");
+            renderTabelaAgendamentos();
+        }
+
+        function buscarAgendamentoCache(id) {
+            return agendamentosCache.find(ag => ag.id === id);
+        }
+
+        function abrirRemarcacao(id) {
+            const ag = buscarAgendamentoCache(id);
+            if (!ag) return alert("Agendamento nÃ£o encontrado.");
+            document.getElementById("remarcar-id").value = id;
+            document.getElementById("remarcar-nome").value = ag.dados.nome || "";
+            document.getElementById("remarcar-data").value = ag.dados.dataISO || "";
+            document.getElementById("remarcar-hora").value = ag.dados.hora || "";
+            document.getElementById("remarcar-contabiliza").checked = !ag.dados.insercaoManual;
+            document.getElementById("modal-remarcar").style.display = "flex";
+        }
+
+        async function salvarRemarcacao() {
+            const btn = document.getElementById("btnSalvarRemarcacao");
+            const id = document.getElementById("remarcar-id").value;
+            const data = document.getElementById("remarcar-data").value;
+            const hora = document.getElementById("remarcar-hora").value;
+            const contabilizaVaga = document.getElementById("remarcar-contabiliza").checked;
+            const ag = buscarAgendamentoCache(id);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !/^\d{2}:\d{2}$/.test(hora)) {
+                return alert("Informe data e horÃ¡rio para remarcar.");
+            }
+            if (!ag) return alert("Agendamento não encontrado.");
+            btn.disabled = true;
+            btn.innerText = "Remarcando...";
+            try {
+                const slotAntigo = ag.dados.slotId || `${ag.dados.dataISO}_${ag.dados.hora}`;
+                const novoSlot = `${data}_${hora}`;
+                if (contabilizaVaga) {
+                    const slotDoc = await db.collection("vagas_ocupadas").doc(novoSlot).get();
+                    if (slotDoc.exists && novoSlot !== slotAntigo) {
+                        throw new Error("Este horário já está ocupado. Escolha outro horário.");
+                    }
+                }
+                if (slotAntigo && slotAntigo !== novoSlot) {
+                    await db.collection("vagas_ocupadas").doc(slotAntigo).delete().catch(() => {});
+                }
+                if (contabilizaVaga) {
+                    await db.collection("vagas_ocupadas").doc(novoSlot).set({
+                        dataISO: data,
+                        hora,
+                        agendamentoId: id,
+                        origem: "gestaov6_remarcacao",
+                        atualizadoEm: new Date().toISOString()
+                    }, { merge: true });
+                }
+
+                const atualizacao = {
+                    dataISO: data,
+                    hora,
+                    slotId: contabilizaVaga ? novoSlot : null,
+                    insercaoManual: !contabilizaVaga,
+                    status: "remarcado",
+                    remarcadoEm: new Date().toISOString(),
+                    remarcadoPor: auth.currentUser ? auth.currentUser.email : ""
+                };
+                await db.collection("dados_cidadaos").doc(id).set(atualizacao, { merge: true });
+                const cpfId = await gerarCpfDocId(ag.dados.cpf);
+                if (cpfId) {
+                    await db.collection("cpfs_agendados").doc(cpfId).set({
+                        agendamentoId: id,
+                        dataISO: data,
+                        hora,
+                        atualizadoEm: new Date().toISOString()
+                    }, { merge: true });
+                }
+                Object.assign(ag.dados, atualizacao);
+                fecharRemarcacao();
+                await registrarLog("remarcacao_painel", { agendamentoId: id, dataISO: data, hora, contabilizaVaga });
+                atualizarResumo();
+                renderTabelaAgendamentos();
+                alert("Agendamento remarcado.");
+            } catch (e) {
+                alert(e.message || "Erro ao remarcar.");
+            }
+            btn.disabled = false;
+            btn.innerText = "Salvar RemarcaÃ§Ã£o";
+        }
+
+        async function tentarGravarBloqueioDedicado(dadosBloqueio) {
+            const cpf = dadosBloqueio.bloqueioCpf;
+            if (cpf.length !== 11) return;
+            try {
+                await db.collection("bloqueios_agendamento").doc(cpf).set({
+                    cpf,
+                    nome: dadosBloqueio.bloqueioNome,
+                    telefone: dadosBloqueio.bloqueioTelefone,
+                    motivo: dadosBloqueio.bloqueioMotivo,
+                    dataFalta: dadosBloqueio.bloqueioDataFalta,
+                    bloqueadoAte: dadosBloqueio.bloqueadoAte,
+                    criadoEm: dadosBloqueio.bloqueioCriadoEm,
+                    origem: "gestaov6",
+                    liberado: false
+                }, { merge: true });
+            } catch (e) {
+                console.warn("Bloqueio mantido no cadastro do cidadão; coleção dedicada sem permissão no momento.", e);
+            }
+        }
+
+        async function alterarStatus(id, status) {
+            if (!STATUS_LABELS[status]) return alert("Status inválido.");
+            if (status === "cancelado") {
+                await cancelarAgendamentoPainel(id);
+                return;
+            }
+            const ag = buscarAgendamentoCache(id);
+            if (!ag) return alert("Agendamento não encontrado.");
+            const agora = new Date().toISOString();
+            const atualizacao = {
+                status,
+                statusAtualizadoEm: agora,
+                statusAtualizadoPor: auth.currentUser ? auth.currentUser.email : ""
+            };
+            let dadosBloqueio = null;
+            if (status === "nao_compareceu") {
+                dadosBloqueio = criarDadosBloqueio(ag.dados);
+                Object.assign(atualizacao, dadosBloqueio);
+            }
+            try {
+                await db.collection("dados_cidadaos").doc(id).set(atualizacao, { merge: true });
+                if (dadosBloqueio) await tentarGravarBloqueioDedicado(dadosBloqueio);
+                Object.assign(ag.dados, atualizacao);
+                await registrarLog("alterar_status", { agendamentoId: id, status, bloqueadoAte: dadosBloqueio ? dadosBloqueio.bloqueadoAte : "" });
+                atualizarResumo();
+                renderTabelaAgendamentos();
+                if (dadosBloqueio) alert(`Status atualizado. CPF bloqueado até ${dataBrISO(dadosBloqueio.bloqueadoAte)}.`);
+            } catch (e) {
+                alert("Erro ao atualizar status.");
+                listarAgendamentos();
+            }
+        }
+
+        async function cancelarAgendamentoPainel(id) {
+            const ag = buscarAgendamentoCache(id);
+            if (!ag) return alert("Agendamento não encontrado.");
+            if (!confirm("Cancelar este agendamento? A vaga será liberada quando houver data e horário vinculados.")) {
+                renderTabelaAgendamentos();
+                return;
+            }
+            const d = ag.dados;
+            try {
+                const slotId = d.slotId || (d.dataISO && d.hora ? `${d.dataISO}_${d.hora}` : "");
+                await db.collection("dados_cidadaos").doc(id).set({
+                    status: "cancelado",
+                    canceladoEm: new Date().toISOString(),
+                    canceladoPor: auth.currentUser ? auth.currentUser.email : "gestaov6",
+                    statusAtualizadoEm: new Date().toISOString(),
+                    statusAtualizadoPor: auth.currentUser ? auth.currentUser.email : ""
+                }, { merge: true });
+                if (slotId && !d.insercaoManual) await db.collection("vagas_ocupadas").doc(slotId).delete().catch(() => {});
+                const cpfId = await gerarCpfDocId(d.cpf);
+                const cpfLimpo = cpfNumeros(d.cpf);
+                if (cpfId) await db.collection("cpfs_agendados").doc(cpfId).delete().catch(() => {});
+                if (cpfLimpo && cpfLimpo !== cpfId) await db.collection("cpfs_agendados").doc(cpfLimpo).delete().catch(() => {});
+                ag.dados.status = "cancelado";
+                await registrarLog("cancelar_agendamento_painel", { agendamentoId: id, dataISO: d.dataISO, hora: d.hora });
+                atualizarResumo();
+                renderTabelaAgendamentos();
+            } catch (e) {
+                alert("Erro ao cancelar agendamento.");
+                listarAgendamentos();
+            }
+        }
+
+        async function abrirZapLembrete(id) {
+            const ag = buscarAgendamentoCache(id);
+            if (!ag) return;
+            const d = ag.dados;
+            const telLimpo = cpfNumeros(d.telefone);
+            if (telLimpo.length < 10) return alert("Telefone inválido para WhatsApp.");
+            await registrarLog("whatsapp_lembrete", { agendamentoId: id, protocolo: d.protocolo || "", dataISO: d.dataISO, hora: d.hora });
+            window.open(`https://wa.me/55${telLimpo}?text=${encodeURIComponent(mensagemLembrete(d))}`, "_blank", "noopener,noreferrer");
+        }
+
+        async function abrirZapBloqueio(id) {
+            const ag = buscarAgendamentoCache(id);
+            if (!ag) return;
+            const d = ag.dados;
+            const telLimpo = cpfNumeros(d.bloqueioTelefone || d.telefone);
+            if (telLimpo.length < 10) return alert("Telefone inválido para WhatsApp.");
+            const msg = `Olá, ${d.bloqueioNome || d.nome}! Precisamos falar sobre seu agendamento de RG/CIN na Câmara Municipal de Itanhandu. Por favor, entre em contato com a recepção.`;
+            await registrarLog("whatsapp_bloqueio", { agendamentoId: id, cpf: d.bloqueioCpf || cpfNumeros(d.cpf) });
+            window.open(`https://wa.me/55${telLimpo}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+        }
+
+        async function liberarBloqueio(id) {
+            const ag = buscarAgendamentoCache(id);
+            if (!ag) return alert("Registro não encontrado.");
+            if (!confirm("Tem certeza que deseja liberar este CPF para novo agendamento?")) return;
+            const cpf = ag.dados.bloqueioCpf || cpfNumeros(ag.dados.cpf);
+            const liberacao = {
+                bloqueioAtivo: false,
+                bloqueioLiberado: true,
+                dataLiberacao: new Date().toISOString(),
+                usuarioLiberacao: auth.currentUser ? auth.currentUser.email : ""
+            };
+            try {
+                await db.collection("dados_cidadaos").doc(id).set(liberacao, { merge: true });
+                if (cpf.length === 11) await db.collection("bloqueios_agendamento").doc(cpf).delete().catch(() => {});
+                Object.assign(ag.dados, liberacao);
+                await registrarLog("liberar_bloqueio", { agendamentoId: id, cpf });
+                renderTabelaAgendamentos();
+            } catch (e) {
+                alert("Erro ao liberar bloqueio.");
+            }
+        }
+
+        async function salvarManual() {
+            const btn = document.getElementById("btnSalvar");
+            if (!validarManual()) return;
+            const nome = document.getElementById("m-nome").value.trim(), cpf = document.getElementById("m-cpf").value.trim(), tel = document.getElementById("m-tel").value.trim(), data = document.getElementById("m-data").value, hora = document.getElementById("m-hora").value, nasc = document.getElementById("m-nasc").value.trim();
+            
+            btn.disabled = true; btn.innerText = "Salvando...";
+
+            try {
+                const criarEncaixe = functions.httpsCallable("criarEncaixeManual");
+                const resposta = await criarEncaixe({
+                    nome,
+                    cpf,
+                    telefone: tel,
+                    nascimento: nasc,
+                    data,
+                    hora
+                });
+                const agendamento = resposta.data.agendamento || {};
+                const dadosComprovante = {
+                    nome,
+                    cpf,
+                    telefone: tel,
+                    dataNasc: nasc ? nasc.split("/").reverse().join("-") : "",
+                    dataISO: agendamento.dataISO || data,
+                    dataBR: agendamento.dataBR || dataBrISO(data),
+                    hora: agendamento.hora || hora,
+                    protocolo: agendamento.protocolo || ""
+                };
+                alert(`Encaixe realizado! Protocolo: ${dadosComprovante.protocolo}`);
+                await registrarLog("encaixe_manual_painel", { protocolo: dadosComprovante.protocolo, dataISO: data, hora });
+                if (confirm("Deseja emitir o comprovante em PDF agora?")) {
+                    emitirComprovantePDF(dadosComprovante);
+                }
+                fecharModal(); listarAgendamentos();
+            } catch (e) { alert(e.message || "Erro ao salvar."); }
+            btn.disabled = false; btn.innerText = "Salvar Encaixe";
+        }
+
+        function mascaraCPF(i){ let v=i.value.replace(/\D/g,""); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d)/,"$1.$2"); i.value=v.replace(/(\d{3})(\d{1,2})$/,"$1-$2"); }
+        function mascaraData(i){ let v=i.value.replace(/\D/g,""); v=v.replace(/(\d{2})(\d)/,"$1/$2"); i.value=v.replace(/(\d{2})(\d)/,"$1/$2"); }
+        function mascaraTel(i){ let v=i.value.replace(/\D/g,""); v=v.replace(/^(\d{2})(\d)/g,"($1) $2"); i.value=v.replace(/(\d)(\d{4})$/,"$1-$2"); }
+
+        function marcarErroManual(ids) {
+            ["m-data", "m-hora", "m-nome", "m-cpf", "m-nasc", "m-tel"].forEach(id => {
+                document.getElementById(id).classList.toggle("erro", ids.includes(id));
+            });
+        }
+
+        function validarManual() {
+            const campos = [
+                { id: "m-data", nome: "data" },
+                { id: "m-hora", nome: "hora" },
+                { id: "m-nome", nome: "nome" }
+            ];
+            const faltando = campos.filter(c => !document.getElementById(c.id).value.trim());
+            if (faltando.length) {
+                marcarErroManual(faltando.map(c => c.id));
+                document.getElementById(faltando[0].id).focus();
+                alert("Preencha os campos obrigatórios: " + faltando.map(c => c.nome).join(", ") + ".");
+                return false;
+            }
+
+            const erros = [];
+            const cpfManual = document.getElementById("m-cpf").value.replace(/\D/g, "");
+            const nascManual = document.getElementById("m-nasc").value.trim();
+            const telManual = document.getElementById("m-tel").value.replace(/\D/g, "");
+            if (cpfManual && cpfManual.length !== 11) erros.push({ id: "m-cpf", msg: "CPF válido" });
+            if (nascManual && !/^\d{2}\/\d{2}\/\d{4}$/.test(nascManual)) erros.push({ id: "m-nasc", msg: "nascimento no formato DD/MM/AAAA" });
+            if (telManual && telManual.length < 10) erros.push({ id: "m-tel", msg: "celular/WhatsApp válido" });
+            if (erros.length) {
+                marcarErroManual(erros.map(e => e.id));
+                document.getElementById(erros[0].id).focus();
+                alert("Corrija: " + erros.map(e => e.msg).join(", ") + ".");
+                return false;
+            }
+
+            marcarErroManual([]);
+            return true;
+        }
+
+        function exportarExcel() {
+            let csv = "\uFEFFData;Hora;Status;Protocolo;Nome;CPF;Nascimento;Telefone;Email;Manual;Bloqueado Ate\n";
+            agendamentosFiltrados().forEach(ag => {
+                const d = ag.dados;
+                csv += [
+                    dataBrISO(d.dataISO),
+                    d.hora,
+                    statusLabel(statusValor(d)),
+                    d.protocolo || "",
+                    d.nome,
+                    d.cpf,
+                    dataNascBR(d.dataNasc),
+                    d.telefone,
+                    d.email || "",
+                    d.insercaoManual ? "Sim" : "Não",
+                    d.bloqueadoAte ? dataBrISO(d.bloqueadoAte) : ""
+                ].map(csvCampo).join(";") + "\n";
+            });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+            link.download = "Agendamentos_Recepcao_CIN.csv"; link.click();
+            registrarLog("exportar_excel", { quantidade: agendamentosFiltrados().length });
+        }
+    </script>
+</body>
+</html>

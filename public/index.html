@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agendamento de RG - CIN Itanhandu</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style type="text/css">
+        :root {
+            --primary: #0056b3; --primary-dark: #003d82; --primary-light: #eff6ff;
+            --success: #10b981; --success-dark: #059669; --success-light: #ecfdf5;
+            --warning: #f59e0b; --warning-light: #fffbeb;
+            --danger: #ef4444; --danger-dark: #dc2626; --danger-light: #fef2f2;
+            --gray-50: #f8fafc; --gray-100: #f1f5f9; --gray-200: #e2e8f0; 
+            --gray-400: #94a3b8; --gray-600: #475569; --gray-800: #1e293b;
+            --whatsapp: #25d366; --radius: 14px; 
+            --shadow-soft: 0 20px 40px rgba(0, 0, 0, 0.06);
+            --shadow-hover: 0 10px 25px rgba(0, 86, 179, 0.15);
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        body { background-color: #f0f4f8; margin: 0; padding: 10px; font-family: 'Inter', sans-serif; }
+        #sistema-agendamento { max-width: 700px; margin: 0 auto; border-radius: 20px; overflow: hidden; box-shadow: var(--shadow-soft); background: #fff; border: 1px solid rgba(0,0,0,0.05); }
+        .cabecalho-sistema { background: linear-gradient(135deg, var(--primary) 0%, #00428a 100%); color: white; padding: 16px 16px 14px; text-align: center; position: relative; overflow: hidden; }
+        .cabecalho-sistema::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--warning), #fbbf24); opacity: 0.95; }
+        .cabecalho-sistema img { max-width: 118px; height: auto; margin: 0 auto 8px; display: block; filter: drop-shadow(0 3px 5px rgba(0,0,0,0.14)); }
+        .cabecalho-sistema .institucional { margin: 0 0 4px; opacity: 0.86; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+        .cabecalho-sistema h2 { margin: 0 0 3px; font-size: 1.32rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; line-height: 1.05; }
+        .cabecalho-sistema p { margin: 0; opacity: 0.9; font-size: 0.78rem; font-weight: 600; line-height: 1.25; }
+        .banner-vagas { padding: 12px; text-align: center; display: none; border-bottom: 1px solid var(--gray-200); background: white; }
+        .status-vagas-card { width: 100%; border-radius: 16px; padding: 16px 14px; display: flex; align-items: center; justify-content: center; gap: 13px; border: 1px solid var(--gray-200); text-align: center; }
+        .status-vagas-icone { width: 44px; height: 44px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1.25rem; box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08); }
+        .status-vagas-titulo { display: block; font-size: 1.18rem; font-weight: 950; line-height: 1.1; text-transform: uppercase; letter-spacing: 0.02em; }
+        .status-vagas-sub { display: block; margin-top: 5px; font-size: 0.9rem; font-weight: 800; line-height: 1.35; color: var(--gray-600); }
+        .banner-vagas.com-vagas .status-vagas-card { background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%); border-color: #86efac; box-shadow: inset 0 0 0 1px rgba(16,185,129,0.08); }
+        .banner-vagas.com-vagas .status-vagas-icone { background: white; color: var(--success-dark); }
+        .banner-vagas.com-vagas .status-vagas-titulo { color: var(--success-dark); }
+        .banner-vagas.sem-vagas .status-vagas-card { background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%); border-color: #fca5a5; box-shadow: inset 0 0 0 1px rgba(239,68,68,0.08); }
+        .banner-vagas.sem-vagas .status-vagas-icone { background: white; color: var(--danger-dark); }
+        .banner-vagas.sem-vagas .status-vagas-titulo { color: var(--danger-dark); }
+        .abas { display: flex; background: var(--gray-50); padding: 8px; gap: 8px; border-bottom: 1px solid var(--gray-200); margin: 0; }
+        .aba { flex: 1; padding: 12px 5px; cursor: pointer; border: none; background: transparent; border-radius: 10px; font-weight: 700; color: var(--gray-600); transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.85rem; }
+        .aba.ativa { background: white; color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .aba:hover:not(.ativa) { background: var(--gray-100); color: var(--gray-800); }
+        .corpo-sistema { padding: 32px 30px 28px; }
+        .steps-bar { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 30px; }
+        .step { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 700; color: var(--gray-400); transition: 0.3s; }
+        .step .step-num { width: 28px; height: 28px; border-radius: 50%; background: var(--gray-100); color: var(--gray-600); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.85rem; flex-shrink: 0; }
+        .step.ativo { color: var(--primary); }
+        .step.ativo .step-num { background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(0,86,179,0.3); }
+        .step.concluido { color: var(--success); }
+        .step.concluido .step-num { background: var(--success); color: white; }
+        .step-linha { flex: 1; height: 3px; background: var(--gray-100); min-width: 20px; max-width: 45px; border-radius: 2px; }
+        .step-linha.ativa { background: var(--primary); opacity: 0.5; }
+        .step-linha.concluida { background: var(--success); }
+        .loading-container { width: 100%; background: var(--gray-100); border-radius: 20px; margin: 20px 0; overflow: hidden; height: 6px; position: relative; }
+        .loading-bar { width: 35%; height: 100%; background: var(--primary); border-radius: 20px; position: absolute; animation: loading-anim 1.2s infinite; }
+        @keyframes loading-anim { 0% { left: -35%; } 100% { left: 110%; } }
+        .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; margin: 20px 0; }
+        .grade-horas { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+        .btn-data, .btn-hora { padding: 16px 10px; border: 2px solid var(--gray-200); background: white; cursor: pointer; border-radius: var(--radius); text-align: center; font-weight: 700; color: var(--gray-800); font-size: 0.95rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: 0.2s; }
+        .btn-hora { padding: 14px 10px; font-size: 1.05rem; flex-direction: row; }
+        .btn-data:hover:not(:disabled), .btn-hora:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); transform: translateY(-3px); box-shadow: var(--shadow-hover); }
+        .btn-data:disabled, .btn-hora:disabled { background: var(--gray-50); color: var(--gray-400); opacity: 0.7; cursor: not-allowed; border-color: var(--gray-100); transform: none; }
+        .vagas-badge { font-size: 0.75rem; font-weight: 700; padding: 4px 8px; border-radius: 20px; margin-top: 4px; }
+        .vagas-badge.ok { background: var(--success-light); color: var(--success-dark); }
+        .vagas-badge.low { background: var(--warning-light); color: #b45309; }
+        .selecionado { background: var(--primary) !important; color: white !important; border-color: var(--primary) !important; transform: translateY(-2px) !important; box-shadow: var(--shadow-hover) !important; }
+        .form-grupo { margin-bottom: 20px; }
+        .form-grupo label { display: block; margin-bottom: 8px; font-weight: 700; color: var(--gray-800); font-size: 0.9rem; }
+        .form-grupo input[type="text"], .form-grupo input[type="email"] { width: 100%; padding: 15px 16px; border: 2px solid var(--gray-200); background: var(--gray-50); border-radius: 12px; font-size: 1rem; font-weight: 500; color: var(--gray-800); outline: none; transition: 0.25s; }
+        .form-grupo input:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 4px var(--primary-light); }
+        .form-grupo input.erro { border-color: var(--danger); background: var(--danger-light); }
+        .msg-campo-erro { color: var(--danger); font-size: 0.8rem; font-weight: 600; margin-top: 6px; display: none; }
+        .msg-campo-erro.visivel { display: block; animation: fadeIn 0.3s; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .card-resumo { background: var(--primary-light); border: 1px solid #bfdbfe; border-radius: var(--radius); padding: 18px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+        .card-resumo .info { font-size: 0.95rem; color: var(--gray-800); }
+        .btn-alterar { background: white; border: 1px solid var(--primary); color: var(--primary); font-weight: 700; cursor: pointer; border-radius: 8px; padding: 8px 14px; font-size: 0.85rem; }
+        .tarja-alerta { background: var(--danger-light); color: var(--danger-dark); padding: 14px 18px; border-radius: 10px; margin-bottom: 24px; font-weight: 600; font-size: 0.88rem; display: flex; align-items: center; gap: 12px; border-left: 5px solid var(--danger); }
+        .btn-principal { width: 100%; padding: 18px; border: none; border-radius: 12px; font-size: 1.05rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.3s; }
+        .btn-principal.verde { background: var(--success); color: white; }
+        .btn-principal.verde:hover:not(:disabled) { background: var(--success-dark); transform: translateY(-2px); box-shadow: 0 10px 25px rgba(16, 185, 129, 0.35); }
+        .btn-principal.azul { background: var(--primary); color: white; }
+        .btn-principal.azul:hover:not(:disabled) { background: var(--primary-dark); transform: translateY(-2px); }
+        .btn-principal.vermelho { background: var(--danger); color: white; }
+        .btn-principal.vermelho:hover:not(:disabled) { background: var(--danger-dark); transform: translateY(-2px); }
+        .btn-principal.cinza { background: white; color: var(--gray-800); border: 2px solid var(--gray-200); }
+        .btn-principal:disabled { opacity: 0.7; cursor: not-allowed; transform: none; box-shadow: none; }
+        .ticket-sucesso { background: var(--success-light); border: 1px solid #a7f3d0; border-left: 6px solid var(--success); border-radius: 16px; padding: 26px; text-align: center; margin-bottom: 24px; }
+        .data-grande { font-size: 2.4rem; font-weight: 900; color: var(--success-dark); display: block; margin: 12px 0 8px; letter-spacing: -1px; }
+        .msg-sucesso-topo { color: var(--success-dark); font-size: 1.6rem; font-weight: 900; display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 18px; }
+        .protocolo-box { margin-top: 16px; background: white; border: 1px dashed #86efac; border-radius: 12px; padding: 14px; color: var(--gray-800); }
+        .protocolo-codigo { display: block; margin-top: 6px; font-size: 1.35rem; font-weight: 900; color: var(--success-dark); letter-spacing: 1px; }
+        .docs-container { background: var(--warning-light); border: 1px solid #fde68a; border-left: 5px solid var(--warning); padding: 22px; border-radius: 12px; margin-top: 20px; color: #92400e; font-size: 0.95rem; line-height: 1.6; }
+        .docs-container h4 { margin: 0 0 12px; color: #78350f; font-size: 1.1rem; }
+        .docs-container.compacto { margin: 18px 0 20px; padding: 18px; font-size: 0.9rem; }
+        .checklist-docs { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+        .checklist-docs li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; }
+        .checklist-docs i { color: var(--primary); margin-top: 4px; }
+        .endereco-box { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 12px; padding: 16px; margin-top: 18px; color: var(--gray-800); font-size: 0.92rem; line-height: 1.5; }
+        .acoes-sucesso { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+        .btn-acao-sucesso { border: none; border-radius: 12px; padding: 14px 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; font-size: 0.92rem; }
+        .btn-acao-sucesso.whatsapp { background: var(--success); color: white; }
+        .btn-acao-sucesso.azul { background: var(--primary); color: white; }
+        .btn-acao-sucesso.vermelho { background: var(--danger); color: white; }
+        .btn-acao-sucesso.cinza { background: white; color: var(--gray-800); border: 2px solid var(--gray-200); }
+        .atalho-cancelamento { margin: 0; padding: 12px 20px; background: #fff7ed; border-bottom: 1px solid #fed7aa; color: #9a3412; font-size: 0.86rem; font-weight: 700; display: flex; gap: 10px; align-items: center; justify-content: center; text-align: center; flex-wrap: wrap; }
+        .atalho-cancelamento button { border: 1px solid #fb923c; background: white; color: #9a3412; border-radius: 999px; padding: 7px 12px; font-weight: 900; cursor: pointer; }
+        .atalho-documentos { margin: 0; padding: 12px 20px; background: #eff6ff; border-bottom: 1px solid #bfdbfe; color: var(--primary-dark); font-size: 0.86rem; font-weight: 700; display: flex; gap: 10px; align-items: center; justify-content: center; text-align: center; flex-wrap: wrap; }
+        .atalho-documentos button { border: 1px solid #93c5fd; background: white; color: var(--primary); border-radius: 999px; padding: 7px 12px; font-weight: 900; cursor: pointer; }
+        .ticket-consulta { background: var(--gray-50); border: 1px solid var(--gray-200); border-left: 5px solid var(--primary); border-radius: 12px; padding: 22px; margin-top: 20px; }
+        .ticket-consulta .data-ag { font-size: 1.6rem; font-weight: 900; color: var(--primary); display: block; margin: 10px 0 8px; }
+        .secao { display: none; animation: slideUp 0.4s; }
+        .secao.ativa { display: block; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .instagram-suporte { max-width: 700px; margin: 40px auto; padding: 26px 24px; background: white; border-radius: 20px; border: 1px solid rgba(0,0,0,0.05); text-align: center; color: var(--gray-800); box-shadow: var(--shadow-soft); }
+        .instagram-suporte .titulo-instagram { display: block; font-size: 1rem; line-height: 1.5; font-weight: 800; margin-bottom: 16px; color: var(--gray-800); }
+        .btn-instagram { display: inline-flex; align-items: center; justify-content: center; gap: 10px; background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045); color: white; padding: 14px 24px; border-radius: 50px; text-decoration: none; font-weight: 900; box-shadow: 0 10px 24px rgba(131, 58, 180, 0.22); }
+        .btn-instagram:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgba(131, 58, 180, 0.28); }
+        .whatsapp-flutuante { position: fixed; right: 22px; bottom: 22px; width: 58px; height: 58px; border-radius: 50%; background: var(--whatsapp); color: white; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 1.9rem; box-shadow: 0 12px 28px rgba(37, 211, 102, 0.35); z-index: 9990; transition: 0.2s; }
+        .whatsapp-flutuante:hover { transform: translateY(-2px); box-shadow: 0 16px 32px rgba(37, 211, 102, 0.42); }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
+        .modal-overlay.oculto { display: none; }
+        .modal-caixa { background: white; border-radius: 24px; padding: 36px 32px; max-width: 440px; width: 100%; text-align: center; max-height: calc(100vh - 40px); overflow-y: auto; }
+        .modal-icone { font-size: 3.5rem; margin-bottom: 16px; }
+        #modal-mensagem { white-space: pre-line; }
+        .modal-botoes { display: flex; gap: 12px; justify-content: center; margin-top:20px; }
+        .modal-btn { padding: 14px 26px; border: none; border-radius: 12px; font-weight: 800; cursor: pointer; font-size: 0.95rem; }
+        .modal-btn.primario { background: var(--primary); color: white; }
+        .modal-btn.sucesso { background: var(--success); color: white; }
+        .modal-btn.perigo { background: var(--danger); color: white; }
+        .modal-btn.neutro { background: var(--gray-100); color: var(--gray-800); }
+        @media (min-width: 720px) {
+            body { padding: 20px 10px; }
+            .cabecalho-sistema { padding: 20px 20px 17px; }
+            .cabecalho-sistema img { max-width: 145px; margin-bottom: 9px; }
+            .cabecalho-sistema .institucional { font-size: 0.72rem; }
+            .cabecalho-sistema h2 { font-size: 1.48rem; }
+            .cabecalho-sistema p { font-size: 0.86rem; }
+            .banner-vagas { padding: 12px 16px; }
+        }
+        @media (max-width: 520px) {
+            #sistema-agendamento { border-radius: 16px; }
+            .cabecalho-sistema { padding: 14px 12px 12px; }
+            .cabecalho-sistema img { max-width: 108px; margin-bottom: 7px; }
+            .cabecalho-sistema .institucional { font-size: 0.62rem; margin-bottom: 3px; }
+            .cabecalho-sistema h2 { font-size: 1.18rem; }
+            .cabecalho-sistema p { font-size: 0.72rem; }
+            .banner-vagas { padding: 10px; }
+            .status-vagas-card { padding: 14px 12px; gap: 10px; border-radius: 14px; }
+            .status-vagas-icone { width: 38px; height: 38px; font-size: 1.08rem; }
+            .status-vagas-titulo { font-size: 1.02rem; }
+            .status-vagas-sub { font-size: 0.82rem; }
+            .corpo-sistema { padding: 24px 18px 20px; }
+            .grid-2, .acoes-sucesso { grid-template-columns: 1fr; gap: 0; }
+            .acoes-sucesso { gap: 10px; }
+            .grade { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); }
+            .instagram-suporte { margin: 24px 10px 78px; padding: 22px 18px; }
+            .btn-instagram { width: 100%; padding: 14px 16px; }
+            .whatsapp-flutuante { right: 14px; bottom: 14px; width: 54px; height: 54px; font-size: 1.75rem; }
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="modal-global" class="modal-overlay oculto">
+    <div class="modal-caixa">
+        <div id="modal-icone" class="modal-icone"></div>
+        <div id="modal-titulo" style="font-size: 1.3rem; font-weight: 900; margin-bottom: 12px;"></div>
+        <div id="modal-mensagem" style="color: var(--gray-600); line-height: 1.6;"></div>
+        <div id="modal-botoes" class="modal-botoes"></div>
+    </div>
+</div>
+
+<div id="sistema-agendamento">
+    <div class="cabecalho-sistema">
+        <img src="https://www.itanhandu.cam.mg.gov.br/img/header-logo.png" alt="Câmara Municipal de Itanhandu">
+        <div class="institucional">Câmara Municipal de Itanhandu/MG</div>
+        <h2>CIN Itanhandu</h2>
+        <p>Agendamento da Carteira de Identidade Nacional</p>
+    </div>
+
+    <div id="banner-vagas" class="banner-vagas"></div>
+
+    <div class="abas">
+        <button class="aba ativa" id="aba-novo" onclick="mudarAba('novo', this)"><i class="fa-solid fa-calendar-plus"></i> Novo</button>
+        <button class="aba" id="aba-consultar" onclick="mudarAba('consultar', this)"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button>
+        <button class="aba" id="aba-cancelar" onclick="mudarAba('cancelar', this)"><i class="fa-solid fa-calendar-xmark"></i> Cancelar</button>
+    </div>
+    <div class="atalho-cancelamento">
+        <span><i class="fa-solid fa-circle-exclamation"></i> Se não puder comparecer, cancele seu horário para liberar a vaga para outra pessoa.</span>
+        <button type="button" onclick="abrirAbaCancelar()">Cancelar horário</button>
+    </div>
+    <div class="atalho-documentos">
+        <span><i class="fa-regular fa-folder-open"></i> Já está agendado e quer conferir o que precisa levar?</span>
+        <button type="button" onclick="abrirDocumentosNecessarios()">Ver documentos necessários</button>
+    </div>
+
+    <div class="corpo-sistema">
+        <div class="secao ativa" id="secao-novo">
+            <div id="etapa-selecao">
+                <div class="steps-bar">
+                    <div class="step ativo"><div class="step-num">1</div><span>Data</span></div>
+                    <div class="step-linha"></div>
+                    <div class="step"><div class="step-num">2</div><span>Horário</span></div>
+                    <div class="step-linha"></div>
+                    <div class="step"><div class="step-num">3</div><span>Dados</span></div>
+                </div>
+                <h3 style="color:var(--gray-800); font-size:1.1rem; margin:0 0 6px; font-weight:800;"><i class="fa-regular fa-calendar" style="color:var(--primary);"></i> Escolha o dia do atendimento:</h3>
+                <div class="grade" id="gradeDatas"><div class="loading-container"><div class="loading-bar"></div></div></div>
+                <div id="container-horas" style="display:none;">
+                    <hr style="border:none; border-top:1px dashed var(--gray-200); margin:24px 0;">
+                    <h3 style="color:var(--gray-800); font-size:1.1rem; margin:0 0 6px; font-weight:800;"><i class="fa-regular fa-clock" style="color:var(--primary);"></i> Horários em <span id="label-data-selecionada" style="color:var(--primary);"></span></h3>
+                    <div class="grade grade-horas" id="gradeHoras"></div>
+                </div>
+            </div>
+
+            <div id="dados-pessoais" style="display:none;">
+                <div class="steps-bar">
+                    <div class="step concluido"><div class="step-num"><i class="fa-solid fa-check"></i></div><span>Data</span></div>
+                    <div class="step-linha concluida"></div>
+                    <div class="step concluido"><div class="step-num"><i class="fa-solid fa-check"></i></div><span>Horário</span></div>
+                    <div class="step-linha ativa"></div>
+                    <div class="step ativo"><div class="step-num">3</div><span>Dados</span></div>
+                </div>
+                <div class="tarja-alerta"><i class="fa-solid fa-circle-exclamation" style="font-size:1.5rem;"></i><div><strong>ATENÇÃO:</strong> Os dados devem ser de quem irá fazer o RG.</div></div>
+                <div class="card-resumo">
+                    <div class="info"><i class="fa-solid fa-calendar-check" style="color:var(--primary);"></i> <strong> <span id="resumo-data-txt"></span></strong> às <strong><span id="resumo-hora-txt"></span></strong></div>
+                    <button class="btn-alterar" onclick="abrirAlterarHorario()"><i class="fa-solid fa-pen"></i> Alterar</button>
+                </div>
+                <div class="form-grupo"><label>Nome Completo: <span style="color:var(--danger)">*</span></label><input id="inp-nome" type="text" placeholder="Ex: João da Silva" /><div class="msg-campo-erro" id="erro-nome">Informe o nome completo.</div></div>
+                <div class="grid-2">
+                    <div class="form-grupo"><label>CPF: <span style="color:var(--danger)">*</span></label><input id="inp-cpf" maxlength="14" oninput="mascaraCPF(this)" type="text" placeholder="000.000.000-00" /><div class="msg-campo-erro" id="erro-cpf">CPF inválido.</div></div>
+                    <div class="form-grupo"><label>Nascimento: <span style="color:var(--danger)">*</span></label><input id="inp-nasc" maxlength="10" oninput="mascaraData(this)" type="text" placeholder="DD/MM/AAAA" /><div class="msg-campo-erro" id="erro-nasc">Data inválida.</div></div>
+                </div>
+                <div class="form-grupo"><label>Celular / WhatsApp: <span style="color:var(--danger)">*</span></label><input id="inp-tel" maxlength="15" oninput="mascaraTel(this)" type="text" placeholder="(00) 00000-0000" /><div class="msg-campo-erro" id="erro-tel">Informe um telefone válido.</div></div>
+                <div class="form-grupo"><label>E-mail (Opcional)</label><input id="inp-email" type="email" placeholder="seu.email@exemplo.com" /><div class="msg-campo-erro" id="erro-email">E-mail inválido.</div></div>
+                <div class="docs-container compacto">
+                    <h4><i class="fa-regular fa-folder-open"></i> Confira os documentos antes de finalizar</h4>
+                    <ul class="checklist-docs">
+                        <li><i class="fa-regular fa-square"></i><span><strong>Certidão original</strong>, sem rasgos, rasuras ou alterações. Solteiros devem apresentar certidão de nascimento; casados, viúvos ou divorciados devem apresentar certidão de casamento, com averbação quando houver.</span></li>
+                        <li><i class="fa-regular fa-square"></i><span>CPF.</span></li>
+                        <li><i class="fa-regular fa-square"></i><span>Comprovante de residência.</span></li>
+                        <li><i class="fa-regular fa-square"></i><span>Menores de 16 anos devem estar acompanhados do responsável legal, que deve apresentar documento de identificação original com foto, como RG ou CNH.</span></li>
+                    </ul>
+                </div>
+                <div class="tarja-alerta" style="background:var(--warning-light); color:#92400e; border-left-color:var(--warning);">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size:1.4rem;"></i>
+                    <div><strong>Atenção:</strong> o não comparecimento sem cancelamento prévio poderá impedir novo agendamento pelo prazo de 60 dias.</div>
+                </div>
+                <div class="form-grupo" style="display:flex; align-items:flex-start; gap:10px; background:var(--gray-50); padding:15px; border-radius:8px; border:1px solid var(--gray-200);">
+                    <input type="checkbox" id="aceite-lgpd" style="width:20px; height:20px; margin-top:2px;">
+                    <label for="aceite-lgpd" style="font-size:0.85rem; color:var(--gray-600); line-height:1.4; font-weight:500; margin:0;">
+                        Declaro que concordo com a coleta e o tratamento dos meus dados exclusivamente para agendamento do RG/CIN, conforme a Política de Privacidade LGPD da Câmara de Itanhandu.
+                    </label>
+                </div>
+                <div class="form-grupo" style="display:flex; align-items:flex-start; gap:10px; background:var(--gray-50); padding:15px; border-radius:8px; border:1px solid var(--gray-200);">
+                    <input type="checkbox" id="aceite-bloqueio" style="width:20px; height:20px; margin-top:2px;">
+                    <label for="aceite-bloqueio" style="font-size:0.85rem; color:var(--gray-600); line-height:1.4; font-weight:500; margin:0;">
+                        Declaro que estou ciente de que o não comparecimento sem cancelamento prévio poderá impedir novo agendamento pelo prazo de 60 dias.
+                    </label>
+                </div>
+                <button class="btn-principal verde" id="btnFinalizar" onclick="confirmarAgendamento()">FINALIZAR AGENDAMENTO <i class="fa-solid fa-arrow-right"></i></button>
+            </div>
+
+            <div id="sucesso-docs" style="display:none;">
+                <div class="msg-sucesso-topo"><i class="fa-solid fa-circle-check"></i> Agendado!</div>
+                <div class="ticket-sucesso">
+                    <p style="margin:0; font-size:0.9rem; color:var(--success-dark); font-weight:600;">Seu horário confirmado:</p>
+                    <span class="data-grande" id="ticket-info"></span>
+                    <p style="margin:8px 0 0; font-size:0.95rem; color:var(--gray-800);"><i class="fa-solid fa-location-dot" style="color:var(--primary);"></i> <strong>Câmara Municipal de Itanhandu</strong></p>
+                    <div class="protocolo-box">
+                        Guarde este protocolo para consultar ou cancelar com mais segurança:
+                        <span class="protocolo-codigo" id="ticket-protocolo">CIN---------</span>
+                    </div>
+                </div>
+                <div class="acoes-sucesso">
+                    <button class="btn-acao-sucesso whatsapp" onclick="enviarConfirmacaoWhatsApp()"><i class="fa-brands fa-whatsapp"></i> Enviar no WhatsApp</button>
+                    <button class="btn-acao-sucesso azul" onclick="baixarComprovante()"><i class="fa-solid fa-download"></i> Baixar Comprovante</button>
+                    <button class="btn-acao-sucesso vermelho" onclick="abrirAbaCancelar()"><i class="fa-solid fa-calendar-xmark"></i> Cancelar horário</button>
+                    <button class="btn-acao-sucesso cinza" onclick="baixarAgenda()"><i class="fa-regular fa-calendar-plus"></i> Adicionar à Agenda</button>
+                    <a class="btn-acao-sucesso cinza" href="https://www.google.com/maps/search/?api=1&query=C%C3%A2mara%20Municipal%20de%20Itanhandu" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-map-location-dot"></i> Abrir no Maps</a>
+                </div>
+                <div class="tarja-alerta" style="background:var(--warning-light); color:#92400e; border-left-color:var(--warning); margin-top:18px;">
+                    <i class="fa-solid fa-circle-exclamation" style="font-size:1.4rem;"></i>
+                    <div><strong>Não poderá comparecer?</strong> Cancele seu horário para liberar a vaga para outra pessoa e evitar bloqueio futuro.</div>
+                </div>
+                <div class="endereco-box">
+                    <strong>Local do atendimento:</strong> Câmara Municipal de Itanhandu.<br>
+                    Chegue com alguns minutos de antecedência e leve os documentos originais quando exigido.
+                </div>
+                <div class="docs-container">
+                    <h4><i class="fa-regular fa-folder-open"></i> Documentos Obrigatórios</h4>
+                    <ul class="checklist-docs">
+                        <li><i class="fa-regular fa-square"></i><span><strong>Certidão original</strong>, sem rasgos, rasuras ou alterações. Solteiros devem apresentar certidão de nascimento; casados, viúvos ou divorciados devem apresentar certidão de casamento, com averbação quando houver.</span></li>
+                        <li><i class="fa-regular fa-square"></i><span>CPF.</span></li>
+                        <li><i class="fa-regular fa-square"></i><span>Comprovante de residência atualizado.</span></li>
+                        <li><i class="fa-regular fa-square"></i><span>Menores de 16 anos devem estar acompanhados do responsável legal, que deve apresentar documento de identificação original com foto, como RG ou CNH.</span></li>
+                    </ul>
+                </div>
+                <button class="btn-principal cinza" onclick="location.reload()" style="margin-top:24px;">Voltar ao Início</button>
+            </div>
+        </div>
+
+        <div class="secao" id="secao-consultar">
+            <h3 style="color:var(--gray-800); font-size:1.1rem; margin:0 0 20px; font-weight:800;"><i class="fa-solid fa-magnifying-glass" style="color:var(--primary);"></i> Consultar Agendamento</h3>
+            <div class="form-grupo"><label>CPF:</label><input id="cons-cpf" maxlength="14" oninput="mascaraCPF(this)" type="text" /></div>
+            <div class="form-grupo"><label>Data de Nascimento:</label><input id="cons-nasc" maxlength="10" oninput="mascaraData(this)" type="text" /></div>
+            <div class="form-grupo"><label>Celular usado no agendamento:</label><input id="cons-tel" maxlength="15" oninput="mascaraTel(this)" type="text" placeholder="(00) 00000-0000" /></div>
+            <div class="form-grupo"><label>Protocolo (opcional, se tiver):</label><input id="cons-protocolo" maxlength="14" type="text" placeholder="CIN-ABC12345" /></div>
+            <button class="btn-principal azul" id="btnConsultar" onclick="consultarAgendamento()">Buscar Meu Horário <i class="fa-solid fa-search"></i></button>
+            <div id="resultado-consulta" style="margin-top:24px;"></div>
+        </div>
+
+        <div class="secao" id="secao-cancelar">
+            <h3 style="color:var(--gray-800); font-size:1.1rem; margin:0 0 12px; font-weight:800;"><i class="fa-regular fa-calendar-xmark" style="color:var(--danger);"></i> Cancelar Agendamento</h3>
+            <p style="color:var(--gray-600); font-size:0.9rem; margin:0 0 20px;">Informe CPF, nascimento e o celular usado no agendamento. O protocolo também pode ser usado para reforçar a identificação.</p>
+            <div class="form-grupo"><label>CPF:</label><input id="cancelar-cpf" maxlength="14" oninput="mascaraCPF(this)" type="text" /></div>
+            <div class="form-grupo"><label>Data de Nascimento:</label><input id="cancelar-nasc" maxlength="10" oninput="mascaraData(this)" type="text" /></div>
+            <div class="form-grupo"><label>Celular usado no agendamento:</label><input id="cancelar-tel" maxlength="15" oninput="mascaraTel(this)" type="text" placeholder="(00) 00000-0000" /></div>
+            <div class="form-grupo"><label>Protocolo (opcional, se tiver):</label><input id="cancelar-protocolo" maxlength="14" type="text" placeholder="CIN-ABC12345" /></div>
+            <button class="btn-principal vermelho" id="btnBuscarCancelamento" onclick="buscarParaCancelar()">Localizar Agendamento <i class="fa-solid fa-search"></i></button>
+            <div id="resultado-cancelamento" style="margin-top:24px;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="instagram-suporte">
+    <span class="titulo-instagram">Pra ficar por dentro de mais informações sobre o RG e a Câmara, nos siga no Instagram:</span>
+    <a class="btn-instagram" href="https://www.instagram.com/camaraitanhandu/" target="_blank" rel="noopener noreferrer">
+        <i class="fa-brands fa-instagram"></i> @camaraitanhandu
+    </a>
+</div>
+
+<a class="whatsapp-flutuante" href="https://wa.me/553535040397" target="_blank" rel="noopener noreferrer" aria-label="Falar com a Câmara no WhatsApp" title="Falar com a Câmara no WhatsApp">
+    <i class="fa-brands fa-whatsapp"></i>
+</a>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
+
+<script>
+    var firebaseConfig = { 
+        apiKey: "AIzaSyBqmzQw8CtTD6O2C3fiXcm7_GBmkgite_c", 
+        authDomain: "agendamento-cin-itanhandu.firebaseapp.com", 
+        projectId: "agendamento-cin-itanhandu", 
+        storageBucket: "agendamento-cin-itanhandu.firebasestorage.app", 
+        messagingSenderId: "144820039253", 
+        appId: "1:144820039253:web:af179156ce8da4b73a6edc" 
+    };
+    
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    var functions = firebase.functions();
+
+    const DIAS_INICIAIS = ["2026-05-15","2026-05-19","2026-05-20","2026-05-21","2026-05-22","2026-05-26","2026-05-27","2026-05-28","2026-05-29"];
+    const HORAS_FALLBACK = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
+    const DATA_NOVAS_VAGAS_PADRAO = "data a definir";
+    let DIAS_DISPONIVEIS = [], HORARIOS = [], DATA_NOVAS_VAGAS = DATA_NOVAS_VAGAS_PADRAO; 
+    let DISPONIBILIDADE_PUBLICA = { porData: {}, totalVagasRestantes: 0 };
+
+    function hojeISO() {
+        const partes = new Intl.DateTimeFormat("en", {
+            timeZone: "America/Sao_Paulo",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit"
+        }).formatToParts(new Date());
+        const valores = Object.fromEntries(partes.map(parte => [parte.type, parte.value]));
+        return `${valores.year}-${valores.month}-${valores.day}`;
+    }
+
+    function datasAtivas(dias) {
+        const hoje = hojeISO();
+        return [...new Set((dias || []).filter(d => typeof d === "string" && d >= hoje))].sort();
+    }
+
+    function horariosAtivos(horarios) {
+        const base = Array.isArray(horarios) ? horarios : [];
+        return [...new Set([...base, ...HORAS_FALLBACK].filter(h => /^\d{2}:\d{2}$/.test(String(h || ""))))].sort();
+    }
+
+    function normalizarDisponibilidadePublica(diasResposta, horarios) {
+        const porData = {};
+        (Array.isArray(diasResposta) ? diasResposta : []).forEach(item => {
+            const dataISO = typeof item === "string" ? item : item && item.dataISO;
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dataISO || ""))) return;
+            const horariosDia = Array.isArray(item.horarios)
+                ? item.horarios.filter(h => /^\d{2}:\d{2}$/.test(String(h.hora || "")))
+                : horarios.map(hora => ({ hora, disponivel: true }));
+            const vagas = typeof item.vagas === "number" ? item.vagas : horariosDia.filter(h => h.disponivel).length;
+            porData[dataISO] = {
+                dataISO,
+                vagas,
+                lotado: item.lotado === true || vagas <= 0,
+                horarios: horariosDia
+            };
+        });
+        return {
+            porData,
+            totalVagasRestantes: Object.values(porData).reduce((total, dia) => total + dia.vagas, 0)
+        };
+    }
+
+    function disponibilidadeDia(dataISO) {
+        return DISPONIBILIDADE_PUBLICA.porData[dataISO] || {
+            dataISO,
+            vagas: 0,
+            lotado: true,
+            horarios: HORARIOS.map(hora => ({ hora, disponivel: false }))
+        };
+    }
+
+    async function carregarConfig() {
+        try {
+            const carregarAgendaPublica = firebase.functions().httpsCallable("carregarAgendaPublica");
+            const resposta = await carregarAgendaPublica();
+            const cfg = resposta.data || {};
+            HORARIOS = horariosAtivos(cfg.horarios);
+            DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias, HORARIOS);
+            DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
+            if (typeof cfg.totalVagasRestantes === "number") DISPONIBILIDADE_PUBLICA.totalVagasRestantes = cfg.totalVagasRestantes;
+            DATA_NOVAS_VAGAS = cfg.dataNovasVagas || DATA_NOVAS_VAGAS_PADRAO;
+        } catch (e) {
+            HORARIOS = horariosAtivos(HORAS_FALLBACK);
+            DIAS_DISPONIVEIS = [];
+            DISPONIBILIDADE_PUBLICA = { porData: {}, totalVagasRestantes: 0 };
+        }
+    }
+
+    const HTML_LOADING = '<div class="loading-container"><div class="loading-bar"></div></div>';
+    let dataSel = null, horaSel = null;
+    let ultimoAgendamentoConfirmado = null;
+    const MAPS_CAMARA = "https://www.google.com/maps/search/?api=1&query=C%C3%A2mara%20Municipal%20de%20Itanhandu";
+
+    function modal({ icone, titulo, mensagem, botoes }) {
+        document.getElementById("modal-icone").innerHTML = icone || ""; 
+        document.getElementById("modal-titulo").textContent = titulo || ""; 
+        document.getElementById("modal-mensagem").textContent = mensagem || "";
+        const cont = document.getElementById("modal-botoes"); 
+        cont.innerHTML = "";
+        
+        botoes.forEach(b => { 
+            const btn = document.createElement("button"); 
+            btn.className = "modal-btn " + (b.classe || "primario"); 
+            btn.textContent = b.texto; 
+            btn.onclick = () => { 
+                document.getElementById("modal-global").classList.add("oculto"); 
+                if (b.acao) b.acao(); 
+            }; 
+            cont.appendChild(btn); 
+        });
+        document.getElementById("modal-global").classList.remove("oculto");
+    }
+
+    function aviso(m) { 
+        modal({ 
+            icone: '<i class="fa-solid fa-circle-info" style="color:var(--primary);"></i>', 
+            titulo: "Atenção", 
+            mensagem: m, 
+            botoes: [{ texto: "Entendi", classe: "primario" }] 
+        }); 
+    }
+
+    function abrirDocumentosNecessarios() {
+        modal({
+            icone: '<i class="fa-regular fa-folder-open" style="color:var(--primary);"></i>',
+            titulo: "Documentos necessários",
+            mensagem: [
+                "Confira antes de sair de casa:",
+                "",
+                "1. Certidão original, sem rasgos, rasuras ou alterações.",
+                "   Solteiros: certidão de nascimento.",
+                "   Casados, viúvos ou divorciados: certidão de casamento, com averbação quando houver.",
+                "",
+                "2. CPF.",
+                "",
+                "3. Comprovante de residência.",
+                "",
+                "4. Menores de 16 anos devem estar acompanhados do responsável legal, que deve apresentar documento original com foto, como RG ou CNH."
+            ].join("\n"),
+            botoes: [{ texto: "Entendi", classe: "primario" }]
+        });
+    }
+
+    function erro(m) { 
+        modal({ 
+            icone: '<i class="fa-solid fa-circle-xmark" style="color:var(--danger);"></i>', 
+            titulo: "Erro", 
+            mensagem: m, 
+            botoes: [{ texto: "Fechar", classe: "perigo" }] 
+        }); 
+    }
+
+    function confirmar({ mensagem, titulo, onConfirm }) { 
+        modal({ 
+            icone: '<i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);"></i>', 
+            titulo: titulo || "Confirmar", 
+            mensagem, 
+            botoes: [
+                { texto: "Cancelar", classe: "neutro" }, 
+                { texto: "Confirmar", classe: "perigo", acao: onConfirm }
+            ] 
+        }); 
+    }
+
+    function mascaraCPF(i) { let v=i.value.replace(/\D/g,""); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d)/,"$1.$2"); i.value=v.replace(/(\d{3})(\d{1,2})$/,"$1-$2"); }
+    function mascaraTel(i) { let v=i.value.replace(/\D/g,""); v=v.replace(/^(\d{2})(\d)/g,"($1) $2"); i.value=v.replace(/(\d)(\d{4})$/,"$1-$2"); }
+    function mascaraData(i) { let v=i.value.replace(/\D/g,""); v=v.replace(/(\d{2})(\d)/,"$1/$2"); i.value=v.replace(/(\d{2})(\d)/,"$1/$2"); }
+    function converterDataISO(brDate) { const p = brDate.split('/'); return p.length===3 ? `${p[2]}-${p[1]}-${p[0]}` : ""; }
+    function dataBrTela(dataISO) { const p = String(dataISO || "").split("-"); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : ""; }
+    function limparCPF(cpf) { return String(cpf || "").replace(/\D/g, ""); }
+
+    function normalizarBloqueadoAte(valor) {
+        if (!valor) return null;
+        if (typeof valor === "string") {
+            const texto = valor.trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
+                return {
+                    ativo: texto > hojeISO(),
+                    dataLiberacao: dataBrTela(texto),
+                    bloqueadoAte: texto
+                };
+            }
+            const data = new Date(texto);
+            if (!Number.isNaN(data.getTime())) {
+                return {
+                    ativo: data.getTime() > Date.now(),
+                    dataLiberacao: data.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+                    bloqueadoAte: data
+                };
+            }
+        }
+        if (valor && typeof valor.toDate === "function") {
+            const data = valor.toDate();
+            return {
+                ativo: data.getTime() > Date.now(),
+                dataLiberacao: data.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+                bloqueadoAte: data
+            };
+        }
+        if (valor instanceof Date && !Number.isNaN(valor.getTime())) {
+            return {
+                ativo: valor.getTime() > Date.now(),
+                dataLiberacao: valor.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+                bloqueadoAte: valor
+            };
+        }
+        return null;
+    }
+
+    async function verificarBloqueioCPF(cpf) {
+        const cpfLimpo = limparCPF(cpf);
+        if (cpfLimpo.length !== 11) return { bloqueado: false };
+        try {
+            const verificar = firebase.functions().httpsCallable("verificarBloqueioCpf");
+            const resposta = await verificar({ cpf: cpfLimpo });
+            const dados = resposta.data || {};
+            if (!dados.bloqueado) return { bloqueado: false };
+            return {
+                bloqueado: true,
+                dataLiberacao: dados.dataLiberacao || "",
+                mensagem: dados.mensagem || "Não foi possível realizar novo agendamento. Consta ausência em atendimento anterior."
+            };
+        } catch (e) {
+            console.error("Erro ao consultar bloqueio de CPF:", e);
+            return {
+                bloqueado: false,
+                erro: true,
+                mensagem: "Não foi possível validar o CPF no momento. Tente novamente em alguns instantes ou entre em contato com a Câmara."
+            };
+        }
+    }
+
+    function abrirWhatsAppContatoBloqueio() {
+        const msg = "Olá! Preciso de orientação sobre bloqueio de agendamento de RG/CIN por ausência anterior.";
+        window.open(`https://wa.me/553535040397?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+    }
+
+    function exibirBloqueioCPF(resultado) {
+        modal({
+            icone: '<i class="fa-solid fa-calendar-xmark" style="color:var(--danger);"></i>',
+            titulo: "Agendamento bloqueado",
+            mensagem: resultado.mensagem,
+            botoes: [
+                { texto: "Entendi", classe: "neutro" },
+                { texto: "Falar no WhatsApp", classe: "sucesso", acao: abrirWhatsAppContatoBloqueio }
+            ]
+        });
+    }
+
+    function textoSeguro(valor) {
+        return String(valor || "").replace(/[&<>"']/g, c => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#039;"
+        }[c]));
+    }
+
+    function normalizarErroTexto(erroObj) {
+        return `${erroObj && erroObj.code ? erroObj.code : ""} ${erroObj && erroObj.message ? erroObj.message : ""}`
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
+    }
+
+    function erroHorarioOcupado(erroObj) {
+        const texto = normalizarErroTexto(erroObj);
+        return (texto.includes("already-exists") || texto.includes("ja existe") || texto.includes("ocupado") || texto.includes("preenchido"))
+            && (texto.includes("horario") || texto.includes("vaga") || texto.includes("ocupado") || texto.includes("preenchido"));
+    }
+
+    function erroCpfDuplicado(erroObj) {
+        const texto = normalizarErroTexto(erroObj);
+        return (texto.includes("already-exists") || texto.includes("ja possui") || texto.includes("ativo"))
+            && texto.includes("cpf");
+    }
+
+    function baixarArquivo(nome, conteudo, tipo) {
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(new Blob([conteudo], { type: tipo || "text/plain;charset=utf-8" }));
+        link.download = nome;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1500);
+    }
+
+    function documentosTexto() {
+        return [
+            "Documentos necessarios:",
+            "1. A certidao deve ser ORIGINAL, sem rasgos, rasuras ou alteracoes.",
+            "2. Certidao de nascimento original (se solteiro), ou certidao de casamento original (se casado, viuvo ou divorciado). Se houver viuvez, divorcio ou outra alteracao, a certidao de casamento deve estar averbada.",
+            "3. CPF.",
+            "4. Comprovante de residencia.",
+            "5. Menores de 16 anos devem estar acompanhados do responsavel legal, que deve apresentar documento de identificacao original com foto, como RG ou CNH."
+        ].join("\n");
+    }
+
+    function mensagemConfirmacao() {
+        const ag = ultimoAgendamentoConfirmado;
+        if (!ag) return "";
+        return `Ola, ${ag.nome}!\n\nSeu atendimento para emissao do RG/CIN foi agendado para ${ag.dataBR} as ${ag.hora} na Camara Municipal de Itanhandu.\n\nProtocolo: ${ag.protocolo}\n\nSe nao puder comparecer, cancele seu horario para liberar a vaga para outra pessoa e evitar bloqueio futuro.\n\n${documentosTexto()}\n\nLocal: Camara Municipal de Itanhandu\nMapa: ${MAPS_CAMARA}`;
+    }
+
+    function enviarConfirmacaoWhatsApp() {
+        const ag = ultimoAgendamentoConfirmado;
+        if (!ag) return aviso("Finalize um agendamento antes de enviar a confirmação.");
+        const tel = String(ag.telefone || "").replace(/\D/g, "");
+        window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(mensagemConfirmacao())}`, "_blank", "noopener,noreferrer");
+    }
+
+    function baixarComprovante() {
+        const ag = ultimoAgendamentoConfirmado;
+        if (!ag) return aviso("Finalize um agendamento antes de baixar o comprovante.");
+        const texto = [
+            "COMPROVANTE DE AGENDAMENTO - RG/CIN",
+            "",
+            `Nome: ${ag.nome}`,
+            `Data: ${ag.dataBR}`,
+            `Horario: ${ag.hora}`,
+            `Protocolo: ${ag.protocolo}`,
+            "Local: Camara Municipal de Itanhandu",
+            "",
+            "Se nao puder comparecer, cancele seu horario para liberar a vaga para outra pessoa e evitar bloqueio futuro.",
+            "",
+            documentosTexto()
+        ].join("\n");
+        baixarArquivo(`Comprovante_${ag.protocolo}.txt`, texto, "text/plain;charset=utf-8");
+    }
+
+    function dataHoraICS(dataISO, hora) {
+        const [ano, mes, dia] = String(dataISO || "").split("-");
+        const [hh, mm] = String(hora || "00:00").split(":");
+        return `${ano}${mes}${dia}T${hh}${mm}00`;
+    }
+
+    function somarMinutosHora(hora, minutos) {
+        const [h, m] = String(hora || "00:00").split(":").map(Number);
+        const total = (h * 60) + (m || 0) + minutos;
+        return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+    }
+
+    function baixarAgenda() {
+        const ag = ultimoAgendamentoConfirmado;
+        if (!ag) return aviso("Finalize um agendamento antes de adicionar à agenda.");
+        const fim = somarMinutosHora(ag.hora, 20);
+        const ics = [
+            "BEGIN:VCALENDAR",
+            "VERSION:2.0",
+            "PRODID:-//Camara Itanhandu//Agendamento CIN//PT-BR",
+            "BEGIN:VEVENT",
+            `UID:${ag.protocolo}@agendamento-cin-itanhandu`,
+            `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").split(".")[0]}Z`,
+            `DTSTART:${dataHoraICS(ag.dataISO, ag.hora)}`,
+            `DTEND:${dataHoraICS(ag.dataISO, fim)}`,
+            "SUMMARY:Atendimento RG/CIN",
+            "LOCATION:Camara Municipal de Itanhandu",
+            `DESCRIPTION:Protocolo ${ag.protocolo}. Levar documentos obrigatorios. Se nao puder comparecer, cancele seu horario.`,
+            "END:VEVENT",
+            "END:VCALENDAR"
+        ].join("\r\n");
+        baixarArquivo(`Agenda_${ag.protocolo}.ics`, ics, "text/calendar;charset=utf-8");
+    }
+
+    function temFatorConsulta(telefone, protocolo) {
+        return String(telefone || "").replace(/\D/g, "").length >= 10 || String(protocolo || "").trim().length >= 6;
+    }
+
+    function setErroCampo(id, erroId, mostrar) { 
+        const input = document.getElementById(id), msg = document.getElementById(erroId); 
+        if (mostrar) { input.classList.add("erro"); msg.classList.add("visivel"); } 
+        else { input.classList.remove("erro"); msg.classList.remove("visivel"); } 
+    }
+    
+    function mudarAba(aba, btn) { 
+        document.querySelectorAll('.secao').forEach(s => s.classList.remove('ativa')); 
+        document.querySelectorAll('.aba').forEach(a => a.classList.remove('ativa')); 
+        document.getElementById('secao-' + aba).classList.add('ativa'); 
+        btn.classList.add('ativa'); 
+    }
+
+    function abrirAbaCancelar() {
+        const btn = document.getElementById("aba-cancelar");
+        mudarAba("cancelar", btn);
+        document.getElementById("secao-cancelar").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    async function atualizarBannerVagas() {
+        const banner = document.getElementById("banner-vagas");
+        try {
+            const res = Math.max(0, DISPONIBILIDADE_PUBLICA.totalVagasRestantes || 0);
+            banner.style.display = "flex";
+            if (res > 0) { 
+                banner.className = "banner-vagas com-vagas"; 
+                banner.innerHTML = `
+                    <div class="status-vagas-card">
+                        <span class="status-vagas-icone"><i class="fa-solid fa-check"></i></span>
+                        <div>
+                            <span class="status-vagas-titulo">Vagas disponíveis</span>
+                            <span class="status-vagas-sub">Escolha abaixo a data do atendimento.</span>
+                        </div>
+                    </div>
+                `; 
+            } else { 
+                banner.className = "banner-vagas sem-vagas"; 
+                banner.innerHTML = `
+                    <div class="status-vagas-card">
+                        <span class="status-vagas-icone"><i class="fa-solid fa-ban"></i></span>
+                        <div>
+                            <span class="status-vagas-titulo">Vagas esgotadas</span>
+                            <span class="status-vagas-sub">Novas vagas em <strong>${textoSeguro(DATA_NOVAS_VAGAS)}</strong></span>
+                        </div>
+                    </div>
+                `; 
+            }
+        } catch(e) { banner.style.display = "none"; }
+    }
+
+    async function renderDatas() {
+        const grade = document.getElementById("gradeDatas"); 
+        grade.innerHTML = HTML_LOADING; 
+        document.getElementById("container-horas").style.display = "none";
+        try {
+            grade.innerHTML = "";
+            if (!DIAS_DISPONIVEIS.length) {
+                grade.innerHTML = '<p style="color:var(--gray-600); text-align:center; grid-column:1/-1;">Nenhuma data disponivel no momento.</p>';
+                return;
+            }
+            DIAS_DISPONIVEIS.forEach(ds => {
+                const p = ds.split('-'); 
+                const d = new Date(+p[0], +p[1]-1, +p[2]);
+                const infoDia = disponibilidadeDia(ds);
+                const vagas = infoDia.vagas;
+                
+                const btn = document.createElement("button"); 
+                btn.className = "btn-data";
+                
+                const diaSemana = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"][d.getDay()];
+                const diaMes = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+                
+                btn.innerHTML = `<div style="font-size:0.75rem;">${diaSemana}</div><strong style="font-size:1.15rem;">${diaMes}</strong>`;
+                
+                if (vagas <= 0) { 
+                    btn.disabled = true; 
+                    btn.innerHTML += `<div style="font-size:0.75rem; color:var(--gray-400); margin-top:4px;">Lotado</div>`; 
+                } else {
+                    const badgeClass = vagas <= 2 ? 'low' : 'ok';
+                    const vagaText = vagas === 1 ? 'vaga' : 'vagas';
+                    btn.innerHTML += `<div><span class="vagas-badge ${badgeClass}">${vagas} ${vagaText}</span></div>`;
+                    btn.onclick = () => { 
+                        dataSel = ds; 
+                        document.querySelectorAll('.btn-data').forEach(b => b.classList.remove('selecionado')); 
+                        btn.classList.add('selecionado'); 
+                        document.getElementById("resumo-data-txt").textContent = d.toLocaleDateString('pt-BR'); 
+                        renderHoras(ds); 
+                    };
+                }
+                grade.appendChild(btn);
+            });
+        } catch(e) { grade.innerHTML = '<p color="red">Erro ao carregar datas. Recarregue a página.</p>'; }
+    }
+
+    async function renderHoras(data) {
+        const grade = document.getElementById("gradeHoras"); 
+        document.getElementById("container-horas").style.display = "block"; 
+        document.getElementById("label-data-selecionada").textContent = dataBrTela(data);
+        grade.innerHTML = HTML_LOADING;
+        try {
+            const infoDia = disponibilidadeDia(data);
+            const disponibilidadePorHora = {};
+            infoDia.horarios.forEach(item => { disponibilidadePorHora[item.hora] = item.disponivel === true; });
+            grade.innerHTML = "";
+            HORARIOS.forEach(h => {
+                const btn = document.createElement("button"); 
+                btn.className = "btn-hora"; 
+                btn.innerHTML = `<i class="fa-regular fa-clock"></i> ${h}`;
+                
+                if (!disponibilidadePorHora[h]) { 
+                    btn.disabled = true; 
+                } else { 
+                    btn.onclick = () => { 
+                        horaSel = h; 
+                        document.querySelectorAll('.btn-hora').forEach(b => b.classList.remove('selecionado')); 
+                        btn.classList.add('selecionado'); 
+                        document.getElementById("resumo-hora-txt").textContent = h; 
+                        setTimeout(() => { 
+                            document.getElementById("etapa-selecao").style.display = "none"; 
+                            document.getElementById("dados-pessoais").style.display = "block"; 
+                            window.scrollTo(0,0); 
+                        }, 180); 
+                    }; 
+                }
+                grade.appendChild(btn);
+            });
+        } catch(e) { grade.innerHTML = '<p color="red">Erro ao carregar horários.</p>'; }
+    }
+
+    let timerAtualizacaoAutomatica = null;
+    let intervaloAtualizacaoAutomatica = null;
+
+    function podeRedesenharAgenda() {
+        return document.getElementById("dados-pessoais").style.display !== "block"
+            && document.getElementById("sucesso-docs").style.display !== "block";
+    }
+
+    function agendarAtualizacaoAutomatica() {
+        clearTimeout(timerAtualizacaoAutomatica);
+        timerAtualizacaoAutomatica = setTimeout(async () => {
+            await carregarConfig();
+            if (podeRedesenharAgenda()) renderDatas();
+            atualizarBannerVagas();
+        }, 300);
+    }
+
+    function iniciarAtualizacaoAutomatica() {
+        if (!intervaloAtualizacaoAutomatica) {
+            intervaloAtualizacaoAutomatica = setInterval(agendarAtualizacaoAutomatica, 60000);
+        }
+    }
+
+    async function abrirAlterarHorario() { 
+        horaSel = null;
+        document.getElementById("dados-pessoais").style.display = "none"; 
+        document.getElementById("etapa-selecao").style.display = "block"; 
+        await carregarConfig();
+        await renderDatas();
+        if (dataSel && DIAS_DISPONIVEIS.includes(dataSel)) renderHoras(dataSel);
+        atualizarBannerVagas();
+        window.scrollTo(0,0); 
+    }
+
+    async function confirmarAgendamento() {
+        const nome=document.getElementById("inp-nome").value.trim(), 
+              cpf=document.getElementById("inp-cpf").value, 
+              tel=document.getElementById("inp-tel").value, 
+              email=document.getElementById("inp-email").value.trim(), 
+              nascBR=document.getElementById("inp-nasc").value, 
+              nascISO=converterDataISO(nascBR);
+        const cpfLimpo = limparCPF(cpf);
+              
+        let val=true; 
+        setErroCampo("inp-nome","erro-nome",nome.split(' ').length < 2); if(nome.split(' ').length < 2) val=false; 
+        setErroCampo("inp-cpf","erro-cpf",cpfLimpo.length !== 11); if(cpfLimpo.length !== 11) val=false; 
+        setErroCampo("inp-nasc","erro-nasc",!nascISO); if(!nascISO) val=false; 
+        setErroCampo("inp-tel","erro-tel",tel.length<14); if(tel.length<14) val=false;
+        
+        if (!val) { aviso("Corrija os campos em destaque antes de finalizar."); return; }
+        if (!document.getElementById("aceite-lgpd").checked) { aviso("É necessário aceitar os termos da LGPD para continuar."); return; }
+        if (!document.getElementById("aceite-bloqueio").checked) { aviso("É necessário declarar ciência sobre o bloqueio de 60 dias por não comparecimento antes de finalizar."); return; }
+
+        const btn = document.getElementById("btnFinalizar"); 
+        btn.disabled = true; 
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> VALIDANDO CPF...';
+
+        try {
+            const bloqueio = await verificarBloqueioCPF(cpf);
+            if (bloqueio.erro) {
+                btn.disabled = false;
+                btn.innerHTML = 'FINALIZAR AGENDAMENTO <i class="fa-solid fa-arrow-right"></i>';
+                aviso(bloqueio.mensagem);
+                return;
+            }
+            if (bloqueio.bloqueado) {
+                btn.disabled = false;
+                btn.innerHTML = 'FINALIZAR AGENDAMENTO <i class="fa-solid fa-arrow-right"></i>';
+                exibirBloqueioCPF(bloqueio);
+                return;
+            }
+
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> AGENDANDO...';
+            const criarAgendamento = firebase.functions().httpsCallable("criarAgendamentoCidadao");
+            const resposta = await criarAgendamento({
+                nome,
+                cpf,
+                telefone: tel,
+                email,
+                nascimento: nascISO,
+                data: dataSel,
+                hora: horaSel
+            });
+            const ag = resposta.data.agendamento || {};
+            ultimoAgendamentoConfirmado = {
+                nome,
+                telefone: tel,
+                dataISO: ag.dataISO || dataSel,
+                dataBR: ag.dataBR || document.getElementById("resumo-data-txt").textContent,
+                hora: ag.hora || horaSel,
+                protocolo: ag.protocolo || ""
+            };
+
+            document.getElementById("ticket-info").textContent = `${ultimoAgendamentoConfirmado.dataBR} às ${ultimoAgendamentoConfirmado.hora}`; 
+            document.getElementById("ticket-protocolo").textContent = ultimoAgendamentoConfirmado.protocolo || "Consulte pelo telefone informado";
+            document.getElementById("dados-pessoais").style.display = "none"; 
+            document.getElementById("sucesso-docs").style.display = "block"; 
+            window.scrollTo(0,0); 
+            await carregarConfig();
+            atualizarBannerVagas();
+        } catch(e) {
+            btn.disabled=false; 
+            btn.innerHTML='FINALIZAR AGENDAMENTO <i class="fa-solid fa-arrow-right"></i>';
+            if (erroHorarioOcupado(e)) {
+                await abrirAlterarHorario();
+                erro("Outra pessoa concluiu o agendamento primeiro nesse horário. Seus dados foram mantidos; escolha outra data ou horário disponível.");
+            } 
+            else if (erroCpfDuplicado(e)) { erro("Este CPF já possui um agendamento ativo. Cancele o anterior para agendar novamente."); } 
+            else { console.error(e); erro(e.message || "Ocorreu um erro ao processar. Verifique a conexão."); }
+        }
+    }
+
+    async function consultarAgendamento() {
+        const cpf=document.getElementById("cons-cpf").value,
+              nascBR=document.getElementById("cons-nasc").value,
+              nascISO=converterDataISO(nascBR),
+              telefone=document.getElementById("cons-tel").value,
+              protocolo=document.getElementById("cons-protocolo").value,
+              res=document.getElementById("resultado-consulta"),
+              btn=document.getElementById("btnConsultar");
+        if(cpf.length<14 || !nascISO) { aviso("Preencha o CPF e a data de nascimento corretamente."); return; }
+
+        const htmlOriginal = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> BUSCANDO...';
+        res.innerHTML = HTML_LOADING;
+
+        try {
+            const consulta = firebase.functions().httpsCallable("consultarAgendamentoCidadao");
+            const resposta = await consulta({ cpf, nascimento: nascISO, telefone, protocolo });
+            const ag = resposta.data.agendamento;
+            res.innerHTML = `<div class="ticket-consulta"><div class="nome-ag"><i class="fa-solid fa-user"></i> ${textoSeguro(ag.nome)}</div><span class="data-ag">${textoSeguro(ag.dataBR)} às ${textoSeguro(ag.hora)}</span><div style="font-weight:800; color:var(--gray-800);">Protocolo: ${textoSeguro(ag.protocolo || "não informado")}</div></div>`;
+        } catch(e) {
+            res.innerHTML = `<p style='color:var(--danger); text-align:center;'>${textoSeguro(e.message || "Não foi possível consultar o agendamento.")}</p>`;
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = htmlOriginal;
+        }
+    }
+
+    async function buscarParaCancelar() {
+        const cpf=document.getElementById("cancelar-cpf").value,
+              nascBR=document.getElementById("cancelar-nasc").value,
+              nascISO=converterDataISO(nascBR),
+              telefone=document.getElementById("cancelar-tel").value,
+              protocolo=document.getElementById("cancelar-protocolo").value,
+              res=document.getElementById("resultado-cancelamento"),
+              btnBusca=document.getElementById("btnBuscarCancelamento");
+        if(cpf.length<14 || !nascISO) { aviso("Preencha o CPF e a data de nascimento corretamente."); return; }
+
+        const htmlOriginal = btnBusca.innerHTML;
+        btnBusca.disabled = true;
+        btnBusca.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> BUSCANDO...';
+        res.innerHTML = HTML_LOADING;
+
+        try {
+            const preparar = firebase.functions().httpsCallable("prepararCancelamentoCidadao");
+            const resposta = await preparar({ cpf, nascimento: nascISO, telefone, protocolo });
+            const ag = resposta.data.agendamento;
+            const token = resposta.data.token;
+
+            const wrapper = document.createElement("div");
+            wrapper.style.cssText = "border:1px solid #fca5a5; border-left:5px solid var(--danger); border-radius:12px; padding:20px; background:var(--danger-light); margin-top:20px;";
+            wrapper.innerHTML = `<p style="margin:0 0 8px; font-weight:800; font-size:1.05rem;">${textoSeguro(ag.nome)}</p><p style="margin:0 0 8px; font-size:1.2rem; font-weight:900; color:var(--danger-dark);">${textoSeguro(ag.dataBR)} às ${textoSeguro(ag.hora)}</p><p style="margin:0 0 16px; font-weight:700;">Protocolo: ${textoSeguro(ag.protocolo || "não informado")}</p>`;
+
+            const btn = document.createElement("button");
+            btn.className = "btn-principal vermelho";
+            btn.innerHTML = '<i class="fa-solid fa-trash"></i> CANCELAR AGENDAMENTO';
+            btn.onclick = () => {
+                confirmar({ titulo: "Confirmar Cancelamento", mensagem: "Deseja realmente cancelar este agendamento? Esta ação é irreversível.", onConfirm: async () => {
+                    const btnHtml = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CANCELANDO...';
+                    try {
+                        const cancelar = firebase.functions().httpsCallable("cancelarAgendamentoCidadao");
+                        await cancelar({ token });
+                        modal({ icone: '<i class="fa-solid fa-circle-check" style="color:var(--success);"></i>', titulo: "Cancelado", mensagem: "Agendamento removido com sucesso.", botoes: [{ texto: "Ok", classe: "sucesso", acao: () => location.reload() }] });
+                    } catch(e) {
+                        btn.disabled = false;
+                        btn.innerHTML = btnHtml;
+                        erro(e.message || "Não foi possível cancelar o agendamento.");
+                    }
+                }});
+            };
+
+            res.innerHTML = "";
+            wrapper.appendChild(btn);
+            res.appendChild(wrapper);
+        } catch(e) {
+            res.innerHTML = `<p style='color:var(--danger); text-align:center;'>${textoSeguro(e.message || "Não foi possível localizar o agendamento.")}</p>`;
+        } finally {
+            btnBusca.disabled = false;
+            btnBusca.innerHTML = htmlOriginal;
+        }
+    }
+
+    (async function init() { 
+        await carregarConfig(); 
+        renderDatas(); 
+        atualizarBannerVagas(); 
+        iniciarAtualizacaoAutomatica();
+    })();
+</script>
+</body>
+</html>
