@@ -340,9 +340,12 @@
 </a>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app-check.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
 
 <script>
+    const APP_CHECK_RECAPTCHA_SITE_KEY = "6LdoYfcsAAAAALyCdBKewXtFLB1e9biRnXTWqNv0";
+
     var firebaseConfig = { 
         apiKey: "AIzaSyBqmzQw8CtTD6O2C3fiXcm7_GBmkgite_c", 
         authDomain: "agendamento-cin-itanhandu.firebaseapp.com", 
@@ -353,6 +356,15 @@
     };
     
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    if (
+        firebase.appCheck &&
+        APP_CHECK_RECAPTCHA_SITE_KEY &&
+        !APP_CHECK_RECAPTCHA_SITE_KEY.includes("COLE_AQUI")
+    ) {
+        firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
+    } else {
+        console.warn("Firebase App Check ainda nao foi ativado: informe a chave publica do reCAPTCHA v3 no index.html.");
+    }
     var functions = firebase.functions();
 
     const DIAS_INICIAIS = ["2026-05-15","2026-05-19","2026-05-20","2026-05-21","2026-05-22","2026-05-26","2026-05-27","2026-05-28","2026-05-29"];
