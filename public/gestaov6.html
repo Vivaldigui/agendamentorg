@@ -558,6 +558,13 @@
             return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
         }
 
+        function somarMesesISO(dataISO, meses) {
+            const [a, m, d] = dataISO.split("-").map(Number);
+            const data = new Date(a, m - 1, d);
+            data.setMonth(data.getMonth() + meses);
+            return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
+        }
+
         function amanhaISO() {
             return somarDiasISO(hojeISO(), 1);
         }
@@ -627,7 +634,7 @@
                 bloqueioTelefone: dados.telefone || "",
                 bloqueioMotivo: "Não comparecimento",
                 bloqueioDataFalta: dataHoraAtendimento(dados),
-                bloqueadoAte: somarDiasISO(hojeISO(), 60),
+                bloqueadoAte: somarMesesISO(hojeISO(), 6),
                 bloqueioCriadoEm: new Date().toISOString(),
                 bloqueioOrigem: "gestaov6",
                 bloqueioLiberado: false
