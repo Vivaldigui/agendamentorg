@@ -21,12 +21,9 @@
         *, *::before, *::after { box-sizing: border-box; }
         body { background-color: #f0f4f8; margin: 0; padding: 10px; font-family: 'Inter', sans-serif; }
         #sistema-agendamento { max-width: 700px; margin: 0 auto; border-radius: 20px; overflow: hidden; box-shadow: var(--shadow-soft); background: #fff; border: 1px solid rgba(0,0,0,0.05); }
-        .cabecalho-sistema { background: linear-gradient(135deg, var(--primary) 0%, #00428a 100%); color: white; padding: 16px 16px 14px; text-align: center; position: relative; overflow: hidden; }
+        .cabecalho-sistema { background: linear-gradient(135deg, var(--primary) 0%, #00428a 100%); color: white; padding: 20px 16px 18px; text-align: center; position: relative; overflow: hidden; }
         .cabecalho-sistema::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--warning), #fbbf24); opacity: 0.95; }
-        .cabecalho-sistema img { max-width: 118px; height: auto; margin: 0 auto 8px; display: block; filter: drop-shadow(0 3px 5px rgba(0,0,0,0.14)); }
-        .cabecalho-sistema .institucional { margin: 0 0 4px; opacity: 0.86; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-        .cabecalho-sistema h2 { margin: 0 0 3px; font-size: 1.32rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; line-height: 1.05; }
-        .cabecalho-sistema p { margin: 0; opacity: 0.9; font-size: 0.78rem; font-weight: 600; line-height: 1.25; }
+        .cabecalho-sistema img { max-width: 185px; width: 70%; height: auto; margin: 0 auto; display: block; filter: drop-shadow(0 5px 8px rgba(0,0,0,0.18)); }
         .banner-vagas { padding: 12px; text-align: center; display: none; border-bottom: 1px solid var(--gray-200); background: white; }
         .status-vagas-card { width: 100%; border-radius: 16px; padding: 16px 14px; display: flex; align-items: center; justify-content: center; gap: 13px; border: 1px solid var(--gray-200); text-align: center; }
         .status-vagas-icone { width: 44px; height: 44px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1.25rem; box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08); }
@@ -144,20 +141,14 @@
         .modal-btn.neutro { background: var(--gray-100); color: var(--gray-800); }
         @media (min-width: 720px) {
             body { padding: 20px 10px; }
-            .cabecalho-sistema { padding: 20px 20px 17px; }
-            .cabecalho-sistema img { max-width: 145px; margin-bottom: 9px; }
-            .cabecalho-sistema .institucional { font-size: 0.72rem; }
-            .cabecalho-sistema h2 { font-size: 1.48rem; }
-            .cabecalho-sistema p { font-size: 0.86rem; }
+            .cabecalho-sistema { padding: 24px 20px 22px; }
+            .cabecalho-sistema img { max-width: 230px; width: 46%; }
             .banner-vagas { padding: 12px 16px; }
         }
         @media (max-width: 520px) {
             #sistema-agendamento { border-radius: 16px; }
-            .cabecalho-sistema { padding: 14px 12px 12px; }
-            .cabecalho-sistema img { max-width: 108px; margin-bottom: 7px; }
-            .cabecalho-sistema .institucional { font-size: 0.62rem; margin-bottom: 3px; }
-            .cabecalho-sistema h2 { font-size: 1.18rem; }
-            .cabecalho-sistema p { font-size: 0.72rem; }
+            .cabecalho-sistema { padding: 18px 12px 16px; }
+            .cabecalho-sistema img { max-width: 175px; width: 72%; }
             .banner-vagas { padding: 10px; }
             .status-vagas-card { padding: 14px 12px; gap: 10px; border-radius: 14px; }
             .status-vagas-icone { width: 38px; height: 38px; font-size: 1.08rem; }
@@ -193,9 +184,6 @@
 <div id="sistema-agendamento">
     <div class="cabecalho-sistema">
         <img src="https://www.itanhandu.cam.mg.gov.br/img/header-logo.png" alt="Câmara Municipal de Itanhandu">
-        <div class="institucional">Câmara Municipal de Itanhandu/MG</div>
-        <h2>CIN Itanhandu</h2>
-        <p>Agendamento da Carteira de Identidade Nacional</p>
     </div>
 
     <div id="banner-vagas" class="banner-vagas"></div>

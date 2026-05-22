@@ -18,6 +18,7 @@
         .btn-login { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
         #painel-screen { display: none; max-width: 1400px; margin: auto; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         .controles { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap:wrap;}
         .btn { padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; color: white; transition: 0.2s; }
         .btn-atualizar { background: var(--primary); }
@@ -25,6 +26,7 @@
         .btn-manual { background: #f59e0b; }
         .btn-lote { background: #0ea5e9; }
         .btn-sair { background: #64748b; }
+        .btn-tema { background: #111827; border: 1px solid #334155; }
         .acoes-linha { display: flex; gap: 8px; flex-wrap: wrap; }
         .btn-lembrete { background: #0ea5e9; font-size:0.75rem; padding: 8px 12px; text-decoration:none; color: white; border-radius: 6px; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; }
         .btn-lembrete:hover { background: #0369a1; }
@@ -85,6 +87,7 @@
             body { padding: 10px; }
             #painel-screen { max-width: 100%; }
             .header { align-items: flex-start; gap: 12px; flex-direction: column; }
+            .header-actions { width: 100%; flex-direction: column; align-items: stretch; }
             .header h2 { font-size: 1.2rem; margin: 0; }
             .btn { width: 100%; justify-content: center; }
             .controles, .config-form { flex-direction: column; align-items: stretch; }
@@ -102,9 +105,130 @@
             .acoes-linha .btn-pequeno, .select-status, .acoes-menu-wrap, .btn-acoes { width:100%; justify-content:center; }
             .acoes-menu { position: static; width:100%; margin-top:6px; }
         }
+        body.modo-escuro {
+            --primary: #2563eb;
+            --primary-dark: #bfdbfe;
+            --success: #16a34a;
+            --bg: #0f172a;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        body.modo-escuro #login-screen,
+        body.modo-escuro .card-kpi,
+        body.modo-escuro .painel-filtros,
+        body.modo-escuro .painel-config,
+        body.modo-escuro .painel-periodo,
+        body.modo-escuro .modal-content,
+        body.modo-escuro table,
+        body.modo-escuro tr {
+            background: #111827;
+            color: #e2e8f0;
+            border-color: #334155;
+            box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+        }
+        body.modo-escuro th {
+            background: #0b1220;
+            color: #94a3b8;
+            border-color: #1e293b;
+        }
+        body.modo-escuro td {
+            border-color: #1f2937;
+        }
+        body.modo-escuro .input-group label,
+        body.modo-escuro .header h2,
+        body.modo-escuro .card-kpi strong,
+        body.modo-escuro .painel-config h3,
+        body.modo-escuro .painel-periodo h3 {
+            color: #e2e8f0;
+        }
+        body.modo-escuro .card-kpi span,
+        body.modo-escuro .periodo-info,
+        body.modo-escuro .detalhe-pessoal,
+        body.modo-escuro td::before,
+        body.modo-escuro .filtro-check {
+            color: #94a3b8;
+        }
+        body.modo-escuro .input-group input,
+        body.modo-escuro .input-group select,
+        body.modo-escuro .input-group textarea,
+        body.modo-escuro .select-status {
+            background: #0b1220;
+            color: #e2e8f0;
+            border-color: #334155;
+        }
+        body.modo-escuro .input-group input::placeholder {
+            color: #64748b;
+        }
+        body.modo-escuro .btn-tema {
+            background: #f8fafc;
+            color: #0f172a;
+            border-color: #e2e8f0;
+        }
+        body.modo-escuro .tabela-wrap {
+            box-shadow: 0 12px 30px rgba(0,0,0,0.24);
+        }
+        body.modo-escuro .acoes-menu {
+            background: #111827;
+            border-color: #334155;
+            box-shadow: 0 16px 32px rgba(0,0,0,0.35);
+        }
+        body.modo-escuro .acoes-menu button {
+            color: #e2e8f0;
+        }
+        body.modo-escuro .acoes-menu button:hover,
+        body.modo-escuro .filtros-rapidos button:hover {
+            background: #1e293b;
+        }
+        body.modo-escuro .filtros-rapidos button {
+            background: #111827;
+            color: #cbd5e1;
+            border-color: #334155;
+        }
+        body.modo-escuro .filtros-rapidos button.ativo {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        body.modo-escuro .chip-data {
+            background: #0b1220;
+            color: #bfdbfe;
+            border-color: #334155;
+        }
+        body.modo-escuro .chip-data.passada {
+            background: #111827;
+            color: #94a3b8;
+        }
+        body.modo-escuro .chip-data.programada,
+        body.modo-escuro .badge-manual,
+        body.modo-escuro .st-remarcado {
+            background: #422006;
+            color: #fde68a;
+            border-color: #92400e;
+        }
+        body.modo-escuro .st-agendado {
+            background:#172554;
+            color:#bfdbfe;
+            border-color:#1d4ed8;
+        }
+        body.modo-escuro .st-compareceu {
+            background:#052e16;
+            color:#86efac;
+            border-color:#15803d;
+        }
+        body.modo-escuro .st-nao_compareceu,
+        body.modo-escuro .bloqueio-badge {
+            background:#450a0a;
+            color:#fecaca;
+            border-color:#991b1b;
+        }
+        body.modo-escuro .st-cancelado {
+            background:#1e293b;
+            color:#cbd5e1;
+            border-color:#334155;
+        }
     </style>
 </head>
-<body>
+<body class="modo-escuro">
 
     <div id="login-screen">
         <img src="https://www.itanhandu.cam.mg.gov.br/img/header-logo.png" style="max-width:180px; margin-bottom:20px;">
@@ -117,7 +241,10 @@
     <div id="painel-screen">
         <div class="header">
             <h2><i class="fa-solid fa-users-gear"></i> Painel da Recepção (V6)</h2>
-            <button class="btn btn-sair" onclick="fazerLogout()">Sair</button>
+            <div class="header-actions">
+                <button class="btn btn-tema" id="btn-tema" onclick="alternarTema()"><i class="fa-solid fa-moon"></i> Modo escuro</button>
+                <button class="btn btn-sair" onclick="fazerLogout()">Sair</button>
+            </div>
         </div>
         <div class="controles">
             <button class="btn btn-atualizar" onclick="listarAgendamentos()"><i class="fa-solid fa-rotate"></i> Atualizar Lista</button>
@@ -298,6 +425,35 @@
         let agendaPublicacaoDatas = {};
         let agendamentosCache = [];
         let filtroRapidoAtual = "";
+
+        function atualizarBotaoTema() {
+            const btn = document.getElementById("btn-tema");
+            if (!btn) return;
+            const escuro = document.body.classList.contains("modo-escuro");
+            btn.innerHTML = escuro
+                ? '<i class="fa-solid fa-sun"></i> Modo claro'
+                : '<i class="fa-solid fa-moon"></i> Modo escuro';
+        }
+
+        function aplicarTemaPreferido() {
+            let tema = "escuro";
+            try {
+                tema = localStorage.getItem("gestaov6-tema") || "escuro";
+            } catch (e) {}
+            document.body.classList.toggle("modo-escuro", tema !== "claro");
+            atualizarBotaoTema();
+        }
+
+        function alternarTema() {
+            const escuro = !document.body.classList.contains("modo-escuro");
+            document.body.classList.toggle("modo-escuro", escuro);
+            try {
+                localStorage.setItem("gestaov6-tema", escuro ? "escuro" : "claro");
+            } catch (e) {}
+            atualizarBotaoTema();
+        }
+
+        aplicarTemaPreferido();
 
         function textoSeguro(valor) {
             return String(valor || "").replace(/[&<>"']/g, c => ({
