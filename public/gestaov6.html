@@ -775,6 +775,97 @@
             registrarLog("emitir_comprovante", { agendamentoId: id, protocolo: ag.dados.protocolo || "" });
         }
 
+        function emitirDeclaracaoComparecimentoPDF(dados) {
+            const dataBR = dados.dataBR || dataBrISO(dados.dataISO);
+            const nascBR = dados.nascimentoBR || dataNascBR(dados.dataNasc);
+            const protocolo = dados.protocolo || "Nao informado";
+            const emitidoEm = new Date().toLocaleString("pt-BR");
+            const janela = window.open("", "_blank");
+            if (!janela) {
+                alert("O navegador bloqueou a janela da declaracao. Permita pop-ups para emitir o PDF.");
+                return;
+            }
+
+            janela.document.write(`<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Declaracao de Comparecimento ${textoSeguro(protocolo)}</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; margin: 0; background: #f1f5f9; color: #0f172a; }
+        .pagina { max-width: 760px; min-height: 1040px; margin: 24px auto; background: white; padding: 46px 44px; border: 1px solid #e2e8f0; }
+        .topo { text-align: center; border-bottom: 3px solid #0056b3; padding-bottom: 18px; margin-bottom: 34px; }
+        .topo img { max-width: 190px; margin-bottom: 12px; }
+        h1 { margin: 0; font-size: 23px; color: #003d82; text-transform: uppercase; letter-spacing: 0.4px; }
+        .sub { margin: 7px 0 0; color: #475569; font-size: 14px; }
+        .dados { margin: 22px 0 28px; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+        .linha { display: flex; justify-content: space-between; gap: 18px; padding: 11px 14px; border-bottom: 1px solid #e2e8f0; }
+        .linha:last-child { border-bottom: none; }
+        .linha span { color: #64748b; font-weight: 700; }
+        .linha strong { text-align: right; color: #0f172a; }
+        .texto-declaracao { margin: 36px 0; font-size: 16px; line-height: 1.85; text-align: justify; color: #111827; }
+        .texto-declaracao p { margin: 0 0 18px; }
+        .assinatura { margin: 72px auto 0; max-width: 360px; text-align: center; color: #334155; }
+        .assinatura .linha-assinatura { border-top: 1px solid #334155; padding-top: 9px; font-weight: 700; }
+        .rodape { margin-top: 42px; color: #64748b; font-size: 12px; text-align: center; line-height: 1.5; }
+        .acoes { max-width: 760px; margin: 0 auto 24px; display: flex; justify-content: center; gap: 10px; }
+        button { border: none; border-radius: 8px; padding: 11px 18px; font-weight: 700; cursor: pointer; }
+        .imprimir { background: #0056b3; color: white; }
+        .fechar { background: #e2e8f0; color: #0f172a; }
+        @page { size: A4; margin: 14mm; }
+        @media print {
+            body { background: white; }
+            .pagina { margin: 0; max-width: none; min-height: auto; border: none; padding: 0; }
+            .acoes { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="pagina">
+        <div class="topo">
+            <img src="https://www.itanhandu.cam.mg.gov.br/img/header-logo.png" alt="Camara Municipal de Itanhandu">
+            <h1>Declaracao de Comparecimento</h1>
+            <p class="sub">Atendimento para emissao da Carteira de Identidade Nacional - CIN/RG</p>
+        </div>
+        <div class="dados">
+            ${linhaComprovante("Nome", dados.nome)}
+            ${linhaComprovante("CPF", dados.cpf)}
+            ${linhaComprovante("Nascimento", nascBR)}
+            ${linhaComprovante("Data do atendimento", dataBR)}
+            ${linhaComprovante("Horario", dados.hora)}
+            ${linhaComprovante("Protocolo", protocolo)}
+        </div>
+        <div class="texto-declaracao">
+            <p>Declaramos, para os devidos fins, que <strong>${textoSeguro(dados.nome || "cidadao")}</strong>${dados.cpf ? `, inscrito(a) no CPF <strong>${textoSeguro(dados.cpf)}</strong>` : ""}, compareceu a <strong>Camara Municipal de Itanhandu</strong> no dia <strong>${textoSeguro(dataBR || "____/____/______")}</strong>${dados.hora ? `, as <strong>${textoSeguro(dados.hora)}</strong>` : ""}, para atendimento referente a emissao da Carteira de Identidade Nacional - CIN/RG.</p>
+            <p>A presente declaracao e emitida a pedido do(a) interessado(a), para fins de comprovacao de comparecimento.</p>
+        </div>
+        <div class="assinatura">
+            <div class="linha-assinatura">Camara Municipal de Itanhandu</div>
+            <div style="font-size:12px; margin-top:4px;">Recepcao / Atendimento CIN-RG</div>
+        </div>
+        <div class="rodape">Declaracao emitida em ${textoSeguro(emitidoEm)} pelo sistema de agendamento da Camara Municipal de Itanhandu.</div>
+    </div>
+    <div class="acoes">
+        <button class="imprimir" onclick="window.print()">Imprimir / Salvar em PDF</button>
+        <button class="fechar" onclick="window.close()">Fechar</button>
+    </div>
+    <script>setTimeout(() => window.print(), 600);<\/script>
+</body>
+</html>`);
+            janela.document.close();
+        }
+
+        function emitirDeclaracaoComparecimentoDaLista(id) {
+            const ag = buscarAgendamentoCache(id);
+            if (!ag) return alert("Agendamento nao encontrado na lista atual.");
+            if (statusValor(ag.dados) !== "compareceu" && !confirm("Este atendimento ainda nao esta marcado como Compareceu. Deseja emitir a declaracao mesmo assim?")) {
+                return;
+            }
+            emitirDeclaracaoComparecimentoPDF(ag.dados);
+            registrarLog("emitir_declaracao_comparecimento", { agendamentoId: id, protocolo: ag.dados.protocolo || "" });
+        }
+
         async function registrarLog(acao, detalhes) {
             try {
                 await db.collection("logs_admin").add({
@@ -1101,6 +1192,7 @@
                     <div class="acoes-menu" id="menu-acoes-${id}">
                         <button type="button" onclick="abrirZapLembrete('${id}')"><i class="fa-brands fa-whatsapp"></i> Enviar lembrete</button>
                         <button type="button" onclick="emitirComprovanteDaLista('${id}')"><i class="fa-solid fa-file-pdf"></i> Gerar comprovante</button>
+                        <button type="button" onclick="emitirDeclaracaoComparecimentoDaLista('${id}')"><i class="fa-solid fa-file-signature"></i> Declaracao comparecimento</button>
                         <button type="button" onclick="abrirRemarcacao('${id}')"><i class="fa-solid fa-pen-to-square"></i> Remarcar</button>
                         <button type="button" onclick="alterarStatus('${id}', 'compareceu')"><i class="fa-solid fa-check"></i> Marcar compareceu</button>
                         <button type="button" onclick="alterarStatus('${id}', 'nao_compareceu')"><i class="fa-solid fa-user-xmark"></i> Marcar não compareceu</button>
