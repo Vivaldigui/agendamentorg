@@ -32,7 +32,7 @@ const callableOptions = {
 
 const publicCallableOptions = {
   ...callableOptions,
-  enforceAppCheck: process.env.APP_CHECK_ENFORCE_PUBLIC === "true"
+  enforceAppCheck: true
 };
 
 function normalizarCpf(cpf) {
