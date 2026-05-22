@@ -44,7 +44,7 @@
         .banner-vagas.sem-vagas .status-vagas-icone { background: white; color: var(--danger-dark); }
         .banner-vagas.sem-vagas .status-vagas-titulo { color: var(--danger-dark); }
         .abas { display: flex; background: var(--gray-50); padding: 8px; gap: 8px; border-bottom: 1px solid var(--gray-200); margin: 0; }
-        .aba { flex: 1; padding: 12px 5px; cursor: pointer; border: none; background: transparent; border-radius: 10px; font-weight: 700; color: var(--gray-600); transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.85rem; }
+        .aba { flex: 1; padding: 12px 5px; cursor: pointer; border: none; background: transparent; border-radius: 10px; font-weight: 700; color: var(--gray-600); transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.85rem; touch-action: manipulation; }
         .aba.ativa { background: white; color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         .aba:hover:not(.ativa) { background: var(--gray-100); color: var(--gray-800); }
         .corpo-sistema { padding: 32px 30px 28px; }
@@ -63,7 +63,7 @@
         @keyframes loading-anim { 0% { left: -35%; } 100% { left: 110%; } }
         .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; margin: 20px 0; }
         .grade-horas { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
-        .btn-data, .btn-hora { padding: 16px 10px; border: 2px solid var(--gray-200); background: white; cursor: pointer; border-radius: var(--radius); text-align: center; font-weight: 700; color: var(--gray-800); font-size: 0.95rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: 0.2s; }
+        .btn-data, .btn-hora { padding: 16px 10px; border: 2px solid var(--gray-200); background: white; cursor: pointer; border-radius: var(--radius); text-align: center; font-weight: 700; color: var(--gray-800); font-size: 0.95rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: 0.2s; touch-action: manipulation; }
         .btn-hora { padding: 14px 10px; font-size: 1.05rem; flex-direction: row; }
         .btn-data:hover:not(:disabled), .btn-hora:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); transform: translateY(-3px); box-shadow: var(--shadow-hover); }
         .btn-data:disabled, .btn-hora:disabled { background: var(--gray-50); color: var(--gray-400); opacity: 0.7; cursor: not-allowed; border-color: var(--gray-100); transform: none; }
@@ -73,12 +73,13 @@
         .selecionado { background: var(--primary) !important; color: white !important; border-color: var(--primary) !important; transform: translateY(-2px) !important; box-shadow: var(--shadow-hover) !important; }
         .form-grupo { margin-bottom: 20px; }
         .form-grupo label { display: block; margin-bottom: 8px; font-weight: 700; color: var(--gray-800); font-size: 0.9rem; }
-        .form-grupo input[type="text"], .form-grupo input[type="email"] { width: 100%; padding: 15px 16px; border: 2px solid var(--gray-200); background: var(--gray-50); border-radius: 12px; font-size: 1rem; font-weight: 500; color: var(--gray-800); outline: none; transition: 0.25s; }
+        .form-grupo input[type="text"], .form-grupo input[type="email"], .form-grupo input[type="tel"] { width: 100%; padding: 15px 16px; border: 2px solid var(--gray-200); background: var(--gray-50); border-radius: 12px; font-size: 1rem; font-weight: 500; color: var(--gray-800); outline: none; transition: 0.25s; }
         .form-grupo input:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 4px var(--primary-light); }
         .form-grupo input.erro { border-color: var(--danger); background: var(--danger-light); }
         .msg-campo-erro { color: var(--danger); font-size: 0.8rem; font-weight: 600; margin-top: 6px; display: none; }
         .msg-campo-erro.visivel { display: block; animation: fadeIn 0.3s; }
-        .checkbox-termo { display:flex; align-items:flex-start; gap:10px; background:var(--gray-50); padding:15px; border-radius:8px; border:1px solid var(--gray-200); transition: 0.2s; }
+        .checkbox-termo { display:flex; align-items:flex-start; gap:10px; background:var(--gray-50); padding:18px; border-radius:8px; border:1px solid var(--gray-200); transition: 0.2s; cursor: pointer; touch-action: manipulation; }
+        .checkbox-termo input[type="checkbox"] { width:24px !important; height:24px !important; margin-top:0 !important; flex-shrink: 0; }
         .checkbox-termo.erro-termo { border-color: var(--danger); background: var(--danger-light); box-shadow: 0 0 0 4px rgba(239,68,68,0.1); }
         .ajuda-campo { color: var(--gray-400); font-size: 0.78rem; font-weight: 600; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -86,7 +87,7 @@
         .card-resumo .info { font-size: 0.95rem; color: var(--gray-800); }
         .btn-alterar { background: white; border: 1px solid var(--primary); color: var(--primary); font-weight: 700; cursor: pointer; border-radius: 8px; padding: 8px 14px; font-size: 0.85rem; }
         .tarja-alerta { background: var(--danger-light); color: var(--danger-dark); padding: 14px 18px; border-radius: 10px; margin-bottom: 24px; font-weight: 600; font-size: 0.88rem; display: flex; align-items: center; gap: 12px; border-left: 5px solid var(--danger); }
-        .btn-principal { width: 100%; padding: 18px; border: none; border-radius: 12px; font-size: 1.05rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.3s; }
+        .btn-principal { width: 100%; padding: 18px; border: none; border-radius: 12px; font-size: 1.05rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.3s; touch-action: manipulation; }
         .btn-principal.verde { background: var(--success); color: white; }
         .btn-principal.verde:hover:not(:disabled) { background: var(--success-dark); transform: translateY(-2px); box-shadow: 0 10px 25px rgba(16, 185, 129, 0.35); }
         .btn-principal.azul { background: var(--primary); color: white; }
@@ -95,6 +96,7 @@
         .btn-principal.vermelho:hover:not(:disabled) { background: var(--danger-dark); transform: translateY(-2px); }
         .btn-principal.cinza { background: white; color: var(--gray-800); border: 2px solid var(--gray-200); }
         .btn-principal:disabled { opacity: 0.7; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-principal:active:not(:disabled), .btn-data:active:not(:disabled), .btn-hora:active:not(:disabled), .aba:active { transform: scale(0.96) !important; transition: transform 0.1s; }
         .ticket-sucesso { background: var(--success-light); border: 1px solid #a7f3d0; border-left: 6px solid var(--success); border-radius: 16px; padding: 26px; text-align: center; margin-bottom: 24px; }
         .data-grande { font-size: 2.4rem; font-weight: 900; color: var(--success-dark); display: block; margin: 12px 0 8px; letter-spacing: -1px; }
         .msg-sucesso-topo { color: var(--success-dark); font-size: 1.6rem; font-weight: 900; display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 18px; }
@@ -244,12 +246,12 @@
                     <div class="info"><i class="fa-solid fa-calendar-check" style="color:var(--primary);"></i> <strong> <span id="resumo-data-txt"></span></strong> às <strong><span id="resumo-hora-txt"></span></strong></div>
                     <button class="btn-alterar" onclick="abrirAlterarHorario()"><i class="fa-solid fa-pen"></i> Alterar</button>
                 </div>
-                <div class="form-grupo"><label>Nome Completo: <span style="color:var(--danger)">*</span></label><input id="inp-nome" type="text" placeholder="Ex: João da Silva" onblur="formatarNomeProprio(this)" /><div class="msg-campo-erro" id="erro-nome">Informe o nome completo.</div></div>
+                <div class="form-grupo"><label>Nome Completo: <span style="color:var(--danger)">*</span></label><input id="inp-nome" type="text" autocomplete="name" autocapitalize="words" placeholder="Ex: João da Silva" onblur="formatarNomeProprio(this)" /><div class="msg-campo-erro" id="erro-nome">Informe o nome completo.</div></div>
                 <div class="grid-2">
-                    <div class="form-grupo"><label>CPF: <span style="color:var(--danger)">*</span></label><input id="inp-cpf" maxlength="14" oninput="mascaraCPF(this)" type="text" placeholder="000.000.000-00" /><div class="msg-campo-erro" id="erro-cpf">CPF inválido.</div></div>
-                    <div class="form-grupo"><label>Nascimento: <span style="color:var(--danger)">*</span></label><input id="inp-nasc" maxlength="10" oninput="mascaraData(this)" type="text" placeholder="DD/MM/AAAA" /><div class="msg-campo-erro" id="erro-nasc">Data inválida.</div></div>
+                    <div class="form-grupo"><label>CPF: <span style="color:var(--danger)">*</span></label><input id="inp-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" placeholder="000.000.000-00" /><div class="msg-campo-erro" id="erro-cpf">CPF inválido.</div></div>
+                    <div class="form-grupo"><label>Nascimento: <span style="color:var(--danger)">*</span></label><input id="inp-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" placeholder="DD/MM/AAAA" /><div class="msg-campo-erro" id="erro-nasc">Data inválida.</div></div>
                 </div>
-                <div class="form-grupo"><label>Celular / WhatsApp: <span class="ajuda-campo">(para receber o comprovante)</span> <span style="color:var(--danger)">*</span></label><input id="inp-tel" maxlength="15" oninput="mascaraTel(this)" type="text" placeholder="(00) 00000-0000" /><div class="msg-campo-erro" id="erro-tel">Informe um telefone válido.</div></div>
+                <div class="form-grupo"><label>Celular / WhatsApp: <span class="ajuda-campo">(para receber o comprovante)</span> <span style="color:var(--danger)">*</span></label><input id="inp-tel" maxlength="15" inputmode="tel" autocomplete="tel" oninput="mascaraTel(this)" type="tel" placeholder="(00) 00000-0000" /><div class="msg-campo-erro" id="erro-tel">Informe um telefone válido.</div></div>
                 <div class="form-grupo"><label>E-mail (Opcional)</label><input id="inp-email" type="email" placeholder="seu.email@exemplo.com" /><div class="msg-campo-erro" id="erro-email">E-mail inválido.</div></div>
                 <div class="docs-container compacto">
                     <h4><i class="fa-regular fa-folder-open"></i> Confira os documentos antes de finalizar</h4>
@@ -264,18 +266,18 @@
                     <i class="fa-solid fa-triangle-exclamation" style="font-size:1.4rem;"></i>
                     <div><strong>Atenção:</strong> o não comparecimento sem cancelamento prévio poderá impedir novo agendamento pelo prazo de 60 dias.</div>
                 </div>
-                <div class="form-grupo checkbox-termo">
-                    <input type="checkbox" id="aceite-lgpd" onchange="limparErroAceite('aceite-lgpd')" style="width:20px; height:20px; margin-top:2px;">
-                    <label for="aceite-lgpd" style="font-size:0.85rem; color:var(--gray-600); line-height:1.4; font-weight:500; margin:0;">
+                <label class="form-grupo checkbox-termo">
+                    <input type="checkbox" id="aceite-lgpd" onchange="limparErroAceite('aceite-lgpd')">
+                    <span style="font-size:0.85rem; color:var(--gray-600); line-height:1.4; font-weight:500; margin:0;">
                         Declaro que concordo com a coleta e o tratamento dos meus dados exclusivamente para agendamento do RG/CIN, conforme a Política de Privacidade LGPD da Câmara de Itanhandu.
-                    </label>
-                </div>
-                <div class="form-grupo checkbox-termo">
-                    <input type="checkbox" id="aceite-bloqueio" onchange="limparErroAceite('aceite-bloqueio')" style="width:20px; height:20px; margin-top:2px;">
-                    <label for="aceite-bloqueio" style="font-size:0.85rem; color:var(--gray-600); line-height:1.4; font-weight:500; margin:0;">
+                    </span>
+                </label>
+                <label class="form-grupo checkbox-termo">
+                    <input type="checkbox" id="aceite-bloqueio" onchange="limparErroAceite('aceite-bloqueio')">
+                    <span style="font-size:0.85rem; color:var(--gray-600); line-height:1.4; font-weight:500; margin:0;">
                         Declaro que estou ciente de que o não comparecimento sem cancelamento prévio poderá impedir novo agendamento pelo prazo de 60 dias.
-                    </label>
-                </div>
+                    </span>
+                </label>
                 <button class="btn-principal verde" id="btnFinalizar" onclick="confirmarAgendamento()">FINALIZAR AGENDAMENTO <i class="fa-solid fa-arrow-right"></i></button>
             </div>
 
@@ -320,9 +322,9 @@
 
         <div class="secao" id="secao-consultar">
             <h3 style="color:var(--gray-800); font-size:1.1rem; margin:0 0 20px; font-weight:800;"><i class="fa-solid fa-magnifying-glass" style="color:var(--primary);"></i> Consultar Agendamento</h3>
-            <div class="form-grupo"><label>CPF:</label><input id="cons-cpf" maxlength="14" oninput="mascaraCPF(this)" type="text" /></div>
-            <div class="form-grupo"><label>Data de Nascimento:</label><input id="cons-nasc" maxlength="10" oninput="mascaraData(this)" type="text" /></div>
-            <div class="form-grupo"><label>Celular usado no agendamento:</label><input id="cons-tel" maxlength="15" oninput="mascaraTel(this)" type="text" placeholder="(00) 00000-0000" /></div>
+            <div class="form-grupo"><label>CPF:</label><input id="cons-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" /></div>
+            <div class="form-grupo"><label>Data de Nascimento:</label><input id="cons-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" /></div>
+            <div class="form-grupo"><label>Celular usado no agendamento:</label><input id="cons-tel" maxlength="15" inputmode="tel" autocomplete="tel" oninput="mascaraTel(this)" type="tel" placeholder="(00) 00000-0000" /></div>
             <div class="form-grupo"><label>Protocolo (opcional, se tiver):</label><input id="cons-protocolo" maxlength="14" type="text" placeholder="CIN-ABC12345" /></div>
             <button class="btn-principal azul" id="btnConsultar" onclick="consultarAgendamento()">Buscar Meu Horário <i class="fa-solid fa-search"></i></button>
             <div id="resultado-consulta" style="margin-top:24px;"></div>
@@ -331,9 +333,9 @@
         <div class="secao" id="secao-cancelar">
             <h3 style="color:var(--gray-800); font-size:1.1rem; margin:0 0 12px; font-weight:800;"><i class="fa-regular fa-calendar-xmark" style="color:var(--danger);"></i> Cancelar Agendamento</h3>
             <p style="color:var(--gray-600); font-size:0.9rem; margin:0 0 20px;">Informe CPF, nascimento e o celular usado no agendamento. O protocolo também pode ser usado para reforçar a identificação.</p>
-            <div class="form-grupo"><label>CPF:</label><input id="cancelar-cpf" maxlength="14" oninput="mascaraCPF(this)" type="text" /></div>
-            <div class="form-grupo"><label>Data de Nascimento:</label><input id="cancelar-nasc" maxlength="10" oninput="mascaraData(this)" type="text" /></div>
-            <div class="form-grupo"><label>Celular usado no agendamento:</label><input id="cancelar-tel" maxlength="15" oninput="mascaraTel(this)" type="text" placeholder="(00) 00000-0000" /></div>
+            <div class="form-grupo"><label>CPF:</label><input id="cancelar-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" /></div>
+            <div class="form-grupo"><label>Data de Nascimento:</label><input id="cancelar-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" /></div>
+            <div class="form-grupo"><label>Celular usado no agendamento:</label><input id="cancelar-tel" maxlength="15" inputmode="tel" autocomplete="tel" oninput="mascaraTel(this)" type="tel" placeholder="(00) 00000-0000" /></div>
             <div class="form-grupo"><label>Protocolo (opcional, se tiver):</label><input id="cancelar-protocolo" maxlength="14" type="text" placeholder="CIN-ABC12345" /></div>
             <button class="btn-principal vermelho" id="btnBuscarCancelamento" onclick="buscarParaCancelar()">Localizar Agendamento <i class="fa-solid fa-search"></i></button>
             <div id="resultado-cancelamento" style="margin-top:24px;"></div>
@@ -902,7 +904,7 @@
                         setTimeout(() => { 
                             document.getElementById("etapa-selecao").style.display = "none"; 
                             document.getElementById("dados-pessoais").style.display = "block"; 
-                            window.scrollTo(0,0); 
+                            document.getElementById("dados-pessoais").scrollIntoView({ behavior: "smooth", block: "start" });
                         }, 180); 
                     }; 
                 }
