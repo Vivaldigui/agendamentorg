@@ -38,6 +38,21 @@
         .card-kpi { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
         .card-kpi span { display: block; color: #64748b; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
         .card-kpi strong { display: block; margin-top: 6px; color: var(--primary-dark); font-size: 1.7rem; line-height: 1; }
+        .painel-indicadores { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 20px; }
+        .painel-indicadores h3 { margin: 0 0 14px; color: var(--primary-dark); font-size: 1rem; }
+        .indicadores-grid { display: grid; grid-template-columns: repeat(5, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+        .indicador-card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; background: #f8fafc; }
+        .indicador-card span { display: block; color: #64748b; font-size: 0.7rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.4px; }
+        .indicador-card strong { display: block; margin-top: 6px; color: #0f172a; font-size: 1.35rem; line-height: 1.15; }
+        .indicador-card small { display: block; margin-top: 6px; color: #64748b; font-weight: 700; line-height: 1.3; }
+        .indicadores-tabelas { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .indicador-bloco h4 { margin: 0 0 10px; color: #334155; font-size: 0.88rem; }
+        .serie-mensal { display: grid; gap: 8px; }
+        .linha-serie { display: grid; grid-template-columns: minmax(92px, 0.8fr) 1fr 44px; gap: 10px; align-items: center; font-size: 0.82rem; font-weight: 800; color: #334155; }
+        .barra-serie { height: 10px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
+        .barra-serie span { display: block; height: 100%; background: var(--primary); border-radius: inherit; }
+        .serie-faltas .barra-serie span { background: #dc2626; }
+        .indicador-vazio { color: #64748b; font-weight: 700; font-size: 0.85rem; }
         .painel-filtros { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 20px; }
         .filtros-grid { display: grid; grid-template-columns: 2fr 1fr 1fr auto auto auto; gap: 10px; align-items: end; }
         .filtro-check { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 700; color: #475569; padding-bottom: 11px; }
@@ -94,7 +109,7 @@
             .header h2 { font-size: 1.2rem; margin: 0; }
             .btn { width: 100%; justify-content: center; }
             .controles, .config-form { flex-direction: column; align-items: stretch; }
-            .cards-resumo, .filtros-grid, .grid-2 { grid-template-columns: 1fr; }
+            .cards-resumo, .indicadores-grid, .indicadores-tabelas, .filtros-grid, .grid-2 { grid-template-columns: 1fr; }
             .card-kpi { padding: 14px; }
             .modal { align-items: flex-start; overflow:auto; padding: 10px; }
             .modal-content { margin: 18px 0; padding: 18px; max-width: 100%; }
@@ -118,6 +133,7 @@
         }
         body.modo-escuro #login-screen,
         body.modo-escuro .card-kpi,
+        body.modo-escuro .painel-indicadores,
         body.modo-escuro .painel-filtros,
         body.modo-escuro .painel-config,
         body.modo-escuro .painel-periodo,
@@ -141,6 +157,7 @@
         body.modo-escuro .header h2,
         body.modo-escuro .card-kpi strong,
         body.modo-escuro .painel-config h3,
+        body.modo-escuro .painel-indicadores h3,
         body.modo-escuro .painel-periodo h3 {
             color: #e2e8f0;
         }
@@ -213,6 +230,18 @@
             color: #fde68a;
             border-color: #92400e;
         }
+        body.modo-escuro .indicador-card {
+            background: #0b1220;
+            border-color: #334155;
+        }
+        body.modo-escuro .indicador-card strong,
+        body.modo-escuro .indicador-bloco h4,
+        body.modo-escuro .linha-serie {
+            color: #e2e8f0;
+        }
+        body.modo-escuro .barra-serie {
+            background: #1e293b;
+        }
         body.modo-escuro .st-agendado {
             background:#172554;
             color:#bfdbfe;
@@ -284,6 +313,26 @@
             <div class="card-kpi"><span>Vagas Restantes</span><strong id="kpi-vagas">0</strong></div>
             <div class="card-kpi"><span>Datas Lotadas</span><strong id="kpi-lotadas">0</strong></div>
             <div class="card-kpi"><span>Atendimentos realizados</span><strong id="kpi-atendidos">0</strong></div>
+        </div>
+        <div class="painel-indicadores">
+            <h3><i class="fa-solid fa-chart-simple"></i> Indicadores históricos</h3>
+            <div class="indicadores-grid">
+                <div class="indicador-card"><span>CIN feitas</span><strong id="ind-total-cin">...</strong><small id="ind-cin-mes-top">Carregando...</small></div>
+                <div class="indicador-card"><span>Faltantes</span><strong id="ind-total-faltas">...</strong><small id="ind-faltas-mes-top">Carregando...</small></div>
+                <div class="indicador-card"><span>Taxa de ausência</span><strong id="ind-taxa-faltas">...</strong><small>Faltas sobre comparecimentos + faltas</small></div>
+                <div class="indicador-card"><span>Maior dia</span><strong id="ind-melhor-dia">...</strong><small id="ind-melhor-dia-data">Carregando...</small></div>
+                <div class="indicador-card"><span>Média por dia</span><strong id="ind-media-dia">...</strong><small>Dias com atendimento realizado</small></div>
+            </div>
+            <div class="indicadores-tabelas">
+                <div class="indicador-bloco">
+                    <h4>CIN feitas por mês</h4>
+                    <div class="serie-mensal" id="ind-cin-mes"></div>
+                </div>
+                <div class="indicador-bloco">
+                    <h4>Faltantes por mês</h4>
+                    <div class="serie-mensal serie-faltas" id="ind-faltas-mes"></div>
+                </div>
+            </div>
         </div>
         <div class="painel-config">
             <h3><i class="fa-solid fa-calendar-days"></i> Datas de Atendimento</h3>
@@ -442,6 +491,7 @@
         let listaAgendamentosCarregada = false;
         let totalAtendimentosRealizados = null;
         let totalAtendimentosCarregado = false;
+        let estatisticasHistoricas = { cin: [], faltas: [] };
         const INATIVIDADE_AVISO_MS = 25 * 60 * 1000;
         const INATIVIDADE_LOGOUT_MS = 30 * 60 * 1000;
         let timerAviso = null, timerLogout = null;
@@ -950,6 +1000,7 @@
                 listaAgendamentosCarregada = false;
                 totalAtendimentosCarregado = false;
                 document.getElementById("kpi-atendidos").textContent = "...";
+                marcarIndicadoresHistoricosCarregando();
                 await carregarAgendaGestao();
                 await Promise.all([listarAgendamentos(), carregarTotalAtendimentosRealizados()]);
             }
@@ -1166,20 +1217,110 @@
             } catch (e) { alert("Erro ao carregar lista."); }
         }
 
+        function marcarIndicadoresHistoricosCarregando() {
+            ["ind-total-cin", "ind-total-faltas", "ind-taxa-faltas", "ind-melhor-dia", "ind-media-dia"].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = "...";
+            });
+            ["ind-cin-mes-top", "ind-faltas-mes-top", "ind-melhor-dia-data"].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = "Carregando...";
+            });
+            const cinMes = document.getElementById("ind-cin-mes");
+            const faltasMes = document.getElementById("ind-faltas-mes");
+            if (cinMes) cinMes.innerHTML = '<span class="indicador-vazio">Carregando...</span>';
+            if (faltasMes) faltasMes.innerHTML = '<span class="indicador-vazio">Carregando...</span>';
+        }
+
+        function mesLabel(mes) {
+            const partes = String(mes || "").split("-").map(Number);
+            if (partes.length !== 2 || !partes[0] || !partes[1]) return mes;
+            return new Date(partes[0], partes[1] - 1, 1).toLocaleDateString("pt-BR", { month: "short", year: "numeric" }).replace(".", "");
+        }
+
+        function contadorPorCampo(lista, obterCampo) {
+            return lista.reduce((acc, item) => {
+                const chave = obterCampo(item.dados || {});
+                if (!chave) return acc;
+                acc[chave] = (acc[chave] || 0) + 1;
+                return acc;
+            }, {});
+        }
+
+        function maiorEntrada(contagem) {
+            return Object.entries(contagem).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0] || null;
+        }
+
+        function renderSerieMensal(id, contagem) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const entradas = Object.entries(contagem).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 12);
+            if (!entradas.length) {
+                el.innerHTML = '<span class="indicador-vazio">Sem registros.</span>';
+                return;
+            }
+            const maior = Math.max(...entradas.map(([, total]) => total), 1);
+            el.innerHTML = entradas.map(([mes, total]) => `
+                <div class="linha-serie">
+                    <span>${textoSeguro(mesLabel(mes))}</span>
+                    <div class="barra-serie"><span style="width:${Math.max(6, Math.round((total / maior) * 100))}%"></span></div>
+                    <strong>${total}</strong>
+                </div>
+            `).join("");
+        }
+
+        function renderIndicadoresHistoricos() {
+            const cin = estatisticasHistoricas.cin;
+            const faltas = estatisticasHistoricas.faltas;
+            const cinPorMes = contadorPorCampo(cin, d => /^\d{4}-\d{2}-\d{2}$/.test(String(d.dataISO || "")) ? d.dataISO.slice(0, 7) : "");
+            const faltasPorMes = contadorPorCampo(faltas, d => /^\d{4}-\d{2}-\d{2}$/.test(String(d.dataISO || "")) ? d.dataISO.slice(0, 7) : "");
+            const cinPorDia = contadorPorCampo(cin, d => /^\d{4}-\d{2}-\d{2}$/.test(String(d.dataISO || "")) ? d.dataISO : "");
+            const melhorMesCin = maiorEntrada(cinPorMes);
+            const piorMesFaltas = maiorEntrada(faltasPorMes);
+            const melhorDia = maiorEntrada(cinPorDia);
+            const totalBase = cin.length + faltas.length;
+            const taxaFaltas = totalBase ? Math.round((faltas.length / totalBase) * 100) : 0;
+            const diasComAtendimento = Object.keys(cinPorDia).length;
+            const mediaDia = diasComAtendimento ? (cin.length / diasComAtendimento).toFixed(1).replace(".", ",") : "0";
+
+            document.getElementById("ind-total-cin").textContent = cin.length;
+            document.getElementById("ind-total-faltas").textContent = faltas.length;
+            document.getElementById("ind-taxa-faltas").textContent = `${taxaFaltas}%`;
+            document.getElementById("ind-melhor-dia").textContent = melhorDia ? melhorDia[1] : 0;
+            document.getElementById("ind-media-dia").textContent = mediaDia;
+            document.getElementById("ind-cin-mes-top").textContent = melhorMesCin ? `${mesLabel(melhorMesCin[0])}: ${melhorMesCin[1]}` : "Sem registros";
+            document.getElementById("ind-faltas-mes-top").textContent = piorMesFaltas ? `${mesLabel(piorMesFaltas[0])}: ${piorMesFaltas[1]}` : "Sem registros";
+            document.getElementById("ind-melhor-dia-data").textContent = melhorDia ? dataBrISO(melhorDia[0]) : "Sem registros";
+            renderSerieMensal("ind-cin-mes", cinPorMes);
+            renderSerieMensal("ind-faltas-mes", faltasPorMes);
+        }
+
         async function carregarTotalAtendimentosRealizados() {
             totalAtendimentosCarregado = false;
             document.getElementById("kpi-atendidos").textContent = "...";
+            marcarIndicadoresHistoricosCarregando();
             try {
-                const snap = await db.collection("dados_cidadaos")
-                    .where("status", "==", "compareceu")
-                    .get();
-                totalAtendimentosRealizados = snap.size;
+                const [cinSnap, faltasSnap] = await Promise.all([
+                    db.collection("dados_cidadaos").where("status", "==", "compareceu").get(),
+                    db.collection("dados_cidadaos").where("status", "==", "nao_compareceu").get()
+                ]);
+                estatisticasHistoricas = {
+                    cin: cinSnap.docs.map(doc => ({ id: doc.id, dados: doc.data() })),
+                    faltas: faltasSnap.docs.map(doc => ({ id: doc.id, dados: doc.data() }))
+                };
+                totalAtendimentosRealizados = estatisticasHistoricas.cin.length;
                 totalAtendimentosCarregado = true;
+                renderIndicadoresHistoricos();
                 atualizarResumo();
             } catch (e) {
                 console.warn("Erro ao carregar total historico de atendimentos realizados", e);
-                totalAtendimentosRealizados = agendamentosCache.filter(ag => statusValor(ag.dados) === "compareceu").length;
+                estatisticasHistoricas = {
+                    cin: agendamentosCache.filter(ag => statusValor(ag.dados) === "compareceu"),
+                    faltas: agendamentosCache.filter(ag => statusValor(ag.dados) === "nao_compareceu")
+                };
+                totalAtendimentosRealizados = estatisticasHistoricas.cin.length;
                 totalAtendimentosCarregado = true;
+                renderIndicadoresHistoricos();
                 atualizarResumo();
             }
         }
