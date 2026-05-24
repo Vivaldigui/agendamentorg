@@ -3,9 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0056b3">
     <title>Agendamento de RG - CIN Itanhandu</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="preconnect" href="https://www.gstatic.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"></noscript>
     <style type="text/css">
         :root {
             --primary: #0056b3; --primary-dark: #003d82; --primary-light: #eff6ff;
@@ -236,7 +242,7 @@
                 </div>
                 <div class="form-grupo"><label>Nome Completo: <span style="color:var(--danger)">*</span></label><input id="inp-nome" type="text" autocomplete="name" autocapitalize="words" placeholder="Ex: João da Silva" onblur="formatarNomeProprio(this)" /><div class="msg-campo-erro" id="erro-nome">Informe o nome completo.</div></div>
                 <div class="grid-2">
-                    <div class="form-grupo"><label>CPF: <span style="color:var(--danger)">*</span></label><input id="inp-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" placeholder="000.000.000-00" /><div class="msg-campo-erro" id="erro-cpf">CPF inválido.</div></div>
+                    <div class="form-grupo"><label>CPF: <span style="color:var(--danger)">*</span></label><input id="inp-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" onblur="validarCpfAgendamento()" type="text" placeholder="000.000.000-00" /><div class="msg-campo-erro" id="erro-cpf">CPF inválido.</div></div>
                     <div class="form-grupo"><label>Nascimento: <span style="color:var(--danger)">*</span></label><input id="inp-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" placeholder="DD/MM/AAAA" /><div class="msg-campo-erro" id="erro-nasc">Data inválida.</div></div>
                 </div>
                 <div class="form-grupo"><label>Celular / WhatsApp: <span class="ajuda-campo">(para receber o comprovante)</span> <span style="color:var(--danger)">*</span></label><input id="inp-tel" maxlength="15" inputmode="tel" autocomplete="tel" oninput="mascaraTel(this)" type="tel" placeholder="(00) 00000-0000" /><div class="msg-campo-erro" id="erro-tel">Informe um telefone válido.</div></div>
@@ -429,6 +435,26 @@
     }
 
     async function carregarConfig() {
+        // Tentar usar cache local primeiro (válido por 3 minutos)
+        try {
+            const cacheRaw = localStorage.getItem("cin_agenda_cache");
+            if (cacheRaw) {
+                const cache = JSON.parse(cacheRaw);
+                if (cache.expiraEm > Date.now() && cache.dados) {
+                    const cfg = cache.dados;
+                    HORARIOS = horariosAtivos(cfg.horarios);
+                    DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias, HORARIOS);
+                    DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
+                    if (typeof cfg.totalVagasRestantes === "number") DISPONIBILIDADE_PUBLICA.totalVagasRestantes = cfg.totalVagasRestantes;
+                    DATA_NOVAS_VAGAS = cfg.dataNovasVagas || DATA_NOVAS_VAGAS_PADRAO;
+                    // Renderiza imediatamente com o cache e busca atualização em background
+                    renderDatas();
+                    atualizarBannerVagas();
+                }
+            }
+        } catch (e) {}
+
+        // Buscar dados atualizados da Cloud Function
         try {
             const carregarAgendaPublica = firebase.functions().httpsCallable("carregarAgendaPublica");
             const resposta = await carregarAgendaPublica();
@@ -438,6 +464,13 @@
             DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
             if (typeof cfg.totalVagasRestantes === "number") DISPONIBILIDADE_PUBLICA.totalVagasRestantes = cfg.totalVagasRestantes;
             DATA_NOVAS_VAGAS = cfg.dataNovasVagas || DATA_NOVAS_VAGAS_PADRAO;
+            // Salvar no cache com expiração de 3 minutos
+            try {
+                localStorage.setItem("cin_agenda_cache", JSON.stringify({
+                    dados: cfg,
+                    expiraEm: Date.now() + 3 * 60 * 1000
+                }));
+            } catch (e) {}
         } catch (e) {
             HORARIOS = horariosAtivos(HORAS_FALLBACK);
             DIAS_DISPONIVEIS = [];
@@ -541,6 +574,24 @@
     function converterDataISO(brDate) { const p = brDate.split('/'); return p.length===3 ? `${p[2]}-${p[1]}-${p[0]}` : ""; }
     function dataBrTela(dataISO) { const p = String(dataISO || "").split("-"); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : ""; }
     function limparCPF(cpf) { return String(cpf || "").replace(/\D/g, ""); }
+    function cpfValido(cpf) {
+        const cpfNum = limparCPF(cpf);
+        if (cpfNum.length !== 11) return false;
+        if (/^(\d)\1{10}$/.test(cpfNum)) return false;
+        let soma = 0;
+        for (let i = 0; i < 9; i++) soma += parseInt(cpfNum[i]) * (10 - i);
+        let digito1 = 11 - (soma % 11);
+        if (digito1 >= 10) digito1 = 0;
+        if (parseInt(cpfNum[9]) !== digito1) return false;
+        soma = 0;
+        for (let i = 0; i < 10; i++) soma += parseInt(cpfNum[i]) * (11 - i);
+        let digito2 = 11 - (soma % 11);
+        if (digito2 >= 10) digito2 = 0;
+        return parseInt(cpfNum[10]) === digito2;
+    }
+    function validarCpfAgendamento() {
+        setErroCampo("inp-cpf", "erro-cpf", !cpfValido(document.getElementById("inp-cpf").value));
+    }
 
     function normalizarBloqueadoAte(valor) {
         if (!valor) return null;
@@ -1107,6 +1158,13 @@
         atualizarBannerVagas(); 
         iniciarAtualizacaoAutomatica();
     })();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
 </script>
 </body>
 </html>

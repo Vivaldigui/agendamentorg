@@ -19,7 +19,13 @@ const STATUS_VALIDOS = [
   "cancelado_camara",
   "remarcado"
 ];
-const STATUS_ANONIMIZAR_LGPD = new Set(["compareceu", "cancelado", "cancelado_cidadao", "cancelado_camara"]);
+const STATUS_ANONIMIZAR_LGPD = new Set([
+  "compareceu",
+  "nao_compareceu",
+  "cancelado",
+  "cancelado_cidadao",
+  "cancelado_camara"
+]);
 const LGPD_RETENCAO_MESES = 6;
 const LGPD_MAX_LEITURAS_POR_EXECUCAO = 5000;
 const LGPD_TAMANHO_PAGINA = 250;
@@ -42,6 +48,23 @@ const publicCallableOptions = {
 function normalizarCpf(cpf) {
   const cpfNum = String(cpf || "").replace(/\D/g, "");
   if (cpfNum.length !== 11) {
+    throw new HttpsError("invalid-argument", "Informe um CPF valido.");
+  }
+  if (/^(\d)\1{10}$/.test(cpfNum)) {
+    throw new HttpsError("invalid-argument", "Informe um CPF valido.");
+  }
+  let soma = 0;
+  for (let i = 0; i < 9; i++) soma += parseInt(cpfNum[i]) * (10 - i);
+  let digito1 = 11 - (soma % 11);
+  if (digito1 >= 10) digito1 = 0;
+  if (parseInt(cpfNum[9]) !== digito1) {
+    throw new HttpsError("invalid-argument", "Informe um CPF valido.");
+  }
+  soma = 0;
+  for (let i = 0; i < 10; i++) soma += parseInt(cpfNum[i]) * (11 - i);
+  let digito2 = 11 - (soma % 11);
+  if (digito2 >= 10) digito2 = 0;
+  if (parseInt(cpfNum[10]) !== digito2) {
     throw new HttpsError("invalid-argument", "Informe um CPF valido.");
   }
   return cpfNum;
@@ -379,6 +402,20 @@ async function anonimizarDadosAntigosLGPD() {
       if (dados.anonimizadoLGPD === true || !statusParaAnonimizar(dados.status)) continue;
 
       const cpfNum = cpfNumeros(dados.cpf);
+      if (dados.status === "nao_compareceu" && cpfNum.length === 11 && dados.bloqueadoAte) {
+        batch.set(
+          db.collection("bloqueios_agendamento").doc(cpfNum),
+          {
+            cpf: cpfNum,
+            bloqueadoAte: dados.bloqueadoAte,
+            motivoBloqueio: "nao_compareceu",
+            migradoDeAnonimizacao: true,
+            criadoEm: admin.firestore.FieldValue.serverTimestamp()
+          },
+          { merge: true }
+        );
+        operacoes += 1;
+      }
       batch.set(doc.ref, {
         nome: "ANONIMIZADO",
         cpf: admin.firestore.FieldValue.delete(),
@@ -410,6 +447,13 @@ async function anonimizarDadosAntigosLGPD() {
     if (snap.size < LGPD_TAMANHO_PAGINA) break;
   }
 
+  if (totalAnonimizados > 0) {
+    await db.collection("configuracoes").doc("estatisticas").set({
+      totalAtendimentosHistorico: admin.firestore.FieldValue.increment(totalAnonimizados),
+      ultimaAtualizacao: new Date().toISOString()
+    }, { merge: true });
+  }
+
   await db.collection("logs_admin").add({
     acao: "anonimizacao_lgpd",
     detalhes: {
@@ -417,7 +461,8 @@ async function anonimizarDadosAntigosLGPD() {
       mesesRetencao: LGPD_RETENCAO_MESES,
       totalLidos,
       totalAnonimizados,
-      totalCpfMapsRemovidos
+      totalCpfMapsRemovidos,
+      totalAtendimentosHistorico: totalAnonimizados
     },
     adminEmail: "sistema",
     criadoEm: admin.firestore.FieldValue.serverTimestamp(),
@@ -1036,3 +1081,49 @@ exports.anonimizarDadosAntigosLGPD = onSchedule({
   timeZone: "America/Sao_Paulo",
   maxInstances: 1
 }, async () => anonimizarDadosAntigosLGPD());
+
+exports.limparDatasPassadasAgenda = onSchedule({
+  schedule: "0 2 * * *",
+  timeZone: "America/Sao_Paulo",
+  maxInstances: 1
+}, async () => {
+  try {
+    const agendaRef = db.collection("configuracoes").doc("agenda");
+    const agendaDoc = await agendaRef.get();
+    if (!agendaDoc.exists) return;
+
+    const cfg = agendaDoc.data();
+    const hoje = hojeSaoPauloISO();
+
+    const diasOriginais = Array.isArray(cfg.dias) ? cfg.dias : [];
+    const diasFuturos = diasOriginais.filter(d => typeof d === "string" && d >= hoje);
+    const datasRemovidas = diasOriginais.length - diasFuturos.length;
+
+    const publicacaoDatasLimpo = {};
+    const pubDatas = cfg.publicacaoDatas || {};
+    Object.keys(pubDatas).forEach(data => {
+      if (data >= hoje) publicacaoDatasLimpo[data] = pubDatas[data];
+    });
+
+    await agendaRef.set({
+      dias: diasFuturos,
+      publicacaoDatas: publicacaoDatasLimpo
+    }, { merge: true });
+
+    await db.collection("logs_admin").add({
+      acao: "limpeza_agenda_automatica",
+      detalhes: { datasRemovidas, totalRestantes: diasFuturos.length },
+      adminEmail: "sistema",
+      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      criado: new Date().toISOString()
+    });
+  } catch (err) {
+    await db.collection("logs_admin").add({
+      acao: "erro_limpeza_agenda",
+      detalhes: { mensagem: err.message },
+      adminEmail: "sistema",
+      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      criado: new Date().toISOString()
+    }).catch(() => {});
+  }
+});

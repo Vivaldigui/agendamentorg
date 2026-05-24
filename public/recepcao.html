@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão Oficial CIN - V6</title>
+    <title>Recepção CIN — Câmara de Itanhandu</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
@@ -28,6 +28,7 @@
         .btn-sair { background: #64748b; }
         .btn-tema { background: #111827; border: 1px solid #334155; }
         .acoes-linha { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn-lembrete-lote { background: #25d366; }
         .btn-lembrete { background: #0ea5e9; font-size:0.75rem; padding: 8px 12px; text-decoration:none; color: white; border-radius: 6px; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; }
         .btn-lembrete:hover { background: #0369a1; }
         .btn-comprovante { background: #475569; }
@@ -82,6 +83,8 @@
         .chip-data.passada { background: #f8fafc; color: #64748b; border-color: #e2e8f0; }
         .chip-data.programada { background: #fffbeb; color: #92400e; border-color: #fde68a; }
         .chip-data button { border: none; background: transparent; color: inherit; cursor: pointer; font-weight: 900; padding: 0 2px; }
+        .datas-encerradas-acoes { margin-top: 10px; }
+        .btn-toggle-datas { border: 1px solid #cbd5e1; background: white; color: #334155; border-radius: 999px; padding: 8px 12px; font-weight: 800; cursor: pointer; }
         @media (max-width: 1100px) { .cards-resumo { grid-template-columns: repeat(2, 1fr); } .filtros-grid { grid-template-columns: 1fr 1fr; } }
         @media (max-width: 760px) {
             body { padding: 10px; }
@@ -198,6 +201,11 @@
             background: #111827;
             color: #94a3b8;
         }
+        body.modo-escuro .btn-toggle-datas {
+            background: #111827;
+            color: #cbd5e1;
+            border-color: #334155;
+        }
         body.modo-escuro .chip-data.programada,
         body.modo-escuro .badge-manual,
         body.modo-escuro .st-remarcado {
@@ -240,7 +248,7 @@
 
     <div id="painel-screen">
         <div class="header">
-            <h2><i class="fa-solid fa-users-gear"></i> Painel da Recepção (V6)</h2>
+            <h2><i class="fa-solid fa-users-gear"></i> Painel da Recepção — CIN</h2>
             <div class="header-actions">
                 <button class="btn btn-tema" id="btn-tema" onclick="alternarTema()"><i class="fa-solid fa-moon"></i> Modo escuro</button>
                 <button class="btn btn-sair" onclick="fazerLogout()">Sair</button>
@@ -250,6 +258,9 @@
             <button class="btn btn-atualizar" onclick="listarAgendamentos()"><i class="fa-solid fa-rotate"></i> Atualizar Lista</button>
             <button class="btn btn-excel" onclick="exportarExcel()"><i class="fa-solid fa-file-excel"></i> Exportar para Excel</button>
             <button class="btn btn-manual" onclick="abrirModal()"><i class="fa-solid fa-user-plus"></i> Inserir Encaixe Manual</button>
+            <button class="btn btn-lembrete-lote" onclick="enviarLembretesAmanha()">
+                <i class="fa-brands fa-whatsapp"></i> Lembretes de amanhã
+            </button>
         </div>
         <div class="painel-periodo">
             <h3><i class="fa-solid fa-calendar-range"></i> Período carregado no painel</h3>
@@ -296,6 +307,7 @@
                 <button class="btn btn-atualizar" onclick="carregarAgendaGestao()"><i class="fa-solid fa-rotate"></i> Recarregar Datas</button>
             </div>
             <div class="lista-datas" id="lista-datas-agenda"></div>
+            <div class="datas-encerradas-acoes" id="datas-encerradas-acoes"></div>
             <div class="config-form" style="margin-top:16px; padding-top:14px; border-top:1px solid #e2e8f0;">
                 <div class="input-group">
                     <label>Novas vagas em:</label>
@@ -425,6 +437,37 @@
         let agendaPublicacaoDatas = {};
         let agendamentosCache = [];
         let filtroRapidoAtual = "";
+        let mostrarDatasPassadas = false;
+        const INATIVIDADE_AVISO_MS = 25 * 60 * 1000;
+        const INATIVIDADE_LOGOUT_MS = 30 * 60 * 1000;
+        let timerAviso = null, timerLogout = null;
+        try {
+            mostrarDatasPassadas = localStorage.getItem("cin_mostrar_datas_passadas") === "true";
+        } catch (e) {}
+
+        function resetarTimerInatividade() {
+            clearTimeout(timerAviso);
+            clearTimeout(timerLogout);
+            timerAviso = setTimeout(mostrarAvisoSessao, INATIVIDADE_AVISO_MS);
+            timerLogout = setTimeout(fazerLogout, INATIVIDADE_LOGOUT_MS);
+        }
+
+        function mostrarAvisoSessao() {
+            if (document.getElementById("banner-sessao")) return;
+            const banner = document.createElement("div");
+            banner.id = "banner-sessao";
+            banner.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:9999;background:#f59e0b;color:#78350f;padding:12px 20px;text-align:center;font-weight:800;display:flex;align-items:center;justify-content:center;gap:16px;";
+            banner.innerHTML = `<span>⚠ Sessão expira em 5 minutos por inatividade.</span><button onclick="resetarTimerInatividade();document.getElementById('banner-sessao').remove();" style="border:1px solid #92400e;background:white;color:#78350f;border-radius:8px;padding:6px 14px;font-weight:800;cursor:pointer;">Continuar ativo</button>`;
+            document.body.prepend(banner);
+        }
+
+        ["mousemove","keydown","click","touchstart","scroll"].forEach(event =>
+            document.addEventListener(event, () => {
+                const b = document.getElementById("banner-sessao");
+                if (b) b.remove();
+                resetarTimerInatividade();
+            }, { passive: true })
+        );
 
         function atualizarBotaoTema() {
             const btn = document.getElementById("btn-tema");
@@ -891,6 +934,8 @@
             if (user) {
                 document.getElementById('login-screen').style.display='none';
                 document.getElementById('painel-screen').style.display='block';
+                resetarTimerInatividade();
+                // Impede selecionar datas passadas no input de nova data.
                 document.getElementById('cfg-data').min = hojeISO();
                 document.getElementById('m-data').min = hojeISO();
                 document.getElementById('remarcar-data').min = hojeISO();
@@ -904,20 +949,28 @@
         });
 
         function fazerLogin() { auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('senha').value).catch(e => alert("Acesso negado.")); }
-        function fazerLogout() { auth.signOut(); }
+        function fazerLogout() { clearTimeout(timerAviso); clearTimeout(timerLogout); auth.signOut(); }
         function abrirModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='flex'; }
         function fecharModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='none'; }
         function fecharRemarcacao() { document.getElementById('modal-remarcar').style.display='none'; }
 
         function renderAgendaDatas() {
             const lista = document.getElementById("lista-datas-agenda");
+            const acoes = document.getElementById("datas-encerradas-acoes");
             const hoje = hojeISO();
+            const datasFuturas = agendaDias.filter(dataISO => dataISO >= hoje);
+            const datasPassadas = agendaDias.filter(dataISO => dataISO < hoje);
+            const datasVisiveis = mostrarDatasPassadas ? [...datasFuturas, ...datasPassadas] : datasFuturas;
             lista.innerHTML = "";
+            if (acoes) acoes.innerHTML = "";
             if (!agendaDias.length) {
                 lista.innerHTML = '<span style="color:#64748b; font-size:0.9rem;">Nenhuma data cadastrada.</span>';
                 return;
             }
-            agendaDias.forEach(dataISO => {
+            if (!datasVisiveis.length) {
+                lista.innerHTML = '<span style="color:#64748b; font-size:0.9rem;">Nenhuma data futura cadastrada.</span>';
+            }
+            datasVisiveis.forEach(dataISO => {
                 const chip = document.createElement("span");
                 chip.className = "chip-data" + (dataISO < hoje ? " passada" : "") + (estaProgramada(dataISO) ? " programada" : "");
                 const label = document.createElement("span");
@@ -933,6 +986,22 @@
                 chip.appendChild(btn);
                 lista.appendChild(chip);
             });
+            if (acoes && datasPassadas.length) {
+                const toggle = document.createElement("button");
+                toggle.type = "button";
+                toggle.className = "btn-toggle-datas";
+                toggle.textContent = `${mostrarDatasPassadas ? "Ocultar" : "Mostrar"} datas encerradas (${datasPassadas.length})`;
+                toggle.onclick = alternarDatasPassadasAgenda;
+                acoes.appendChild(toggle);
+            }
+        }
+
+        function alternarDatasPassadasAgenda() {
+            mostrarDatasPassadas = !mostrarDatasPassadas;
+            try {
+                localStorage.setItem("cin_mostrar_datas_passadas", mostrarDatasPassadas ? "true" : "false");
+            } catch (e) {}
+            renderAgendaDatas();
         }
 
         async function carregarAgendaGestao() {
@@ -1152,6 +1221,7 @@
             const totalHoje = ativos.filter(ag => ag.dados.dataISO === hoje).length;
             const totalAmanha = ativos.filter(ag => ag.dados.dataISO === amanha).length;
             const atendimentosRealizados = agendamentosCache.filter(ag => statusValor(ag.dados) === "compareceu").length;
+            // diasAtivos ja filtra apenas datas >= hojeISO(), entao o KPI de vagas restantes ignora datas encerradas.
             const diasAtivos = agendaDias.filter(d => d >= hoje);
             const vagasOcupadasAgenda = ativos.filter(ag => !ag.dados.insercaoManual && diasAtivos.includes(ag.dados.dataISO) && agendaHorarios.includes(ag.dados.hora)).length;
             const vagasRestantes = Math.max(0, (diasAtivos.length * agendaHorarios.length) - vagasOcupadasAgenda);
@@ -1178,6 +1248,7 @@
                 const statusAtual = statusValor(d);
                 const exibindoCancelados = status === "cancelado" || filtroRapidoAtual === "cancelados";
                 if (busca && !textoBusca(ag).includes(busca)) return false;
+                // Nos filtros rapidos "hoje" e "amanha", exibindoCancelados permanece false, entao cancelados seguem ocultos.
                 if (statusAtual === "cancelado" && !exibindoCancelados) return false;
                 if (filtroRapidoAtual === "bloqueados" && !bloqueioAtivo(d)) return false;
                 if (filtroRapidoAtual === "manuais" && !d.insercaoManual) return false;
@@ -1501,6 +1572,34 @@
             window.open(`https://wa.me/55${telLimpo}?text=${encodeURIComponent(mensagemLembrete(d))}`, "_blank", "noopener,noreferrer");
         }
 
+        async function enviarLembretesAmanha() {
+            if (!agendamentosCache.length) {
+                alert("Carregue a lista de agendamentos primeiro.");
+                return;
+            }
+            const amanha = amanhaISO();
+            const deAmanha = agendamentosCache.filter(ag =>
+                ag.dados.dataISO === amanha &&
+                statusValor(ag.dados) === "agendado" &&
+                ag.dados.telefone &&
+                String(ag.dados.telefone).replace(/\D/g,"").length >= 10
+            );
+            if (!deAmanha.length) {
+                alert("Nenhum agendamento com telefone encontrado para amanhã.");
+                return;
+            }
+            if (!confirm(`Abrir ${deAmanha.length} janela(s) do WhatsApp Web para enviar lembretes de amanhã?`)) return;
+            for (let i = 0; i < deAmanha.length; i++) {
+                const ag = deAmanha[i];
+                const tel = String(ag.dados.telefone).replace(/\D/g,"");
+                const msg = mensagemLembrete(ag.dados);
+                if (i > 0) await new Promise(resolve => setTimeout(resolve, 1500));
+                window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+                await registrarLog("lembrete_lote", { agendamentoId: ag.id, protocolo: ag.dados.protocolo || "" });
+            }
+            alert(`${deAmanha.length} lembrete(s) aberto(s). Confirme o envio em cada aba do WhatsApp Web.`);
+        }
+
         async function abrirZapBloqueio(id) {
             const ag = buscarAgendamentoCache(id);
             if (!ag) return;
@@ -1575,6 +1674,21 @@
         function mascaraCPF(i){ let v=i.value.replace(/\D/g,""); v=v.replace(/(\d{3})(\d)/,"$1.$2"); v=v.replace(/(\d{3})(\d)/,"$1.$2"); i.value=v.replace(/(\d{3})(\d{1,2})$/,"$1-$2"); }
         function mascaraData(i){ let v=i.value.replace(/\D/g,""); v=v.replace(/(\d{2})(\d)/,"$1/$2"); i.value=v.replace(/(\d{2})(\d)/,"$1/$2"); }
         function mascaraTel(i){ let v=i.value.replace(/\D/g,""); v=v.replace(/^(\d{2})(\d)/g,"($1) $2"); i.value=v.replace(/(\d)(\d{4})$/,"$1-$2"); }
+        function cpfValido(cpf) {
+            const cpfNum = String(cpf || "").replace(/\D/g, "");
+            if (cpfNum.length !== 11) return false;
+            if (/^(\d)\1{10}$/.test(cpfNum)) return false;
+            let soma = 0;
+            for (let i = 0; i < 9; i++) soma += parseInt(cpfNum[i]) * (10 - i);
+            let digito1 = 11 - (soma % 11);
+            if (digito1 >= 10) digito1 = 0;
+            if (parseInt(cpfNum[9]) !== digito1) return false;
+            soma = 0;
+            for (let i = 0; i < 10; i++) soma += parseInt(cpfNum[i]) * (11 - i);
+            let digito2 = 11 - (soma % 11);
+            if (digito2 >= 10) digito2 = 0;
+            return parseInt(cpfNum[10]) === digito2;
+        }
 
         function marcarErroManual(ids) {
             ["m-data", "m-hora", "m-nome", "m-cpf", "m-nasc", "m-tel"].forEach(id => {
@@ -1600,7 +1714,7 @@
             const cpfManual = document.getElementById("m-cpf").value.replace(/\D/g, "");
             const nascManual = document.getElementById("m-nasc").value.trim();
             const telManual = document.getElementById("m-tel").value.replace(/\D/g, "");
-            if (cpfManual && cpfManual.length !== 11) erros.push({ id: "m-cpf", msg: "CPF válido" });
+            if (cpfManual && !cpfValido(cpfManual)) erros.push({ id: "m-cpf", msg: "CPF válido" });
             if (nascManual && !/^\d{2}\/\d{2}\/\d{4}$/.test(nascManual)) erros.push({ id: "m-nasc", msg: "nascimento no formato DD/MM/AAAA" });
             if (telManual && telManual.length < 10) erros.push({ id: "m-tel", msg: "celular/WhatsApp válido" });
             if (erros.length) {
