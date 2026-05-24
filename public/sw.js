@@ -1,5 +1,14 @@
-const CACHE_NAME = 'cin-v2';
-const SHELL = ['/', '/index.html', '/manifest.json'];
+const CACHE_NAME = 'cin-v3';
+const SHELL = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/assets/header-logo.png',
+  '/vendor/fontawesome/css/all.min.css',
+  '/vendor/fontawesome/webfonts/fa-solid-900.woff2',
+  '/vendor/fontawesome/webfonts/fa-regular-400.woff2',
+  '/vendor/fontawesome/webfonts/fa-brands-400.woff2'
+];
 
 self.addEventListener('install', e =>
   e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(SHELL)))
