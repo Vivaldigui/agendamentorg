@@ -440,6 +440,8 @@
         let mostrarDatasPassadas = false;
         let agendaGestaoCarregada = false;
         let listaAgendamentosCarregada = false;
+        let totalAtendimentosRealizados = null;
+        let totalAtendimentosCarregado = false;
         const INATIVIDADE_AVISO_MS = 25 * 60 * 1000;
         const INATIVIDADE_LOGOUT_MS = 30 * 60 * 1000;
         let timerAviso = null, timerLogout = null;
@@ -946,8 +948,10 @@
                 configurarPeriodoPadraoLista();
                 agendaGestaoCarregada = false;
                 listaAgendamentosCarregada = false;
+                totalAtendimentosCarregado = false;
+                document.getElementById("kpi-atendidos").textContent = "...";
                 await carregarAgendaGestao();
-                await listarAgendamentos();
+                await Promise.all([listarAgendamentos(), carregarTotalAtendimentosRealizados()]);
             }
             else { document.getElementById('login-screen').style.display='block'; document.getElementById('painel-screen').style.display='none'; }
         });
@@ -1162,6 +1166,24 @@
             } catch (e) { alert("Erro ao carregar lista."); }
         }
 
+        async function carregarTotalAtendimentosRealizados() {
+            totalAtendimentosCarregado = false;
+            document.getElementById("kpi-atendidos").textContent = "...";
+            try {
+                const snap = await db.collection("dados_cidadaos")
+                    .where("status", "==", "compareceu")
+                    .get();
+                totalAtendimentosRealizados = snap.size;
+                totalAtendimentosCarregado = true;
+                atualizarResumo();
+            } catch (e) {
+                console.warn("Erro ao carregar total historico de atendimentos realizados", e);
+                totalAtendimentosRealizados = agendamentosCache.filter(ag => statusValor(ag.dados) === "compareceu").length;
+                totalAtendimentosCarregado = true;
+                atualizarResumo();
+            }
+        }
+
         async function buscarHistoricoAgendamento() {
             const termo = document.getElementById("filtro-busca").value.trim();
             const cpf = cpfNumeros(termo);
@@ -1229,7 +1251,9 @@
             const ativos = agendamentosCache.filter(ag => statusValor(ag.dados) !== "cancelado");
             const totalHoje = ativos.filter(ag => ag.dados.dataISO === hoje).length;
             const totalAmanha = ativos.filter(ag => ag.dados.dataISO === amanha).length;
-            const atendimentosRealizados = agendamentosCache.filter(ag => statusValor(ag.dados) === "compareceu").length;
+            const atendimentosRealizados = totalAtendimentosCarregado
+                ? totalAtendimentosRealizados
+                : "...";
             // diasAtivos ja filtra apenas datas >= hojeISO(), entao o KPI de vagas restantes ignora datas encerradas.
             const diasAtivos = agendaDias.filter(d => d >= hoje);
             const vagasOcupadasAgenda = ativos.filter(ag => !ag.dados.insercaoManual && diasAtivos.includes(ag.dados.dataISO) && agendaHorarios.includes(ag.dados.hora)).length;
@@ -1530,7 +1554,7 @@
                 if (dadosBloqueio) await tentarGravarBloqueioDedicado(dadosBloqueio);
                 Object.assign(ag.dados, atualizacao);
                 await registrarLog("alterar_status", { agendamentoId: id, status, bloqueadoAte: dadosBloqueio ? dadosBloqueio.bloqueadoAte : "" });
-                atualizarResumo();
+                await carregarTotalAtendimentosRealizados();
                 renderTabelaAgendamentos();
                 if (dadosBloqueio) alert(`Status atualizado. CPF bloqueado até ${dataBrISO(dadosBloqueio.bloqueadoAte)}.`);
             } catch (e) {
@@ -1563,7 +1587,7 @@
                 if (cpfLimpo && cpfLimpo !== cpfId) await db.collection("cpfs_agendados").doc(cpfLimpo).delete().catch(() => {});
                 ag.dados.status = "cancelado";
                 await registrarLog("cancelar_agendamento_painel", { agendamentoId: id, dataISO: d.dataISO, hora: d.hora });
-                atualizarResumo();
+                await carregarTotalAtendimentosRealizados();
                 renderTabelaAgendamentos();
             } catch (e) {
                 alert("Erro ao cancelar agendamento.");
