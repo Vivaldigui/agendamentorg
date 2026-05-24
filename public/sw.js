@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cin-v1';
+const CACHE_NAME = 'cin-v2';
 const SHELL = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', e =>
@@ -13,6 +13,19 @@ self.addEventListener('activate', e =>
 
 self.addEventListener('fetch', e => {
   if (e.request.url.includes('cloudfunctions.net') || e.request.url.includes('firebase')) return;
+  const aceitaHtml = e.request.mode === 'navigate' || (e.request.headers.get('accept') || '').includes('text/html');
+  if (aceitaHtml) {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        if (res && res.status === 200 && res.type === 'basic') {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+        }
+        return res;
+      }).catch(() => caches.match(e.request).then(r => r || caches.match('/index.html')))
+    );
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then(r => r || fetch(e.request).then(res => {
       if (!res || res.status !== 200 || res.type !== 'basic') return res;

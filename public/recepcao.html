@@ -438,6 +438,8 @@
         let agendamentosCache = [];
         let filtroRapidoAtual = "";
         let mostrarDatasPassadas = false;
+        let agendaGestaoCarregada = false;
+        let listaAgendamentosCarregada = false;
         const INATIVIDADE_AVISO_MS = 25 * 60 * 1000;
         const INATIVIDADE_LOGOUT_MS = 30 * 60 * 1000;
         let timerAviso = null, timerLogout = null;
@@ -930,7 +932,7 @@
             }
         }
 
-        auth.onAuthStateChanged(user => {
+        auth.onAuthStateChanged(async user => {
             if (user) {
                 document.getElementById('login-screen').style.display='none';
                 document.getElementById('painel-screen').style.display='block';
@@ -942,8 +944,10 @@
                 document.getElementById('cfg-publicar-em-data').min = agoraSaoPauloInput();
                 document.getElementById('cfg-publicar-em-aviso').min = agoraSaoPauloInput();
                 configurarPeriodoPadraoLista();
-                listarAgendamentos();
-                carregarAgendaGestao();
+                agendaGestaoCarregada = false;
+                listaAgendamentosCarregada = false;
+                await carregarAgendaGestao();
+                await listarAgendamentos();
             }
             else { document.getElementById('login-screen').style.display='block'; document.getElementById('painel-screen').style.display='none'; }
         });
@@ -1007,6 +1011,7 @@
         async function carregarAgendaGestao() {
             const lista = document.getElementById("lista-datas-agenda");
             lista.innerHTML = '<span style="color:#64748b; font-size:0.9rem;">Carregando datas...</span>';
+            agendaGestaoCarregada = false;
             try {
                 const doc = await db.collection("configuracoes").doc("agenda").get();
                 const cfg = doc.exists ? doc.data() : {};
@@ -1030,6 +1035,7 @@
                 }
                 alternarProgramacaoAviso();
                 renderAgendaDatas();
+                agendaGestaoCarregada = true;
                 atualizarResumo();
             } catch (e) {
                 lista.innerHTML = '<span style="color:#dc2626; font-size:0.9rem;">Erro ao carregar datas.</span>';
@@ -1122,6 +1128,7 @@
         async function listarAgendamentos() {
             const corpo = document.getElementById("corpo-tabela");
             corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Carregando...</td></tr>";
+            listaAgendamentosCarregada = false;
             configurarPeriodoPadraoLista();
             const inicio = document.getElementById("consulta-inicio").value || ontemISO();
             const fim = document.getElementById("consulta-fim").value || fimPeriodoPadraoISO();
@@ -1143,6 +1150,7 @@
                     .get();
                 agendamentosCache = snap.docs.map(doc => ({ id: doc.id, dados: doc.data() }));
                 ordenarAgendamentosCache();
+                listaAgendamentosCarregada = true;
                 filtroRapidoAtual = "";
                 marcarFiltroRapidoVisual("");
                 if (info) {
@@ -1215,6 +1223,7 @@
         }
 
         function atualizarResumo() {
+            if (!agendaGestaoCarregada || !listaAgendamentosCarregada) return;
             const hoje = hojeISO();
             const amanha = amanhaISO();
             const ativos = agendamentosCache.filter(ag => statusValor(ag.dados) !== "cancelado");
