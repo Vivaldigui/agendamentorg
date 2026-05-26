@@ -308,6 +308,7 @@
                         <li><i class="fa-regular fa-square"></i><span>CPF.</span></li>
                         <li><i class="fa-regular fa-square"></i><span>Comprovante de residência atualizado.</span></li>
                         <li><i class="fa-regular fa-square"></i><span>Menores de 16 anos devem estar acompanhados do responsável legal, que deve apresentar documento de identificação original com foto, como RG ou CNH.</span></li>
+                        <li id="doc-foto-menor-3" style="display:none;"><i class="fa-regular fa-square"></i><span><strong>Crianças menores de 3 anos:</strong> levar foto 3x4 recente, com fundo branco.</span></li>
                     </ul>
                 </div>
                 <button class="btn-principal cinza" onclick="location.reload()" style="margin-top:24px;">Voltar ao Início</button>
@@ -730,17 +731,24 @@
     }
 
     function documentosTexto() {
-        return [
+        const itens = [
             "Documentos necessarios:",
             "1. A certidao deve ser ORIGINAL, sem rasgos, rasuras ou alteracoes.",
             "2. Certidao de nascimento original (se solteiro), ou certidao de casamento original (se casado, viuvo ou divorciado). Se houver viuvez, divorcio ou outra alteracao, a certidao de casamento deve estar averbada.",
             "3. CPF.",
             "4. Comprovante de residencia.",
             "5. Menores de 16 anos devem estar acompanhados do responsavel legal, que deve apresentar documento de identificacao original com foto, como RG ou CNH."
-        ].join("\n");
+        ];
+        if (agendamentoMenorDeTresAnos(ultimoAgendamentoConfirmado)) {
+            itens.push("6. Criancas menores de 3 anos: levar foto 3x4 recente, com fundo branco.");
+        }
+        return itens.join("\n");
     }
 
     function documentosComprovanteHTML() {
+        const fotoMenorTres = agendamentoMenorDeTresAnos(ultimoAgendamentoConfirmado)
+            ? "<li>Criancas menores de 3 anos: levar foto 3x4 recente, com fundo branco.</li>"
+            : "";
         return `
             <ul>
                 <li>Certidao original, sem rasgos, rasuras ou alteracoes.</li>
@@ -748,8 +756,39 @@
                 <li>Casados, viuvos ou divorciados: certidao de casamento original, com averbacao quando houver.</li>
                 <li>CPF e comprovante de residencia.</li>
                 <li>Menores de 16 anos devem estar acompanhados do responsavel legal com documento original com foto.</li>
+                ${fotoMenorTres}
             </ul>
         `;
+    }
+
+    function dataISOValida(dataISO) {
+        const partes = String(dataISO || "").split("-").map(Number);
+        if (partes.length !== 3 || partes.some(parte => !Number.isInteger(parte))) return null;
+        const data = new Date(partes[0], partes[1] - 1, partes[2]);
+        if (data.getFullYear() !== partes[0] || data.getMonth() !== partes[1] - 1 || data.getDate() !== partes[2]) return null;
+        return data;
+    }
+
+    function idadeEmAnosNaData(nascimentoISO, referenciaISO) {
+        const nascimento = dataISOValida(nascimentoISO);
+        const referencia = dataISOValida(referenciaISO);
+        if (!nascimento || !referencia) return null;
+        let idade = referencia.getFullYear() - nascimento.getFullYear();
+        const fezAniversario = referencia.getMonth() > nascimento.getMonth()
+            || (referencia.getMonth() === nascimento.getMonth() && referencia.getDate() >= nascimento.getDate());
+        if (!fezAniversario) idade -= 1;
+        return idade;
+    }
+
+    function agendamentoMenorDeTresAnos(ag) {
+        const idade = ag ? idadeEmAnosNaData(ag.nascimentoISO, ag.dataISO) : null;
+        return idade !== null && idade < 3;
+    }
+
+    function atualizarAvisoFotoMenorTres() {
+        const avisoFoto = document.getElementById("doc-foto-menor-3");
+        if (!avisoFoto) return;
+        avisoFoto.style.display = agendamentoMenorDeTresAnos(ultimoAgendamentoConfirmado) ? "" : "none";
     }
 
     function linhaComprovante(rotulo, valor) {
@@ -1136,6 +1175,7 @@
                 nome,
                 cpf,
                 nascimento: nascBR,
+                nascimentoISO: nascISO,
                 telefone: tel,
                 dataISO: ag.dataISO || dataSel,
                 dataBR: ag.dataBR || document.getElementById("resumo-data-txt").textContent,
@@ -1145,6 +1185,7 @@
 
             document.getElementById("ticket-info").textContent = `${ultimoAgendamentoConfirmado.dataBR} às ${ultimoAgendamentoConfirmado.hora}`; 
             document.getElementById("ticket-protocolo").textContent = ultimoAgendamentoConfirmado.protocolo || "Consulte pelo telefone informado";
+            atualizarAvisoFotoMenorTres();
             document.getElementById("dados-pessoais").style.display = "none"; 
             document.getElementById("sucesso-docs").style.display = "block"; 
             window.scrollTo(0,0); 
