@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const admin = require("firebase-admin");
-const { HttpsError, onCall } = require("firebase-functions/v2/https");
+const { HttpsError, onCall, onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 
 admin.initializeApp();
@@ -562,6 +562,26 @@ async function carregarDisponibilidadePublica() {
 exports.carregarAgendaPublica = onCall(publicCallableOptions, async (request) => {
   await aplicarRateLimit(request, "carregar_agenda_publica", 120, 10 * 60 * 1000);
   return carregarDisponibilidadePublica();
+});
+
+exports.carregarAgendaPublicaHttp = onRequest({
+  cors: callableOptions.cors,
+  maxInstances: 10
+}, async (req, res) => {
+  if (req.method !== "GET" && req.method !== "POST") {
+    res.status(405).json({ erro: "Metodo nao permitido." });
+    return;
+  }
+
+  try {
+    await aplicarRateLimit({ rawRequest: req }, "carregar_agenda_publica_http", 120, 10 * 60 * 1000);
+    const dados = await carregarDisponibilidadePublica();
+    res.set("Cache-Control", "private, max-age=30");
+    res.status(200).json(dados);
+  } catch (err) {
+    const status = err && err.code === "resource-exhausted" ? 429 : 500;
+    res.status(status).json({ erro: err && err.message ? err.message : "Erro ao carregar agenda publica." });
+  }
 });
 
 exports.verificarBloqueioCpf = onCall(publicCallableOptions, async (request) => {

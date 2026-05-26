@@ -434,6 +434,24 @@
         };
     }
 
+    async function buscarAgendaPublicaAtualizada() {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 12000);
+        try {
+            const resposta = await fetch(`https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net/carregarAgendaPublicaHttp`, {
+                method: "GET",
+                cache: "no-store",
+                signal: controller.signal
+            });
+            if (!resposta.ok) {
+                throw new Error("Nao foi possivel carregar a agenda publica.");
+            }
+            return await resposta.json();
+        } finally {
+            clearTimeout(timeout);
+        }
+    }
+
     async function carregarConfig() {
         // Tentar usar cache local primeiro (válido por 3 minutos)
         try {
@@ -456,14 +474,14 @@
 
         // Buscar dados atualizados da Cloud Function
         try {
-            const carregarAgendaPublica = firebase.functions().httpsCallable("carregarAgendaPublica");
-            const resposta = await carregarAgendaPublica();
-            const cfg = resposta.data || {};
+            const cfg = await buscarAgendaPublicaAtualizada();
             HORARIOS = horariosAtivos(cfg.horarios);
             DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias, HORARIOS);
             DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
             if (typeof cfg.totalVagasRestantes === "number") DISPONIBILIDADE_PUBLICA.totalVagasRestantes = cfg.totalVagasRestantes;
             DATA_NOVAS_VAGAS = cfg.dataNovasVagas || DATA_NOVAS_VAGAS_PADRAO;
+            renderDatas();
+            atualizarBannerVagas();
             // Salvar no cache com expiração de 3 minutos
             try {
                 localStorage.setItem("cin_agenda_cache", JSON.stringify({
@@ -472,9 +490,12 @@
                 }));
             } catch (e) {}
         } catch (e) {
-            HORARIOS = horariosAtivos(HORAS_FALLBACK);
-            DIAS_DISPONIVEIS = [];
-            DISPONIBILIDADE_PUBLICA = { porData: {}, totalVagasRestantes: 0 };
+            console.error("Erro ao carregar agenda publica", e);
+            if (!DIAS_DISPONIVEIS.length) {
+                HORARIOS = horariosAtivos(HORAS_FALLBACK);
+                DIAS_DISPONIVEIS = [];
+                DISPONIBILIDADE_PUBLICA = { porData: {}, totalVagasRestantes: 0 };
+            }
         }
     }
 
