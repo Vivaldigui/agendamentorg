@@ -231,6 +231,32 @@ function dataBr(dataISO) {
   return partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : "";
 }
 
+function dataISOParaDate(dataISO) {
+  const partes = String(dataISO || "").split("-").map(Number);
+  if (partes.length !== 3 || partes.some((n) => !Number.isFinite(n))) return null;
+  const data = new Date(partes[0], partes[1] - 1, partes[2]);
+  if (data.getFullYear() !== partes[0] || data.getMonth() !== partes[1] - 1 || data.getDate() !== partes[2]) return null;
+  return data;
+}
+
+function idadeEmAnosNaData(nascimentoISO, referenciaISO) {
+  const nascimento = dataISOParaDate(nascimentoISO);
+  const referencia = dataISOParaDate(referenciaISO);
+  if (!nascimento || !referencia) return null;
+  let idade = referencia.getFullYear() - nascimento.getFullYear();
+  const fezAniversario = referencia.getMonth() > nascimento.getMonth()
+    || (referencia.getMonth() === nascimento.getMonth() && referencia.getDate() >= nascimento.getDate());
+  if (!fezAniversario) idade -= 1;
+  return idade;
+}
+
+function validarIdadeMinimaAgendamento(nascimentoISO, dataISO) {
+  const idade = idadeEmAnosNaData(nascimentoISO, dataISO);
+  if (idade !== null && idade < 3) {
+    throw new HttpsError("failed-precondition", "Nao e possivel realizar agendamento para menores de 3 anos pelo sistema.");
+  }
+}
+
 function subtrairMesesISO(dataISO, meses) {
   const partes = String(dataISO || "").split("-").map(Number);
   if (partes.length !== 3 || partes.some((n) => !Number.isFinite(n))) return hojeSaoPauloISO();
@@ -671,6 +697,7 @@ exports.criarAgendamentoCidadao = onCall(publicCallableOptions, async (request) 
   const dataNasc = normalizarData(request.data.nascimento);
   const dataISO = normalizarData(request.data.data);
   const hora = normalizarHora(request.data.hora);
+  validarIdadeMinimaAgendamento(dataNasc, dataISO);
   const cpfFormatado = formatarCpf(cpfNum);
   const cpfHashId = cpfDocId(cpfNum);
   const slotId = `${dataISO}_${hora}`;
