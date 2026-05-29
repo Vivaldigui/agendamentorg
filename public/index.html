@@ -282,7 +282,7 @@
                     <span class="data-grande" id="ticket-info"></span>
                     <p style="margin:8px 0 0; font-size:0.95rem; color:var(--gray-800);"><i class="fa-solid fa-location-dot" style="color:var(--primary);"></i> <strong>Câmara Municipal de Itanhandu</strong></p>
                     <div class="protocolo-box">
-                        Guarde este protocolo para consultar ou cancelar com mais segurança:
+                        Guarde este protocolo como comprovante do seu agendamento:
                         <span class="protocolo-codigo" id="ticket-protocolo">CIN---------</span>
                     </div>
                 </div>
@@ -316,21 +316,18 @@
 
         <div class="secao" id="secao-consultar">
             <h3 style="color:var(--gray-800); font-size:1.1rem; margin:0 0 20px; font-weight:800;"><i class="fa-solid fa-magnifying-glass" style="color:var(--primary);"></i> Consultar Agendamento</h3>
+            <p style="color:var(--gray-600); font-size:0.9rem; margin:0 0 20px;">Informe CPF e data de nascimento para ver seu agendamento.</p>
             <div class="form-grupo"><label>CPF:</label><input id="cons-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" /></div>
             <div class="form-grupo"><label>Data de Nascimento:</label><input id="cons-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" /></div>
-            <div class="form-grupo"><label>Celular usado no agendamento:</label><input id="cons-tel" maxlength="15" inputmode="tel" autocomplete="tel" oninput="mascaraTel(this)" type="tel" placeholder="(00) 00000-0000" /></div>
-            <div class="form-grupo"><label>Protocolo (opcional, se tiver):</label><input id="cons-protocolo" maxlength="14" type="text" placeholder="CIN-ABC12345" /></div>
             <button class="btn-principal azul" id="btnConsultar" onclick="consultarAgendamento()">Buscar Meu Horário <i class="fa-solid fa-search"></i></button>
             <div id="resultado-consulta" style="margin-top:24px;"></div>
         </div>
 
         <div class="secao" id="secao-cancelar">
             <h3 style="color:var(--gray-800); font-size:1.1rem; margin:0 0 12px; font-weight:800;"><i class="fa-regular fa-calendar-xmark" style="color:var(--danger);"></i> Cancelar Agendamento</h3>
-            <p style="color:var(--gray-600); font-size:0.9rem; margin:0 0 20px;">Informe CPF, nascimento e o celular usado no agendamento. O protocolo também pode ser usado para reforçar a identificação.</p>
+            <p style="color:var(--gray-600); font-size:0.9rem; margin:0 0 20px;">Informe CPF e data de nascimento para localizar seu horário. Confira os dados antes de confirmar o cancelamento.</p>
             <div class="form-grupo"><label>CPF:</label><input id="cancelar-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" /></div>
             <div class="form-grupo"><label>Data de Nascimento:</label><input id="cancelar-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" /></div>
-            <div class="form-grupo"><label>Celular usado no agendamento:</label><input id="cancelar-tel" maxlength="15" inputmode="tel" autocomplete="tel" oninput="mascaraTel(this)" type="tel" placeholder="(00) 00000-0000" /></div>
-            <div class="form-grupo"><label>Protocolo (opcional, se tiver):</label><input id="cancelar-protocolo" maxlength="14" type="text" placeholder="CIN-ABC12345" /></div>
             <button class="btn-principal vermelho" id="btnBuscarCancelamento" onclick="buscarParaCancelar()">Localizar Agendamento <i class="fa-solid fa-search"></i></button>
             <div id="resultado-cancelamento" style="margin-top:24px;"></div>
         </div>
@@ -909,10 +906,6 @@
         baixarArquivo(`Agenda_${ag.protocolo}.ics`, ics, "text/calendar;charset=utf-8");
     }
 
-    function temFatorConsulta(telefone, protocolo) {
-        return String(telefone || "").replace(/\D/g, "").length >= 10 || String(protocolo || "").trim().length >= 6;
-    }
-
     function setErroCampo(id, erroId, mostrar) { 
         const input = document.getElementById(id), msg = document.getElementById(erroId); 
         if (mostrar) { input.classList.add("erro"); msg.classList.add("visivel"); } 
@@ -1182,7 +1175,7 @@
             };
 
             document.getElementById("ticket-info").textContent = `${ultimoAgendamentoConfirmado.dataBR} às ${ultimoAgendamentoConfirmado.hora}`; 
-            document.getElementById("ticket-protocolo").textContent = ultimoAgendamentoConfirmado.protocolo || "Consulte pelo telefone informado";
+            document.getElementById("ticket-protocolo").textContent = ultimoAgendamentoConfirmado.protocolo || "CIN";
             document.getElementById("dados-pessoais").style.display = "none"; 
             document.getElementById("sucesso-docs").style.display = "block"; 
             window.scrollTo(0,0); 
@@ -1204,8 +1197,6 @@
         const cpf=document.getElementById("cons-cpf").value,
               nascBR=document.getElementById("cons-nasc").value,
               nascISO=converterDataISO(nascBR),
-              telefone=document.getElementById("cons-tel").value,
-              protocolo=document.getElementById("cons-protocolo").value,
               res=document.getElementById("resultado-consulta"),
               btn=document.getElementById("btnConsultar");
         if(cpf.length<14 || !nascISO) { aviso("Preencha o CPF e a data de nascimento corretamente."); return; }
@@ -1217,9 +1208,9 @@
 
         try {
             const consulta = firebase.functions().httpsCallable("consultarAgendamentoCidadao");
-            const resposta = await consulta({ cpf, nascimento: nascISO, telefone, protocolo });
+            const resposta = await consulta({ cpf, nascimento: nascISO });
             const ag = resposta.data.agendamento;
-            res.innerHTML = `<div class="ticket-consulta"><div class="nome-ag"><i class="fa-solid fa-user"></i> ${textoSeguro(ag.nome)}</div><span class="data-ag">${textoSeguro(ag.dataBR)} às ${textoSeguro(ag.hora)}</span><div style="font-weight:800; color:var(--gray-800);">Protocolo: ${textoSeguro(ag.protocolo || "não informado")}</div></div>`;
+            res.innerHTML = `<div class="ticket-consulta"><div class="nome-ag"><i class="fa-solid fa-user"></i> ${textoSeguro(ag.nome)}</div><span class="data-ag">${textoSeguro(ag.dataBR)} às ${textoSeguro(ag.hora)}</span></div>`;
         } catch(e) {
             res.innerHTML = `<p style='color:var(--danger); text-align:center;'>${textoSeguro(e.message || "Não foi possível consultar o agendamento.")}</p>`;
         } finally {
@@ -1232,8 +1223,6 @@
         const cpf=document.getElementById("cancelar-cpf").value,
               nascBR=document.getElementById("cancelar-nasc").value,
               nascISO=converterDataISO(nascBR),
-              telefone=document.getElementById("cancelar-tel").value,
-              protocolo=document.getElementById("cancelar-protocolo").value,
               res=document.getElementById("resultado-cancelamento"),
               btnBusca=document.getElementById("btnBuscarCancelamento");
         if(cpf.length<14 || !nascISO) { aviso("Preencha o CPF e a data de nascimento corretamente."); return; }
@@ -1245,13 +1234,13 @@
 
         try {
             const preparar = firebase.functions().httpsCallable("prepararCancelamentoCidadao");
-            const resposta = await preparar({ cpf, nascimento: nascISO, telefone, protocolo });
+            const resposta = await preparar({ cpf, nascimento: nascISO });
             const ag = resposta.data.agendamento;
             const token = resposta.data.token;
 
             const wrapper = document.createElement("div");
             wrapper.style.cssText = "border:1px solid #fca5a5; border-left:5px solid var(--danger); border-radius:12px; padding:20px; background:var(--danger-light); margin-top:20px;";
-            wrapper.innerHTML = `<p style="margin:0 0 8px; font-weight:800; font-size:1.05rem;">${textoSeguro(ag.nome)}</p><p style="margin:0 0 8px; font-size:1.2rem; font-weight:900; color:var(--danger-dark);">${textoSeguro(ag.dataBR)} às ${textoSeguro(ag.hora)}</p><p style="margin:0 0 16px; font-weight:700;">Protocolo: ${textoSeguro(ag.protocolo || "não informado")}</p>`;
+            wrapper.innerHTML = `<p style="margin:0 0 8px; font-weight:800; font-size:1.05rem;">${textoSeguro(ag.nome)}</p><p style="margin:0 0 16px; font-size:1.2rem; font-weight:900; color:var(--danger-dark);">${textoSeguro(ag.dataBR)} às ${textoSeguro(ag.hora)}</p>`;
 
             const btn = document.createElement("button");
             btn.className = "btn-principal vermelho";

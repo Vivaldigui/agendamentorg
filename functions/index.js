@@ -282,7 +282,7 @@ function nomeSeguro(nome) {
 
 function respostaPublica(dados) {
   return {
-    nome: nomeSeguro(dados.nome),
+    nome: String(dados.nome || "").trim() || "Cidadao",
     dataISO: dados.dataISO || "",
     dataBR: dataBr(dados.dataISO),
     hora: dados.hora || "",
@@ -650,7 +650,6 @@ async function localizarAgendamento(cpfInformado, nascimentoInformado, opcoes = 
   if (!cpfSnap.exists) {
     const porCpf = await buscarPorCpfDireto(cpfNum, dataNasc);
     if (porCpf) {
-      validarFatorExtra(porCpf.dados, opcoes.telefone, opcoes.protocolo);
       return porCpf;
     }
     throw new HttpsError("not-found", "Nenhum agendamento encontrado com os dados informados.");
@@ -667,7 +666,6 @@ async function localizarAgendamento(cpfInformado, nascimentoInformado, opcoes = 
   }
 
   const dados = agDoc.data();
-  validarFatorExtra(dados, opcoes.telefone, opcoes.protocolo);
   return {
     agendamentoId,
     cpfDocIds: [...new Set([...cpfDocIds, cpfHashId, cpfNum])],
@@ -678,10 +676,7 @@ async function localizarAgendamento(cpfInformado, nascimentoInformado, opcoes = 
 
 exports.consultarAgendamentoCidadao = onCall(publicCallableOptions, async (request) => {
   await aplicarRateLimit(request, "consultar_agendamento", 8, 10 * 60 * 1000, String(request.data && request.data.cpf || ""));
-  const encontrado = await localizarAgendamento(request.data.cpf, request.data.nascimento, {
-    telefone: request.data.telefone,
-    protocolo: request.data.protocolo
-  });
+  const encontrado = await localizarAgendamento(request.data.cpf, request.data.nascimento);
   return {
     encontrado: true,
     agendamento: respostaPublica(encontrado.dados)
@@ -792,10 +787,7 @@ exports.criarAgendamentoCidadao = onCall(publicCallableOptions, async (request) 
 exports.prepararCancelamentoCidadao = onCall(publicCallableOptions, async (request) => {
   await aplicarRateLimit(request, "preparar_cancelamento", 6, 10 * 60 * 1000, String(request.data && request.data.cpf || ""));
   const cpfNum = normalizarCpf(request.data.cpf);
-  const encontrado = await localizarAgendamento(request.data.cpf, request.data.nascimento, {
-    telefone: request.data.telefone,
-    protocolo: request.data.protocolo
-  });
+  const encontrado = await localizarAgendamento(request.data.cpf, request.data.nascimento);
   const token = crypto.randomBytes(32).toString("hex");
   const expiraEm = admin.firestore.Timestamp.fromMillis(Date.now() + CANCELAMENTO_TTL_MS);
 
