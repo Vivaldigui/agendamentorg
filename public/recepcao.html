@@ -57,6 +57,8 @@
         .filtros-grid { display: grid; grid-template-columns: 2fr 1fr 1fr auto auto auto; gap: 10px; align-items: end; }
         .filtro-check { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 700; color: #475569; padding-bottom: 11px; }
         .filtro-check input { width: 18px; height: 18px; }
+        .lote-data-item { padding: 8px; margin: 0; background: white; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; }
+        .lote-data-item.data-existente { opacity: 0.55; cursor: not-allowed; }
         .tabela-wrap { overflow-x: auto; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
         table { width: 100%; border-collapse: collapse; background: white; min-width: 1100px; }
         th, td { padding: 16px; text-align: left; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; }
@@ -178,6 +180,12 @@
         }
         body.modo-escuro .input-group input::placeholder {
             color: #64748b;
+        }
+        body.modo-escuro #box-previa-lote,
+        body.modo-escuro .lote-data-item {
+            background: #0b1220 !important;
+            border-color: #334155 !important;
+            color: #cbd5e1;
         }
         body.modo-escuro .btn-tema {
             background: #f8fafc;
@@ -352,7 +360,8 @@
                     <label>Liberar em:</label>
                     <input type="datetime-local" id="cfg-publicar-em-data">
                 </div>
-                <button class="btn btn-config" onclick="adicionarDataAgenda()"><i class="fa-solid fa-plus"></i> Adicionar Data</button>
+                <button class="btn btn-config" onclick="adicionarDataAgenda()"><i class="fa-solid fa-plus"></i> Única</button>
+                <button type="button" class="btn btn-lote" onclick="abrirModalLoteFlex()"><i class="fa-solid fa-calendar-days"></i> Adicionar Múltiplas</button>
                 <button class="btn btn-atualizar" onclick="carregarAgendaGestao()"><i class="fa-solid fa-rotate"></i> Recarregar Datas</button>
             </div>
             <div class="lista-datas" id="lista-datas-agenda"></div>
@@ -458,6 +467,42 @@
             <div style="display:flex; gap:10px; margin-top:20px;">
                 <button class="btn btn-sair" style="flex:1" onclick="fecharRemarcacao()">Cancelar</button>
                 <button class="btn btn-atualizar" style="flex:2" id="btnSalvarRemarcacao" onclick="salvarRemarcacao()">Salvar RemarcaÃ§Ã£o</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-lote-flexivel" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h3 style="margin-top:0; color:var(--primary-dark)"><i class="fa-solid fa-calendar-days"></i> Adicionar Múltiplas Datas</h3>
+            <p style="font-size: 0.85rem; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Gere um período de dias úteis e <strong>desmarque</strong> os dias em que NÃO haverá atendimento, como feriados ou expediente suspenso.</p>
+
+            <div class="grid-2">
+                <div class="input-group"><label>De:</label><input type="date" id="lote-flex-inicio"></div>
+                <div class="input-group"><label>Até:</label><input type="date" id="lote-flex-fim"></div>
+            </div>
+
+            <button class="btn btn-atualizar" style="width:100%; margin-bottom: 15px; justify-content:center;" onclick="gerarPreviaLote()"><i class="fa-solid fa-list-check"></i> 1. Gerar lista de datas</button>
+
+            <div id="box-previa-lote" style="display:none; max-height: 220px; overflow-y: auto; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 15px; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px;">
+            </div>
+
+            <div class="grid-2" style="border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                <div class="input-group">
+                    <label>Disponibilizar ao público:</label>
+                    <select id="lote-flex-disp" onchange="alternarProgLoteFlex()">
+                        <option value="agora">Imediatamente</option>
+                        <option value="programar">Em data e hora futura</option>
+                    </select>
+                </div>
+                <div class="input-group" id="box-lote-flex-pub" style="display:none;">
+                    <label>Liberar no site em: <span class="obrigatorio">*</span></label>
+                    <input type="datetime-local" id="lote-flex-pub-data">
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn btn-sair" style="flex:1" onclick="fecharModalLoteFlex()">Cancelar</button>
+                <button class="btn btn-lote" style="flex:2" id="btnSalvarLoteFlex" onclick="salvarLoteFlexivel()"><i class="fa-solid fa-floppy-disk"></i> 2. Salvar Datas Marcadas</button>
             </div>
         </div>
     </div>
@@ -1148,6 +1193,127 @@
                 registrarLog("agenda_remover_data", { dataISO: data });
             }
             catch (e) { alert("Erro ao remover data."); carregarAgendaGestao(); }
+        }
+
+        function abrirModalLoteFlex() {
+            const inicio = document.getElementById("lote-flex-inicio");
+            const fim = document.getElementById("lote-flex-fim");
+            if (inicio) {
+                inicio.min = hojeISO();
+                inicio.value = "";
+            }
+            if (fim) {
+                fim.min = hojeISO();
+                fim.value = "";
+            }
+            document.getElementById("lote-flex-disp").value = "agora";
+            document.getElementById("lote-flex-pub-data").value = "";
+            alternarProgLoteFlex();
+            document.getElementById("box-previa-lote").style.display = "none";
+            document.getElementById("box-previa-lote").innerHTML = "";
+            document.getElementById("modal-lote-flexivel").style.display = "flex";
+        }
+
+        function fecharModalLoteFlex() {
+            document.getElementById("modal-lote-flexivel").style.display = "none";
+        }
+
+        function alternarProgLoteFlex() {
+            const prog = document.getElementById("lote-flex-disp").value === "programar";
+            document.getElementById("box-lote-flex-pub").style.display = prog ? "block" : "none";
+        }
+
+        function gerarPreviaLote() {
+            const inicio = document.getElementById("lote-flex-inicio").value;
+            const fim = document.getElementById("lote-flex-fim").value;
+            const box = document.getElementById("box-previa-lote");
+
+            if (!inicio || !fim) return alert("Informe a data inicial e a data final.");
+            if (fim < inicio) return alert("A data final deve ser igual ou posterior a inicial.");
+
+            box.innerHTML = "";
+            let dataAtual = inicio;
+            let qtd = 0;
+
+            while (dataAtual <= fim) {
+                const [ano, mes, dia] = dataAtual.split("-").map(Number);
+                const diaSem = new Date(ano, mes - 1, dia).getDay();
+
+                if (diaSem !== 0 && diaSem !== 6) {
+                    const label = document.createElement("label");
+                    label.className = "filtro-check lote-data-item";
+
+                    const checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkbox.value = dataAtual;
+                    checkbox.className = "cb-data-previa";
+
+                    if (agendaDias.includes(dataAtual)) {
+                        checkbox.disabled = true;
+                        checkbox.checked = false;
+                        label.classList.add("data-existente");
+                        label.title = "Ja cadastrada na agenda";
+                    } else {
+                        checkbox.checked = true;
+                    }
+
+                    const nomesDias = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
+                    const texto = document.createElement("span");
+                    texto.textContent = `${nomesDias[diaSem]}, ${dataBrISO(dataAtual)}${checkbox.disabled ? " (ja cadastrada)" : ""}`;
+
+                    label.appendChild(checkbox);
+                    label.appendChild(texto);
+                    box.appendChild(label);
+                    qtd++;
+                }
+                dataAtual = somarDiasISO(dataAtual, 1);
+            }
+
+            box.style.display = qtd > 0 ? "grid" : "none";
+            if (qtd === 0) alert("Nenhum dia util (segunda a sexta) encontrado neste periodo.");
+        }
+
+        async function salvarLoteFlexivel() {
+            const checkboxes = document.querySelectorAll(".cb-data-previa:checked:not(:disabled)");
+            const datasSelecionadas = Array.from(checkboxes).map(cb => cb.value);
+
+            if (datasSelecionadas.length === 0) return alert("Nenhuma data nova foi selecionada.");
+
+            const modo = document.getElementById("lote-flex-disp").value;
+            const publicarEm = document.getElementById("lote-flex-pub-data").value;
+
+            if (modo === "programar") {
+                if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(publicarEm)) return alert("Informe a data e hora para liberacao.");
+                if (publicarEm <= agoraSaoPauloInput()) return alert("Escolha uma data/hora futura para publicar.");
+            }
+
+            const btn = document.getElementById("btnSalvarLoteFlex");
+            btn.disabled = true;
+            btn.innerText = "Salvando...";
+
+            try {
+                datasSelecionadas.forEach(dataISO => {
+                    if (!agendaDias.includes(dataISO)) {
+                        agendaDias.push(dataISO);
+                        if (modo === "programar") {
+                            agendaPublicacaoDatas[dataISO] = publicarEm;
+                        } else {
+                            delete agendaPublicacaoDatas[dataISO];
+                        }
+                    }
+                });
+
+                agendaDias = ordenarDatas(agendaDias);
+                await salvarAgendaGestao(`${datasSelecionadas.length} data(s) adicionada(s) com sucesso.`);
+                registrarLog("agenda_adicionar_lote_flexivel", { qtd: datasSelecionadas.length, modo });
+                fecharModalLoteFlex();
+            } catch (e) {
+                alert("Erro ao salvar multiplas datas.");
+                carregarAgendaGestao();
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> 2. Salvar Datas Marcadas';
+            }
         }
 
         async function salvarAvisoNovasVagas() {
