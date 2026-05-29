@@ -412,11 +412,11 @@
             </div>
             <div class="filtros-rapidos">
                 <button type="button" onclick="filtroRapidoPainel('hoje')">Hoje</button>
-                <button type="button" onclick="filtroRapidoPainel('amanha')">AmanhÃ£</button>
+                <button type="button" onclick="filtroRapidoPainel('amanha')">Amanhã</button>
                 <button type="button" onclick="filtroRapidoPainel('semana')">Esta semana</button>
                 <button type="button" onclick="filtroRapidoPainel('agendados')">Agendados</button>
                 <button type="button" onclick="filtroRapidoPainel('compareceram')">Compareceram</button>
-                <button type="button" onclick="filtroRapidoPainel('faltaram')">NÃ£o compareceram</button>
+                <button type="button" onclick="filtroRapidoPainel('faltaram')">Não compareceram</button>
                 <button type="button" onclick="filtroRapidoPainel('cancelados')">Cancelados</button>
                 <button type="button" onclick="filtroRapidoPainel('bloqueados')">Bloqueados</button>
                 <button type="button" onclick="filtroRapidoPainel('manuais')">Manuais</button>
@@ -452,21 +452,21 @@
 
     <div id="modal-remarcar" class="modal">
         <div class="modal-content">
-            <h3 style="margin-top:0; color:var(--primary-dark)">RemarcaÃ§Ã£o Manual</h3>
+            <h3 style="margin-top:0; color:var(--primary-dark)">Remarcação Manual</h3>
             <input type="hidden" id="remarcar-id">
-            <div class="input-group"><label>CidadÃ£o:</label><input type="text" id="remarcar-nome" disabled></div>
+            <div class="input-group"><label>Cidadão:</label><input type="text" id="remarcar-nome" disabled></div>
             <div class="grid-2">
                 <div class="input-group"><label>Nova data:</label><input type="date" id="remarcar-data"></div>
-                <div class="input-group"><label>Novo horÃ¡rio:</label><input type="time" id="remarcar-hora"></div>
+                <div class="input-group"><label>Novo horário:</label><input type="time" id="remarcar-hora"></div>
             </div>
             <label class="filtro-check" style="padding:0; margin:8px 0 0;">
                 <input type="checkbox" id="remarcar-contabiliza">
-                Ocupa vaga da agenda pÃºblica
+                Ocupa vaga da agenda pública
             </label>
-            <div style="color:#64748b; font-size:0.82rem; margin-top:8px;">Deixe desmarcado para encaixe manual que nÃ£o altera as vagas exibidas no site.</div>
+            <div style="color:#64748b; font-size:0.82rem; margin-top:8px;">Deixe desmarcado para encaixe manual que não altera as vagas exibidas no site.</div>
             <div style="display:flex; gap:10px; margin-top:20px;">
                 <button class="btn btn-sair" style="flex:1" onclick="fecharRemarcacao()">Cancelar</button>
-                <button class="btn btn-atualizar" style="flex:2" id="btnSalvarRemarcacao" onclick="salvarRemarcacao()">Salvar RemarcaÃ§Ã£o</button>
+                <button class="btn btn-atualizar" style="flex:2" id="btnSalvarRemarcacao" onclick="salvarRemarcacao()">Salvar Remarcação</button>
             </div>
         </div>
     </div>
@@ -516,7 +516,7 @@
         var firebaseConfig = { apiKey: "AIzaSyBqmzQw8CtTD6O2C3fiXcm7_GBmkgite_c", authDomain: "agendamento-cin-itanhandu.firebaseapp.com", projectId: "agendamento-cin-itanhandu", storageBucket: "agendamento-cin-itanhandu.firebasestorage.app", messagingSenderId: "144820039253", appId: "1:144820039253:web:af179156ce8da4b73a6edc" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore(); const auth = firebase.auth(); const functions = firebase.functions();
-        const DIAS_INICIAIS = ["2026-05-15","2026-05-19","2026-05-20","2026-05-21","2026-05-22","2026-05-26","2026-05-27","2026-05-28","2026-05-29"];
+        const DIAS_INICIAIS = ["2026-06-02","2026-06-03","2026-06-09","2026-06-10","2026-06-11","2026-06-12","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-28","2026-07-29","2026-07-30"];
         const HORARIOS_PADRAO = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
         const STATUS_LABELS = {
             agendado: "Agendado",
@@ -1741,7 +1741,7 @@
 
         function abrirRemarcacao(id) {
             const ag = buscarAgendamentoCache(id);
-            if (!ag) return alert("Agendamento nÃ£o encontrado.");
+            if (!ag) return alert("Agendamento não encontrado.");
             document.getElementById("remarcar-id").value = id;
             document.getElementById("remarcar-nome").value = ag.dados.nome || "";
             document.getElementById("remarcar-data").value = ag.dados.dataISO || "";
@@ -1758,7 +1758,7 @@
             const contabilizaVaga = document.getElementById("remarcar-contabiliza").checked;
             const ag = buscarAgendamentoCache(id);
             if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !/^\d{2}:\d{2}$/.test(hora)) {
-                return alert("Informe data e horÃ¡rio para remarcar.");
+                return alert("Informe data e horário para remarcar.");
             }
             if (!ag) return alert("Agendamento não encontrado.");
             btn.disabled = true;
@@ -1814,7 +1814,7 @@
                 alert(e.message || "Erro ao remarcar.");
             }
             btn.disabled = false;
-            btn.innerText = "Salvar RemarcaÃ§Ã£o";
+            btn.innerText = "Salvar Remarcação";
         }
 
         async function tentarGravarBloqueioDedicado(dadosBloqueio) {

@@ -70,6 +70,9 @@
         .btn-hora { padding: 14px 10px; font-size: 1.05rem; flex-direction: row; }
         .btn-data:hover:not(:disabled), .btn-hora:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); transform: translateY(-3px); box-shadow: var(--shadow-hover); }
         .btn-data:disabled, .btn-hora:disabled { background: var(--gray-50); color: var(--gray-400); opacity: 0.7; cursor: not-allowed; border-color: var(--gray-100); transform: none; }
+        .btn-data.esgotada { background: #fef2f2; border-color: #fecaca; color: #991b1b; opacity: 1; }
+        .btn-data.esgotada strong { color: #991b1b; }
+        .lotado-badge { background: #dc2626; color: white; border-radius: 999px; padding: 4px 9px; font-size: 0.72rem; font-weight: 900; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.02em; }
         .vagas-badge { font-size: 0.75rem; font-weight: 700; padding: 4px 8px; border-radius: 20px; margin-top: 4px; }
         .vagas-badge.ok { background: var(--success-light); color: var(--success-dark); }
         .vagas-badge.low { background: var(--warning-light); color: #b45309; }
@@ -367,7 +370,7 @@
     }
     var functions = firebase.functions();
 
-    const DIAS_INICIAIS = ["2026-05-15","2026-05-19","2026-05-20","2026-05-21","2026-05-22","2026-05-26","2026-05-27","2026-05-28","2026-05-29"];
+    const DIAS_INICIAIS = ["2026-06-02","2026-06-03","2026-06-09","2026-06-10","2026-06-11","2026-06-12","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-28","2026-07-29","2026-07-30"];
     const HORAS_FALLBACK = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
     const DATA_NOVAS_VAGAS_PADRAO = "data a definir";
     let DIAS_DISPONIVEIS = [], HORARIOS = [], DATA_NOVAS_VAGAS = DATA_NOVAS_VAGAS_PADRAO; 
@@ -955,7 +958,7 @@
                     <div class="status-vagas-card">
                         <span class="status-vagas-icone"><i class="fa-solid fa-check"></i></span>
                         <div>
-                            <span class="status-vagas-titulo">Vagas disponíveis</span>
+                            <span class="status-vagas-titulo">${res} ${res === 1 ? "vaga disponível" : "vagas disponíveis"}</span>
                             <span class="status-vagas-sub">Escolha abaixo a data do atendimento.</span>
                         </div>
                     </div>
@@ -1007,7 +1010,8 @@
                 
                 if (vagas <= 0) { 
                     btn.disabled = true; 
-                    btn.innerHTML += `<div style="font-size:0.75rem; color:var(--gray-400); margin-top:4px;">Lotado</div>`; 
+                    btn.classList.add("esgotada");
+                    btn.innerHTML += '<div><span class="lotado-badge">Lotado</span></div>';
                 } else {
                     const badgeClass = vagas <= 2 ? 'low' : 'ok';
                     const vagaText = vagas === 1 ? 'vaga' : 'vagas';
