@@ -103,8 +103,6 @@
         .ticket-sucesso { background: var(--success-light); border: 1px solid #a7f3d0; border-left: 6px solid var(--success); border-radius: 16px; padding: 26px; text-align: center; margin-bottom: 24px; }
         .data-grande { font-size: 2.4rem; font-weight: 900; color: var(--success-dark); display: block; margin: 12px 0 8px; letter-spacing: -1px; }
         .msg-sucesso-topo { color: var(--success-dark); font-size: 1.6rem; font-weight: 900; display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 18px; }
-        .protocolo-box { margin-top: 16px; background: white; border: 1px dashed #86efac; border-radius: 12px; padding: 14px; color: var(--gray-800); }
-        .protocolo-codigo { display: block; margin-top: 6px; font-size: 1.35rem; font-weight: 900; color: var(--success-dark); letter-spacing: 1px; }
         .docs-container { background: var(--warning-light); border: 1px solid #fde68a; border-left: 5px solid var(--warning); padding: 22px; border-radius: 12px; margin-top: 20px; color: #92400e; font-size: 0.95rem; line-height: 1.6; }
         .docs-container h4 { margin: 0 0 12px; color: #78350f; font-size: 1.1rem; }
         .docs-container.compacto { margin: 18px 0 20px; padding: 18px; font-size: 0.9rem; }
@@ -281,10 +279,6 @@
                     <p style="margin:0; font-size:0.9rem; color:var(--success-dark); font-weight:600;">Seu horário confirmado:</p>
                     <span class="data-grande" id="ticket-info"></span>
                     <p style="margin:8px 0 0; font-size:0.95rem; color:var(--gray-800);"><i class="fa-solid fa-location-dot" style="color:var(--primary);"></i> <strong>Câmara Municipal de Itanhandu</strong></p>
-                    <div class="protocolo-box">
-                        Guarde este protocolo como comprovante do seu agendamento:
-                        <span class="protocolo-codigo" id="ticket-protocolo">CIN---------</span>
-                    </div>
                 </div>
                 <div class="acoes-sucesso">
                     <button class="btn-acao-sucesso whatsapp" onclick="enviarConfirmacaoWhatsApp()"><i class="fa-brands fa-whatsapp"></i> Enviar no WhatsApp</button>
@@ -789,7 +783,7 @@
     function mensagemConfirmacao() {
         const ag = ultimoAgendamentoConfirmado;
         if (!ag) return "";
-        return `Ola, ${ag.nome}!\n\nSeu atendimento para emissao do RG/CIN foi agendado para ${ag.dataBR} as ${ag.hora} na Camara Municipal de Itanhandu.\n\nProtocolo: ${ag.protocolo}\n\nSe nao puder comparecer, cancele seu horario para liberar a vaga para outra pessoa e evitar bloqueio futuro.\n\n${documentosTexto()}\n\nLocal: Camara Municipal de Itanhandu\nMapa: ${MAPS_CAMARA}`;
+        return `Ola, ${ag.nome}!\n\nSeu atendimento para emissao do RG/CIN foi agendado para ${ag.dataBR} as ${ag.hora} na Camara Municipal de Itanhandu.\n\nSe nao puder comparecer, cancele seu horario para liberar a vaga para outra pessoa e evitar bloqueio futuro.\n\n${documentosTexto()}\n\nLocal: Camara Municipal de Itanhandu\nMapa: ${MAPS_CAMARA}`;
     }
 
     function enviarConfirmacaoWhatsApp() {
@@ -802,7 +796,6 @@
     function baixarComprovante() {
         const ag = ultimoAgendamentoConfirmado;
         if (!ag) return aviso("Finalize um agendamento antes de baixar o comprovante.");
-        const protocolo = ag.protocolo || "Nao informado";
         const janela = window.open("", "_blank");
         if (!janela) {
             aviso("O navegador bloqueou a janela do comprovante. Permita pop-ups para gerar o PDF.");
@@ -812,7 +805,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Comprovante ${textoSeguro(protocolo)}</title>
+    <title>Comprovante de Agendamento CIN</title>
     <style>
         * { box-sizing: border-box; }
         body { font-family: Arial, sans-serif; margin: 0; background: #f1f5f9; color: #0f172a; }
@@ -821,8 +814,6 @@
         .topo img { max-width: 190px; margin-bottom: 12px; }
         h1 { margin: 0; font-size: 22px; color: #003d82; text-transform: uppercase; }
         .sub { margin: 6px 0 0; color: #475569; font-size: 14px; }
-        .protocolo { margin: 22px 0; padding: 16px; text-align: center; border: 1px dashed #94a3b8; border-radius: 10px; }
-        .protocolo strong { display: block; font-size: 24px; color: #0056b3; margin-top: 4px; letter-spacing: 1px; }
         .linha { display: flex; justify-content: space-between; gap: 18px; padding: 11px 0; border-bottom: 1px solid #e2e8f0; }
         .linha span { color: #64748b; font-weight: 700; }
         .linha strong { text-align: right; color: #0f172a; }
@@ -848,7 +839,6 @@
             <h1>Comprovante de Agendamento</h1>
             <p class="sub">Carteira de Identidade Nacional - CIN</p>
         </div>
-        <div class="protocolo">Protocolo<strong>${textoSeguro(protocolo)}</strong></div>
         ${linhaComprovante("Nome", ag.nome)}
         ${linhaComprovante("Data", ag.dataBR)}
         ${linhaComprovante("Horario", ag.hora)}
@@ -888,22 +878,23 @@
         const ag = ultimoAgendamentoConfirmado;
         if (!ag) return aviso("Finalize um agendamento antes de adicionar à agenda.");
         const fim = somarMinutosHora(ag.hora, 20);
+        const agendaId = String(ag.id || `${ag.dataISO}-${ag.hora}`).replace(/[^a-zA-Z0-9-]/g, "");
         const ics = [
             "BEGIN:VCALENDAR",
             "VERSION:2.0",
             "PRODID:-//Camara Itanhandu//Agendamento CIN//PT-BR",
             "BEGIN:VEVENT",
-            `UID:${ag.protocolo}@agendamento-cin-itanhandu`,
+            `UID:${agendaId}@agendamento-cin-itanhandu`,
             `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").split(".")[0]}Z`,
             `DTSTART:${dataHoraICS(ag.dataISO, ag.hora)}`,
             `DTEND:${dataHoraICS(ag.dataISO, fim)}`,
             "SUMMARY:Atendimento RG/CIN",
             "LOCATION:Camara Municipal de Itanhandu",
-            `DESCRIPTION:Protocolo ${ag.protocolo}. Levar documentos obrigatorios. Se nao puder comparecer, cancele seu horario.`,
+            "DESCRIPTION:Levar documentos obrigatorios. Se nao puder comparecer, cancele seu horario.",
             "END:VEVENT",
             "END:VCALENDAR"
         ].join("\r\n");
-        baixarArquivo(`Agenda_${ag.protocolo}.ics`, ics, "text/calendar;charset=utf-8");
+        baixarArquivo(`Agenda_CIN_${ag.dataISO}_${ag.hora.replace(":", "")}.ics`, ics, "text/calendar;charset=utf-8");
     }
 
     function setErroCampo(id, erroId, mostrar) { 
@@ -1164,18 +1155,17 @@
             });
             const ag = resposta.data.agendamento || {};
             ultimoAgendamentoConfirmado = {
+                id: ag.id || "",
                 nome,
                 cpf,
                 nascimento: nascBR,
                 telefone: tel,
                 dataISO: ag.dataISO || dataSel,
                 dataBR: ag.dataBR || document.getElementById("resumo-data-txt").textContent,
-                hora: ag.hora || horaSel,
-                protocolo: ag.protocolo || ""
+                hora: ag.hora || horaSel
             };
 
             document.getElementById("ticket-info").textContent = `${ultimoAgendamentoConfirmado.dataBR} às ${ultimoAgendamentoConfirmado.hora}`; 
-            document.getElementById("ticket-protocolo").textContent = ultimoAgendamentoConfirmado.protocolo || "CIN";
             document.getElementById("dados-pessoais").style.display = "none"; 
             document.getElementById("sucesso-docs").style.display = "block"; 
             window.scrollTo(0,0); 

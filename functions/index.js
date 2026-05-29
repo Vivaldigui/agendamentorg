@@ -286,7 +286,6 @@ function respostaPublica(dados) {
     dataISO: dados.dataISO || "",
     dataBR: dataBr(dados.dataISO),
     hora: dados.hora || "",
-    protocolo: dados.protocolo || "",
     status: STATUS_VALIDOS.includes(dados.status) ? dados.status : "agendado"
   };
 }
@@ -701,7 +700,6 @@ exports.criarAgendamentoCidadao = onCall(publicCallableOptions, async (request) 
 
   const criado = new Date().toISOString();
   const agendamentoRef = db.collection("dados_cidadaos").doc();
-  const protocolo = gerarProtocolo(agendamentoRef.id);
   const slotRef = db.collection("vagas_ocupadas").doc(slotId);
   const cpfRef = db.collection("cpfs_agendados").doc(cpfHashId);
   const cpfLegadoRef = db.collection("cpfs_agendados").doc(cpfNum);
@@ -766,7 +764,6 @@ exports.criarAgendamentoCidadao = onCall(publicCallableOptions, async (request) 
       dataISO,
       hora,
       slotId,
-      protocolo,
       status: "agendado",
       criado,
       statusAtualizadoEm: criado
@@ -778,8 +775,7 @@ exports.criarAgendamentoCidadao = onCall(publicCallableOptions, async (request) 
       id: agendamentoRef.id,
       dataISO,
       dataBR: dataBr(dataISO),
-      hora,
-      protocolo
+      hora
     }
   };
 });
