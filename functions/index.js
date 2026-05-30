@@ -45,6 +45,11 @@ const publicCallableOptions = {
   enforceAppCheck: true
 };
 
+const agendamentoPicoOptions = {
+  ...publicCallableOptions,
+  maxInstances: 30
+};
+
 function normalizarCpf(cpf) {
   const cpfNum = String(cpf || "").replace(/\D/g, "");
   if (cpfNum.length !== 11) {
@@ -591,7 +596,7 @@ exports.carregarAgendaPublica = onCall(publicCallableOptions, async (request) =>
 
 exports.carregarAgendaPublicaHttp = onRequest({
   cors: callableOptions.cors,
-  maxInstances: 10
+  maxInstances: 50
 }, async (req, res) => {
   if (req.method !== "GET" && req.method !== "POST") {
     res.status(405).json({ erro: "Metodo nao permitido." });
@@ -601,7 +606,7 @@ exports.carregarAgendaPublicaHttp = onRequest({
   try {
     await aplicarRateLimit({ rawRequest: req }, "carregar_agenda_publica_http", 120, 10 * 60 * 1000);
     const dados = await carregarDisponibilidadePublica();
-    res.set("Cache-Control", "private, max-age=30");
+    res.set("Cache-Control", "public, max-age=30, s-maxage=60");
     res.status(200).json(dados);
   } catch (err) {
     const status = err && err.code === "resource-exhausted" ? 429 : 500;
@@ -682,7 +687,7 @@ exports.consultarAgendamentoCidadao = onCall(publicCallableOptions, async (reque
   };
 });
 
-exports.criarAgendamentoCidadao = onCall(publicCallableOptions, async (request) => {
+exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request) => {
   const nome = normalizarTexto(request.data.nome, "o nome completo", 5, 120);
   const cpfNum = normalizarCpf(request.data.cpf);
   await aplicarRateLimit(request, "criar_agendamento", 6, 10 * 60 * 1000, cpfNum);

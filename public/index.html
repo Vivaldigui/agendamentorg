@@ -432,9 +432,8 @@
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 12000);
         try {
-            const resposta = await fetch(`https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net/carregarAgendaPublicaHttp`, {
+            const resposta = await fetch("/api/agenda-publica", {
                 method: "GET",
-                cache: "no-store",
                 signal: controller.signal
             });
             if (!resposta.ok) {

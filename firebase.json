@@ -20,6 +20,15 @@
         "type": 301
       }
     ],
+    "rewrites": [
+      {
+        "source": "/api/agenda-publica",
+        "function": {
+          "functionId": "carregarAgendaPublicaHttp",
+          "region": "us-central1"
+        }
+      }
+    ],
     "headers": [
       {
         "source": "**",
