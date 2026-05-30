@@ -190,6 +190,24 @@ function agoraSaoPauloInput() {
   return `${valores.year}-${valores.month}-${valores.day}T${valores.hour}:${valores.minute}`;
 }
 
+function dataHoraAgendamentoInput(dataISO, hora) {
+  const data = String(dataISO || "");
+  const horario = String(hora || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !/^\d{2}:\d{2}$/.test(horario)) return "";
+  return `${data}T${horario}`;
+}
+
+function horarioAgendamentoFuturo(dataISO, hora, agora = agoraSaoPauloInput()) {
+  const dataHora = dataHoraAgendamentoInput(dataISO, hora);
+  return Boolean(dataHora && dataHora > agora);
+}
+
+function validarAgendamentoPublicoFuturo(dados, mensagem) {
+  if (!horarioAgendamentoFuturo(dados && dados.dataISO, dados && dados.hora)) {
+    throw new HttpsError("failed-precondition", mensagem || "Este horario ja passou e nao esta mais disponivel pelo site.");
+  }
+}
+
 function normalizarPublicacaoDatas(valor) {
   if (!valor || typeof valor !== "object" || Array.isArray(valor)) return {};
   const limpo = {};
@@ -526,6 +544,9 @@ async function validarSlotDisponivel(dataISO, hora) {
   if (!agenda.dias.includes(dataISO) || !agenda.horarios.includes(hora)) {
     throw new HttpsError("failed-precondition", "Horario indisponivel para agendamento.");
   }
+  if (!horarioAgendamentoFuturo(dataISO, hora)) {
+    throw new HttpsError("failed-precondition", "Este horario ja passou. Escolha outro horario disponivel.");
+  }
 }
 
 async function buscarPorCpfDireto(cpfNum, dataNasc) {
@@ -559,6 +580,7 @@ async function carregarDisponibilidadePublica() {
   const agenda = await carregarAgenda();
   const vagasSnap = await db.collection("vagas_ocupadas").get();
   const ocupados = new Set();
+  const agora = agoraSaoPauloInput();
 
   vagasSnap.docs.forEach((doc) => {
     const vaga = doc.data();
@@ -568,10 +590,13 @@ async function carregarDisponibilidadePublica() {
   });
 
   const dias = agenda.dias.map((dataISO) => {
-    const horarios = agenda.horarios.map((hora) => ({
-      hora,
-      disponivel: !ocupados.has(`${dataISO}_${hora}`)
-    }));
+    const horarios = agenda.horarios.map((hora) => {
+      const horarioFuturo = horarioAgendamentoFuturo(dataISO, hora, agora);
+      return {
+        hora,
+        disponivel: horarioFuturo && !ocupados.has(`${dataISO}_${hora}`)
+      };
+    });
     const vagas = horarios.filter((item) => item.disponivel).length;
     return {
       dataISO,
@@ -681,6 +706,7 @@ async function localizarAgendamento(cpfInformado, nascimentoInformado, opcoes = 
 exports.consultarAgendamentoCidadao = onCall(publicCallableOptions, async (request) => {
   await aplicarRateLimit(request, "consultar_agendamento", 8, 10 * 60 * 1000, String(request.data && request.data.cpf || ""));
   const encontrado = await localizarAgendamento(request.data.cpf, request.data.nascimento);
+  validarAgendamentoPublicoFuturo(encontrado.dados, "Este agendamento ja passou do horario e nao pode mais ser consultado pelo site.");
   return {
     encontrado: true,
     agendamento: respostaPublica(encontrado.dados)
@@ -789,6 +815,7 @@ exports.prepararCancelamentoCidadao = onCall(publicCallableOptions, async (reque
   await aplicarRateLimit(request, "preparar_cancelamento", 6, 10 * 60 * 1000, String(request.data && request.data.cpf || ""));
   const cpfNum = normalizarCpf(request.data.cpf);
   const encontrado = await localizarAgendamento(request.data.cpf, request.data.nascimento);
+  validarAgendamentoPublicoFuturo(encontrado.dados, "Este agendamento ja passou do horario e nao pode mais ser cancelado pelo site.");
   const token = crypto.randomBytes(32).toString("hex");
   const expiraEm = admin.firestore.Timestamp.fromMillis(Date.now() + CANCELAMENTO_TTL_MS);
 
@@ -832,6 +859,10 @@ exports.cancelarAgendamentoCidadao = onCall(publicCallableOptions, async (reques
     const agDoc = await t.get(agRef);
     const dados = agDoc.exists ? agDoc.data() : {};
     const slotId = pendente.slotId || dados.slotId || `${dados.dataISO}_${dados.hora}`;
+
+    if (agDoc.exists) {
+      validarAgendamentoPublicoFuturo(dados, "Este agendamento ja passou do horario e nao pode mais ser cancelado pelo site.");
+    }
 
     if (slotId && slotId !== "undefined_undefined") {
       t.delete(db.collection("vagas_ocupadas").doc(slotId));

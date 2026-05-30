@@ -387,6 +387,26 @@
         return `${valores.year}-${valores.month}-${valores.day}`;
     }
 
+    function agoraSaoPauloInput() {
+        const partes = new Intl.DateTimeFormat("en", {
+            timeZone: "America/Sao_Paulo",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            hourCycle: "h23"
+        }).formatToParts(new Date());
+        const valores = Object.fromEntries(partes.map(parte => [parte.type, parte.value]));
+        return `${valores.year}-${valores.month}-${valores.day}T${valores.hour}:${valores.minute}`;
+    }
+
+    function horarioAgendamentoFuturo(dataISO, hora) {
+        return /^\d{4}-\d{2}-\d{2}$/.test(String(dataISO || "")) &&
+            /^\d{2}:\d{2}$/.test(String(hora || "")) &&
+            `${dataISO}T${hora}` > agoraSaoPauloInput();
+    }
+
     function datasAtivas(dias) {
         const hoje = hojeISO();
         return [...new Set((dias || []).filter(d => typeof d === "string" && d >= hoje))].sort();
@@ -405,12 +425,16 @@
             const horariosDia = Array.isArray(item.horarios)
                 ? item.horarios.filter(h => /^\d{2}:\d{2}$/.test(String(h.hora || "")))
                 : horarios.map(hora => ({ hora, disponivel: true }));
-            const vagas = typeof item.vagas === "number" ? item.vagas : horariosDia.filter(h => h.disponivel).length;
+            const horariosValidos = horariosDia.map(h => ({
+                hora: h.hora,
+                disponivel: h.disponivel === true && horarioAgendamentoFuturo(dataISO, h.hora)
+            }));
+            const vagas = horariosValidos.filter(h => h.disponivel).length;
             porData[dataISO] = {
                 dataISO,
                 vagas,
                 lotado: item.lotado === true || vagas <= 0,
-                horarios: horariosDia
+                horarios: horariosValidos
             };
         });
         return {
@@ -456,7 +480,6 @@
                     HORARIOS = horariosAtivos(cfg.horarios);
                     DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias, HORARIOS);
                     DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
-                    if (typeof cfg.totalVagasRestantes === "number") DISPONIBILIDADE_PUBLICA.totalVagasRestantes = cfg.totalVagasRestantes;
                     DATA_NOVAS_VAGAS = cfg.dataNovasVagas || DATA_NOVAS_VAGAS_PADRAO;
                     // Renderiza imediatamente com o cache e busca atualização em background
                     renderDatas();
@@ -471,7 +494,6 @@
             HORARIOS = horariosAtivos(cfg.horarios);
             DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias, HORARIOS);
             DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
-            if (typeof cfg.totalVagasRestantes === "number") DISPONIBILIDADE_PUBLICA.totalVagasRestantes = cfg.totalVagasRestantes;
             DATA_NOVAS_VAGAS = cfg.dataNovasVagas || DATA_NOVAS_VAGAS_PADRAO;
             renderDatas();
             atualizarBannerVagas();
@@ -1043,7 +1065,7 @@
                 btn.className = "btn-hora"; 
                 btn.innerHTML = `<i class="fa-regular fa-clock"></i> ${h}`;
                 
-                if (!disponibilidadePorHora[h]) { 
+                if (!disponibilidadePorHora[h] || !horarioAgendamentoFuturo(data, h)) {
                     btn.disabled = true; 
                 } else { 
                     btn.onclick = () => { 
@@ -1116,6 +1138,11 @@
         setErroCampo("inp-tel","erro-tel",tel.length<14); if(tel.length<14) val=false;
         
         if (!val) { aviso("Corrija os campos em destaque antes de finalizar."); return; }
+        if (!dataSel || !horaSel || !horarioAgendamentoFuturo(dataSel, horaSel)) {
+            aviso("Este horario ja passou. Escolha outro horario disponivel.");
+            await abrirAlterarHorario();
+            return;
+        }
         if (!validarNascimentoAgendamento()) {
             setErroCampo("inp-nasc", "erro-nasc", false);
             aviso("Não é possível realizar agendamento para menores de 3 anos pelo sistema.");
