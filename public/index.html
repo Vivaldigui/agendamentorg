@@ -91,6 +91,9 @@
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         .card-resumo { background: var(--primary-light); border: 1px solid #bfdbfe; border-radius: var(--radius); padding: 18px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
         .card-resumo .info { font-size: 0.95rem; color: var(--gray-800); }
+        .aviso-horario { display: block; margin-top: 5px; color: #92400e; font-size: 0.78rem; font-weight: 800; }
+        .toast-agenda { position: fixed; left: 50%; bottom: 82px; z-index: 9999; max-width: calc(100vw - 28px); padding: 10px 16px; border-radius: 999px; background: #1e293b; color: white; box-shadow: 0 10px 26px rgba(15,23,42,0.2); font-size: 0.84rem; font-weight: 800; text-align: center; transform: translateX(-50%); animation: toast-agenda-entrada 0.22s ease-out; }
+        @keyframes toast-agenda-entrada { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
         .btn-alterar { background: white; border: 1px solid var(--primary); color: var(--primary); font-weight: 700; cursor: pointer; border-radius: 8px; padding: 8px 14px; font-size: 0.85rem; }
         .tarja-alerta { background: var(--danger-light); color: var(--danger-dark); padding: 14px 18px; border-radius: 10px; margin-bottom: 24px; font-weight: 600; font-size: 0.88rem; display: flex; align-items: center; gap: 12px; border-left: 5px solid var(--danger); }
         .btn-principal { width: 100%; padding: 18px; border: none; border-radius: 12px; font-size: 1.05rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.3s; touch-action: manipulation; }
@@ -238,7 +241,10 @@
                 </div>
                 <div class="tarja-alerta"><i class="fa-solid fa-circle-exclamation" style="font-size:1.5rem;"></i><div><strong>ATENÇÃO:</strong> Os dados devem ser de quem irá fazer o RG.</div></div>
                 <div class="card-resumo">
-                    <div class="info"><i class="fa-solid fa-calendar-check" style="color:var(--primary);"></i> <strong> <span id="resumo-data-txt"></span></strong> às <strong><span id="resumo-hora-txt"></span></strong></div>
+                    <div class="info">
+                        <i class="fa-solid fa-calendar-check" style="color:var(--primary);"></i> <strong> <span id="resumo-data-txt"></span></strong> às <strong><span id="resumo-hora-txt"></span></strong>
+                        <span class="aviso-horario"><i class="fa-solid fa-bolt"></i> Conclua rapidamente: o horário ainda não está reservado.</span>
+                    </div>
                     <button class="btn-alterar" onclick="abrirAlterarHorario()"><i class="fa-solid fa-pen"></i> Alterar</button>
                 </div>
                 <div class="form-grupo"><label>Nome Completo: <span style="color:var(--danger)">*</span></label><input id="inp-nome" type="text" autocomplete="name" autocapitalize="words" placeholder="Ex: João da Silva" onblur="formatarNomeProprio(this)" /><div class="msg-campo-erro" id="erro-nome">Informe o nome completo.</div></div>
@@ -461,12 +467,14 @@
         };
     }
 
-    async function buscarAgendaPublicaAtualizada() {
+    async function buscarAgendaPublicaAtualizada({ ignorarCache = false } = {}) {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 12000);
         try {
-            const resposta = await fetch("/api/agenda-publica", {
+            const sufixo = ignorarCache ? `?atualizar=${Date.now()}` : "";
+            const resposta = await fetch(`/api/agenda-publica${sufixo}`, {
                 method: "GET",
+                ...(ignorarCache ? { cache: "no-store" } : {}),
                 signal: controller.signal
             });
             if (!resposta.ok) {
@@ -478,28 +486,30 @@
         }
     }
 
-    async function carregarConfig() {
+    async function carregarConfig({ ignorarCache = false } = {}) {
         // Tentar usar cache local primeiro (válido por 3 minutos)
-        try {
-            const cacheRaw = localStorage.getItem("cin_agenda_cache");
-            if (cacheRaw) {
-                const cache = JSON.parse(cacheRaw);
-                if (cache.expiraEm > Date.now() && cache.dados) {
-                    const cfg = cache.dados;
-                    HORARIOS = horariosAtivos(cfg.horarios);
-                    DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias, HORARIOS);
-                    DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
-                    DATA_NOVAS_VAGAS = cfg.dataNovasVagas || DATA_NOVAS_VAGAS_PADRAO;
-                    // Renderiza imediatamente com o cache e busca atualização em background
-                    renderDatas();
-                    atualizarBannerVagas();
+        if (!ignorarCache) {
+            try {
+                const cacheRaw = localStorage.getItem("cin_agenda_cache");
+                if (cacheRaw) {
+                    const cache = JSON.parse(cacheRaw);
+                    if (cache.expiraEm > Date.now() && cache.dados) {
+                        const cfg = cache.dados;
+                        HORARIOS = horariosAtivos(cfg.horarios);
+                        DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias, HORARIOS);
+                        DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
+                        DATA_NOVAS_VAGAS = cfg.dataNovasVagas || DATA_NOVAS_VAGAS_PADRAO;
+                        // Renderiza imediatamente com o cache e busca atualização em background
+                        renderDatas();
+                        atualizarBannerVagas();
+                    }
                 }
-            }
-        } catch (e) {}
+            } catch (e) {}
+        }
 
         // Buscar dados atualizados da Cloud Function
         try {
-            const cfg = await buscarAgendaPublicaAtualizada();
+            const cfg = await buscarAgendaPublicaAtualizada({ ignorarCache });
             HORARIOS = horariosAtivos(cfg.horarios);
             DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias, HORARIOS);
             DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
@@ -520,11 +530,13 @@
                 DIAS_DISPONIVEIS = [];
                 DISPONIBILIDADE_PUBLICA = { porData: {}, totalVagasRestantes: 0 };
             }
+            if (ignorarCache) throw e;
         }
     }
 
     const HTML_LOADING = '<div class="loading-container"><div class="loading-bar"></div></div>';
     let dataSel = null, horaSel = null;
+    let selecionandoHora = false;
     let ultimoAgendamentoConfirmado = null;
     const MAPS_CAMARA = "https://www.google.com/maps/search/?api=1&query=C%C3%A2mara%20Municipal%20de%20Itanhandu";
 
@@ -555,6 +567,17 @@
             mensagem: m, 
             botoes: [{ texto: "Entendi", classe: "primario" }] 
         }); 
+    }
+
+    function mostrarToastAgenda(mensagem) {
+        const anterior = document.getElementById("toast-agenda");
+        if (anterior) anterior.remove();
+        const toast = document.createElement("div");
+        toast.id = "toast-agenda";
+        toast.className = "toast-agenda";
+        toast.textContent = mensagem;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3500);
     }
 
     function abrirDocumentosNecessarios() {
@@ -1080,17 +1103,35 @@
                 if (!disponibilidadePorHora[h] || !horarioAgendamentoFuturo(data, h)) {
                     btn.disabled = true; 
                 } else { 
-                    btn.onclick = () => { 
-                        horaSel = h; 
-                        document.querySelectorAll('.btn-hora').forEach(b => b.classList.remove('selecionado')); 
-                        btn.classList.add('selecionado'); 
-                        document.getElementById("resumo-hora-txt").textContent = h; 
-                        setTimeout(() => { 
+                    btn.onclick = async () => {
+                        if (selecionandoHora) return;
+                        selecionandoHora = true;
+                        btn.disabled = true;
+                        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando...';
+                        try {
+                            await carregarConfig({ ignorarCache: true });
+                            const infoAtual = disponibilidadeDia(data);
+                            const horaAtual = infoAtual.horarios.find(item => item.hora === h);
+                            if (!horaAtual || horaAtual.disponivel !== true || !horarioAgendamentoFuturo(data, h)) {
+                                await renderHoras(data);
+                                aviso("Este horário foi preenchido agora mesmo. Escolha outro horário disponível.");
+                                return;
+                            }
+
+                            horaSel = h;
+                            document.querySelectorAll('.btn-hora').forEach(b => b.classList.remove('selecionado'));
+                            btn.classList.add('selecionado');
+                            document.getElementById("resumo-hora-txt").textContent = h;
                             document.getElementById("etapa-selecao").style.display = "none"; 
                             document.getElementById("dados-pessoais").style.display = "block"; 
                             validarNascimentoAgendamento();
                             document.getElementById("dados-pessoais").scrollIntoView({ behavior: "smooth", block: "start" });
-                        }, 180); 
+                        } catch (e) {
+                            await renderHoras(data);
+                            aviso("Não foi possível confirmar a disponibilidade agora. Tente selecionar o horário novamente.");
+                        } finally {
+                            selecionandoHora = false;
+                        }
                     }; 
                 }
                 grade.appendChild(btn);
@@ -1109,8 +1150,27 @@
     function agendarAtualizacaoAutomatica() {
         clearTimeout(timerAtualizacaoAutomatica);
         timerAtualizacaoAutomatica = setTimeout(async () => {
+            const vagasAntes = DISPONIBILIDADE_PUBLICA.totalVagasRestantes || 0;
             await carregarConfig();
-            if (podeRedesenharAgenda()) renderDatas();
+            const vagasDepois = DISPONIBILIDADE_PUBLICA.totalVagasRestantes || 0;
+            if (vagasDepois < vagasAntes && podeRedesenharAgenda()) {
+                mostrarToastAgenda(`${vagasAntes - vagasDepois} vaga(s) preenchida(s) agora.`);
+            }
+            if (document.getElementById("dados-pessoais").style.display === "block" && dataSel && horaSel) {
+                const infoDia = disponibilidadeDia(dataSel);
+                const horaAtual = infoDia.horarios.find(item => item.hora === horaSel);
+                if (!horaAtual || horaAtual.disponivel !== true || !horarioAgendamentoFuturo(dataSel, horaSel)) {
+                    horaSel = null;
+                    document.getElementById("dados-pessoais").style.display = "none";
+                    document.getElementById("etapa-selecao").style.display = "block";
+                    await renderDatas();
+                    if (dataSel && DIAS_DISPONIVEIS.includes(dataSel)) await renderHoras(dataSel);
+                    atualizarBannerVagas();
+                    aviso("O horário que você havia selecionado acabou de ser preenchido. Seus dados foram mantidos; escolha outro horário disponível.");
+                    return;
+                }
+            }
+            if (podeRedesenharAgenda()) await renderDatas();
             atualizarBannerVagas();
         }, 300);
     }

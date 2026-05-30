@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cin-v6';
+const CACHE_NAME = 'cin-v7';
 const SHELL = [
   '/',
   '/index.html',
@@ -21,7 +21,8 @@ self.addEventListener('activate', e =>
 );
 
 self.addEventListener('fetch', e => {
-  if (e.request.url.includes('cloudfunctions.net') || e.request.url.includes('firebase')) return;
+  const url = new URL(e.request.url);
+  if (url.pathname === '/api/agenda-publica' || e.request.url.includes('cloudfunctions.net') || e.request.url.includes('firebase')) return;
   const aceitaHtml = e.request.mode === 'navigate' || (e.request.headers.get('accept') || '').includes('text/html');
   if (aceitaHtml) {
     e.respondWith(
