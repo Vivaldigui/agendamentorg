@@ -407,6 +407,15 @@
             `${dataISO}T${hora}` > agoraSaoPauloInput();
     }
 
+    function avisoNovasVagasEmBreve() {
+        const texto = String(DATA_NOVAS_VAGAS || "").trim();
+        const partesBr = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        const dataISO = partesBr
+            ? `${partesBr[3]}-${partesBr[2]}-${partesBr[1]}`
+            : (/^\d{4}-\d{2}-\d{2}$/.test(texto) ? texto : "");
+        return Boolean(dataISO && hojeISO() >= dataISO);
+    }
+
     function datasAtivas(dias) {
         const hoje = hojeISO();
         return [...new Set((dias || []).filter(d => typeof d === "string" && d >= hoje))].sort();
@@ -986,6 +995,10 @@
                 `; 
                 if (podeControlarCalendario) etapaSelecao.style.display = "block";
             } else { 
+                const avisoProximasVagas = avisoNovasVagasEmBreve()
+                    ? '<strong class="proxima-liberacao">Novas vagas em breve</strong>'
+                    : `A liberação de novos horários ocorrerá em:
+                        <strong class="proxima-liberacao">${textoSeguro(DATA_NOVAS_VAGAS)}</strong>`;
                 banner.className = "banner-vagas sem-vagas"; 
                 banner.innerHTML = `
                     <div class="status-vagas-card agenda-fechada">
@@ -994,8 +1007,7 @@
                             <span class="status-vagas-titulo">Agenda fechada</span>
                             <span class="status-vagas-sub">
                                 Todas as vagas disponíveis no momento já foram preenchidas.<br>
-                                A liberação de novos horários ocorrerá em:
-                                <strong class="proxima-liberacao">${textoSeguro(DATA_NOVAS_VAGAS)}</strong>
+                                ${avisoProximasVagas}
                             </span>
                         </div>
                     </div>
