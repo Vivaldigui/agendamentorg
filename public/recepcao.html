@@ -1007,6 +1007,68 @@
                 padding: 9px 6px;
             }
         }
+
+        .abas-operacao { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+        .btn-vista { background:#e8f1fb; color:var(--primary-dark); border:1px solid #bfd5eb; }
+        .btn-vista.ativo { background:var(--primary); color:white; border-color:var(--primary); }
+        .painel-fila { display:none; margin-bottom:20px; }
+        .painel-fila.ativo { display:block; }
+        .fila-topo { position:sticky; top:8px; z-index:12; display:grid; grid-template-columns:minmax(240px, 1fr) auto; gap:12px; align-items:end; padding:16px; margin-bottom:14px; background:rgba(255,255,255,0.96); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow-sm); backdrop-filter:blur(8px); }
+        .fila-topo .input-group { margin:0; }
+        .fila-resumo { color:var(--muted); font-size:0.84rem; font-weight:800; text-align:right; }
+        .fila-cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px; }
+        .fila-card { background:var(--surface); border:1px solid var(--line); border-left:5px solid #93c5fd; border-radius:12px; padding:14px; box-shadow:var(--shadow-sm); transition:0.2s; }
+        .fila-card.proximo { border-left-color:#f59e0b; box-shadow:0 0 0 3px rgba(245,158,11,0.16), var(--shadow-sm); }
+        .fila-card.compareceu { border-left-color:#22c55e; }
+        .fila-card.nao_compareceu { border-left-color:#ef4444; }
+        .fila-card.cancelado { border-left-color:#94a3b8; opacity:0.7; }
+        .fila-card-topo { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+        .fila-hora { font-size:1.35rem; color:var(--primary-dark); font-weight:900; }
+        .fila-nome { margin:8px 0 3px; font-size:0.98rem; font-weight:900; color:var(--ink); }
+        .fila-detalhe { color:var(--muted); font-size:0.76rem; font-weight:700; }
+        .fila-acoes { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+        .btn-status-direto { border:none; cursor:pointer; width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; color:white; transition:0.15s; }
+        .btn-status-direto:hover { transform:translateY(-1px); }
+        .btn-status-ok { background:#15803d; }
+        .btn-status-falta { background:#dc2626; }
+        .btn-status-obs { background:#64748b; }
+        .acoes-linha-rapida { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+        .observacao-icone { color:#d97706; margin-left:6px; cursor:help; }
+        .linha-destaque { animation:linhaConfirmada 1.2s ease; }
+        @keyframes linhaConfirmada { 0%,100% { background:inherit; } 35% { background:#dcfce7; } }
+        .toast-container { position:fixed; right:18px; bottom:18px; z-index:11000; display:grid; gap:10px; width:min(380px, calc(100vw - 28px)); }
+        .toast-painel { display:flex; gap:10px; align-items:flex-start; padding:13px 14px; color:#14532d; background:#f0fdf4; border:1px solid #86efac; border-radius:10px; box-shadow:0 18px 36px rgba(15,23,42,0.18); font-size:0.86rem; font-weight:800; }
+        .toast-painel.erro { color:#7f1d1d; background:#fef2f2; border-color:#fca5a5; }
+        .toast-sessao { color:#78350f; background:#fffbeb; border-color:#fbbf24; }
+        .toast-sessao button { margin-left:auto; border:1px solid #92400e; background:white; color:#78350f; border-radius:7px; padding:5px 9px; font-weight:900; cursor:pointer; }
+        .painel-horarios, .painel-preferencias, .painel-logs { margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+        details > summary { cursor:pointer; color:var(--primary-dark); font-weight:900; }
+        .horarios-semana { display:grid; gap:10px; margin-top:14px; }
+        .horario-dia { display:grid; grid-template-columns:92px minmax(0,1fr) 164px auto; gap:10px; align-items:center; }
+        .horario-dia strong { color:var(--ink); font-size:0.84rem; }
+        .horario-chips { display:flex; gap:6px; flex-wrap:wrap; min-height:32px; align-items:center; }
+        .chip-horario { display:inline-flex; align-items:center; gap:5px; padding:5px 8px; color:#075985; background:#f0f9ff; border:1px solid #bae6fd; border-radius:999px; font-size:0.74rem; font-weight:900; }
+        .chip-horario button { border:0; background:transparent; color:#b91c1c; cursor:pointer; font-weight:900; }
+        .horario-dia input { width:100%; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); }
+        .config-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px; }
+        .config-grid .input-group { margin:0; }
+        .logs-lista { display:grid; gap:8px; margin-top:12px; }
+        .log-item { display:grid; grid-template-columns:72px 170px 1fr minmax(150px, auto); gap:10px; padding:9px 10px; background:var(--surface-soft); border:1px solid var(--line); border-radius:8px; color:var(--muted); font-size:0.76rem; font-weight:700; }
+        .log-item strong { color:var(--ink); }
+        .atualizado-em { display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:0.76rem; font-weight:800; }
+        .card-kpi.clicavel { cursor:pointer; text-align:left; font-family:inherit; transition:0.16s; }
+        .card-kpi.clicavel:hover { transform:translateY(-2px); border-color:#93c5fd; box-shadow:var(--shadow-sm); }
+        body.modo-escuro .fila-topo, body.modo-escuro .fila-card, body.modo-escuro .card-kpi, body.modo-escuro .log-item { background:#111827; border-color:#334155; }
+        body.modo-escuro .fila-nome, body.modo-escuro .horario-dia strong, body.modo-escuro .log-item strong { color:#e2e8f0; }
+        body.modo-escuro .chip-horario { background:#082f49; color:#bae6fd; border-color:#075985; }
+        body.modo-escuro .horario-dia input { background:#0b1220; color:#e2e8f0; border-color:#334155; }
+        @media (max-width:760px) {
+            .fila-topo { grid-template-columns:1fr; top:4px; }
+            .fila-resumo { text-align:left; }
+            .horario-dia { grid-template-columns:1fr; padding:10px; border:1px solid var(--line); border-radius:10px; }
+            .config-grid { grid-template-columns:1fr; }
+            .log-item { grid-template-columns:1fr; gap:2px; }
+        }
     </style>
 </head>
 <body class="modo-escuro">
@@ -1027,13 +1089,33 @@
                 <button class="btn btn-sair" onclick="fazerLogout()">Sair</button>
             </div>
         </div>
+        <div class="abas-operacao">
+            <button type="button" class="btn btn-vista ativo" id="btn-vista-hoje" onclick="mostrarVistaPainel('hoje')"><i class="fa-solid fa-calendar-day"></i> Fila de hoje</button>
+            <button type="button" class="btn btn-vista" id="btn-vista-lista" onclick="mostrarVistaPainel('lista')"><i class="fa-solid fa-table-list"></i> Lista e gestão</button>
+        </div>
+        <section class="painel-fila ativo" id="vista-hoje">
+            <div class="fila-topo">
+                <div class="input-group">
+                    <label for="busca-fila-hoje"><i class="fa-solid fa-magnifying-glass"></i> Check-in rápido por nome ou CPF</label>
+                    <input id="busca-fila-hoje" type="search" placeholder="Digite o nome ou CPF do cidadão" oninput="renderFilaHoje()">
+                </div>
+                <div class="fila-resumo">
+                    <strong id="fila-contagem">0 de 0 atendidos hoje</strong><br>
+                    <span class="atualizado-em" id="fila-atualizado"><i class="fa-solid fa-rotate"></i> Aguardando atualização</span>
+                </div>
+            </div>
+            <div class="fila-cards" id="fila-hoje-cards"></div>
+        </section>
+        <div id="vista-lista" style="display:none;">
         <div class="controles">
             <button class="btn btn-atualizar" onclick="listarAgendamentos()"><i class="fa-solid fa-rotate"></i> Atualizar Lista</button>
             <button class="btn btn-excel" onclick="exportarExcel()"><i class="fa-solid fa-file-excel"></i> Exportar para Excel</button>
+            <button class="btn btn-config" onclick="imprimirListaHoje()"><i class="fa-solid fa-print"></i> Imprimir lista do dia</button>
             <button class="btn btn-manual" onclick="abrirModal()"><i class="fa-solid fa-user-plus"></i> Inserir Encaixe Manual</button>
             <button class="btn btn-lembrete-lote" onclick="enviarLembretesAmanha()">
                 <i class="fa-brands fa-whatsapp"></i> Lembretes de amanhã
             </button>
+            <span class="atualizado-em" id="lista-atualizado"><i class="fa-solid fa-rotate"></i> Aguardando atualização</span>
         </div>
         <div class="painel-periodo">
             <h3><i class="fa-solid fa-calendar-days"></i> Período carregado no painel</h3>
@@ -1052,11 +1134,11 @@
             <span class="periodo-info" id="info-periodo-lista">Por padrão, o painel carrega apenas agendamentos de ontem em diante.</span>
         </div>
         <div class="cards-resumo">
-            <div class="card-kpi"><span>Hoje</span><strong id="kpi-hoje">0</strong></div>
-            <div class="card-kpi"><span>Amanhã</span><strong id="kpi-amanha">0</strong></div>
-            <div class="card-kpi"><span>Vagas Restantes</span><strong id="kpi-vagas">0</strong></div>
-            <div class="card-kpi"><span>Datas Lotadas</span><strong id="kpi-lotadas">0</strong></div>
-            <div class="card-kpi"><span>Atendimentos realizados</span><strong id="kpi-atendidos">0</strong></div>
+            <button type="button" class="card-kpi clicavel" onclick="mostrarVistaPainel('hoje')"><span>Hoje</span><strong id="kpi-hoje">0</strong></button>
+            <button type="button" class="card-kpi clicavel" onclick="filtroRapidoPainel('amanha')"><span>Amanhã</span><strong id="kpi-amanha">0</strong></button>
+            <button type="button" class="card-kpi clicavel" onclick="irParaConfiguracaoAgenda()"><span>Vagas Restantes</span><strong id="kpi-vagas">0</strong></button>
+            <button type="button" class="card-kpi clicavel" onclick="irParaConfiguracaoAgenda()"><span>Datas Lotadas</span><strong id="kpi-lotadas">0</strong></button>
+            <button type="button" class="card-kpi clicavel" onclick="filtroRapidoPainel('compareceram')"><span>Atendimentos realizados</span><strong id="kpi-atendidos">0</strong></button>
         </div>
         <div class="painel-indicadores">
             <h3><i class="fa-solid fa-chart-simple"></i> Indicadores históricos</h3>
@@ -1121,6 +1203,29 @@
                 <button class="btn btn-config" onclick="salvarAvisoNovasVagas()"><i class="fa-solid fa-floppy-disk"></i> Salvar Aviso</button>
             </div>
         </div>
+        <div class="painel-config">
+            <h3><i class="fa-solid fa-gears"></i> Configurações operacionais</h3>
+            <details class="painel-horarios">
+                <summary><i class="fa-solid fa-clock"></i> Horários disponíveis por dia da semana</summary>
+                <div class="horarios-semana" id="horarios-semana"></div>
+                <button type="button" class="btn btn-config" style="margin-top:12px;" onclick="salvarHorariosSemana()"><i class="fa-solid fa-floppy-disk"></i> Salvar horários</button>
+            </details>
+            <details class="painel-preferencias">
+                <summary><i class="fa-solid fa-sliders"></i> Preferências operacionais</summary>
+                <div class="config-grid">
+                    <div class="input-group">
+                        <label for="cfg-responsavel-posto">Nome do responsável do posto</label>
+                        <input id="cfg-responsavel-posto" type="text" maxlength="120">
+                    </div>
+                    <div class="input-group">
+                        <label for="cfg-template-lembrete">Mensagem de lembrete WhatsApp</label>
+                        <textarea id="cfg-template-lembrete" rows="8" maxlength="2500"></textarea>
+                        <small>Variáveis disponíveis: {nome}, {data}, {hora}, {protocolo}</small>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-config" style="margin-top:12px;" onclick="salvarPreferenciasOperacionais()"><i class="fa-solid fa-floppy-disk"></i> Salvar preferências</button>
+            </details>
+        </div>
         <div class="painel-filtros">
             <h3 style="margin:0 0 14px; color:var(--primary-dark); font-size:1rem;"><i class="fa-solid fa-filter"></i> Filtros da Lista</h3>
             <div class="filtros-grid">
@@ -1163,6 +1268,14 @@
                 <thead><tr><th>Data/Hora</th><th>Cidadão</th><th>CPF / Nasc</th><th>Contato</th><th>Status</th><th>Ações</th></tr></thead>
                 <tbody id="corpo-tabela"></tbody>
             </table>
+        </div>
+        <details class="painel-logs" open>
+            <summary><i class="fa-solid fa-clock-rotate-left"></i> Histórico de ações de hoje</summary>
+            <div style="margin-top:10px;">
+                <button type="button" class="btn btn-atualizar" onclick="carregarLogsAdmin()"><i class="fa-solid fa-rotate"></i> Atualizar histórico</button>
+            </div>
+            <div class="logs-lista" id="logs-lista"></div>
+        </details>
         </div>
     </div>
 
@@ -1243,6 +1356,22 @@
         </div>
     </div>
 
+    <div id="modal-observacao" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0; color:var(--primary-dark)"><i class="fa-solid fa-note-sticky"></i> Observação interna</h3>
+            <input type="hidden" id="observacao-id">
+            <div class="input-group"><label>Cidadão:</label><input type="text" id="observacao-nome" disabled></div>
+            <div class="input-group"><label>Nota interna:</label><textarea id="observacao-texto" rows="6" maxlength="800" placeholder="Ex.: cidadão precisa apresentar certidão atualizada."></textarea></div>
+            <div class="detalhe-pessoal" id="observacao-meta"></div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn btn-sair" style="flex:1" onclick="fecharObservacao()">Cancelar</button>
+                <button class="btn btn-atualizar" style="flex:2" id="btnSalvarObservacao" onclick="salvarObservacao()"><i class="fa-solid fa-floppy-disk"></i> Salvar observação</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -1254,6 +1383,24 @@
         const db = firebase.firestore(); const auth = firebase.auth(); const functions = firebase.functions();
         const DIAS_INICIAIS = ["2026-06-02","2026-06-03","2026-06-09","2026-06-10","2026-06-11","2026-06-12","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-28","2026-07-29","2026-07-30"];
         const HORARIOS_PADRAO = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
+        const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+        const RESPONSAVEL_POSTO_PADRAO = "Guilherme Ribeiro Pinto";
+        const TEMPLATE_LEMBRETE_PADRAO = `Olá, {nome}!
+
+Passando para lembrar que seu atendimento para emissão do RG/CIN está agendado para *{data} às {hora}* na *Câmara Municipal de Itanhandu*.
+
+Não se esqueça de levar os documentos necessários:
+
+1. A certidão deve ser ORIGINAL, sem rasgos, rasuras ou alterações.
+2. Certidão de nascimento original (se solteiro), certidão de casamento original (se casado). Se viúvo ou divorciado, a certidão de casamento deve estar averbada.
+3. CPF.
+4. Comprovante de residência.
+
+Menores de 16 anos devem estar acompanhados do responsável legal com documento (RG ou CNH).
+
+Protocolo: {protocolo}.
+
+Até logo!`;
         const STATUS_LABELS = {
             agendado: "Agendado",
             compareceu: "Compareceu",
@@ -1264,9 +1411,13 @@
         const STATUS_ORDEM = ["agendado", "compareceu", "nao_compareceu", "cancelado", "remarcado"];
         let agendaDias = [];
         let agendaHorarios = HORARIOS_PADRAO;
+        let agendaHorariosPorDiaSemana = {};
         let agendaPublicacaoDatas = {};
+        let responsavelPosto = RESPONSAVEL_POSTO_PADRAO;
+        let templateLembrete = TEMPLATE_LEMBRETE_PADRAO;
         let agendamentosCache = [];
         let filtroRapidoAtual = "";
+        let vistaPainelAtual = "hoje";
         let mostrarDatasPassadas = false;
         let agendaGestaoCarregada = false;
         let listaAgendamentosCarregada = false;
@@ -1275,7 +1426,10 @@
         let estatisticasHistoricas = { cin: [], faltas: [] };
         const INATIVIDADE_AVISO_MS = 25 * 60 * 1000;
         const INATIVIDADE_LOGOUT_MS = 30 * 60 * 1000;
-        let timerAviso = null, timerLogout = null;
+        const ATUALIZACAO_AUTOMATICA_MS = 2 * 60 * 1000;
+        let timerAviso = null, timerLogout = null, timerSessaoContagem = null, timerAtualizacaoAutomatica = null;
+        let ultimaAtualizacaoLista = null;
+        let logsRecentes = [];
         try {
             mostrarDatasPassadas = localStorage.getItem("cin_mostrar_datas_passadas") === "true";
         } catch (e) {}
@@ -1283,23 +1437,35 @@
         function resetarTimerInatividade() {
             clearTimeout(timerAviso);
             clearTimeout(timerLogout);
+            removerAvisoSessao();
             timerAviso = setTimeout(mostrarAvisoSessao, INATIVIDADE_AVISO_MS);
             timerLogout = setTimeout(fazerLogout, INATIVIDADE_LOGOUT_MS);
         }
 
+        function removerAvisoSessao() {
+            clearInterval(timerSessaoContagem);
+            timerSessaoContagem = null;
+            const toast = document.getElementById("toast-sessao");
+            if (toast) toast.remove();
+        }
+
         function mostrarAvisoSessao() {
-            if (document.getElementById("banner-sessao")) return;
-            const banner = document.createElement("div");
-            banner.id = "banner-sessao";
-            banner.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:9999;background:#f59e0b;color:#78350f;padding:12px 20px;text-align:center;font-weight:800;display:flex;align-items:center;justify-content:center;gap:16px;";
-            banner.innerHTML = `<span>⚠ Sessão expira em 5 minutos por inatividade.</span><button onclick="resetarTimerInatividade();document.getElementById('banner-sessao').remove();" style="border:1px solid #92400e;background:white;color:#78350f;border-radius:8px;padding:6px 14px;font-weight:800;cursor:pointer;">Continuar ativo</button>`;
-            document.body.prepend(banner);
+            if (document.getElementById("toast-sessao")) return;
+            const toast = document.createElement("div");
+            toast.id = "toast-sessao";
+            toast.className = "toast-painel toast-sessao";
+            const expiraEm = Date.now() + (INATIVIDADE_LOGOUT_MS - INATIVIDADE_AVISO_MS);
+            const atualizar = () => {
+                const segundos = Math.max(0, Math.ceil((expiraEm - Date.now()) / 1000));
+                toast.innerHTML = `<i class="fa-solid fa-clock"></i><span>Sessão expira em <strong>${segundos}s</strong> por inatividade.</span><button type="button" onclick="resetarTimerInatividade()">Continuar</button>`;
+            };
+            document.getElementById("toast-container").appendChild(toast);
+            atualizar();
+            timerSessaoContagem = setInterval(atualizar, 1000);
         }
 
         ["mousemove","keydown","click","touchstart","scroll"].forEach(event =>
             document.addEventListener(event, () => {
-                const b = document.getElementById("banner-sessao");
-                if (b) b.remove();
                 resetarTimerInatividade();
             }, { passive: true })
         );
@@ -1430,6 +1596,84 @@
             return [...new Set([...base, ...HORARIOS_PADRAO].filter(h => /^\d{2}:\d{2}$/.test(String(h || ""))))].sort();
         }
 
+        function ordenarHorariosEditaveis(horarios) {
+            const base = Array.isArray(horarios) ? horarios : [];
+            return [...new Set(base.filter(h => /^\d{2}:\d{2}$/.test(String(h || ""))).map(String))].sort();
+        }
+
+        function normalizarHorariosSemana(valor) {
+            const origem = valor && typeof valor === "object" && !Array.isArray(valor) ? valor : {};
+            const limpo = {};
+            for (let dia = 0; dia <= 6; dia++) {
+                const chave = String(dia);
+                limpo[chave] = Object.prototype.hasOwnProperty.call(origem, chave) && Array.isArray(origem[chave])
+                    ? ordenarHorariosEditaveis(origem[chave])
+                    : [...agendaHorarios];
+            }
+            return limpo;
+        }
+
+        function indiceDiaSemana(dataISO) {
+            const [ano, mes, dia] = String(dataISO || "").split("-").map(Number);
+            if (!ano || !mes || !dia) return -1;
+            return new Date(ano, mes - 1, dia).getDay();
+        }
+
+        function horariosDaData(dataISO) {
+            const chave = String(indiceDiaSemana(dataISO));
+            return Object.prototype.hasOwnProperty.call(agendaHorariosPorDiaSemana, chave)
+                ? agendaHorariosPorDiaSemana[chave]
+                : agendaHorarios;
+        }
+
+        function renderHorariosSemana() {
+            const box = document.getElementById("horarios-semana");
+            if (!box) return;
+            box.innerHTML = DIAS_SEMANA.map((nome, dia) => {
+                const horarios = agendaHorariosPorDiaSemana[String(dia)] || [];
+                const chips = horarios.length
+                    ? horarios.map(hora => `<span class="chip-horario">${textoSeguro(hora)}<button type="button" title="Remover horário" onclick="removerHorarioSemana(${dia}, '${textoSeguro(hora)}')">x</button></span>`).join("")
+                    : '<span class="detalhe-pessoal">Sem horários públicos neste dia.</span>';
+                return `
+                    <div class="horario-dia">
+                        <strong>${textoSeguro(nome)}</strong>
+                        <div class="horario-chips">${chips}</div>
+                        <input type="time" id="novo-horario-${dia}" aria-label="Novo horário de ${textoSeguro(nome)}">
+                        <button type="button" class="btn btn-atualizar" onclick="adicionarHorarioSemana(${dia})"><i class="fa-solid fa-plus"></i> Adicionar</button>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        function adicionarHorarioSemana(dia) {
+            const input = document.getElementById(`novo-horario-${dia}`);
+            const hora = input ? input.value : "";
+            if (!/^\d{2}:\d{2}$/.test(hora)) return alert("Informe um horário válido.");
+            const chave = String(dia);
+            agendaHorariosPorDiaSemana[chave] = ordenarHorariosEditaveis([...(agendaHorariosPorDiaSemana[chave] || []), hora]);
+            renderHorariosSemana();
+        }
+
+        function removerHorarioSemana(dia, hora) {
+            const chave = String(dia);
+            agendaHorariosPorDiaSemana[chave] = (agendaHorariosPorDiaSemana[chave] || []).filter(item => item !== hora);
+            renderHorariosSemana();
+        }
+
+        async function salvarHorariosSemana() {
+            try {
+                await db.collection("configuracoes").doc("agenda").set({
+                    horariosPorDiaSemana: agendaHorariosPorDiaSemana,
+                    atualizado: new Date().toISOString()
+                }, { merge: true });
+                await registrarLog("agenda_salvar_horarios_semana", { horariosPorDiaSemana: agendaHorariosPorDiaSemana });
+                atualizarResumo();
+                mostrarToast("Horários da semana salvos.");
+            } catch (e) {
+                mostrarToast("Erro ao salvar horários.", "erro");
+            }
+        }
+
         function somarDiasISO(dataISO, dias) {
             const [a, m, d] = dataISO.split("-").map(Number);
             const data = new Date(a, m - 1, d + dias);
@@ -1557,9 +1801,58 @@
             ].join(" ").toLowerCase();
         }
 
+        function mostrarToast(mensagem, tipo = "sucesso", duracao = 4200) {
+            const box = document.getElementById("toast-container");
+            if (!box) return;
+            const toast = document.createElement("div");
+            toast.className = `toast-painel${tipo === "erro" ? " erro" : ""}`;
+            toast.innerHTML = `<i class="fa-solid ${tipo === "erro" ? "fa-circle-exclamation" : "fa-circle-check"}"></i><span>${textoSeguro(mensagem)}</span>`;
+            box.appendChild(toast);
+            setTimeout(() => toast.remove(), duracao);
+        }
+
+        function destacarAtendimento(id) {
+            ["row-ag-", "fila-ag-"].forEach(prefixo => {
+                const el = document.getElementById(`${prefixo}${id}`);
+                if (!el) return;
+                el.classList.remove("linha-destaque");
+                void el.offsetWidth;
+                el.classList.add("linha-destaque");
+            });
+        }
+
+        function aplicarVariaveisTemplate(template, dados) {
+            const valores = {
+                nome: dados.nome || "",
+                data: dataBrISO(dados.dataISO),
+                hora: dados.hora || "",
+                protocolo: dados.protocolo || "não informado"
+            };
+            return String(template || TEMPLATE_LEMBRETE_PADRAO).replace(/\{(nome|data|hora|protocolo)\}/g, (_, chave) => valores[chave]);
+        }
+
         function mensagemLembrete(d) {
-            const dataBr = dataBrISO(d.dataISO);
-            return `Olá, ${d.nome}!\n\nPassando para lembrar que seu atendimento para emissão do RG/CIN está agendado para *${dataBr} às ${d.hora}* na *Câmara Municipal de Itanhandu*.\n\nNão se esqueça de levar os documentos necessários:\n\n1. A certidão deve ser ORIGINAL, sem rasgos, rasuras ou alterações.\n2. Certidão de nascimento original (se solteiro), certidão de casamento original (se casado). Se viúvo ou divorciado, a certidão de casamento deve estar averbada.\n3. CPF.\n4. Comprovante de residência.\n\nMenores de 16 anos devem estar acompanhados do responsável legal com documento (RG ou CNH).\n\nProtocolo: ${d.protocolo || "não informado"}.\n\nAté logo!`;
+            return aplicarVariaveisTemplate(templateLembrete, d);
+        }
+
+        async function salvarPreferenciasOperacionais() {
+            const responsavel = document.getElementById("cfg-responsavel-posto").value.trim();
+            const template = document.getElementById("cfg-template-lembrete").value.trim();
+            if (responsavel.length < 3) return alert("Informe o nome do responsável do posto.");
+            if (!template || template.length > 2500) return alert("Informe uma mensagem de lembrete válida.");
+            responsavelPosto = responsavel;
+            templateLembrete = template;
+            try {
+                await db.collection("configuracoes").doc("agenda").set({
+                    responsavelPosto,
+                    mensagemLembreteTemplate: templateLembrete,
+                    atualizado: new Date().toISOString()
+                }, { merge: true });
+                await registrarLog("agenda_salvar_preferencias", {});
+                mostrarToast("Preferências operacionais salvas.");
+            } catch (e) {
+                mostrarToast("Erro ao salvar preferências.", "erro");
+            }
         }
 
         function documentosComprovanteHTML() {
@@ -1726,7 +2019,7 @@
             <p>A presente declaracao e emitida a pedido do(a) interessado(a), para fins de comprovacao de comparecimento.</p>
         </div>
         <div class="assinatura">
-            <div class="linha-assinatura">Guilherme Ribeiro Pinto</div>
+            <div class="linha-assinatura">${textoSeguro(responsavelPosto)}</div>
             <div style="font-size:12px; margin-top:4px;">Identificador do Posto</div>
         </div>
         <div class="rodape">Declaracao emitida em ${textoSeguro(emitidoEm)} pelo sistema de agendamento da Camara Municipal de Itanhandu.</div>
@@ -1753,15 +2046,73 @@
 
         async function registrarLog(acao, detalhes) {
             try {
-                await db.collection("logs_admin").add({
+                const log = {
                     acao,
                     detalhes: detalhes || {},
                     adminEmail: auth.currentUser ? auth.currentUser.email : "",
                     criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
                     criado: new Date().toISOString()
-                });
+                };
+                await db.collection("logs_admin").add(log);
+                logsRecentes.unshift(log);
+                logsRecentes = logsRecentes.slice(0, 20);
+                renderLogsAdmin();
             } catch (e) {
                 console.warn("Falha ao registrar log", e);
+            }
+        }
+
+        function acaoLogLabel(acao) {
+            return ({
+                alterar_status: "Status atualizado",
+                atualizar_observacao: "Observação atualizada",
+                whatsapp_lembrete: "Lembrete WhatsApp",
+                lembrete_lote: "Lembrete em lote",
+                liberar_bloqueio: "Bloqueio liberado",
+                cancelar_agendamento_painel: "Agendamento cancelado",
+                remarcacao_painel: "Agendamento remarcado",
+                agenda_adicionar_data: "Data adicionada",
+                agenda_remover_data: "Data removida",
+                agenda_salvar_horarios_semana: "Horários salvos",
+                agenda_salvar_preferencias: "Preferências salvas"
+            })[acao] || String(acao || "Ação administrativa").replace(/_/g, " ");
+        }
+
+        function logEhDeHoje(log) {
+            if (!log.criado) return true;
+            return new Date(log.criado).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }) === hojeISO();
+        }
+
+        function nomeCidadaoDoLog(log) {
+            const id = log.agendamentoId || (log.detalhes && log.detalhes.agendamentoId) || "";
+            const ag = buscarAgendamentoCache(id);
+            return ag ? ag.dados.nome : (id ? `Registro ${id.slice(0, 8)}` : "Configuração do painel");
+        }
+
+        function renderLogsAdmin() {
+            const box = document.getElementById("logs-lista");
+            if (!box) return;
+            const logs = logsRecentes.filter(logEhDeHoje).slice(0, 20);
+            if (!logs.length) {
+                box.innerHTML = '<span class="detalhe-pessoal">Nenhuma ação registrada hoje.</span>';
+                return;
+            }
+            box.innerHTML = logs.map(log => {
+                const hora = log.criado ? new Date(log.criado).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "--:--";
+                return `<div class="log-item"><strong>${textoSeguro(hora)}</strong><span>${textoSeguro(acaoLogLabel(log.acao))}</span><span>${textoSeguro(nomeCidadaoDoLog(log))}</span><span>${textoSeguro(log.adminEmail || "sistema")}</span></div>`;
+            }).join("");
+        }
+
+        async function carregarLogsAdmin() {
+            const box = document.getElementById("logs-lista");
+            if (box) box.innerHTML = '<span class="detalhe-pessoal"><i class="fa-solid fa-spinner fa-spin"></i> Carregando histórico...</span>';
+            try {
+                const listarLogs = functions.httpsCallable("listarLogsAdmin");
+                const resposta = await listarLogs({ limite: 80 });
+                logsRecentes = Array.isArray(resposta.data.logs) ? resposta.data.logs : [];
+                renderLogsAdmin();
+            } catch (e) {
+                if (box) box.innerHTML = '<span class="detalhe-pessoal">Não foi possível carregar o histórico.</span>';
             }
         }
 
@@ -1784,15 +2135,61 @@
                 marcarIndicadoresHistoricosCarregando();
                 await carregarAgendaGestao();
                 await Promise.all([listarAgendamentos(), carregarTotalAtendimentosRealizados()]);
+                await carregarLogsAdmin();
+                mostrarVistaPainel("hoje");
+                agendarAtualizacaoAutomatica();
             }
-            else { document.getElementById('login-screen').style.display='block'; document.getElementById('painel-screen').style.display='none'; }
+            else {
+                document.getElementById('login-screen').style.display='block';
+                document.getElementById('painel-screen').style.display='none';
+                document.title = "Recepção CIN — Câmara de Itanhandu";
+            }
         });
 
         function fazerLogin() { auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('senha').value).catch(e => alert("Acesso negado.")); }
-        function fazerLogout() { clearTimeout(timerAviso); clearTimeout(timerLogout); auth.signOut(); }
+        function fazerLogout() { clearTimeout(timerAviso); clearTimeout(timerLogout); clearInterval(timerAtualizacaoAutomatica); removerAvisoSessao(); auth.signOut(); }
         function abrirModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='flex'; }
         function fecharModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='none'; }
         function fecharRemarcacao() { document.getElementById('modal-remarcar').style.display='none'; }
+        function fecharObservacao() { document.getElementById("modal-observacao").style.display = "none"; }
+
+        function abrirObservacao(id) {
+            const ag = buscarAgendamentoCache(id);
+            if (!ag) return alert("Agendamento não encontrado.");
+            document.getElementById("observacao-id").value = id;
+            document.getElementById("observacao-nome").value = ag.dados.nome || "";
+            document.getElementById("observacao-texto").value = ag.dados.observacaoInterna || "";
+            document.getElementById("observacao-meta").textContent = ag.dados.observacaoAtualizadaPor
+                ? `Última atualização por ${ag.dados.observacaoAtualizadaPor}.`
+                : "Sem observação registrada.";
+            document.getElementById("modal-observacao").style.display = "flex";
+            document.getElementById("observacao-texto").focus();
+        }
+
+        async function salvarObservacao() {
+            const id = document.getElementById("observacao-id").value;
+            const texto = document.getElementById("observacao-texto").value.trim();
+            const ag = buscarAgendamentoCache(id);
+            if (!ag) return alert("Agendamento não encontrado.");
+            const btn = document.getElementById("btnSalvarObservacao");
+            btn.disabled = true;
+            try {
+                const atualizarObservacao = functions.httpsCallable("atualizarObservacaoAdmin");
+                await atualizarObservacao({ agendamentoId: id, observacaoInterna: texto });
+                ag.dados.observacaoInterna = texto;
+                ag.dados.observacaoAtualizadaPor = auth.currentUser ? auth.currentUser.email : "";
+                ag.dados.observacaoAtualizadaEm = new Date().toISOString();
+                fecharObservacao();
+                renderTabelaAgendamentos();
+                renderFilaHoje();
+                mostrarToast("Observação interna salva.");
+                carregarLogsAdmin();
+            } catch (e) {
+                mostrarToast("Erro ao salvar observação.", "erro");
+            } finally {
+                btn.disabled = false;
+            }
+        }
 
         function renderAgendaDatas() {
             const lista = document.getElementById("lista-datas-agenda");
@@ -1853,7 +2250,12 @@
                 const cfg = doc.exists ? doc.data() : {};
                 agendaDias = ordenarDatas(Array.isArray(cfg.dias) && cfg.dias.length ? cfg.dias : DIAS_INICIAIS);
                 agendaHorarios = ordenarHorarios(cfg.horarios);
+                agendaHorariosPorDiaSemana = normalizarHorariosSemana(cfg.horariosPorDiaSemana);
                 agendaPublicacaoDatas = normalizarPublicacaoDatas(cfg.publicacaoDatas);
+                responsavelPosto = String(cfg.responsavelPosto || RESPONSAVEL_POSTO_PADRAO).trim();
+                templateLembrete = String(cfg.mensagemLembreteTemplate || TEMPLATE_LEMBRETE_PADRAO);
+                document.getElementById("cfg-responsavel-posto").value = responsavelPosto;
+                document.getElementById("cfg-template-lembrete").value = templateLembrete;
                 const avisoProgramado = cfg.avisoNovasVagasProgramado && typeof cfg.avisoNovasVagasProgramado === "object" ? cfg.avisoNovasVagasProgramado : null;
                 const agora = agoraSaoPauloInput();
                 document.getElementById("cfg-data-novas-vagas").value = dataConfigParaInput(
@@ -1871,6 +2273,7 @@
                 }
                 alternarProgramacaoAviso();
                 renderAgendaDatas();
+                renderHorariosSemana();
                 agendaGestaoCarregada = true;
                 atualizarResumo();
             } catch (e) {
@@ -1886,6 +2289,7 @@
             await db.collection("configuracoes").doc("agenda").set({
                 dias: agendaDias,
                 horarios: agendaHorarios.length ? agendaHorarios : HORARIOS_PADRAO,
+                horariosPorDiaSemana: agendaHorariosPorDiaSemana,
                 publicacaoDatas: agendaPublicacaoDatas,
                 atualizado: new Date().toISOString()
             }, { merge: true });
@@ -2082,10 +2486,12 @@
             }
         }
 
-        async function listarAgendamentos() {
+        async function listarAgendamentos(opcoes = {}) {
+            const silencioso = opcoes.silencioso === true;
+            const preservarFiltros = opcoes.preservarFiltros === true;
             const corpo = document.getElementById("corpo-tabela");
-            corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Carregando...</td></tr>";
-            listaAgendamentosCarregada = false;
+            if (!silencioso) corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Carregando...</td></tr>";
+            if (!silencioso) listaAgendamentosCarregada = false;
             configurarPeriodoPadraoLista();
             const inicio = document.getElementById("consulta-inicio").value || ontemISO();
             const fim = document.getElementById("consulta-fim").value || fimPeriodoPadraoISO();
@@ -2108,15 +2514,21 @@
                 agendamentosCache = snap.docs.map(doc => ({ id: doc.id, dados: doc.data() }));
                 ordenarAgendamentosCache();
                 listaAgendamentosCarregada = true;
-                filtroRapidoAtual = "";
-                marcarFiltroRapidoVisual("");
+                if (!preservarFiltros) {
+                    filtroRapidoAtual = "";
+                    marcarFiltroRapidoVisual("");
+                }
                 if (info) {
                     info.textContent = `Carregados ${agendamentosCache.length} agendamentos de ${dataBrISO(inicio)} até ${dataBrISO(fim)}.`
                         + (snap.size >= 900 ? " Resultado limitado a 900 registros; reduza o período se faltar algo." : "");
                 }
                 atualizarResumo();
                 renderTabelaAgendamentos();
-            } catch (e) { alert("Erro ao carregar lista."); }
+                marcarAtualizacaoLista();
+            } catch (e) {
+                console.warn("Erro ao carregar lista", e);
+                if (!silencioso) alert("Erro ao carregar lista.");
+            }
         }
 
         function marcarIndicadoresHistoricosCarregando() {
@@ -2299,17 +2711,114 @@
                 : "...";
             // diasAtivos ja filtra apenas datas >= hojeISO(), entao o KPI de vagas restantes ignora datas encerradas.
             const diasAtivos = agendaDias.filter(d => d >= hoje);
-            const vagasOcupadasAgenda = ativos.filter(ag => !ag.dados.insercaoManual && diasAtivos.includes(ag.dados.dataISO) && agendaHorarios.includes(ag.dados.hora)).length;
-            const vagasRestantes = Math.max(0, (diasAtivos.length * agendaHorarios.length) - vagasOcupadasAgenda);
+            const vagasOcupadasAgenda = ativos.filter(ag => !ag.dados.insercaoManual && diasAtivos.includes(ag.dados.dataISO) && horariosDaData(ag.dados.dataISO).includes(ag.dados.hora)).length;
+            const vagasConfiguradas = diasAtivos.reduce((total, data) => total + horariosDaData(data).length, 0);
+            const vagasRestantes = Math.max(0, vagasConfiguradas - vagasOcupadasAgenda);
             const lotadas = diasAtivos.filter(data => {
-                const ocupadas = ativos.filter(ag => !ag.dados.insercaoManual && ag.dados.dataISO === data && agendaHorarios.includes(ag.dados.hora)).length;
-                return agendaHorarios.length && ocupadas >= agendaHorarios.length;
+                const horariosDia = horariosDaData(data);
+                const ocupadas = ativos.filter(ag => !ag.dados.insercaoManual && ag.dados.dataISO === data && horariosDia.includes(ag.dados.hora)).length;
+                return horariosDia.length && ocupadas >= horariosDia.length;
             }).length;
             document.getElementById("kpi-hoje").textContent = totalHoje;
             document.getElementById("kpi-amanha").textContent = totalAmanha;
             document.getElementById("kpi-vagas").textContent = vagasRestantes;
             document.getElementById("kpi-lotadas").textContent = lotadas;
             document.getElementById("kpi-atendidos").textContent = atendimentosRealizados;
+            atualizarTituloPainel(totalHoje, ativos.filter(ag => ag.dados.dataISO === hoje && statusValor(ag.dados) === "nao_compareceu").length);
+            renderFilaHoje();
+        }
+
+        function atualizarTituloPainel(totalHoje = 0, faltasHoje = 0) {
+            document.title = `(${totalHoje} hoje | ${faltasHoje} faltaram) — Recepção CIN`;
+        }
+
+        function horarioMaisProximoHoje(lista) {
+            const agora = agoraSaoPauloInput().slice(11, 16);
+            return lista
+                .filter(ag => ["agendado", "remarcado"].includes(statusValor(ag.dados)) && String(ag.dados.hora || "") >= agora)
+                .sort((a, b) => String(a.dados.hora || "").localeCompare(String(b.dados.hora || "")))[0] || null;
+        }
+
+        function acoesStatusDiretas(ag) {
+            const status = statusValor(ag.dados);
+            if (!["agendado", "remarcado"].includes(status)) return "";
+            const id = textoSeguro(ag.id);
+            return `
+                <button type="button" class="btn-status-direto btn-status-ok" title="Marcar compareceu" onclick="alterarStatus('${id}', 'compareceu')"><i class="fa-solid fa-check"></i></button>
+                <button type="button" class="btn-status-direto btn-status-falta" title="Marcar não compareceu" onclick="alterarStatus('${id}', 'nao_compareceu')"><i class="fa-solid fa-user-xmark"></i></button>
+            `;
+        }
+
+        function renderFilaHoje() {
+            const box = document.getElementById("fila-hoje-cards");
+            if (!box) return;
+            const busca = String(document.getElementById("busca-fila-hoje").value || "").trim().toLowerCase();
+            const listaHoje = agendamentosCache
+                .filter(ag => ag.dados.dataISO === hojeISO() && statusValor(ag.dados) !== "cancelado")
+                .sort((a, b) => String(a.dados.hora || "").localeCompare(String(b.dados.hora || "")));
+            const atendidos = listaHoje.filter(ag => statusValor(ag.dados) === "compareceu").length;
+            document.getElementById("fila-contagem").textContent = `${atendidos} de ${listaHoje.length} atendidos hoje`;
+            const proximo = horarioMaisProximoHoje(listaHoje);
+            const filtrados = busca ? listaHoje.filter(ag => textoBusca(ag).includes(busca)) : listaHoje;
+            if (!filtrados.length) {
+                box.innerHTML = '<div class="fila-card"><strong>Nenhum agendamento encontrado na fila de hoje.</strong></div>';
+                return;
+            }
+            box.innerHTML = filtrados.map(ag => {
+                const d = ag.dados;
+                const status = statusValor(d);
+                const proximoClass = proximo && proximo.id === ag.id ? " proximo" : "";
+                const observacao = d.observacaoInterna
+                    ? `<i class="fa-solid fa-note-sticky observacao-icone" title="${textoSeguro(d.observacaoInterna)}"></i>`
+                    : "";
+                return `
+                    <article class="fila-card ${textoSeguro(status)}${proximoClass}" id="fila-ag-${textoSeguro(ag.id)}">
+                        <div class="fila-card-topo">
+                            <span class="fila-hora">${textoSeguro(d.hora || "--:--")}</span>
+                            <span class="badge-status st-${textoSeguro(status)}">${textoSeguro(statusLabel(status))}</span>
+                        </div>
+                        <div class="fila-nome">${textoSeguro(d.nome)}${observacao}</div>
+                        <div class="fila-detalhe">${textoSeguro(cpfFormatado(d.cpf) || "CPF não informado")} · ${textoSeguro(d.protocolo || "sem protocolo")}</div>
+                        <div class="fila-acoes">
+                            ${acoesStatusDiretas(ag)}
+                            <button type="button" class="btn-status-direto btn-status-obs" title="Observação interna" onclick="abrirObservacao('${textoSeguro(ag.id)}')"><i class="fa-solid fa-note-sticky"></i></button>
+                        </div>
+                    </article>
+                `;
+            }).join("");
+        }
+
+        function mostrarVistaPainel(vista) {
+            vistaPainelAtual = vista === "lista" ? "lista" : "hoje";
+            document.getElementById("vista-hoje").classList.toggle("ativo", vistaPainelAtual === "hoje");
+            document.getElementById("vista-lista").style.display = vistaPainelAtual === "lista" ? "block" : "none";
+            document.getElementById("btn-vista-hoje").classList.toggle("ativo", vistaPainelAtual === "hoje");
+            document.getElementById("btn-vista-lista").classList.toggle("ativo", vistaPainelAtual === "lista");
+            if (vistaPainelAtual === "hoje") renderFilaHoje();
+        }
+
+        function irParaConfiguracaoAgenda() {
+            mostrarVistaPainel("lista");
+            document.querySelector(".painel-config").scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+
+        function marcarAtualizacaoLista() {
+            ultimaAtualizacaoLista = new Date();
+            const hora = ultimaAtualizacaoLista.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+            ["fila-atualizado", "lista-atualizado"].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = `<i class="fa-solid fa-check"></i> Atualizado às ${textoSeguro(hora)}`;
+            });
+        }
+
+        function agendarAtualizacaoAutomatica() {
+            clearInterval(timerAtualizacaoAutomatica);
+            timerAtualizacaoAutomatica = setInterval(() => {
+                const filtroCurto = filtroRapidoAtual === "hoje" || filtroRapidoAtual === "amanha";
+                if (auth.currentUser && (vistaPainelAtual === "hoje" || filtroCurto)) {
+                    listarAgendamentos({ silencioso: true, preservarFiltros: true });
+                }
+            }, ATUALIZACAO_AUTOMATICA_MS);
         }
 
         function agendamentosFiltrados() {
@@ -2338,6 +2847,9 @@
 
         function menuAcoes(ag) {
             const id = textoSeguro(ag.id);
+            const liberar = bloqueioAtivo(ag.dados)
+                ? `<button type="button" onclick="liberarBloqueio('${id}')"><i class="fa-solid fa-unlock"></i> Liberar bloqueio</button>`
+                : "";
             return `
                 <div class="acoes-menu-wrap">
                     <button type="button" class="btn-pequeno btn-acoes" onclick="alternarMenuAcoes(event, '${id}')">
@@ -2348,8 +2860,10 @@
                         <button type="button" onclick="emitirComprovanteDaLista('${id}')"><i class="fa-solid fa-file-pdf"></i> Gerar comprovante</button>
                         <button type="button" onclick="emitirDeclaracaoComparecimentoDaLista('${id}')"><i class="fa-solid fa-file-signature"></i> Declaracao comparecimento</button>
                         <button type="button" onclick="abrirRemarcacao('${id}')"><i class="fa-solid fa-pen-to-square"></i> Remarcar</button>
+                        <button type="button" onclick="abrirObservacao('${id}')"><i class="fa-solid fa-note-sticky"></i> Observação interna</button>
                         <button type="button" onclick="alterarStatus('${id}', 'compareceu')"><i class="fa-solid fa-check"></i> Marcar compareceu</button>
                         <button type="button" onclick="alterarStatus('${id}', 'nao_compareceu')"><i class="fa-solid fa-user-xmark"></i> Marcar não compareceu</button>
+                        ${liberar}
                         <button type="button" class="perigo" onclick="cancelarAgendamentoPainel('${id}')"><i class="fa-solid fa-ban"></i> Cancelar</button>
                     </div>
                 </div>
@@ -2391,19 +2905,23 @@
                 const status = statusValor(d);
                 const statusOptions = STATUS_ORDEM.map(s => `<option value="${s}" ${s === status ? "selected" : ""}>${statusLabel(s)}</option>`).join("");
                 const bloqueado = bloqueioAtivo(d) ? `<span class="bloqueio-badge">Bloqueado até ${textoSeguro(dataBrISO(d.bloqueadoAte))}</span>` : "";
+                const bloqueioStatus = bloqueioAtivo(d) ? '<br><span class="bloqueio-badge"><i class="fa-solid fa-lock"></i> Bloqueio aplicado</span>' : "";
+                const observacao = d.observacaoInterna ? `<i class="fa-solid fa-note-sticky observacao-icone" title="${textoSeguro(d.observacaoInterna)}"></i>` : "";
+                const alteradoPor = d.alteradoPor || d.statusAtualizadoPor || "";
+                const statusTitle = alteradoPor ? `Última alteração por ${alteradoPor}${d.statusAtualizadoEm ? ` em ${d.statusAtualizadoEm}` : ""}` : "Sem informação de última alteração";
                 corpo.innerHTML += `
-                    <tr>
+                    <tr id="row-ag-${textoSeguro(ag.id)}">
                         <td data-label="Data/Hora"><strong>${textoSeguro(dataBr)}</strong><br>${textoSeguro(d.hora)}${manual}</td>
-                        <td data-label="Cidadão" style="font-weight:700;">${textoSeguro(d.nome)}<span class="detalhe-pessoal">${textoSeguro(d.protocolo || "sem protocolo")}</span>${bloqueado}</td>
+                        <td data-label="Cidadão" style="font-weight:700;">${textoSeguro(d.nome)}${observacao}<span class="detalhe-pessoal">${textoSeguro(d.protocolo || "sem protocolo")}</span>${bloqueado}</td>
                         <td data-label="CPF / Nasc">${textoSeguro(d.cpf || "CPF não informado")}<span class="detalhe-pessoal">${textoSeguro(dataNascBR(d.dataNasc) || "Nascimento não informado")}</span></td>
                         <td data-label="Contato">${textoSeguro(d.telefone || "Sem telefone")}<span class="detalhe-pessoal">${textoSeguro(d.email || "")}</span></td>
                         <td data-label="Status">
-                            <span class="badge-status st-${textoSeguro(status)}">${textoSeguro(statusLabel(status))}</span><br>
+                            <span class="badge-status st-${textoSeguro(status)}" title="${textoSeguro(statusTitle)}">${textoSeguro(statusLabel(status))}</span>${bloqueioStatus}<br>
                             <select class="select-status" onchange="alterarStatus('${textoSeguro(ag.id)}', this.value)">
                                 ${statusOptions}
                             </select>
                         </td>
-                        <td data-label="Ações">${menuAcoes(ag)}</td>
+                        <td data-label="Ações"><div class="acoes-linha-rapida">${acoesStatusDiretas(ag)}${menuAcoes(ag)}</div></td>
                     </tr>
                 `;
             });
@@ -2437,6 +2955,7 @@
         }
 
         function filtroRapidoPainel(tipo) {
+            mostrarVistaPainel("lista");
             if (tipo === "bloqueados") {
                 carregarBloqueadosAtivos();
                 return;
@@ -2528,7 +3047,10 @@
                     insercaoManual: !contabilizaVaga,
                     status: "remarcado",
                     remarcadoEm: new Date().toISOString(),
-                    remarcadoPor: auth.currentUser ? auth.currentUser.email : ""
+                    remarcadoPor: auth.currentUser ? auth.currentUser.email : "",
+                    statusAtualizadoEm: new Date().toISOString(),
+                    statusAtualizadoPor: auth.currentUser ? auth.currentUser.email : "",
+                    alteradoPor: auth.currentUser ? auth.currentUser.email : ""
                 };
                 await db.collection("dados_cidadaos").doc(id).set(atualizacao, { merge: true });
                 const cpfId = await gerarCpfDocId(ag.dados.cpf);
@@ -2545,7 +3067,8 @@
                 await registrarLog("remarcacao_painel", { agendamentoId: id, dataISO: data, hora, contabilizaVaga });
                 atualizarResumo();
                 renderTabelaAgendamentos();
-                alert("Agendamento remarcado.");
+                renderFilaHoje();
+                mostrarToast("Agendamento remarcado.");
             } catch (e) {
                 alert(e.message || "Erro ao remarcar.");
             }
@@ -2581,11 +3104,20 @@
             }
             const ag = buscarAgendamentoCache(id);
             if (!ag) return alert("Agendamento não encontrado.");
+            if (status === "nao_compareceu" && statusValor(ag.dados) !== "nao_compareceu") {
+                const confirmar = confirm("Confirmar não comparecimento? Este CPF será bloqueado por 6 meses para novos agendamentos.");
+                if (!confirmar) {
+                    renderTabelaAgendamentos();
+                    renderFilaHoje();
+                    return;
+                }
+            }
             const agora = new Date().toISOString();
             const atualizacao = {
                 status,
                 statusAtualizadoEm: agora,
-                statusAtualizadoPor: auth.currentUser ? auth.currentUser.email : ""
+                statusAtualizadoPor: auth.currentUser ? auth.currentUser.email : "",
+                alteradoPor: auth.currentUser ? auth.currentUser.email : ""
             };
             let dadosBloqueio = null;
             if (status === "nao_compareceu") {
@@ -2599,7 +3131,12 @@
                 await registrarLog("alterar_status", { agendamentoId: id, status, bloqueadoAte: dadosBloqueio ? dadosBloqueio.bloqueadoAte : "" });
                 await carregarTotalAtendimentosRealizados();
                 renderTabelaAgendamentos();
-                if (dadosBloqueio) alert(`Status atualizado. CPF bloqueado até ${dataBrISO(dadosBloqueio.bloqueadoAte)}.`);
+                renderFilaHoje();
+                destacarAtendimento(id);
+                const mensagem = dadosBloqueio
+                    ? `${ag.dados.nome} marcado como não compareceu. CPF bloqueado até ${dataBrISO(dadosBloqueio.bloqueadoAte)}.`
+                    : `${ag.dados.nome} marcado como ${statusLabel(status)}.`;
+                mostrarToast(mensagem);
             } catch (e) {
                 alert("Erro ao atualizar status.");
                 listarAgendamentos();
@@ -2621,7 +3158,8 @@
                     canceladoEm: new Date().toISOString(),
                     canceladoPor: auth.currentUser ? auth.currentUser.email : "gestaov6",
                     statusAtualizadoEm: new Date().toISOString(),
-                    statusAtualizadoPor: auth.currentUser ? auth.currentUser.email : ""
+                    statusAtualizadoPor: auth.currentUser ? auth.currentUser.email : "",
+                    alteradoPor: auth.currentUser ? auth.currentUser.email : ""
                 }, { merge: true });
                 if (slotId && !d.insercaoManual) await db.collection("vagas_ocupadas").doc(slotId).delete().catch(() => {});
                 const cpfId = await gerarCpfDocId(d.cpf);
@@ -2632,6 +3170,8 @@
                 await registrarLog("cancelar_agendamento_painel", { agendamentoId: id, dataISO: d.dataISO, hora: d.hora });
                 await carregarTotalAtendimentosRealizados();
                 renderTabelaAgendamentos();
+                renderFilaHoje();
+                mostrarToast(`${d.nome} teve o agendamento cancelado.`);
             } catch (e) {
                 alert("Erro ao cancelar agendamento.");
                 listarAgendamentos();
@@ -2704,6 +3244,8 @@
                 Object.assign(ag.dados, liberacao);
                 await registrarLog("liberar_bloqueio", { agendamentoId: id, cpf });
                 renderTabelaAgendamentos();
+                renderFilaHoje();
+                mostrarToast("Bloqueio liberado.");
             } catch (e) {
                 alert("Erro ao liberar bloqueio.");
             }
@@ -2804,11 +3346,43 @@
             return true;
         }
 
+        function semanaAno(dataISO) {
+            const [ano, mes, dia] = String(dataISO || "").split("-").map(Number);
+            const data = new Date(Date.UTC(ano, mes - 1, dia));
+            if (Number.isNaN(data.getTime())) return "";
+            const diaSemana = data.getUTCDay() || 7;
+            data.setUTCDate(data.getUTCDate() + 4 - diaSemana);
+            const inicioAno = new Date(Date.UTC(data.getUTCFullYear(), 0, 1));
+            const semana = Math.ceil((((data - inicioAno) / 86400000) + 1) / 7);
+            return `${data.getUTCFullYear()}-S${String(semana).padStart(2, "0")}`;
+        }
+
+        function imprimirListaHoje() {
+            const lista = agendamentosCache
+                .filter(ag => ag.dados.dataISO === hojeISO() && statusValor(ag.dados) !== "cancelado")
+                .sort((a, b) => String(a.dados.hora || "").localeCompare(String(b.dados.hora || "")));
+            if (!lista.length) return alert("Nenhum agendamento encontrado para hoje.");
+            const janela = window.open("", "_blank");
+            if (!janela) return alert("O navegador bloqueou a janela de impressão. Permita pop-ups para continuar.");
+            const linhas = lista.map(ag => {
+                const d = ag.dados;
+                return `<tr><td>${textoSeguro(d.hora)}</td><td>${textoSeguro(d.nome)}</td><td>${textoSeguro(cpfFormatado(d.cpf))}</td><td>${textoSeguro(statusLabel(statusValor(d)))}</td><td></td></tr>`;
+            }).join("");
+            janela.document.write(`<!DOCTYPE html><html lang="pt-br"><head><meta charset="UTF-8"><title>Lista do dia ${textoSeguro(dataBrISO(hojeISO()))}</title><style>
+                body{font-family:Arial,sans-serif;color:#111827;margin:28px}h1{font-size:20px;margin:0 0 4px;color:#003d82}p{margin:0 0 18px;color:#475569}table{width:100%;border-collapse:collapse}th,td{border:1px solid #cbd5e1;padding:9px;text-align:left;font-size:12px}th{background:#eff6ff}td:last-child{width:180px;height:34px}.acoes{margin-top:18px}button{padding:10px 16px;border:0;border-radius:6px;background:#0056b3;color:white;font-weight:700;cursor:pointer}@media print{.acoes{display:none}}
+            </style></head><body><h1>Lista de atendimentos CIN</h1><p>${textoSeguro(dataBrISO(hojeISO()))} · ${lista.length} agendamento(s)</p><table><thead><tr><th>Horário</th><th>Cidadão</th><th>CPF</th><th>Status</th><th>Assinatura</th></tr></thead><tbody>${linhas}</tbody></table><div class="acoes"><button onclick="window.print()">Imprimir / Salvar em PDF</button></div></body></html>`);
+            janela.document.close();
+            registrarLog("imprimir_lista_dia", { dataISO: hojeISO(), quantidade: lista.length });
+        }
+
         function exportarExcel() {
-            let csv = "\uFEFFData;Hora;Status;Protocolo;Nome;CPF;Nascimento;Telefone;Email;Manual;Bloqueado Ate\n";
-            agendamentosFiltrados().forEach(ag => {
+            const lista = agendamentosFiltrados();
+            let csv = "\uFEFFSemana;Mes;Data;Hora;Status;Protocolo;Nome;CPF;Nascimento;Telefone;Email;Manual;Bloqueado Ate;Alterado Por;Observacao Interna\n";
+            lista.forEach(ag => {
                 const d = ag.dados;
                 csv += [
+                    semanaAno(d.dataISO),
+                    String(d.dataISO || "").slice(0, 7),
                     dataBrISO(d.dataISO),
                     d.hora,
                     statusLabel(statusValor(d)),
@@ -2819,13 +3393,21 @@
                     d.telefone,
                     d.email || "",
                     d.insercaoManual ? "Sim" : "Não",
-                    d.bloqueadoAte ? dataBrISO(d.bloqueadoAte) : ""
+                    d.bloqueadoAte ? dataBrISO(d.bloqueadoAte) : "",
+                    d.alteradoPor || d.statusAtualizadoPor || "",
+                    d.observacaoInterna || ""
                 ].map(csvCampo).join(";") + "\n";
             });
+            const contar = status => lista.filter(ag => statusValor(ag.dados) === status).length;
+            csv += `\n${csvCampo("TOTALIZADORES")}\n`;
+            csv += `${csvCampo("Total visível")};${lista.length}\n`;
+            csv += `${csvCampo("Agendados")};${contar("agendado")}\n`;
+            csv += `${csvCampo("Compareceram")};${contar("compareceu")}\n`;
+            csv += `${csvCampo("Não compareceram")};${contar("nao_compareceu")}\n`;
             const link = document.createElement("a");
             link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-            link.download = "Agendamentos_Recepcao_CIN.csv"; link.click();
-            registrarLog("exportar_excel", { quantidade: agendamentosFiltrados().length });
+            link.download = "Agendamentos_Filtrados_Recepcao_CIN.csv"; link.click();
+            registrarLog("exportar_excel", { quantidade: lista.length });
         }
     </script>
 </body>

@@ -219,6 +219,38 @@ function normalizarPublicacaoDatas(valor) {
   return limpo;
 }
 
+function normalizarListaHorarios(valor) {
+  const base = Array.isArray(valor) ? valor : [];
+  return [...new Set(base
+    .filter((hora) => /^\d{2}:\d{2}$/.test(String(hora || "")))
+    .map((hora) => String(hora)))].sort();
+}
+
+function normalizarHorariosPorDiaSemana(valor) {
+  if (!valor || typeof valor !== "object" || Array.isArray(valor)) return {};
+  const limpo = {};
+  for (let dia = 0; dia <= 6; dia++) {
+    const chave = String(dia);
+    if (Object.prototype.hasOwnProperty.call(valor, chave) && Array.isArray(valor[chave])) {
+      limpo[chave] = normalizarListaHorarios(valor[chave]);
+    }
+  }
+  return limpo;
+}
+
+function diaSemanaISO(dataISO) {
+  const data = new Date(`${dataISO}T12:00:00-03:00`);
+  return Number.isNaN(data.getTime()) ? -1 : data.getDay();
+}
+
+function horariosParaData(agenda, dataISO) {
+  const chave = String(diaSemanaISO(dataISO));
+  if (agenda.horariosPorDiaSemana && Object.prototype.hasOwnProperty.call(agenda.horariosPorDiaSemana, chave)) {
+    return agenda.horariosPorDiaSemana[chave];
+  }
+  return agenda.horarios;
+}
+
 function avisoNovasVagasAtivo(agenda) {
   const avisoProgramado = agenda && agenda.avisoNovasVagasProgramado && typeof agenda.avisoNovasVagasProgramado === "object"
     ? agenda.avisoNovasVagasProgramado
@@ -526,12 +558,13 @@ async function carregarAgenda() {
   const hoje = hojeSaoPauloISO();
   const dias = Array.isArray(agenda.dias) && agenda.dias.length ? agenda.dias : DIAS_INICIAIS;
   const horariosConfig = Array.isArray(agenda.horarios) ? agenda.horarios : [];
+  const horarios = normalizarListaHorarios([...horariosConfig, ...HORAS_FALLBACK]);
   const publicacaoDatas = normalizarPublicacaoDatas(agenda.publicacaoDatas);
   const agora = agoraSaoPauloInput();
   return {
     dias: dias.filter((dia) => typeof dia === "string" && dia >= hoje && (!publicacaoDatas[dia] || publicacaoDatas[dia] <= agora)).sort(),
-    horarios: [...new Set([...horariosConfig, ...HORAS_FALLBACK]
-      .filter((hora) => /^\d{2}:\d{2}$/.test(String(hora || ""))))].sort(),
+    horarios,
+    horariosPorDiaSemana: normalizarHorariosPorDiaSemana(agenda.horariosPorDiaSemana),
     dataNovasVagas: avisoNovasVagasAtivo(agenda)
   };
 }
@@ -541,7 +574,7 @@ async function validarSlotDisponivel(dataISO, hora) {
   if (dataISO < hojeSaoPauloISO()) {
     throw new HttpsError("failed-precondition", "Data indisponivel para agendamento.");
   }
-  if (!agenda.dias.includes(dataISO) || !agenda.horarios.includes(hora)) {
+  if (!agenda.dias.includes(dataISO) || !horariosParaData(agenda, dataISO).includes(hora)) {
     throw new HttpsError("failed-precondition", "Horario indisponivel para agendamento.");
   }
   if (!horarioAgendamentoFuturo(dataISO, hora)) {
@@ -584,13 +617,14 @@ async function carregarDisponibilidadePublica() {
 
   vagasSnap.docs.forEach((doc) => {
     const vaga = doc.data();
-    if (vagaContaNoSite(vaga) && agenda.dias.includes(vaga.dataISO) && agenda.horarios.includes(vaga.hora)) {
+    if (vagaContaNoSite(vaga) && agenda.dias.includes(vaga.dataISO) && horariosParaData(agenda, vaga.dataISO).includes(vaga.hora)) {
       ocupados.add(`${vaga.dataISO}_${vaga.hora}`);
     }
   });
 
   const dias = agenda.dias.map((dataISO) => {
-    const horarios = agenda.horarios.map((hora) => {
+    const horariosDia = horariosParaData(agenda, dataISO);
+    const horarios = horariosDia.map((hora) => {
       const horarioFuturo = horarioAgendamentoFuturo(dataISO, hora, agora);
       return {
         hora,
