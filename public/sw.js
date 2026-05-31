@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cin-v8';
+const CACHE_NAME = 'cin-v9';
 const SHELL = [
   '/',
   '/index.html',

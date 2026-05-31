@@ -488,6 +488,20 @@
         return Boolean(dataISO && hojeISO() >= dataISO);
     }
 
+    function alvoContadorNovasVagas(dataTexto) {
+        const texto = String(dataTexto || "");
+        const partesBr = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        const dataISO = /^\d{4}-\d{2}-\d{2}$/.test(texto);
+        return partesBr
+            ? new Date(`${partesBr[3]}-${partesBr[2]}-${partesBr[1]}T06:00:00-03:00`)
+            : (dataISO ? new Date(`${texto}T06:00:00-03:00`) : null);
+    }
+
+    function contadorNovasVagasAtivo(dataTexto) {
+        const alvo = alvoContadorNovasVagas(dataTexto);
+        return Boolean(alvo && !Number.isNaN(alvo.getTime()) && alvo > new Date());
+    }
+
     function datasAtivas(dias) {
         const hoje = hojeISO();
         return [...new Set((dias || []).filter(d => typeof d === "string" && d >= hoje))].sort();
@@ -1096,9 +1110,12 @@
                 `; 
                 if (podeControlarCalendario) etapaSelecao.style.display = "block";
             } else { 
+                const temContadorAtivo = contadorNovasVagasAtivo(DATA_NOVAS_VAGAS);
                 const avisoProximasVagas = avisoNovasVagasEmBreve()
                     ? '<strong class="proxima-liberacao">Novas vagas em breve</strong>'
-                    : `A liberação de novos horários ocorrerá em:
+                    : temContadorAtivo
+                        ? '<strong class="proxima-liberacao">Próxima abertura programada</strong>'
+                        : `A liberação de novos horários ocorrerá em:
                         <strong class="proxima-liberacao">${textoSeguro(DATA_NOVAS_VAGAS)}</strong>`;
                 banner.className = "banner-vagas sem-vagas"; 
                 banner.innerHTML = `
@@ -1472,10 +1489,8 @@
 
     function iniciarContadorRegressivo(dataTexto) {
         if (window._contadorInterval) { clearInterval(window._contadorInterval); window._contadorInterval = null; }
-        const mb = String(dataTexto || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-        const mi = /^\d{4}-\d{2}-\d{2}$/.test(String(dataTexto || ''));
-        let alvo = mb ? new Date(`${mb[3]}-${mb[2]}-${mb[1]}T06:00:00-03:00`) : (mi ? new Date(`${dataTexto}T06:00:00-03:00`) : null);
-        if (!alvo || isNaN(alvo.getTime()) || alvo <= new Date()) return;
+        const alvo = alvoContadorNovasVagas(dataTexto);
+        if (!alvo || Number.isNaN(alvo.getTime()) || alvo <= new Date()) return;
         function atualizar() {
             const el = document.getElementById('countdown-container');
             if (!el) { clearInterval(window._contadorInterval); return; }
