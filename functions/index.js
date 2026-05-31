@@ -138,7 +138,7 @@ function formatarCpf(cpfNum) {
   return cpfNum.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
 }
 
-function normalizarData(valor) {
+function normalizarData(valor, nomeCampo = "data de nascimento") {
   const texto = String(valor || "").trim();
   let ano;
   let mes;
@@ -149,12 +149,12 @@ function normalizarData(valor) {
   } else if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
     [ano, mes, dia] = texto.split("-").map(Number);
   } else {
-    throw new HttpsError("invalid-argument", "Informe a data de nascimento corretamente.");
+    throw new HttpsError("invalid-argument", `Informe a ${nomeCampo} corretamente.`);
   }
 
   const data = new Date(ano, mes - 1, dia);
   if (data.getFullYear() !== ano || data.getMonth() !== mes - 1 || data.getDate() !== dia) {
-    throw new HttpsError("invalid-argument", "Informe a data de nascimento corretamente.");
+    throw new HttpsError("invalid-argument", `Informe a ${nomeCampo} corretamente.`);
   }
 
   return `${String(ano).padStart(4, "0")}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
@@ -720,7 +720,7 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
   const telefone = normalizarTelefone(request.data.telefone);
   const email = normalizarEmail(request.data.email);
   const dataNasc = normalizarData(request.data.nascimento);
-  const dataISO = normalizarData(request.data.data);
+  const dataISO = normalizarData(request.data.data, "data do agendamento");
   const hora = normalizarHora(request.data.hora);
   validarIdadeMinimaAgendamento(dataNasc, dataISO);
   const cpfFormatado = formatarCpf(cpfNum);
@@ -897,7 +897,7 @@ exports.criarEncaixeManual = onCall(callableOptions, async (request) => {
   const cpfNum = cpfInformado ? normalizarCpf(cpfInformado) : "";
   const telefone = normalizarTelefoneOpcional(request.data.telefone);
   const dataNasc = normalizarDataOpcional(request.data.nascimento);
-  const dataISO = normalizarData(request.data.data);
+  const dataISO = normalizarData(request.data.data, "data do agendamento");
   const hora = normalizarHora(request.data.hora);
   const cpfFormatado = cpfNum ? formatarCpf(cpfNum) : "";
   const cpfHashId = cpfNum ? cpfDocId(cpfNum) : "";
@@ -999,7 +999,7 @@ exports.atualizarObservacaoAdmin = onCall(callableOptions, async (request) => {
 exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
   const adminEmail = await assertAdmin(request);
   const agendamentoId = String(request.data.agendamentoId || "").trim();
-  const dataISO = normalizarData(request.data.data);
+  const dataISO = normalizarData(request.data.data, "data do agendamento");
   const hora = normalizarHora(request.data.hora);
   const contabilizaVaga = request.data.contabilizaVaga === true;
 

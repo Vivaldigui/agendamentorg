@@ -178,6 +178,48 @@
             .whatsapp-flutuante { right: 14px; bottom: 14px; width: 54px; height: 54px; font-size: 1.75rem; }
         }
 
+
+        /* ================================================================
+           MELHORIAS VISUAIS
+        ================================================================ */
+
+        /* 1. Contador regressivo */
+        .countdown-wrap { display: flex; gap: 10px; justify-content: center; margin-top: 14px; flex-wrap: wrap; }
+        .countdown-bloco { background: white; border-radius: 12px; padding: 8px 14px; min-width: 62px; text-align: center; border: 1px solid #bfdbfe; box-shadow: 0 4px 12px rgba(0,86,179,0.08); }
+        .countdown-num { display: block; font-size: 1.5rem; font-weight: 900; color: var(--primary); line-height: 1; }
+        .countdown-label { display: block; font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-600); margin-top: 3px; }
+
+        /* 2. WhatsApp pulse */
+        @keyframes wp-pulse { 0%, 100% { box-shadow: 0 12px 28px rgba(37,211,102,0.35); } 50% { box-shadow: 0 0 0 12px rgba(37,211,102,0), 0 12px 28px rgba(37,211,102,0.35); } }
+        .whatsapp-flutuante { animation: wp-pulse 2.6s ease-in-out infinite; }
+
+        /* 3. Confetti */
+        @keyframes confetti-fall { 0% { transform: translateY(-20px) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(900deg); opacity: 0; } }
+        .confetti-piece { position: fixed; top: -20px; pointer-events: none; z-index: 99999; animation: confetti-fall linear forwards; }
+
+        /* 3b. Ícone sucesso bounce */
+        @keyframes success-bounce { 0% { transform: scale(0.4); opacity: 0; } 65% { transform: scale(1.22); opacity: 1; } 82% { transform: scale(0.92); } 100% { transform: scale(1); } }
+        .msg-sucesso-topo i { display: inline-block; }
+        .msg-sucesso-topo i.animar { animation: success-bounce 0.75s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+        /* 4. Skeleton loading */
+        @keyframes skeleton-shimmer { 0% { background-position: -600px 0; } 100% { background-position: 600px 0; } }
+        .skeleton-card { border-radius: var(--radius); min-height: 82px; background: linear-gradient(90deg, #f0f4f8 25%, #e2e8f0 50%, #f0f4f8 75%); background-size: 1200px 100%; animation: skeleton-shimmer 1.5s ease-in-out infinite; border: 2px solid transparent; }
+        .skeleton-hora { border-radius: var(--radius); min-height: 50px; background: linear-gradient(90deg, #f0f4f8 25%, #e2e8f0 50%, #f0f4f8 75%); background-size: 1200px 100%; animation: skeleton-shimmer 1.5s ease-in-out infinite; }
+
+        /* 5. Barra de progresso de vagas */
+        .vaga-progress { width: 100%; height: 4px; background: var(--gray-200); border-radius: 999px; margin-top: 5px; overflow: hidden; }
+        .vaga-progress-fill { height: 100%; border-radius: 999px; transition: width 0.6s ease; }
+        .vaga-progress-fill.ok { background: var(--success); }
+        .vaga-progress-fill.low { background: var(--warning); }
+
+        /* 6. Subtítulo do cabeçalho */
+        .cabecalho-subtitulo { color: rgba(255,255,255,0.82); font-size: 0.74rem; font-weight: 700; margin-top: 9px; letter-spacing: 0.05em; text-transform: uppercase; }
+
+        /* 7. Efeito ripple */
+        .btn-principal, .btn-data, .btn-hora { position: relative; overflow: hidden; }
+        .ripple-wave { position: absolute; border-radius: 50%; transform: scale(0); animation: ripple-anim 0.65s linear; background: rgba(255,255,255,0.28); pointer-events: none; }
+        @keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }
     </style>
 </head>
 <body>
@@ -194,6 +236,7 @@
 <div id="sistema-agendamento">
     <div class="cabecalho-sistema">
         <img src="/assets/header-logo.png" alt="Câmara Municipal de Itanhandu">
+        <div class="cabecalho-subtitulo"><i class="fa-solid fa-id-card"></i> Agendamento RG / CIN &mdash; Câmara de Itanhandu</div>
     </div>
 
     <div id="banner-vagas" class="banner-vagas"></div>
@@ -535,6 +578,8 @@
     }
 
     const HTML_LOADING = '<div class="loading-container"><div class="loading-bar"></div></div>';
+    function htmlSkeletonDatas(n) { return Array.from({length: n || 8}, () => '<div class="skeleton-card"></div>').join(''); }
+    function htmlSkeletonHoras(n) { return Array.from({length: n || 8}, () => '<div class="skeleton-hora"></div>').join(''); }
     let dataSel = null, horaSel = null;
     let selecionandoHora = false;
     let ultimoAgendamentoConfirmado = null;
@@ -1006,6 +1051,7 @@
             const res = Math.max(0, DISPONIBILIDADE_PUBLICA.totalVagasRestantes || 0);
             banner.style.display = "flex";
             if (res > 0) { 
+                if (window._contadorInterval) { clearInterval(window._contadorInterval); window._contadorInterval = null; }
                 banner.className = "banner-vagas com-vagas"; 
                 banner.innerHTML = `
                     <div class="status-vagas-card">
@@ -1032,17 +1078,19 @@
                                 Todas as vagas disponíveis no momento já foram preenchidas.<br>
                                 ${avisoProximasVagas}
                             </span>
+                            <div id="countdown-container"></div>
                         </div>
                     </div>
                 `; 
                 if (podeControlarCalendario) etapaSelecao.style.display = "none";
+                iniciarContadorRegressivo(DATA_NOVAS_VAGAS);
             }
         } catch(e) { banner.style.display = "none"; }
     }
 
     async function renderDatas() {
         const grade = document.getElementById("gradeDatas"); 
-        grade.innerHTML = HTML_LOADING; 
+        grade.innerHTML = htmlSkeletonDatas();
         document.getElementById("container-horas").style.display = "none";
         try {
             grade.innerHTML = "";
@@ -1071,7 +1119,9 @@
                 } else {
                     const badgeClass = vagas <= 2 ? 'low' : 'ok';
                     const vagaText = vagas === 1 ? 'vaga' : 'vagas';
-                    btn.innerHTML += `<div><span class="vagas-badge ${badgeClass}">${vagas} ${vagaText}</span></div>`;
+                    const totalSlots = HORARIOS.length || 8;
+                    const pct = Math.round((vagas / totalSlots) * 100);
+                    btn.innerHTML += `<div style="width:100%;text-align:center;"><span class="vagas-badge ${badgeClass}">${vagas} ${vagaText}</span><div class="vaga-progress"><div class="vaga-progress-fill ${badgeClass}" style="width:${pct}%"></div></div></div>`;
                     btn.onclick = () => { 
                         dataSel = ds; 
                         document.querySelectorAll('.btn-data').forEach(b => b.classList.remove('selecionado')); 
@@ -1089,7 +1139,7 @@
         const grade = document.getElementById("gradeHoras"); 
         document.getElementById("container-horas").style.display = "block"; 
         document.getElementById("label-data-selecionada").textContent = dataBrTela(data);
-        grade.innerHTML = HTML_LOADING;
+        grade.innerHTML = htmlSkeletonHoras();
         try {
             const infoDia = disponibilidadeDia(data);
             const disponibilidadePorHora = {};
@@ -1270,7 +1320,10 @@
             document.getElementById("ticket-info").textContent = `${ultimoAgendamentoConfirmado.dataBR} às ${ultimoAgendamentoConfirmado.hora}`; 
             document.getElementById("dados-pessoais").style.display = "none"; 
             document.getElementById("sucesso-docs").style.display = "block"; 
-            window.scrollTo(0,0); 
+            window.scrollTo(0,0);
+            dispararConfete();
+            const _ic = document.querySelector('#sucesso-docs .msg-sucesso-topo i');
+            if (_ic) { _ic.classList.remove('animar'); void _ic.offsetWidth; _ic.classList.add('animar'); }
             await carregarConfig();
             atualizarBannerVagas();
         } catch(e) {
@@ -1365,11 +1418,69 @@
         }
     }
 
+
+    function dispararConfete() {
+        const cores = ['#0056b3','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#fbbf24','#f97316'];
+        for (let i = 0; i < 90; i++) {
+            const el = document.createElement('div');
+            el.className = 'confetti-piece';
+            const w = (Math.random()*10+5).toFixed(0), h = (Math.random()*6+4).toFixed(0);
+            const dur = (Math.random()*2+1.5).toFixed(2), delay = (Math.random()*0.8).toFixed(2);
+            const radius = Math.random() < 0.3 ? '50%' : '2px';
+            el.style.cssText = `left:${(Math.random()*100).toFixed(1)}vw;width:${w}px;height:${h}px;background:${cores[Math.floor(Math.random()*cores.length)]};border-radius:${radius};animation-duration:${dur}s;animation-delay:${delay}s;`;
+            document.body.appendChild(el);
+            el.addEventListener('animationend', () => el.remove());
+        }
+    }
+
+    function iniciarContadorRegressivo(dataTexto) {
+        if (window._contadorInterval) { clearInterval(window._contadorInterval); window._contadorInterval = null; }
+        const mb = String(dataTexto || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        const mi = /^\d{4}-\d{2}-\d{2}$/.test(String(dataTexto || ''));
+        let alvo = mb ? new Date(`${mb[3]}-${mb[2]}-${mb[1]}T06:00:00-03:00`) : (mi ? new Date(`${dataTexto}T06:00:00-03:00`) : null);
+        if (!alvo || isNaN(alvo.getTime()) || alvo <= new Date()) return;
+        function atualizar() {
+            const el = document.getElementById('countdown-container');
+            if (!el) { clearInterval(window._contadorInterval); return; }
+            const diff = alvo - new Date();
+            if (diff <= 0) {
+                clearInterval(window._contadorInterval);
+                el.innerHTML = '<strong class="proxima-liberacao" style="display:inline-block;margin-top:10px;">🎉 Vagas liberadas! Recarregue a página.</strong>';
+                return;
+            }
+            const d = Math.floor(diff / 86400000), h = Math.floor((diff % 86400000) / 3600000);
+            const m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
+            const bloco = (n, l) => `<div class="countdown-bloco"><span class="countdown-num">${String(n).padStart(2,'0')}</span><span class="countdown-label">${l}</span></div>`;
+            el.innerHTML = `<div class="countdown-wrap">${d ? bloco(d,'dias') : ''}${bloco(h,'horas')}${bloco(m,'min')}${bloco(s,'seg')}</div>`;
+        }
+        atualizar();
+        window._contadorInterval = setInterval(atualizar, 1000);
+    }
+
+    function inicializarRipple() {
+        document.querySelectorAll('.btn-principal').forEach(btn => btn.addEventListener('click', function(e) {
+            if (this.disabled) return;
+            const r = document.createElement('span'); r.className = 'ripple-wave';
+            const rect = this.getBoundingClientRect(), size = Math.max(rect.width, rect.height);
+            r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px`;
+            this.appendChild(r); r.addEventListener('animationend', () => r.remove());
+        }));
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.btn-data:not([disabled]),.btn-hora:not([disabled])');
+            if (!btn) return;
+            const r = document.createElement('span'); r.className = 'ripple-wave';
+            const rect = btn.getBoundingClientRect(), size = Math.max(rect.width, rect.height);
+            r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px`;
+            btn.appendChild(r); r.addEventListener('animationend', () => r.remove());
+        });
+    }
+
     (async function init() { 
         await carregarConfig(); 
         renderDatas(); 
         atualizarBannerVagas(); 
         iniciarAtualizacaoAutomatica();
+        inicializarRipple();
     })();
 </script>
 <script>
