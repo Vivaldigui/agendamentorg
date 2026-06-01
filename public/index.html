@@ -1181,12 +1181,9 @@
                 `; 
                 if (podeControlarCalendario) etapaSelecao.style.display = "block";
             } else { 
-                const temContadorAtivo = contadorNovasVagasAtivo(DATA_NOVAS_VAGAS);
                 const avisoProximasVagas = avisoNovasVagasEmBreve()
                     ? '<strong class="proxima-liberacao">Novas vagas em breve</strong>'
-                    : temContadorAtivo
-                        ? '<strong class="proxima-liberacao">Próxima abertura programada</strong>'
-                        : `A liberação de novos horários ocorrerá em:
+                    : `A liberação de novos horários ocorrerá em:
                         <strong class="proxima-liberacao">${textoSeguro(DATA_NOVAS_VAGAS)}</strong>`;
                 banner.className = "banner-vagas sem-vagas";
                 banner.innerHTML = `
