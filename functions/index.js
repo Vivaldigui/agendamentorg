@@ -716,7 +716,7 @@ exports.carregarAgendaPublicaHttp = onRequest({
   try {
     await aplicarRateLimit({ rawRequest: req }, "carregar_agenda_publica_http", 120, 10 * 60 * 1000);
     const dados = await carregarDisponibilidadePublica();
-    res.set("Cache-Control", "public, max-age=30, s-maxage=60");
+    res.set("Cache-Control", "public, max-age=10, s-maxage=10");
     res.status(200).json(dados);
   } catch (err) {
     const status = err && err.code === "resource-exhausted" ? 429 : 500;

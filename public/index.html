@@ -1479,8 +1479,10 @@
                 dispararConfete();
                 const _ic = document.querySelector('#sucesso-docs .msg-sucesso-topo i');
                 if (_ic) { _ic.classList.remove('animar'); void _ic.offsetWidth; _ic.classList.add('animar'); }
-                await carregarConfig();
-                atualizarBannerVagas();
+                try { localStorage.removeItem("cin_agenda_cache"); } catch (ex) {}
+                carregarConfig({ ignorarCache: true })
+                    .then(() => atualizarBannerVagas())
+                    .catch((ex) => console.warn("Erro ao atualizar agenda apos confirmacao:", ex));
                 return;
             } catch(e) {
                 ultimoErro = e;
