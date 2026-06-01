@@ -84,6 +84,8 @@
         .form-grupo input.erro { border-color: var(--danger); background: var(--danger-light); }
         .msg-campo-erro { color: var(--danger); font-size: 0.8rem; font-weight: 600; margin-top: 6px; display: none; }
         .msg-campo-erro.visivel { display: block; animation: fadeIn 0.3s; }
+        .msg-campo-alerta { color: #b45309; background: var(--warning-light); border: 1px solid #fde68a; padding: 10px 12px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; margin-top: 6px; display: none; }
+        .msg-campo-alerta.visivel { display: block; animation: fadeIn 0.3s; }
         .checkbox-termo { display:flex; align-items:flex-start; gap:10px; background:var(--gray-50); padding:18px; border-radius:8px; border:1px solid var(--gray-200); transition: 0.2s; cursor: pointer; touch-action: manipulation; }
         .checkbox-termo input[type="checkbox"] { width:24px !important; height:24px !important; margin-top:0 !important; flex-shrink: 0; }
         .checkbox-termo.erro-termo { border-color: var(--danger); background: var(--danger-light); box-shadow: 0 0 0 4px rgba(239,68,68,0.1); }
@@ -316,7 +318,7 @@
                 <div class="form-grupo"><label>Nome Completo: <span style="color:var(--danger)">*</span></label><input id="inp-nome" type="text" autocomplete="name" autocapitalize="words" placeholder="Ex: João da Silva" onblur="formatarNomeProprio(this)" /><div class="msg-campo-erro" id="erro-nome">Informe o nome completo.</div></div>
                 <div class="grid-2">
                     <div class="form-grupo"><label>CPF: <span style="color:var(--danger)">*</span></label><input id="inp-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" onblur="validarCpfAgendamento()" type="text" placeholder="000.000.000-00" /><div class="msg-campo-erro" id="erro-cpf">CPF inválido.</div></div>
-                    <div class="form-grupo"><label>Nascimento: <span style="color:var(--danger)">*</span></label><input id="inp-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this); validarNascimentoAgendamento()" type="text" placeholder="DD/MM/AAAA" /><div class="msg-campo-erro" id="erro-nasc">Data inválida.</div><div class="msg-campo-erro" id="erro-menor-3">Não é possível realizar agendamento para menores de 3 anos pelo sistema.</div></div>
+                    <div class="form-grupo"><label>Nascimento: <span style="color:var(--danger)">*</span></label><input id="inp-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this); validarNascimentoAgendamento()" type="text" placeholder="DD/MM/AAAA" /><div class="msg-campo-erro" id="erro-nasc">Data inválida.</div><div class="msg-campo-alerta" id="erro-menor-3"><i class="fa-solid fa-circle-info"></i> <strong>Atenção:</strong> Por ser menor de 3 anos, além dos demais documentos necessários listados abaixo, é <strong>obrigatório levar 1 foto 3x4 recente</strong>.</div></div>
                 </div>
                 <div class="form-grupo"><label>Celular / WhatsApp: <span class="ajuda-campo">(para receber o comprovante)</span> <span style="color:var(--danger)">*</span></label><input id="inp-tel" maxlength="15" inputmode="tel" autocomplete="tel" oninput="mascaraTel(this)" type="tel" placeholder="(00) 00000-0000" /><div class="msg-campo-erro" id="erro-tel">Informe um telefone válido.</div></div>
                 <div class="form-grupo"><label>E-mail (Opcional)</label><input id="inp-email" type="email" placeholder="seu.email@exemplo.com" /><div class="msg-campo-erro" id="erro-email">E-mail inválido.</div></div>
@@ -327,6 +329,7 @@
                         <li><i class="fa-regular fa-square"></i><span>CPF.</span></li>
                         <li><i class="fa-regular fa-square"></i><span>Comprovante de residência.</span></li>
                         <li><i class="fa-regular fa-square"></i><span>Menores de 16 anos devem estar acompanhados do responsável legal, que deve apresentar documento de identificação original com foto, como RG ou CNH.</span></li>
+                        <li><i class="fa-regular fa-square"></i><span><strong>Menores de 3 anos:</strong> além dos documentos exigidos, levar 1 foto 3x4 recente.</span></li>
                     </ul>
                 </div>
                 <div class="tarja-alerta" style="background:var(--warning-light); color:#92400e; border-left-color:var(--warning);">
@@ -377,6 +380,7 @@
                         <li><i class="fa-regular fa-square"></i><span>CPF.</span></li>
                         <li><i class="fa-regular fa-square"></i><span>Comprovante de residência atualizado.</span></li>
                         <li><i class="fa-regular fa-square"></i><span>Menores de 16 anos devem estar acompanhados do responsável legal, que deve apresentar documento de identificação original com foto, como RG ou CNH.</span></li>
+                        <li><i class="fa-regular fa-square"></i><span><strong>Menores de 3 anos:</strong> além dos documentos exigidos, levar 1 foto 3x4 recente.</span></li>
                     </ul>
                 </div>
                 <button class="btn-principal cinza" onclick="location.reload()" style="margin-top:24px;">Voltar ao Início</button>
@@ -692,7 +696,9 @@
                 "",
                 "3. Comprovante de residência.",
                 "",
-                "4. Menores de 16 anos devem estar acompanhados do responsável legal, que deve apresentar documento original com foto, como RG ou CNH."
+                "4. Menores de 16 anos devem estar acompanhados do responsável legal, que deve apresentar documento original com foto, como RG ou CNH.",
+                "",
+                "5. Menores de 3 anos: além dos documentos listados acima, levar 1 foto 3x4 recente."
             ].join("\n"),
             botoes: [{ texto: "Entendi", classe: "primario" }]
         });
@@ -903,17 +909,37 @@
     }
 
     function documentosTexto() {
-        return [
+        const ag = ultimoAgendamentoConfirmado;
+        const docs = [
             "Documentos necessarios:",
             "1. A certidao deve ser ORIGINAL, sem rasgos, rasuras ou alteracoes.",
             "2. Certidao de nascimento original (se solteiro), ou certidao de casamento original (se casado, viuvo ou divorciado). Se houver viuvez, divorcio ou outra alteracao, a certidao de casamento deve estar averbada.",
             "3. CPF.",
             "4. Comprovante de residencia.",
             "5. Menores de 16 anos devem estar acompanhados do responsavel legal, que deve apresentar documento de identificacao original com foto, como RG ou CNH."
-        ].join("\n");
+        ];
+        if (ag && ag.nascimento) {
+            const nascISO = converterDataISO(ag.nascimento) || ag.nascimento;
+            if (menorDeTresAnosNoAgendamento(nascISO)) {
+                docs.push("6. ATENCAO: Por ser menor de 3 anos, alem dos documentos acima, e OBRIGATORIO levar 1 foto 3x4 recente.");
+            }
+        } else {
+            docs.push("6. Menores de 3 anos: alem dos documentos listados, levar 1 foto 3x4 recente.");
+        }
+        return docs.join("\n");
     }
 
     function documentosComprovanteHTML() {
+        const ag = ultimoAgendamentoConfirmado;
+        let fotoLI = '';
+        if (ag && ag.nascimento) {
+            const nascISO = converterDataISO(ag.nascimento) || ag.nascimento;
+            if (menorDeTresAnosNoAgendamento(nascISO)) {
+                fotoLI = '<li style="color:#b45309; font-weight:bold;">ATENÇÃO: Por ser menor de 3 anos, além dos documentos acima, é OBRIGATÓRIO levar 1 foto 3x4 recente.</li>';
+            }
+        } else {
+            fotoLI = '<li>Menores de 3 anos: além dos documentos listados, levar 1 foto 3x4 recente.</li>';
+        }
         return `
             <ul>
                 <li>Certidao original, sem rasgos, rasuras ou alteracoes.</li>
@@ -921,6 +947,7 @@
                 <li>Casados, viuvos ou divorciados: certidao de casamento original, com averbacao quando houver.</li>
                 <li>CPF e comprovante de residencia.</li>
                 <li>Menores de 16 anos devem estar acompanhados do responsavel legal com documento original com foto.</li>
+                ${fotoLI}
             </ul>
         `;
     }
@@ -951,10 +978,10 @@
 
     function validarNascimentoAgendamento() {
         const nascISO = converterDataISO(document.getElementById("inp-nasc").value);
-        const bloqueado = !!nascISO && menorDeTresAnosNoAgendamento(nascISO);
+        const menorDeTres = !!nascISO && menorDeTresAnosNoAgendamento(nascISO);
         const avisoMenor = document.getElementById("erro-menor-3");
-        if (avisoMenor) avisoMenor.classList.toggle("visivel", bloqueado);
-        return !bloqueado;
+        if (avisoMenor) avisoMenor.classList.toggle("visivel", menorDeTres);
+        return true; 
     }
 
     function linhaComprovante(rotulo, valor) {
@@ -1391,11 +1418,7 @@
             await abrirAlterarHorario();
             return;
         }
-        if (!validarNascimentoAgendamento()) {
-            setErroCampo("inp-nasc", "erro-nasc", false);
-            aviso("Não é possível realizar agendamento para menores de 3 anos pelo sistema.");
-            return;
-        }
+        validarNascimentoAgendamento();
         if (destacarAceitesPendentes()) {
             aviso("É necessário marcar as caixas de declaração no final do formulário para continuar.");
             return;

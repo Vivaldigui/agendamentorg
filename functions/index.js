@@ -314,10 +314,7 @@ function idadeEmAnosNaData(nascimentoISO, referenciaISO) {
 }
 
 function validarIdadeMinimaAgendamento(nascimentoISO, dataISO) {
-  const idade = idadeEmAnosNaData(nascimentoISO, dataISO);
-  if (idade !== null && idade < 3) {
-    throw new HttpsError("failed-precondition", "Nao e possivel realizar agendamento para menores de 3 anos pelo sistema.");
-  }
+  // Permite que menores de 3 anos possam marcar pelo sistema.
 }
 
 function subtrairMesesISO(dataISO, meses) {

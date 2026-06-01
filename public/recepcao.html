@@ -1417,6 +1417,7 @@ Não se esqueça de levar os documentos necessários:
 2. Certidão de nascimento original (se solteiro), certidão de casamento original (se casado). Se viúvo ou divorciado, a certidão de casamento deve estar averbada.
 3. CPF.
 4. Comprovante de residência.
+5. Se for menor de 3 anos, além dos documentos acima, levar 1 foto 3x4 recente.
 
 Menores de 16 anos devem estar acompanhados do responsável legal com documento (RG ou CNH).
 
@@ -1932,7 +1933,27 @@ Até logo!`;
             }
         }
 
-        function documentosComprovanteHTML() {
+        function documentosComprovanteHTML(nascBR) {
+            let fotoLI = '';
+            if (nascBR && /^\d{2}\/\d{2}\/\d{4}$/.test(nascBR)) {
+                const partes = nascBR.split("/");
+                const dia = parseInt(partes[0], 10);
+                const mes = parseInt(partes[1], 10);
+                const ano = parseInt(partes[2], 10);
+                
+                const nascDate = new Date(ano, mes - 1, dia);
+                const hoje = new Date();
+                let idade = hoje.getFullYear() - nascDate.getFullYear();
+                const m = hoje.getMonth() - nascDate.getMonth();
+                if (m < 0 || (m === 0 && hoje.getDate() < nascDate.getDate())) {
+                    idade--;
+                }
+                if (idade < 3) {
+                    fotoLI = '<li style="color:#b45309; font-weight:bold;">ATENÇÃO: Por ser menor de 3 anos, além dos documentos acima, é OBRIGATÓRIO levar 1 foto 3x4 recente.</li>';
+                }
+            } else {
+                fotoLI = '<li>Menores de 3 anos: além dos documentos acima, levar 1 foto 3x4 recente.</li>';
+            }
             return `
                 <ul>
                     <li><strong>A certidão deve ser ORIGINAL, sem rasgos, rasuras ou alterações.</strong></li>
@@ -1940,6 +1961,7 @@ Até logo!`;
                     <li>Se viúvo ou divorciado, a certidão de casamento deve estar averbada.</li>
                     <li>CPF e comprovante de residência.</li>
                     <li>Menores de 16 anos devem estar acompanhados do responsável legal com RG ou CNH.</li>
+                    ${fotoLI}
                 </ul>
             `;
         }
@@ -2009,7 +2031,7 @@ Até logo!`;
         ${linhaComprovante("Local", "Câmara Municipal de Itanhandu")}
         <div class="box">
             <h2>Documentos necessários</h2>
-            ${documentosComprovanteHTML()}
+            ${documentosComprovanteHTML(nascBR)}
         </div>
         <div class="rodape">Comprovante emitido em ${new Date().toLocaleString("pt-BR")} pelo sistema de agendamento da Câmara Municipal de Itanhandu.</div>
     </div>
