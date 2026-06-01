@@ -399,6 +399,10 @@ async function buscarBloqueioAtivoCpf(cpfNum) {
     .sort((a, b) => b.comparador - a.comparador)[0] || null;
 }
 
+function mensagemCpfBloqueado(bloqueio) {
+  return `Nao foi possivel realizar novo agendamento.\n\nConsta ausencia em atendimento anterior.\nNovo agendamento permitido a partir de ${bloqueio.dataLiberacao}.\n\nEm caso de justificativa, entre em contato com a Camara Municipal.`;
+}
+
 async function assertAdmin(request) {
   const email = String(request.auth && request.auth.token && request.auth.token.email || "").trim().toLowerCase();
   if (!email) {
@@ -681,7 +685,7 @@ exports.verificarBloqueioCpf = onCall(publicCallableOptions, async (request) => 
   return {
     bloqueado: true,
     dataLiberacao: bloqueio.dataLiberacao,
-    mensagem: `Não foi possível realizar novo agendamento.\n\nConsta ausência em atendimento anterior.\nNovo agendamento permitido a partir de ${bloqueio.dataLiberacao}.\n\nEm caso de justificativa, entre em contato com a Câmara Municipal.`
+    mensagem: mensagemCpfBloqueado(bloqueio)
   };
 });
 
@@ -751,6 +755,10 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
   const nome = normalizarTexto(request.data.nome, "o nome completo", 5, 120);
   const cpfNum = normalizarCpf(request.data.cpf);
   await aplicarRateLimit(request, "criar_agendamento", 6, 10 * 60 * 1000, cpfNum);
+  const bloqueio = await buscarBloqueioAtivoCpf(cpfNum);
+  if (bloqueio) {
+    throw new HttpsError("failed-precondition", mensagemCpfBloqueado(bloqueio));
+  }
   const telefone = normalizarTelefone(request.data.telefone);
   const email = normalizarEmail(request.data.email);
   const dataNasc = normalizarData(request.data.nascimento);

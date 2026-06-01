@@ -850,6 +850,12 @@
             && texto.includes("cpf");
     }
 
+    function erroCpfBloqueado(erroObj) {
+        const texto = normalizarErroTexto(erroObj);
+        return texto.includes("ausencia em atendimento anterior")
+            || texto.includes("novo agendamento permitido a partir");
+    }
+
     function baixarArquivo(nome, conteudo, tipo) {
         const link = document.createElement("a");
         link.href = URL.createObjectURL(new Blob([conteudo], { type: tipo || "text/plain;charset=utf-8" }));
@@ -1330,24 +1336,9 @@
 
         const btn = document.getElementById("btnFinalizar"); 
         btn.disabled = true; 
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> VALIDANDO CPF...';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CONFIRMANDO...';
 
         try {
-            const bloqueio = await verificarBloqueioCPF(cpf);
-            if (bloqueio.erro) {
-                btn.disabled = false;
-                btn.innerHTML = 'FINALIZAR AGENDAMENTO <i class="fa-solid fa-arrow-right"></i>';
-                aviso(bloqueio.mensagem);
-                return;
-            }
-            if (bloqueio.bloqueado) {
-                btn.disabled = false;
-                btn.innerHTML = 'FINALIZAR AGENDAMENTO <i class="fa-solid fa-arrow-right"></i>';
-                exibirBloqueioCPF(bloqueio);
-                return;
-            }
-
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> AGENDANDO...';
             const criarAgendamento = firebase.functions().httpsCallable("criarAgendamentoCidadao");
             const resposta = await criarAgendamento({
                 nome,
@@ -1387,6 +1378,7 @@
                 await abrirAlterarHorario();
                 erro("Outra pessoa concluiu o agendamento primeiro nesse horário. Seus dados foram mantidos; escolha outra data ou horário disponível.");
             } 
+            else if (erroCpfBloqueado(e)) { exibirBloqueioCPF({ mensagem: e.message }); }
             else if (erroCpfDuplicado(e)) { erro("Este CPF já possui um agendamento ativo. Cancele o anterior para agendar novamente."); } 
             else { console.error(e); erro(e.message || "Ocorreu um erro ao processar. Verifique a conexão."); }
         }
