@@ -1188,7 +1188,7 @@
                         ? '<strong class="proxima-liberacao">Próxima abertura programada</strong>'
                         : `A liberação de novos horários ocorrerá em:
                         <strong class="proxima-liberacao">${textoSeguro(DATA_NOVAS_VAGAS)}</strong>`;
-                banner.className = "banner-vagas sem-vagas"; 
+                banner.className = "banner-vagas sem-vagas";
                 banner.innerHTML = `
                     <div class="status-vagas-card agenda-fechada">
                         <span class="status-vagas-icone"><i class="fa-solid fa-clock"></i></span>
@@ -1198,12 +1198,10 @@
                                 Todas as vagas disponíveis no momento já foram preenchidas.<br>
                                 ${avisoProximasVagas}
                             </span>
-                            <div id="countdown-container"></div>
                         </div>
                     </div>
-                `; 
+                `;
                 if (podeControlarCalendario) etapaSelecao.style.display = "none";
-                iniciarContadorRegressivo(DATA_NOVAS_VAGAS);
             }
         } catch(e) { banner.style.display = "none"; }
     }
