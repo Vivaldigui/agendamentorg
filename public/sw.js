@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cin-v13-bypass';
+const CACHE_NAME = 'cin-v14-bypass-fix';
 
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -15,6 +15,7 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Bypass any caching and always fetch from network
-  e.respondWith(fetch(e.request).catch(() => new Response("Offline", {status: 503})));
+  // Return immediately so the browser handles all requests natively.
+  // Intercepting Firebase/Firestore requests can break them.
+  return;
 });
