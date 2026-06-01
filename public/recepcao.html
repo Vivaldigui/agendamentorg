@@ -2740,6 +2740,21 @@ Até logo!`;
             }
         }
 
+        function atualizarEstatisticasLocalmente(id, novoStatus, dadosAtualizados) {
+            if (!totalAtendimentosCarregado) return;
+            ["cin", "faltas"].forEach(bucket => {
+                estatisticasHistoricas[bucket] = estatisticasHistoricas[bucket].filter(ag => ag.id !== id);
+            });
+            if (novoStatus === "compareceu") {
+                estatisticasHistoricas.cin.push({ id, dados: dadosAtualizados });
+            } else if (novoStatus === "nao_compareceu") {
+                estatisticasHistoricas.faltas.push({ id, dados: dadosAtualizados });
+            }
+            totalAtendimentosRealizados = estatisticasHistoricas.cin.length;
+            renderIndicadoresHistoricos();
+            atualizarResumo();
+        }
+
         async function buscarHistoricoAgendamento() {
             const termo = document.getElementById("filtro-busca").value.trim();
             const cpf = cpfNumeros(termo);
@@ -3000,7 +3015,7 @@ Até logo!`;
                 return;
             }
 
-            lista.forEach(ag => {
+            const linhas = lista.map(ag => {
                 const d = ag.dados;
                 const dataBr = dataBrISO(d.dataISO);
                 const manual = d.insercaoManual ? '<br><span class="badge-manual">MANUAL</span>' : '';
@@ -3011,7 +3026,7 @@ Até logo!`;
                 const observacao = d.observacaoInterna ? `<i class="fa-solid fa-note-sticky observacao-icone" title="${textoSeguro(d.observacaoInterna)}"></i>` : "";
                 const alteradoPor = d.alteradoPor || d.statusAtualizadoPor || "";
                 const statusTitle = alteradoPor ? `Última alteração por ${alteradoPor}${d.statusAtualizadoEm ? ` em ${d.statusAtualizadoEm}` : ""}` : "Sem informação de última alteração";
-                corpo.innerHTML += `
+                return `
                     <tr id="row-ag-${textoSeguro(ag.id)}">
                         <td data-label="Data/Hora"><strong>${textoSeguro(dataBr)}</strong><br>${textoSeguro(d.hora)}${manual}</td>
                         <td data-label="Cidadão" style="font-weight:700;">${textoSeguro(d.nome)}${observacao}<span class="detalhe-pessoal">${textoSeguro(d.protocolo || "sem protocolo")}</span>${bloqueado}</td>
@@ -3027,6 +3042,7 @@ Até logo!`;
                     </tr>
                 `;
             });
+            corpo.innerHTML = linhas.join("");
         }
 
         function renderTabelaBloqueados(corpo) {
@@ -3036,9 +3052,9 @@ Até logo!`;
                 corpo.innerHTML = "<tr><td colspan='6'>Nenhum CPF bloqueado ativo encontrado.</td></tr>";
                 return;
             }
-            lista.forEach(ag => {
+            corpo.innerHTML = lista.map(ag => {
                 const d = ag.dados;
-                corpo.innerHTML += `
+                return `
                     <tr>
                         <td data-label="Data da falta"><strong>${textoSeguro(d.bloqueioDataFalta || dataHoraAtendimento(d))}</strong></td>
                         <td data-label="Cidadão" style="font-weight:700;">${textoSeguro(d.bloqueioNome || d.nome)}<span class="bloqueio-badge">Bloqueado até ${textoSeguro(dataBrISO(d.bloqueadoAte))}</span></td>
@@ -3053,7 +3069,7 @@ Até logo!`;
                         </td>
                     </tr>
                 `;
-            });
+            }).join("");
         }
 
         function filtroRapidoPainel(tipo) {
@@ -3231,7 +3247,7 @@ Até logo!`;
                 if (dadosBloqueio) await tentarGravarBloqueioDedicado(dadosBloqueio);
                 Object.assign(ag.dados, atualizacao);
                 await registrarLog("alterar_status", { agendamentoId: id, status, bloqueadoAte: dadosBloqueio ? dadosBloqueio.bloqueadoAte : "" });
-                await carregarTotalAtendimentosRealizados();
+                atualizarEstatisticasLocalmente(id, status, ag.dados);
                 renderTabelaAgendamentos();
                 renderFilaHoje();
                 destacarAtendimento(id);
@@ -3270,7 +3286,7 @@ Até logo!`;
                 if (cpfLimpo && cpfLimpo !== cpfId) await db.collection("cpfs_agendados").doc(cpfLimpo).delete().catch(() => {});
                 ag.dados.status = "cancelado";
                 await registrarLog("cancelar_agendamento_painel", { agendamentoId: id, dataISO: d.dataISO, hora: d.hora });
-                await carregarTotalAtendimentosRealizados();
+                atualizarEstatisticasLocalmente(id, "cancelado", ag.dados);
                 renderTabelaAgendamentos();
                 renderFilaHoje();
                 mostrarToast(`${d.nome} teve o agendamento cancelado.`);
