@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cin-v14-bypass-fix';
+const CACHE_NAME = 'cin-v15-robustez';
 
 self.addEventListener('install', e => {
   self.skipWaiting();

@@ -55,7 +55,8 @@ const publicCallableOptions = {
 const agendamentoPicoOptions = {
   ...publicCallableOptions,
   maxInstances: 30,
-  minInstances: 1
+  minInstances: 1,
+  timeoutSeconds: 300
 };
 
 function normalizarCpf(cpf) {
@@ -388,13 +389,13 @@ function normalizarBloqueadoAte(valor) {
 
 async function buscarBloqueioAtivoCpf(cpfNum) {
   const candidatos = [];
-  const [docBloqueio, snapCadastro] = await Promise.all([
+  const [docBloqueio, snapCadastro] = await comRetry(() => Promise.all([
     db.collection("bloqueios_agendamento").doc(cpfNum).get(),
     db.collection("dados_cidadaos")
       .where("bloqueioCpf", "==", cpfNum)
       .limit(10)
       .get()
-  ]);
+  ]));
   if (docBloqueio.exists) candidatos.push(docBloqueio.data());
   snapCadastro.docs.forEach((doc) => candidatos.push(doc.data()));
 
@@ -427,6 +428,28 @@ function fingerprintRequisicao(request, extra = "") {
   const ip = forwarded || raw.ip || "sem-ip";
   const userAgent = raw.headers && raw.headers["user-agent"] ? String(raw.headers["user-agent"]).slice(0, 120) : "";
   return crypto.createHash("sha256").update(`${ip}|${userAgent}|${extra}`).digest("hex");
+}
+
+async function comRetry(fn, { tentativas = 3, baseMs = 200 } = {}) {
+  let ultimoErro;
+  for (let i = 0; i < tentativas; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      ultimoErro = e;
+      if (e instanceof HttpsError) throw e;
+      const codigo = e && (e.code || e.status);
+      const transiente =
+        codigo === 4 || codigo === 8 || codigo === 10 || codigo === 13 || codigo === 14 ||
+        codigo === "deadline-exceeded" || codigo === "unavailable" || codigo === "aborted" ||
+        codigo === "internal" || codigo === "resource-exhausted" ||
+        (e && typeof e.message === "string" && /deadline|unavailable|timeout|ECONNRESET|ETIMEDOUT/i.test(e.message));
+      if (!transiente || i === tentativas - 1) throw e;
+      const espera = baseMs * Math.pow(2, i) + Math.floor(Math.random() * 100);
+      await new Promise((r) => setTimeout(r, espera));
+    }
+  }
+  throw ultimoErro;
 }
 
 async function aplicarRateLimit(request, acao, limite, janelaMs, extra = "") {
@@ -562,9 +585,8 @@ async function anonimizarDadosAntigosLGPD() {
   return { corte, totalLidos, totalAnonimizados, totalCpfMapsRemovidos };
 }
 
-async function carregarAgenda() {
-  const agendaDoc = await db.collection("configuracoes").doc("agenda").get();
-  const agenda = agendaDoc.exists ? agendaDoc.data() : {};
+function processarAgenda(dadosBrutos) {
+  const agenda = dadosBrutos || {};
   const hoje = hojeSaoPauloISO();
   const dias = Array.isArray(agenda.dias) && agenda.dias.length ? agenda.dias : DIAS_INICIAIS;
   const horariosConfig = Array.isArray(agenda.horarios) ? agenda.horarios : [];
@@ -579,8 +601,14 @@ async function carregarAgenda() {
   };
 }
 
-async function validarSlotDisponivel(dataISO, hora) {
-  const agenda = await carregarAgenda();
+const AGENDA_REF = () => db.collection("configuracoes").doc("agenda");
+
+async function carregarAgenda() {
+  const agendaDoc = await comRetry(() => AGENDA_REF().get());
+  return processarAgenda(agendaDoc.exists ? agendaDoc.data() : {});
+}
+
+function checarDisponibilidade(agenda, dataISO, hora) {
   if (dataISO < hojeSaoPauloISO()) {
     throw new HttpsError("failed-precondition", "Data indisponivel para agendamento.");
   }
@@ -590,6 +618,18 @@ async function validarSlotDisponivel(dataISO, hora) {
   if (!horarioAgendamentoFuturo(dataISO, hora)) {
     throw new HttpsError("failed-precondition", "Este horario ja passou. Escolha outro horario disponivel.");
   }
+}
+
+async function validarSlotDisponivel(dataISO, hora) {
+  const agenda = await carregarAgenda();
+  checarDisponibilidade(agenda, dataISO, hora);
+}
+
+function bloqueioAtivoDeDoc(dados) {
+  if (!dados) return null;
+  if (dados.liberado === true || dados.bloqueioLiberado === true || dados.bloqueioAtivo === false) return null;
+  const bloqueio = normalizarBloqueadoAte(dados.bloqueadoAte);
+  return bloqueio && bloqueio.ativo ? bloqueio : null;
 }
 
 async function buscarPorCpfDireto(cpfNum, dataNasc) {
@@ -822,13 +862,24 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
   const slotRef = db.collection("vagas_ocupadas").doc(slotId);
   const cpfRef = db.collection("cpfs_agendados").doc(cpfHashId);
   const cpfLegadoRef = db.collection("cpfs_agendados").doc(cpfNum);
+  const bloqueioRef = db.collection("bloqueios_agendamento").doc(cpfNum);
+  const agendaRef = AGENDA_REF();
 
   await db.runTransaction(async (t) => {
-    const [slotDoc, cpfDoc, cpfLegadoDoc] = await Promise.all([
+    const [slotDoc, cpfDoc, cpfLegadoDoc, bloqueioDoc, agendaDoc] = await Promise.all([
       t.get(slotRef),
       t.get(cpfRef),
-      t.get(cpfLegadoRef)
+      t.get(cpfLegadoRef),
+      t.get(bloqueioRef),
+      t.get(agendaRef)
     ]);
+
+    const bloqueioRevalidado = bloqueioDoc.exists ? bloqueioAtivoDeDoc(bloqueioDoc.data()) : null;
+    if (bloqueioRevalidado) {
+      throw new HttpsError("failed-precondition", mensagemCpfBloqueado(bloqueioRevalidado));
+    }
+
+    checarDisponibilidade(processarAgenda(agendaDoc.exists ? agendaDoc.data() : {}), dataISO, hora);
 
     let slotOcupado = slotDoc.exists;
     let limparSlotObsoleto = false;

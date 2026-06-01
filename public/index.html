@@ -1374,10 +1374,12 @@
 
     async function tentarRefreshAppCheck() {
         try {
-            if (firebase.appCheck && APP_CHECK_RECAPTCHA_SITE_KEY && !APP_CHECK_RECAPTCHA_SITE_KEY.includes("COLE_AQUI")) {
-                firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
+            if (!firebase.appCheck || !APP_CHECK_RECAPTCHA_SITE_KEY || APP_CHECK_RECAPTCHA_SITE_KEY.includes("COLE_AQUI")) return;
+            const ac = firebase.appCheck();
+            if (typeof ac.getToken === "function") {
+                await ac.getToken(/* forceRefresh */ true);
             }
-        } catch (ex) { console.warn("Erro ao re-ativar App Check:", ex); }
+        } catch (ex) { console.warn("Erro ao renovar App Check:", ex); }
     }
 
     async function recuperarAposErroAgendamento() {
@@ -1523,14 +1525,24 @@
         if (erroHorarioOcupado(e)) {
             await abrirAlterarHorario();
             erro("Outra pessoa concluiu o agendamento primeiro nesse horário. Seus dados foram mantidos; escolha outra data ou horário disponível.");
-        } 
+        }
         else if (erroCpfBloqueado(e)) { exibirBloqueioCPF({ mensagem: e.message }); }
         else if (erroCpfDuplicado(e)) { erro("Este CPF já possui um agendamento ativo. Cancele o anterior para agendar novamente."); }
+        else if (e && e.code === "invalid-argument") {
+            const msg = (e.message || "").toLowerCase();
+            if (msg.includes("cpf")) erro("CPF inválido. Confira os números digitados e tente novamente.");
+            else if (msg.includes("nome")) erro("Informe o nome completo (mínimo de 5 caracteres).");
+            else if (msg.includes("telefone")) erro("Telefone inválido. Confira o número digitado.");
+            else if (msg.includes("email") || msg.includes("e-mail")) erro("E-mail inválido. Confira o endereço digitado.");
+            else if (msg.includes("data") || msg.includes("nascimento")) erro("Data inválida. Confira a data digitada.");
+            else if (msg.includes("hora")) erro("Horário inválido. Selecione outro horário.");
+            else erro("Confira os dados informados e tente novamente.");
+        }
         else if (e && e.code === "deadline-exceeded") { erro("A conexão está lenta no momento. Clique em FINALIZAR AGENDAMENTO novamente para retentar."); }
         else if (e && e.code === "resource-exhausted") { erro("Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente."); }
-        else if (e && (e.code === "unauthenticated" || e.code === "permission-denied")) { erro("Não foi possível verificar a segurança da requisição. Tente novamente em alguns instantes."); }
+        else if (e && (e.code === "unauthenticated" || e.code === "permission-denied")) { erro("Não foi possível verificar a segurança da requisição. Atualize a página (Ctrl+F5) e tente novamente."); }
         else if (e && (e.code === "unavailable" || e.code === "internal")) { erro("O servidor está temporariamente indisponível. Tente novamente em alguns instantes."); }
-        else { console.error(e); erro(e.message || "Ocorreu um erro ao processar. Tente novamente em alguns instantes."); }
+        else { console.error(e); erro("Não foi possível concluir o agendamento agora. Atualize a página (Ctrl+F5) e tente novamente."); }
     }
 
     async function consultarAgendamento() {
