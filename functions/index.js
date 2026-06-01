@@ -624,7 +624,8 @@ function vagaContaNoSite(vaga) {
 
 async function carregarDisponibilidadePublica() {
   const agenda = await carregarAgenda();
-  const vagasSnap = await db.collection("vagas_ocupadas").get();
+  const hoje = hojeSaoPauloISO();
+  const vagasSnap = await db.collection("vagas_ocupadas").where("dataISO", ">=", hoje).get();
   const ocupados = new Set();
   const agora = agoraSaoPauloInput();
 
