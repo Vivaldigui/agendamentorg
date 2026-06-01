@@ -1,0 +1,25 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "presenca_publica": {
+      "conexoes": {
+        ".read": "auth != null",
+        "$conexaoId": {
+          ".write": "(!data.exists() && newData.exists()) || !newData.exists()",
+          ".validate": "newData.hasChildren(['conectadoEm'])",
+          "conectadoEm": {
+            ".validate": "newData.isNumber() && newData.val() <= now && newData.val() >= now - 60000"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      },
+      "metricas": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    }
+  }
+}

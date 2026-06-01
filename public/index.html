@@ -416,6 +416,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app-check.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
 
 <script>
@@ -424,6 +425,7 @@
     var firebaseConfig = { 
         apiKey: "AIzaSyBqmzQw8CtTD6O2C3fiXcm7_GBmkgite_c", 
         authDomain: "agendamento-cin-itanhandu.firebaseapp.com", 
+        databaseURL: "https://agendamento-cin-itanhandu-default-rtdb.firebaseio.com",
         projectId: "agendamento-cin-itanhandu", 
         storageBucket: "agendamento-cin-itanhandu.firebasestorage.app", 
         messagingSenderId: "144820039253", 
@@ -441,12 +443,25 @@
         console.warn("Firebase App Check ainda nao foi ativado: informe a chave publica do reCAPTCHA v3 no index.html.");
     }
     var functions = firebase.functions();
+    var realtimeDb = firebase.database();
 
     const DIAS_INICIAIS = ["2026-06-02","2026-06-03","2026-06-09","2026-06-10","2026-06-11","2026-06-12","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-28","2026-07-29","2026-07-30"];
     const HORAS_FALLBACK = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
     const DATA_NOVAS_VAGAS_PADRAO = "data a definir";
     let DIAS_DISPONIVEIS = [], HORARIOS = [], DATA_NOVAS_VAGAS = DATA_NOVAS_VAGAS_PADRAO; 
     let DISPONIBILIDADE_PUBLICA = { porData: {}, totalVagasRestantes: 0 };
+
+    function registrarPresencaPublica() {
+        const conexaoRef = realtimeDb.ref("presenca_publica/conexoes").push();
+        realtimeDb.ref(".info/connected").on("value", snapshot => {
+            if (snapshot.val() !== true) return;
+            conexaoRef.onDisconnect().remove()
+                .then(() => conexaoRef.set({
+                    conectadoEm: firebase.database.ServerValue.TIMESTAMP
+                }))
+                .catch(erro => console.warn("Nao foi possivel registrar presenca publica.", erro));
+        }, erro => console.warn("Nao foi possivel observar a conexao publica.", erro));
+    }
 
     function hojeISO() {
         const partes = new Intl.DateTimeFormat("en", {
@@ -1520,6 +1535,7 @@
     }
 
     (async function init() { 
+        registrarPresencaPublica();
         await carregarConfig(); 
         renderDatas(); 
         atualizarBannerVagas(); 

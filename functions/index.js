@@ -1,11 +1,16 @@
 const crypto = require("crypto");
 const admin = require("firebase-admin");
+const { getDatabaseWithUrl } = require("firebase-admin/database");
 const { HttpsError, onCall, onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onValueCreated } = require("firebase-functions/v2/database");
 
 admin.initializeApp();
 
 const db = admin.firestore();
+const RTDB_INSTANCE = "agendamento-cin-itanhandu-default-rtdb";
+const RTDB_URL = `https://${RTDB_INSTANCE}.firebaseio.com`;
+const realtimeDb = getDatabaseWithUrl(RTDB_URL);
 const CANCELAMENTO_TTL_MS = 10 * 60 * 1000;
 const DIAS_INICIAIS = ["2026-06-02", "2026-06-03", "2026-06-09", "2026-06-10", "2026-06-11", "2026-06-12", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-19", "2026-06-30", "2026-07-01", "2026-07-02", "2026-07-03", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24", "2026-07-28", "2026-07-29", "2026-07-30"];
 const HORAS_FALLBACK = ["14:20", "14:40", "15:00", "15:20", "15:40", "16:00", "16:20", "16:40"];
@@ -677,6 +682,45 @@ exports.carregarAgendaPublicaHttp = onRequest({
   }
 });
 
+exports.registrarMetricasAcessoPublico = onValueCreated({
+  ref: "/presenca_publica/conexoes/{conexaoId}",
+  instance: RTDB_INSTANCE,
+  region: "us-central1",
+  maxInstances: 10
+}, async (event) => {
+  const agora = Date.now();
+  const agoraLocal = agoraSaoPauloInput();
+  const dataISO = agoraLocal.slice(0, 10);
+  const hora = agoraLocal.slice(11, 13);
+  const sessaoRef = realtimeDb.ref(`presenca_publica/sessoes/${dataISO}/${event.params.conexaoId}`);
+  const sessaoNova = await sessaoRef.transaction((valorAtual) => valorAtual ? undefined : agora);
+  const contarAbertura = sessaoNova.committed;
+  const conexoesSnap = await realtimeDb.ref("presenca_publica/conexoes").once("value");
+  const totalOnline = conexoesSnap.numChildren();
+  const metricasRef = realtimeDb.ref(`presenca_publica/metricas/${dataISO}`);
+
+  await metricasRef.transaction((valorAtual) => {
+    const metricas = valorAtual && typeof valorAtual === "object" ? valorAtual : {};
+    const acessosPorHora = metricas.acessosPorHora && typeof metricas.acessosPorHora === "object"
+      ? { ...metricas.acessosPorHora }
+      : {};
+    const picoAtual = Number(metricas.picoSimultaneo) || 0;
+    const proximo = {
+      ...metricas,
+      totalAcessos: (Number(metricas.totalAcessos) || 0) + (contarAbertura ? 1 : 0),
+      acessosPorHora: {
+        ...acessosPorHora,
+        [hora]: (Number(acessosPorHora[hora]) || 0) + (contarAbertura ? 1 : 0)
+      },
+      picoSimultaneo: Math.max(picoAtual, totalOnline),
+      ultimaAtualizacao: agora
+    };
+
+    if (totalOnline > picoAtual) proximo.picoEm = agora;
+    return proximo;
+  });
+});
+
 exports.verificarBloqueioCpf = onCall(publicCallableOptions, async (request) => {
   const cpfNum = normalizarCpf(request.data && request.data.cpf);
   await aplicarRateLimit(request, "verificar_bloqueio_cpf", 20, 10 * 60 * 1000, cpfNum);
@@ -1239,4 +1283,21 @@ exports.limparDatasPassadasAgenda = onSchedule({
       criado: new Date().toISOString()
     }).catch(() => {});
   }
+});
+
+exports.limparSessoesAcessoPublico = onSchedule({
+  schedule: "15 4 * * *",
+  timeZone: "America/Sao_Paulo",
+  maxInstances: 1
+}, async () => {
+  const hoje = hojeSaoPauloISO();
+  const sessoesRef = realtimeDb.ref("presenca_publica/sessoes");
+  const sessoesSnap = await sessoesRef.once("value");
+  const atualizacoes = {};
+
+  sessoesSnap.forEach((diaSnap) => {
+    if (diaSnap.key < hoje) atualizacoes[diaSnap.key] = null;
+  });
+
+  if (Object.keys(atualizacoes).length) await sessoesRef.update(atualizacoes);
 });
