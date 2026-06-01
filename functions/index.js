@@ -48,7 +48,7 @@ const callableOptions = {
 
 const publicCallableOptions = {
   ...callableOptions,
-  enforceAppCheck: true,
+  enforceAppCheck: false,
   minInstances: 1
 };
 
