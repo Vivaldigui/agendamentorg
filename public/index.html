@@ -799,24 +799,47 @@
     async function verificarBloqueioCPF(cpf) {
         const cpfLimpo = limparCPF(cpf);
         if (cpfLimpo.length !== 11) return { bloqueado: false };
-        try {
-            const verificar = firebase.functions().httpsCallable("verificarBloqueioCpf");
-            const resposta = await verificar({ cpf: cpfLimpo });
-            const dados = resposta.data || {};
-            if (!dados.bloqueado) return { bloqueado: false };
-            return {
-                bloqueado: true,
-                dataLiberacao: dados.dataLiberacao || "",
-                mensagem: dados.mensagem || "Não foi possível realizar novo agendamento. Consta ausência em atendimento anterior."
-            };
-        } catch (e) {
-            console.error("Erro ao consultar bloqueio de CPF:", e);
-            return {
-                bloqueado: false,
-                erro: true,
-                mensagem: "Não foi possível validar o CPF no momento. Tente novamente em alguns instantes ou entre em contato com a Câmara."
-            };
+
+        const MAX_TENTATIVAS = 2;
+        let ultimoErro = null;
+
+        for (let tentativa = 0; tentativa < MAX_TENTATIVAS; tentativa++) {
+            try {
+                if (tentativa > 0) await new Promise(r => setTimeout(r, 1500 * tentativa));
+                const verificar = firebase.functions().httpsCallable("verificarBloqueioCpf");
+                const resposta = await verificar({ cpf: cpfLimpo });
+                const dados = resposta.data || {};
+                if (!dados.bloqueado) return { bloqueado: false };
+                return {
+                    bloqueado: true,
+                    dataLiberacao: dados.dataLiberacao || "",
+                    mensagem: dados.mensagem || "Não foi possível realizar novo agendamento. Consta ausência em atendimento anterior."
+                };
+            } catch (e) {
+                ultimoErro = e;
+                console.warn(`Tentativa ${tentativa + 1}/${MAX_TENTATIVAS} de verificar bloqueio falhou:`, e);
+                const codigo = (e && e.code) || "";
+                // Erros que não devem ser retentados
+                if (codigo === "invalid-argument") break;
+            }
         }
+
+        console.error("Erro ao consultar bloqueio de CPF após tentativas:", ultimoErro);
+        const codigoErro = (ultimoErro && ultimoErro.code) || "";
+        let mensagemErro;
+        if (codigoErro === "resource-exhausted") {
+            mensagemErro = "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.";
+        } else if (codigoErro === "unauthenticated" || codigoErro === "permission-denied") {
+            mensagemErro = "Não foi possível verificar a segurança da requisição. Tente novamente em alguns instantes.";
+        } else {
+            mensagemErro = "Não foi possível validar o CPF no momento. Tente novamente em alguns instantes ou entre em contato com a Câmara.";
+        }
+
+        return {
+            bloqueado: false,
+            erro: true,
+            mensagem: mensagemErro
+        };
     }
 
     function abrirWhatsAppContatoBloqueio() {
@@ -1203,7 +1226,7 @@
                 }
                 grade.appendChild(btn);
             });
-        } catch(e) { grade.innerHTML = '<p color="red">Erro ao carregar datas. Recarregue a página.</p>'; }
+        } catch(e) { grade.innerHTML = '<p color="red">Erro ao carregar datas. Tente novamente.</p>'; }
     }
 
     async function renderHoras(data) {
@@ -1316,6 +1339,35 @@
         window.scrollTo(0,0); 
     }
 
+    function erroTransiente(e) {
+        const codigo = (e && e.code) || "";
+        return ["deadline-exceeded", "unavailable", "internal", "aborted", "cancelled"].includes(codigo)
+            || (!codigo && e instanceof Error);
+    }
+
+    async function tentarRefreshAppCheck() {
+        try {
+            if (firebase.appCheck && APP_CHECK_RECAPTCHA_SITE_KEY && !APP_CHECK_RECAPTCHA_SITE_KEY.includes("COLE_AQUI")) {
+                firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
+            }
+        } catch (ex) { console.warn("Erro ao re-ativar App Check:", ex); }
+    }
+
+    async function recuperarAposErroAgendamento() {
+        try { localStorage.removeItem("cin_agenda_cache"); } catch (ex) {}
+        try {
+            await carregarConfig({ ignorarCache: true });
+            atualizarBannerVagas();
+        } catch (ex) { console.warn("Erro ao atualizar agenda após falha:", ex); }
+    }
+
+    async function slotAindaDisponivel() {
+        if (!dataSel || !horaSel) return false;
+        const infoDia = disponibilidadeDia(dataSel);
+        const horaAtual = infoDia.horarios.find(item => item.hora === horaSel);
+        return horaAtual && horaAtual.disponivel === true && horarioAgendamentoFuturo(dataSel, horaSel);
+    }
+
     async function confirmarAgendamento() {
         const nomeInput = document.getElementById("inp-nome");
         formatarNomeProprio(nomeInput);
@@ -1353,50 +1405,109 @@
         btn.disabled = true; 
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CONFIRMANDO...';
 
-        try {
-            const criarAgendamento = firebase.functions().httpsCallable("criarAgendamentoCidadao");
-            const resposta = await criarAgendamento({
-                nome,
-                cpf,
-                telefone: tel,
-                email,
-                nascimento: nascISO,
-                data: dataSel,
-                hora: horaSel
-            });
-            const ag = resposta.data.agendamento || {};
-            ultimoAgendamentoConfirmado = {
-                id: ag.id || "",
-                nome,
-                cpf,
-                nascimento: nascBR,
-                telefone: tel,
-                dataISO: ag.dataISO || dataSel,
-                dataBR: ag.dataBR || document.getElementById("resumo-data-txt").textContent,
-                hora: ag.hora || horaSel
-            };
+        const MAX_TENTATIVAS = 3;
+        let ultimoErro = null;
 
-            document.getElementById("ticket-info").textContent = `${ultimoAgendamentoConfirmado.dataBR} às ${ultimoAgendamentoConfirmado.hora}`; 
-            document.getElementById("dados-pessoais").style.display = "none"; 
-            document.getElementById("sucesso-docs").style.display = "block"; 
-            atualizarVisibilidadeAtalhos();
-            window.scrollTo(0,0);
-            dispararConfete();
-            const _ic = document.querySelector('#sucesso-docs .msg-sucesso-topo i');
-            if (_ic) { _ic.classList.remove('animar'); void _ic.offsetWidth; _ic.classList.add('animar'); }
-            await carregarConfig();
-            atualizarBannerVagas();
-        } catch(e) {
-            btn.disabled=false; 
-            btn.innerHTML='FINALIZAR AGENDAMENTO <i class="fa-solid fa-arrow-right"></i>';
-            if (erroHorarioOcupado(e)) {
-                await abrirAlterarHorario();
-                erro("Outra pessoa concluiu o agendamento primeiro nesse horário. Seus dados foram mantidos; escolha outra data ou horário disponível.");
-            } 
-            else if (erroCpfBloqueado(e)) { exibirBloqueioCPF({ mensagem: e.message }); }
-            else if (erroCpfDuplicado(e)) { erro("Este CPF já possui um agendamento ativo. Cancele o anterior para agendar novamente."); } 
-            else { console.error(e); erro(e.message || "Ocorreu um erro ao processar. Verifique a conexão."); }
+        for (let tentativa = 0; tentativa < MAX_TENTATIVAS; tentativa++) {
+            try {
+                if (tentativa > 0) {
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> TENTANDO NOVAMENTE...';
+                    await new Promise(r => setTimeout(r, 2000 * tentativa));
+                    // Revalidar slot antes de retentar
+                    await recuperarAposErroAgendamento();
+                    if (!await slotAindaDisponivel()) {
+                        await abrirAlterarHorario();
+                        erro("O horário selecionado foi preenchido. Seus dados foram mantidos; escolha outro horário disponível.");
+                        return;
+                    }
+                }
+
+                const criarAgendamento = firebase.functions().httpsCallable("criarAgendamentoCidadao");
+                const resposta = await criarAgendamento({
+                    nome,
+                    cpf,
+                    telefone: tel,
+                    email,
+                    nascimento: nascISO,
+                    data: dataSel,
+                    hora: horaSel
+                });
+
+                // Sucesso!
+                const ag = resposta.data.agendamento || {};
+                ultimoAgendamentoConfirmado = {
+                    id: ag.id || "",
+                    nome,
+                    cpf,
+                    nascimento: nascBR,
+                    telefone: tel,
+                    dataISO: ag.dataISO || dataSel,
+                    dataBR: ag.dataBR || document.getElementById("resumo-data-txt").textContent,
+                    hora: ag.hora || horaSel
+                };
+
+                document.getElementById("ticket-info").textContent = `${ultimoAgendamentoConfirmado.dataBR} às ${ultimoAgendamentoConfirmado.hora}`; 
+                document.getElementById("dados-pessoais").style.display = "none"; 
+                document.getElementById("sucesso-docs").style.display = "block"; 
+                atualizarVisibilidadeAtalhos();
+                window.scrollTo(0,0);
+                dispararConfete();
+                const _ic = document.querySelector('#sucesso-docs .msg-sucesso-topo i');
+                if (_ic) { _ic.classList.remove('animar'); void _ic.offsetWidth; _ic.classList.add('animar'); }
+                await carregarConfig();
+                atualizarBannerVagas();
+                return;
+            } catch(e) {
+                ultimoErro = e;
+                const codigo = (e && e.code) || "";
+                // Erros definitivos: não retentar
+                if (["already-exists", "invalid-argument", "failed-precondition", "resource-exhausted"].includes(codigo)) break;
+                // Erro de App Check: tentar refresh e retentar
+                if (codigo === "unauthenticated" || codigo === "permission-denied") {
+                    await tentarRefreshAppCheck();
+                    if (tentativa >= 1) break; // só retenta 1x para App Check
+                    continue;
+                }
+                // Erros transientes: retentar
+                if (erroTransiente(e)) {
+                    console.warn(`Tentativa ${tentativa + 1}/${MAX_TENTATIVAS} falhou:`, e);
+                    continue;
+                }
+                // Outros erros: não retentar
+                break;
+            }
         }
+
+        // Todas as tentativas falharam
+        btn.disabled = false; 
+        btn.innerHTML = 'FINALIZAR AGENDAMENTO <i class="fa-solid fa-arrow-right"></i>';
+
+        // Limpar cache e atualizar dados em background
+        recuperarAposErroAgendamento().then(() => {
+            // Se slot não está mais disponível, voltar para seleção
+            if (dataSel && horaSel) {
+                const infoDia = disponibilidadeDia(dataSel);
+                const horaAtual = infoDia.horarios.find(item => item.hora === horaSel);
+                if (!horaAtual || horaAtual.disponivel !== true || !horarioAgendamentoFuturo(dataSel, horaSel)) {
+                    abrirAlterarHorario().then(() => {
+                        aviso("O horário selecionado não está mais disponível. Seus dados foram mantidos; escolha outro horário.");
+                    });
+                }
+            }
+        }).catch(() => {});
+
+        const e = ultimoErro;
+        if (erroHorarioOcupado(e)) {
+            await abrirAlterarHorario();
+            erro("Outra pessoa concluiu o agendamento primeiro nesse horário. Seus dados foram mantidos; escolha outra data ou horário disponível.");
+        } 
+        else if (erroCpfBloqueado(e)) { exibirBloqueioCPF({ mensagem: e.message }); }
+        else if (erroCpfDuplicado(e)) { erro("Este CPF já possui um agendamento ativo. Cancele o anterior para agendar novamente."); }
+        else if (e && e.code === "deadline-exceeded") { erro("A conexão está lenta no momento. Clique em FINALIZAR AGENDAMENTO novamente para retentar."); }
+        else if (e && e.code === "resource-exhausted") { erro("Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente."); }
+        else if (e && (e.code === "unauthenticated" || e.code === "permission-denied")) { erro("Não foi possível verificar a segurança da requisição. Tente novamente em alguns instantes."); }
+        else if (e && (e.code === "unavailable" || e.code === "internal")) { erro("O servidor está temporariamente indisponível. Tente novamente em alguns instantes."); }
+        else { console.error(e); erro(e.message || "Ocorreu um erro ao processar. Tente novamente em alguns instantes."); }
     }
 
     async function consultarAgendamento() {
@@ -1412,17 +1523,42 @@
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> BUSCANDO...';
         res.innerHTML = HTML_LOADING;
 
-        try {
-            const consulta = firebase.functions().httpsCallable("consultarAgendamentoCidadao");
-            const resposta = await consulta({ cpf, nascimento: nascISO });
-            const ag = resposta.data.agendamento;
-            res.innerHTML = `<div class="ticket-consulta"><div class="nome-ag"><i class="fa-solid fa-user"></i> ${textoSeguro(ag.nome)}</div><span class="data-ag">${textoSeguro(ag.dataBR)} às ${textoSeguro(ag.hora)}</span></div>`;
-        } catch(e) {
-            res.innerHTML = `<p style='color:var(--danger); text-align:center;'>${textoSeguro(e.message || "Não foi possível consultar o agendamento.")}</p>`;
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = htmlOriginal;
+        const MAX_TENTATIVAS = 2;
+        let ultimoErro = null;
+
+        for (let tentativa = 0; tentativa < MAX_TENTATIVAS; tentativa++) {
+            try {
+                if (tentativa > 0) {
+                    await new Promise(r => setTimeout(r, 1500 * tentativa));
+                    await tentarRefreshAppCheck();
+                }
+                const consulta = firebase.functions().httpsCallable("consultarAgendamentoCidadao");
+                const resposta = await consulta({ cpf, nascimento: nascISO });
+                const ag = resposta.data.agendamento;
+                res.innerHTML = `<div class="ticket-consulta"><div class="nome-ag"><i class="fa-solid fa-user"></i> ${textoSeguro(ag.nome)}</div><span class="data-ag">${textoSeguro(ag.dataBR)} às ${textoSeguro(ag.hora)}</span></div>`;
+                return;
+            } catch(e) {
+                ultimoErro = e;
+                if (!erroTransiente(e)) break;
+                console.warn(`Tentativa ${tentativa + 1}/${MAX_TENTATIVAS} de consultar falhou:`, e);
+            }
         }
+
+        const codigo = (ultimoErro && ultimoErro.code) || "";
+        let msgErro;
+        if (codigo === "resource-exhausted") {
+            msgErro = "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.";
+        } else if (codigo === "unauthenticated" || codigo === "permission-denied") {
+            msgErro = "Não foi possível verificar a segurança da requisição. Tente novamente em alguns instantes.";
+        } else if (codigo === "deadline-exceeded" || codigo === "unavailable") {
+            msgErro = "O servidor está demorando para responder. Tente novamente em alguns instantes.";
+        } else {
+            msgErro = ultimoErro.message || "Não foi possível consultar o agendamento.";
+        }
+        res.innerHTML = `<p style='color:var(--danger); text-align:center;'>${textoSeguro(msgErro)}</p>`;
+
+        btn.disabled = false;
+        btn.innerHTML = htmlOriginal;
     }
 
     async function buscarParaCancelar() {
@@ -1438,15 +1574,77 @@
         btnBusca.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> BUSCANDO...';
         res.innerHTML = HTML_LOADING;
 
+        const MAX_TENTATIVAS = 2;
+        let respostaCancelamento = null;
+        let ultimoErroCancelamento = null;
+
+        for (let tentativa = 0; tentativa < MAX_TENTATIVAS; tentativa++) {
+            try {
+                if (tentativa > 0) {
+                    await new Promise(r => setTimeout(r, 1500 * tentativa));
+                    await tentarRefreshAppCheck();
+                }
+                const preparar = firebase.functions().httpsCallable("prepararCancelamentoCidadao");
+                respostaCancelamento = await preparar({ cpf, nascimento: nascISO });
+                ultimoErroCancelamento = null;
+                break;
+            } catch(e) {
+                ultimoErroCancelamento = e;
+                if (!erroTransiente(e)) break;
+                console.warn(`Tentativa ${tentativa + 1}/${MAX_TENTATIVAS} de buscar para cancelar falhou:`, e);
+            }
+        }
+
+        if (ultimoErroCancelamento || !respostaCancelamento) {
+            const eCancel = ultimoErroCancelamento;
+            const codigo = (eCancel && eCancel.code) || "";
+            let msgErro;
+            if (codigo === "resource-exhausted") {
+                msgErro = "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.";
+            } else if (codigo === "unauthenticated" || codigo === "permission-denied") {
+                msgErro = "Não foi possível verificar a segurança da requisição. Tente novamente em alguns instantes.";
+            } else if (codigo === "deadline-exceeded" || codigo === "unavailable") {
+                msgErro = "O servidor está demorando para responder. Tente novamente em alguns instantes.";
+            } else {
+                msgErro = (eCancel && eCancel.message) || "Não foi possível localizar o agendamento.";
+            }
+            res.innerHTML = `<p style='color:var(--danger); text-align:center;'>${textoSeguro(msgErro)}</p>`;
+            btnBusca.disabled = false;
+            btnBusca.innerHTML = htmlOriginal;
+            return;
+        }
+
         try {
-            const preparar = firebase.functions().httpsCallable("prepararCancelamentoCidadao");
-            const resposta = await preparar({ cpf, nascimento: nascISO });
-            const ag = resposta.data.agendamento;
-            const token = resposta.data.token;
+            const ag = respostaCancelamento.data.agendamento;
+            const token = respostaCancelamento.data.token;
+            const expiraEm = respostaCancelamento.data.expiraEm;
 
             const wrapper = document.createElement("div");
             wrapper.style.cssText = "border:1px solid #fca5a5; border-left:5px solid var(--danger); border-radius:12px; padding:20px; background:var(--danger-light); margin-top:20px;";
             wrapper.innerHTML = `<p style="margin:0 0 8px; font-weight:800; font-size:1.05rem;">${textoSeguro(ag.nome)}</p><p style="margin:0 0 16px; font-size:1.2rem; font-weight:900; color:var(--danger-dark);">${textoSeguro(ag.dataBR)} às ${textoSeguro(ag.hora)}</p>`;
+
+            const timerEl = document.createElement("p");
+            timerEl.style.cssText = "margin:0 0 12px; font-size:0.85rem; color:var(--gray-600); text-align:center;";
+            wrapper.appendChild(timerEl);
+
+            let cancelTimerInterval = null;
+            if (expiraEm) {
+                function atualizarTimerCancelamento() {
+                    const restante = Math.max(0, Math.floor((expiraEm - Date.now()) / 1000));
+                    if (restante <= 0) {
+                        clearInterval(cancelTimerInterval);
+                        timerEl.innerHTML = '<strong style="color:var(--danger);">⚠️ Tempo expirado. Localize o agendamento novamente.</strong>';
+                        btn.disabled = true;
+                        btn.style.opacity = "0.5";
+                        return;
+                    }
+                    const min = Math.floor(restante / 60);
+                    const seg = restante % 60;
+                    timerEl.textContent = `⏱️ Confirme em até ${min}:${String(seg).padStart(2, "0")} minutos`;
+                }
+                atualizarTimerCancelamento();
+                cancelTimerInterval = setInterval(atualizarTimerCancelamento, 1000);
+            }
 
             const btn = document.createElement("button");
             btn.className = "btn-principal vermelho";
@@ -1459,11 +1657,20 @@
                     try {
                         const cancelar = firebase.functions().httpsCallable("cancelarAgendamentoCidadao");
                         await cancelar({ token });
+                        if (cancelTimerInterval) clearInterval(cancelTimerInterval);
                         modal({ icone: '<i class="fa-solid fa-circle-check" style="color:var(--success);"></i>', titulo: "Cancelado", mensagem: "Agendamento removido com sucesso.", botoes: [{ texto: "Ok", classe: "sucesso", acao: () => location.reload() }] });
                     } catch(e) {
                         btn.disabled = false;
                         btn.innerHTML = btnHtml;
-                        erro(e.message || "Não foi possível cancelar o agendamento.");
+                        const codigo = (e && e.code) || "";
+                        if (codigo === "deadline-exceeded" || codigo === "not-found") {
+                            if (cancelTimerInterval) clearInterval(cancelTimerInterval);
+                            erro("O tempo para confirmar o cancelamento expirou. Localize o agendamento novamente para cancelar.");
+                        } else if (codigo === "resource-exhausted") {
+                            erro("Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.");
+                        } else {
+                            erro(e.message || "Não foi possível cancelar o agendamento.");
+                        }
                     }
                 }});
             };
@@ -1472,7 +1679,16 @@
             wrapper.appendChild(btn);
             res.appendChild(wrapper);
         } catch(e) {
-            res.innerHTML = `<p style='color:var(--danger); text-align:center;'>${textoSeguro(e.message || "Não foi possível localizar o agendamento.")}</p>`;
+            const codigo = (e && e.code) || "";
+            let msgErro;
+            if (codigo === "resource-exhausted") {
+                msgErro = "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.";
+            } else if (codigo === "unauthenticated" || codigo === "permission-denied") {
+                msgErro = "Não foi possível verificar a segurança da requisição. Tente novamente em alguns instantes.";
+            } else {
+                msgErro = e.message || "Não foi possível localizar o agendamento.";
+            }
+            res.innerHTML = `<p style='color:var(--danger); text-align:center;'>${textoSeguro(msgErro)}</p>`;
         } finally {
             btnBusca.disabled = false;
             btnBusca.innerHTML = htmlOriginal;
@@ -1504,7 +1720,13 @@
             const diff = alvo - new Date();
             if (diff <= 0) {
                 clearInterval(window._contadorInterval);
-                el.innerHTML = '<strong class="proxima-liberacao" style="display:inline-block;margin-top:10px;">🎉 Vagas liberadas! Recarregue a página.</strong>';
+                el.innerHTML = '<strong class="proxima-liberacao" style="display:inline-block;margin-top:10px;">🎉 Vagas liberadas! Atualizando...</strong>';
+                carregarConfig({ ignorarCache: true }).then(() => {
+                    renderDatas();
+                    atualizarBannerVagas();
+                }).catch(() => {
+                    el.innerHTML = '<strong class="proxima-liberacao" style="display:inline-block;margin-top:10px;">🎉 Vagas liberadas! <a href="#" onclick="location.reload();return false;">Clique aqui para atualizar</a></strong>';
+                });
                 return;
             }
             const d = Math.floor(diff / 86400000), h = Math.floor((diff % 86400000) / 3600000);

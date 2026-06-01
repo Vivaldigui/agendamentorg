@@ -11,7 +11,7 @@ const db = admin.firestore();
 const RTDB_INSTANCE = "agendamento-cin-itanhandu-default-rtdb";
 const RTDB_URL = `https://${RTDB_INSTANCE}.firebaseio.com`;
 const realtimeDb = getDatabaseWithUrl(RTDB_URL);
-const CANCELAMENTO_TTL_MS = 10 * 60 * 1000;
+const CANCELAMENTO_TTL_MS = 30 * 60 * 1000;
 const DIAS_INICIAIS = ["2026-06-02", "2026-06-03", "2026-06-09", "2026-06-10", "2026-06-11", "2026-06-12", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-19", "2026-06-30", "2026-07-01", "2026-07-02", "2026-07-03", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24", "2026-07-28", "2026-07-29", "2026-07-30"];
 const HORAS_FALLBACK = ["14:20", "14:40", "15:00", "15:20", "15:40", "16:00", "16:20", "16:40"];
 const DATA_NOVAS_VAGAS_PADRAO = "01/06/2026";
@@ -42,17 +42,20 @@ const callableOptions = {
     "https://www.itanhandu.cam.mg.gov.br",
     "https://itanhandu.cam.mg.gov.br"
   ],
-  maxInstances: 10
+  maxInstances: 10,
+  timeoutSeconds: 120
 };
 
 const publicCallableOptions = {
   ...callableOptions,
-  enforceAppCheck: true
+  enforceAppCheck: true,
+  minInstances: 1
 };
 
 const agendamentoPicoOptions = {
   ...publicCallableOptions,
-  maxInstances: 30
+  maxInstances: 30,
+  minInstances: 1
 };
 
 function normalizarCpf(cpf) {
@@ -388,13 +391,14 @@ function normalizarBloqueadoAte(valor) {
 
 async function buscarBloqueioAtivoCpf(cpfNum) {
   const candidatos = [];
-  const docBloqueio = await db.collection("bloqueios_agendamento").doc(cpfNum).get();
+  const [docBloqueio, snapCadastro] = await Promise.all([
+    db.collection("bloqueios_agendamento").doc(cpfNum).get(),
+    db.collection("dados_cidadaos")
+      .where("bloqueioCpf", "==", cpfNum)
+      .limit(10)
+      .get()
+  ]);
   if (docBloqueio.exists) candidatos.push(docBloqueio.data());
-
-  const snapCadastro = await db.collection("dados_cidadaos")
-    .where("bloqueioCpf", "==", cpfNum)
-    .limit(10)
-    .get();
   snapCadastro.docs.forEach((doc) => candidatos.push(doc.data()));
 
   return candidatos
@@ -723,7 +727,7 @@ exports.registrarMetricasAcessoPublico = onValueCreated({
 
 exports.verificarBloqueioCpf = onCall(publicCallableOptions, async (request) => {
   const cpfNum = normalizarCpf(request.data && request.data.cpf);
-  await aplicarRateLimit(request, "verificar_bloqueio_cpf", 20, 10 * 60 * 1000, cpfNum);
+  await aplicarRateLimit(request, "verificar_bloqueio_cpf", 40, 10 * 60 * 1000, cpfNum);
   const bloqueio = await buscarBloqueioAtivoCpf(cpfNum);
   if (!bloqueio) return { bloqueado: false };
   return {
