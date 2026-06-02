@@ -1469,6 +1469,9 @@ Até logo!`;
         let responsavelPosto = RESPONSAVEL_POSTO_PADRAO;
         let templateLembrete = TEMPLATE_LEMBRETE_PADRAO;
         let agendamentosCache = [];
+        // Origem atual do cache para o auto-refresh nao sobrescrever resultados de busca/bloqueados.
+        // Valores: "lista" (periodo carregado), "historico" (busca por CPF/protocolo), "bloqueados".
+        let origemAgendamentosCache = "lista";
         let filtroRapidoAtual = "";
         let vistaPainelAtual = "hoje";
         let mostrarDatasPassadas = false;
@@ -2597,6 +2600,7 @@ Até logo!`;
                     .limit(900)
                     .get();
                 agendamentosCache = snap.docs.map(doc => ({ id: doc.id, dados: doc.data() }));
+                origemAgendamentosCache = "lista";
                 ordenarAgendamentosCache();
                 listaAgendamentosCarregada = true;
                 if (!preservarFiltros) {
@@ -2761,6 +2765,7 @@ Até logo!`;
                 }
                 const snaps = await Promise.all(consultas);
                 agendamentosCache = deduplicarAgendamentos(snaps.flatMap(snap => snap.docs.map(doc => ({ id: doc.id, dados: doc.data() }))));
+                origemAgendamentosCache = "historico";
                 ordenarAgendamentosCache();
                 filtroRapidoAtual = "";
                 marcarFiltroRapidoVisual("");
@@ -2786,6 +2791,7 @@ Até logo!`;
                 agendamentosCache = snap.docs
                     .map(doc => ({ id: doc.id, dados: doc.data() }))
                     .filter(ag => bloqueioAtivo(ag.dados));
+                origemAgendamentosCache = "bloqueados";
                 ordenarAgendamentosCache();
                 filtroRapidoAtual = "bloqueados";
                 document.getElementById("filtro-futuros").checked = false;
@@ -2919,6 +2925,8 @@ Até logo!`;
             clearInterval(timerAtualizacaoAutomatica);
             timerAtualizacaoAutomatica = setInterval(() => {
                 const filtroCurto = filtroRapidoAtual === "hoje" || filtroRapidoAtual === "amanha";
+                // Nao sobrescreve cache quando o admin esta vendo busca historica ou bloqueados.
+                if (origemAgendamentosCache !== "lista") return;
                 if (auth.currentUser && (vistaPainelAtual === "hoje" || filtroCurto)) {
                     listarAgendamentos({ silencioso: true, preservarFiltros: true });
                 }
