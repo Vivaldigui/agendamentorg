@@ -2884,7 +2884,9 @@ Até logo!`;
                             <span class="badge-status st-${textoSeguro(status)}">${textoSeguro(statusLabel(status))}</span>
                         </div>
                         <div class="fila-nome">${textoSeguro(d.nome)}${observacao}</div>
-                        <div class="fila-detalhe">${textoSeguro(cpfFormatado(d.cpf) || "CPF não informado")} · ${textoSeguro(d.protocolo || "sem protocolo")}</div>
+                        <div class="fila-detalhe"><i class="fa-solid fa-id-card"></i> ${textoSeguro(cpfFormatado(d.cpf) || "CPF não informado")}</div>
+                        <div class="fila-detalhe"><i class="fa-solid fa-phone"></i> ${textoSeguro(d.telefone || "Sem telefone")}</div>
+                        ${d.email ? `<div class="fila-detalhe"><i class="fa-solid fa-envelope"></i> ${textoSeguro(d.email)}</div>` : ""}
                         <div class="fila-acoes">
                             ${acoesStatusDiretas(ag)}
                             <button type="button" class="btn-status-direto btn-status-obs" title="Observação interna" onclick="abrirObservacao('${textoSeguro(ag.id)}')"><i class="fa-solid fa-note-sticky"></i></button>
