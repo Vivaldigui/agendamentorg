@@ -54,6 +54,10 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /credenciais_estacionamento/{documentId} {
+      allow get, list, create, update, delete: if isAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

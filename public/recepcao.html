@@ -1092,6 +1092,7 @@
         <div class="abas-operacao">
             <button type="button" class="btn btn-vista ativo" id="btn-vista-hoje" onclick="mostrarVistaPainel('hoje')"><i class="fa-solid fa-calendar-day"></i> Fila de hoje</button>
             <button type="button" class="btn btn-vista" id="btn-vista-lista" onclick="mostrarVistaPainel('lista')"><i class="fa-solid fa-table-list"></i> Lista e gestão</button>
+            <button type="button" class="btn btn-vista" id="btn-vista-credenciais" onclick="mostrarVistaPainel('credenciais')"><i class="fa-solid fa-square-parking"></i> Credenciais de estacionamento</button>
         </div>
         <section class="painel-fila ativo" id="vista-hoje">
             <div class="fila-topo">
@@ -1277,6 +1278,43 @@
             <div class="logs-lista" id="logs-lista"></div>
         </details>
         </div>
+        <div id="vista-credenciais" style="display:none;">
+            <div class="painel-config">
+                <h3><i class="fa-solid fa-square-parking"></i> Nova credencial de estacionamento</h3>
+                <div class="config-form">
+                    <div class="input-group" style="flex:2; min-width:240px;">
+                        <label>Nome completo: <span class="obrigatorio">*</span></label>
+                        <input type="text" id="cred-nome" placeholder="Nome do requerente">
+                    </div>
+                    <div class="input-group" style="min-width:180px;">
+                        <label>Tipo: <span class="obrigatorio">*</span></label>
+                        <select id="cred-tipo">
+                            <option value="idoso">Idoso</option>
+                            <option value="deficiente">Pessoa com deficiência</option>
+                        </select>
+                    </div>
+                    <div class="input-group" style="min-width:180px;">
+                        <label>Telefone/WhatsApp: <span class="obrigatorio">*</span></label>
+                        <input type="text" id="cred-tel" oninput="mascaraTel(this)" maxlength="15" placeholder="(00) 00000-0000">
+                    </div>
+                    <button type="button" class="btn btn-atualizar" onclick="salvarCredencial()"><i class="fa-solid fa-plus"></i> Cadastrar credencial</button>
+                </div>
+                <span class="periodo-info" id="info-credenciais">Carregando credenciais...</span>
+            </div>
+            <div class="controles">
+                <button type="button" class="btn btn-vista ativo" id="btn-cred-ativas" onclick="filtroCredenciais('ativas')">Em produção</button>
+                <button type="button" class="btn btn-vista" id="btn-cred-prontas" onclick="filtroCredenciais('prontas')">Prontas para entrega</button>
+                <button type="button" class="btn btn-vista" id="btn-cred-entregues" onclick="filtroCredenciais('entregues')">Entregues</button>
+                <button type="button" class="btn btn-vista" id="btn-cred-todas" onclick="filtroCredenciais('todas')">Todas</button>
+                <button type="button" class="btn btn-atualizar" onclick="carregarCredenciais()"><i class="fa-solid fa-rotate"></i> Atualizar</button>
+            </div>
+            <div class="tabela-wrap">
+                <table>
+                    <thead><tr><th>Nome</th><th>Tipo</th><th>Telefone</th><th>Cadastrada em</th><th>Status</th><th>Ações</th></tr></thead>
+                    <tbody id="corpo-credenciais"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <div id="modal-manual" class="modal">
@@ -1428,6 +1466,9 @@ Até logo!`;
         let totalAtendimentosRealizados = null;
         let totalAtendimentosCarregado = false;
         let estatisticasHistoricas = { cin: [], faltas: [] };
+        let credenciaisCache = [];
+        let credenciaisCarregadas = false;
+        let filtroCredencialAtual = "ativas";
         const INATIVIDADE_AVISO_MS = 25 * 60 * 1000;
         const INATIVIDADE_LOGOUT_MS = 30 * 60 * 1000;
         const ATUALIZACAO_AUTOMATICA_MS = 2 * 60 * 1000;
@@ -2099,7 +2140,13 @@ Até logo!`;
                 agenda_adicionar_data: "Data adicionada",
                 agenda_remover_data: "Data removida",
                 agenda_salvar_horarios_semana: "Horários salvos",
-                agenda_salvar_preferencias: "Preferências salvas"
+                agenda_salvar_preferencias: "Preferências salvas",
+                credencial_cadastrar: "Credencial cadastrada",
+                credencial_pronta: "Credencial pronta",
+                credencial_aviso_whatsapp: "Aviso WhatsApp credencial",
+                credencial_entregue: "Credencial entregue",
+                credencial_reabrir: "Credencial reaberta",
+                credencial_remover: "Credencial removida"
             })[acao] || String(acao || "Ação administrativa").replace(/_/g, " ");
         }
 
@@ -2829,12 +2876,16 @@ Até logo!`;
         }
 
         function mostrarVistaPainel(vista) {
-            vistaPainelAtual = vista === "lista" ? "lista" : "hoje";
+            const vistasValidas = ["hoje", "lista", "credenciais"];
+            vistaPainelAtual = vistasValidas.includes(vista) ? vista : "hoje";
             document.getElementById("vista-hoje").classList.toggle("ativo", vistaPainelAtual === "hoje");
             document.getElementById("vista-lista").style.display = vistaPainelAtual === "lista" ? "block" : "none";
+            document.getElementById("vista-credenciais").style.display = vistaPainelAtual === "credenciais" ? "block" : "none";
             document.getElementById("btn-vista-hoje").classList.toggle("ativo", vistaPainelAtual === "hoje");
             document.getElementById("btn-vista-lista").classList.toggle("ativo", vistaPainelAtual === "lista");
+            document.getElementById("btn-vista-credenciais").classList.toggle("ativo", vistaPainelAtual === "credenciais");
             if (vistaPainelAtual === "hoje") renderFilaHoje();
+            if (vistaPainelAtual === "credenciais" && !credenciaisCarregadas) carregarCredenciais();
         }
 
         function irParaConfiguracaoAgenda() {
@@ -3216,6 +3267,238 @@ Até logo!`;
             } catch (e) {
                 alert("Erro ao cancelar agendamento.");
                 listarAgendamentos();
+            }
+        }
+
+        function credencialTipoLabel(tipo) {
+            return tipo === "deficiente" ? "Pessoa com deficiência" : "Idoso";
+        }
+
+        function credencialStatusLabel(status) {
+            return ({ ativa: "Em produção", pronta: "Pronta para entrega", entregue: "Entregue" })[status] || "Em produção";
+        }
+
+        function mensagemCredencialPronta(cred) {
+            const tipoTexto = cred.tipo === "deficiente" ? "pessoa com deficiência" : "idoso";
+            const primeiroNome = String(cred.nome || "").trim().split(/\s+/)[0] || "";
+            const saudacao = primeiroNome ? `${primeiroNome}, ` : "";
+            return `Olá, ${saudacao}aqui é da Câmara Municipal de Itanhandu. Sua credencial de estacionamento (${tipoTexto}) já está pronta para retirada. Por favor, compareça à Câmara para retirar o documento. Atendimento de segunda a sexta, das 12h às 18h.`;
+        }
+
+        function dataHoraBrTimestamp(iso) {
+            if (!iso) return "";
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return "";
+            return d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+        }
+
+        async function carregarCredenciais() {
+            const corpo = document.getElementById("corpo-credenciais");
+            const info = document.getElementById("info-credenciais");
+            if (corpo) corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Carregando credenciais...</td></tr>";
+            try {
+                const snap = await db.collection("credenciais_estacionamento").orderBy("criadoEm", "desc").limit(500).get();
+                credenciaisCache = snap.docs.map(doc => ({ id: doc.id, dados: doc.data() }));
+                credenciaisCarregadas = true;
+                if (info) info.textContent = `${credenciaisCache.length} credencial(is) registrada(s) no total.`;
+                renderCredenciais();
+            } catch (e) {
+                console.warn("Erro ao carregar credenciais", e);
+                if (corpo) corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;color:#b91c1c;'>Erro ao carregar credenciais. Tente novamente.</td></tr>";
+                if (info) info.textContent = "Erro ao carregar credenciais.";
+            }
+        }
+
+        function filtroCredenciais(tipo) {
+            filtroCredencialAtual = tipo;
+            ["ativas", "prontas", "entregues", "todas"].forEach(t => {
+                const btn = document.getElementById(`btn-cred-${t}`);
+                if (btn) btn.classList.toggle("ativo", t === tipo);
+            });
+            renderCredenciais();
+        }
+
+        function credenciaisFiltradas() {
+            return credenciaisCache.filter(c => {
+                const status = c.dados.status || "ativa";
+                if (filtroCredencialAtual === "ativas") return status === "ativa";
+                if (filtroCredencialAtual === "prontas") return status === "pronta";
+                if (filtroCredencialAtual === "entregues") return status === "entregue";
+                return true;
+            });
+        }
+
+        function renderCredenciais() {
+            const corpo = document.getElementById("corpo-credenciais");
+            if (!corpo) return;
+            const lista = credenciaisFiltradas();
+            if (!lista.length) {
+                corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Nenhuma credencial neste filtro.</td></tr>";
+                return;
+            }
+            corpo.innerHTML = lista.map(c => {
+                const d = c.dados;
+                const status = d.status || "ativa";
+                const telFmt = textoSeguro(d.telefone || "");
+                const acoes = [];
+                if (status === "ativa") {
+                    acoes.push(`<button type="button" class="btn-pequeno btn-atualizar" onclick="marcarCredencialPronta('${c.id}')"><i class="fa-solid fa-check"></i> Marcar pronta</button>`);
+                }
+                if (status === "pronta") {
+                    acoes.push(`<button type="button" class="btn-pequeno btn-lembrete" onclick="abrirZapCredencial('${c.id}')"><i class="fa-brands fa-whatsapp"></i> Avisar WhatsApp</button>`);
+                    acoes.push(`<button type="button" class="btn-pequeno btn-atualizar" onclick="marcarCredencialEntregue('${c.id}')"><i class="fa-solid fa-handshake"></i> Entregue</button>`);
+                }
+                if (status === "entregue") {
+                    acoes.push(`<button type="button" class="btn-pequeno btn-lembrete" onclick="reabrirCredencial('${c.id}')"><i class="fa-solid fa-rotate-left"></i> Reabrir</button>`);
+                }
+                acoes.push(`<button type="button" class="btn-pequeno" style="background:#b91c1c;" onclick="removerCredencial('${c.id}')"><i class="fa-solid fa-trash"></i> Remover</button>`);
+                return `
+                    <tr>
+                        <td data-label="Nome" style="font-weight:700;">${textoSeguro(d.nome || "Sem nome")}</td>
+                        <td data-label="Tipo">${textoSeguro(credencialTipoLabel(d.tipo))}</td>
+                        <td data-label="Telefone">${telFmt || "Sem telefone"}</td>
+                        <td data-label="Cadastrada em">${textoSeguro(dataHoraBrTimestamp(d.criado))}</td>
+                        <td data-label="Status"><span class="badge-status st-${status === "entregue" ? "compareceu" : (status === "pronta" ? "agendado" : "remarcado")}">${textoSeguro(credencialStatusLabel(status))}</span>${d.avisadoEm ? `<br><small>Aviso enviado em ${textoSeguro(dataHoraBrTimestamp(d.avisadoEm))}</small>` : ""}</td>
+                        <td data-label="Ações"><div class="acoes-linha-rapida">${acoes.join("")}</div></td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        async function salvarCredencial() {
+            const nome = document.getElementById("cred-nome").value.trim();
+            const tipo = document.getElementById("cred-tipo").value;
+            const telBruto = document.getElementById("cred-tel").value;
+            const telLimpo = String(telBruto).replace(/\D/g, "");
+            if (nome.length < 3) return alert("Informe o nome completo do requerente.");
+            if (!["idoso", "deficiente"].includes(tipo)) return alert("Selecione o tipo da credencial.");
+            if (telLimpo.length < 10) return alert("Informe um telefone válido com DDD.");
+            const agora = new Date().toISOString();
+            const dados = {
+                nome,
+                tipo,
+                telefone: telBruto,
+                telefoneLimpo: telLimpo,
+                status: "ativa",
+                criado: agora,
+                criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+                criadoPor: auth.currentUser ? auth.currentUser.email : ""
+            };
+            try {
+                const ref = await db.collection("credenciais_estacionamento").add(dados);
+                credenciaisCache.unshift({ id: ref.id, dados: { ...dados, criadoEm: null } });
+                document.getElementById("cred-nome").value = "";
+                document.getElementById("cred-tel").value = "";
+                document.getElementById("cred-tipo").value = "idoso";
+                filtroCredencialAtual = "ativas";
+                filtroCredenciais("ativas");
+                await registrarLog("credencial_cadastrar", { credencialId: ref.id, nome, tipo });
+                mostrarToast(`Credencial de ${nome} cadastrada.`);
+                const info = document.getElementById("info-credenciais");
+                if (info) info.textContent = `${credenciaisCache.length} credencial(is) registrada(s) no total.`;
+            } catch (e) {
+                console.error("Erro ao salvar credencial", e);
+                alert("Erro ao salvar credencial. Tente novamente.");
+            }
+        }
+
+        async function marcarCredencialPronta(id) {
+            const cred = credenciaisCache.find(c => c.id === id);
+            if (!cred) return;
+            try {
+                const agora = new Date().toISOString();
+                await db.collection("credenciais_estacionamento").doc(id).set({
+                    status: "pronta",
+                    prontaEm: agora,
+                    prontaPor: auth.currentUser ? auth.currentUser.email : ""
+                }, { merge: true });
+                cred.dados.status = "pronta";
+                cred.dados.prontaEm = agora;
+                await registrarLog("credencial_pronta", { credencialId: id, nome: cred.dados.nome });
+                renderCredenciais();
+                mostrarToast(`Credencial de ${cred.dados.nome} marcada como pronta.`);
+            } catch (e) {
+                console.error("Erro ao marcar como pronta", e);
+                alert("Erro ao marcar como pronta.");
+            }
+        }
+
+        async function abrirZapCredencial(id) {
+            const cred = credenciaisCache.find(c => c.id === id);
+            if (!cred) return;
+            const telLimpo = String(cred.dados.telefoneLimpo || cred.dados.telefone || "").replace(/\D/g, "");
+            if (telLimpo.length < 10) return alert("Telefone inválido para WhatsApp.");
+            try {
+                const agora = new Date().toISOString();
+                await db.collection("credenciais_estacionamento").doc(id).set({
+                    avisadoEm: agora,
+                    avisadoPor: auth.currentUser ? auth.currentUser.email : ""
+                }, { merge: true });
+                cred.dados.avisadoEm = agora;
+                await registrarLog("credencial_aviso_whatsapp", { credencialId: id, nome: cred.dados.nome });
+                renderCredenciais();
+            } catch (e) {
+                console.warn("Não foi possível registrar o aviso", e);
+            }
+            window.open(`https://wa.me/55${telLimpo}?text=${encodeURIComponent(mensagemCredencialPronta(cred.dados))}`, "_blank", "noopener,noreferrer");
+        }
+
+        async function marcarCredencialEntregue(id) {
+            const cred = credenciaisCache.find(c => c.id === id);
+            if (!cred) return;
+            if (!confirm(`Confirmar entrega da credencial de ${cred.dados.nome}?`)) return;
+            try {
+                const agora = new Date().toISOString();
+                await db.collection("credenciais_estacionamento").doc(id).set({
+                    status: "entregue",
+                    entregueEm: agora,
+                    entreguePor: auth.currentUser ? auth.currentUser.email : ""
+                }, { merge: true });
+                cred.dados.status = "entregue";
+                cred.dados.entregueEm = agora;
+                await registrarLog("credencial_entregue", { credencialId: id, nome: cred.dados.nome });
+                renderCredenciais();
+                mostrarToast(`Credencial de ${cred.dados.nome} marcada como entregue.`);
+            } catch (e) {
+                console.error("Erro ao marcar como entregue", e);
+                alert("Erro ao marcar como entregue.");
+            }
+        }
+
+        async function reabrirCredencial(id) {
+            const cred = credenciaisCache.find(c => c.id === id);
+            if (!cred) return;
+            if (!confirm(`Reabrir a credencial de ${cred.dados.nome}? Ela voltará para "Pronta para entrega".`)) return;
+            try {
+                await db.collection("credenciais_estacionamento").doc(id).set({
+                    status: "pronta",
+                    entregueEm: firebase.firestore.FieldValue.delete()
+                }, { merge: true });
+                cred.dados.status = "pronta";
+                delete cred.dados.entregueEm;
+                await registrarLog("credencial_reabrir", { credencialId: id, nome: cred.dados.nome });
+                renderCredenciais();
+            } catch (e) {
+                console.error("Erro ao reabrir credencial", e);
+                alert("Erro ao reabrir credencial.");
+            }
+        }
+
+        async function removerCredencial(id) {
+            const cred = credenciaisCache.find(c => c.id === id);
+            if (!cred) return;
+            if (!confirm(`Remover permanentemente a credencial de ${cred.dados.nome}?`)) return;
+            try {
+                await db.collection("credenciais_estacionamento").doc(id).delete();
+                credenciaisCache = credenciaisCache.filter(c => c.id !== id);
+                await registrarLog("credencial_remover", { credencialId: id, nome: cred.dados.nome });
+                renderCredenciais();
+                const info = document.getElementById("info-credenciais");
+                if (info) info.textContent = `${credenciaisCache.length} credencial(is) registrada(s) no total.`;
+                mostrarToast(`Credencial de ${cred.dados.nome} removida.`);
+            } catch (e) {
+                console.error("Erro ao remover credencial", e);
+                alert("Erro ao remover credencial.");
             }
         }
 
