@@ -1062,25 +1062,12 @@
         body.modo-escuro .fila-nome, body.modo-escuro .horario-dia strong, body.modo-escuro .log-item strong { color:#e2e8f0; }
         body.modo-escuro .chip-horario { background:#082f49; color:#bae6fd; border-color:#075985; }
         body.modo-escuro .horario-dia input { background:#0b1220; color:#e2e8f0; border-color:#334155; }
-        .cards-acesso-publico { display:grid; grid-template-columns:repeat(3, minmax(180px, 1fr)); gap:12px; margin-bottom:18px; }
-        .card-acesso-publico { position:relative; overflow:hidden; min-height:92px; padding:15px 16px 14px 54px; border:1px solid var(--line); border-radius:var(--radius-md); background:var(--surface); box-shadow:var(--shadow-sm); }
-        .card-acesso-publico::before { content:""; position:absolute; inset:0 auto 0 0; width:5px; background:#16a34a; }
-        .card-acesso-publico:nth-child(2)::before { background:#0ea5e9; }
-        .card-acesso-publico:nth-child(3)::before { background:#f59e0b; }
-        .card-acesso-publico i { position:absolute; top:17px; left:20px; color:var(--primary); font-size:1.1rem; }
-        .card-acesso-publico span { display:block; color:var(--muted); font-size:0.7rem; font-weight:900; text-transform:uppercase; letter-spacing:0.04em; }
-        .card-acesso-publico strong { display:block; margin-top:7px; color:var(--primary-dark); font-size:1.55rem; line-height:1; }
-        .card-acesso-publico small { display:block; margin-top:7px; color:var(--muted); font-size:0.74rem; font-weight:700; line-height:1.25; }
-        body.modo-escuro .card-acesso-publico { background:#111827; border-color:#334155; }
-        body.modo-escuro .card-acesso-publico strong { color:#e2e8f0; }
-        body.modo-escuro .card-acesso-publico span, body.modo-escuro .card-acesso-publico small { color:#94a3b8; }
         @media (max-width:760px) {
             .fila-topo { grid-template-columns:1fr; top:4px; }
             .fila-resumo { text-align:left; }
             .horario-dia { grid-template-columns:1fr; padding:10px; border:1px solid var(--line); border-radius:10px; }
             .config-grid { grid-template-columns:1fr; }
             .log-item { grid-template-columns:1fr; gap:2px; }
-            .cards-acesso-publico { grid-template-columns:1fr; }
         }
     </style>
 </head>
@@ -1105,11 +1092,6 @@
         <div class="abas-operacao">
             <button type="button" class="btn btn-vista ativo" id="btn-vista-hoje" onclick="mostrarVistaPainel('hoje')"><i class="fa-solid fa-calendar-day"></i> Fila de hoje</button>
             <button type="button" class="btn btn-vista" id="btn-vista-lista" onclick="mostrarVistaPainel('lista')"><i class="fa-solid fa-table-list"></i> Lista e gestão</button>
-        </div>
-        <div class="cards-acesso-publico">
-            <div class="card-acesso-publico"><i class="fa-solid fa-signal"></i><span>Site p&uacute;blico agora</span><strong id="kpi-online-publico">--</strong><small>Telas abertas ao vivo</small></div>
-            <div class="card-acesso-publico"><i class="fa-solid fa-arrow-trend-up"></i><span>Pico simult&acirc;neo hoje</span><strong id="kpi-pico-publico">--</strong><small id="kpi-pico-publico-em">Aguardando acessos</small></div>
-            <div class="card-acesso-publico"><i class="fa-solid fa-clock"></i><span>Hor&aacute;rio mais acessado</span><strong id="kpi-hora-publico">--</strong><small id="kpi-hora-publico-total">Aguardando acessos</small></div>
         </div>
         <section class="painel-fila ativo" id="vista-hoje">
             <div class="fila-topo">
@@ -1393,7 +1375,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app-check.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
 
@@ -1402,7 +1383,7 @@
         var firebaseConfig = { apiKey: "AIzaSyBqmzQw8CtTD6O2C3fiXcm7_GBmkgite_c", authDomain: "agendamento-cin-itanhandu.firebaseapp.com", databaseURL: "https://agendamento-cin-itanhandu-default-rtdb.firebaseio.com", projectId: "agendamento-cin-itanhandu", storageBucket: "agendamento-cin-itanhandu.firebasestorage.app", messagingSenderId: "144820039253", appId: "1:144820039253:web:af179156ce8da4b73a6edc" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         if (firebase.appCheck) firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
-        const db = firebase.firestore(); const auth = firebase.auth(); const functions = firebase.functions(); const realtimeDb = firebase.database();
+        const db = firebase.firestore(); const auth = firebase.auth(); const functions = firebase.functions();
         const DIAS_INICIAIS = ["2026-06-02","2026-06-03","2026-06-09","2026-06-10","2026-06-11","2026-06-12","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-28","2026-07-29","2026-07-30"];
         const HORARIOS_PADRAO = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
         const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
@@ -1451,7 +1432,6 @@ Até logo!`;
         const INATIVIDADE_LOGOUT_MS = 30 * 60 * 1000;
         const ATUALIZACAO_AUTOMATICA_MS = 2 * 60 * 1000;
         let timerAviso = null, timerLogout = null, timerSessaoContagem = null, timerAtualizacaoAutomatica = null;
-        let conexoesPublicasRef = null, metricasAcessoPublicoRef = null, diaMonitorAcessoPublico = "";
         let ultimaAtualizacaoLista = null;
         let logsRecentes = [];
         try {
@@ -1562,60 +1542,6 @@ Até logo!`;
             }).formatToParts(new Date());
             const valores = Object.fromEntries(partes.map(parte => [parte.type, parte.value]));
             return `${valores.year}-${valores.month}-${valores.day}T${valores.hour}:${valores.minute}`;
-        }
-
-        function horaSaoPauloTimestamp(valor) {
-            const data = new Date(Number(valor));
-            if (Number.isNaN(data.getTime())) return "";
-            return data.toLocaleTimeString("pt-BR", {
-                timeZone: "America/Sao_Paulo",
-                hour: "2-digit",
-                minute: "2-digit"
-            });
-        }
-
-        function atualizarMetricasAcessoPublico(metricas = {}) {
-            const totalAcessos = Number(metricas.totalAcessos) || 0;
-            const pico = Number(metricas.picoSimultaneo) || 0;
-            const horaPico = horaSaoPauloTimestamp(metricas.picoEm);
-            const porHora = metricas.acessosPorHora && typeof metricas.acessosPorHora === "object"
-                ? Object.entries(metricas.acessosPorHora)
-                : [];
-            const maiorFaixa = porHora
-                .filter(([hora, total]) => /^\d{2}$/.test(hora) && Number(total) > 0)
-                .sort((a, b) => Number(b[1]) - Number(a[1]) || a[0].localeCompare(b[0]))[0];
-
-            document.getElementById("kpi-pico-publico").textContent = pico;
-            document.getElementById("kpi-pico-publico-em").textContent = horaPico
-                ? `Pico registrado \u00e0s ${horaPico}`
-                : "Aguardando acessos";
-            document.getElementById("kpi-hora-publico").textContent = maiorFaixa ? `${maiorFaixa[0]}:00` : "--";
-            document.getElementById("kpi-hora-publico-total").textContent = maiorFaixa
-                ? `${Number(maiorFaixa[1])} abertura(s) nesta faixa; ${totalAcessos} hoje`
-                : "Aguardando acessos";
-        }
-
-        function pararMonitorAcessoPublico() {
-            if (conexoesPublicasRef) conexoesPublicasRef.off();
-            if (metricasAcessoPublicoRef) metricasAcessoPublicoRef.off();
-            conexoesPublicasRef = null;
-            metricasAcessoPublicoRef = null;
-            diaMonitorAcessoPublico = "";
-        }
-
-        function iniciarMonitorAcessoPublico() {
-            pararMonitorAcessoPublico();
-            diaMonitorAcessoPublico = hojeISO();
-            conexoesPublicasRef = realtimeDb.ref("presenca_publica/conexoes");
-            metricasAcessoPublicoRef = realtimeDb.ref(`presenca_publica/metricas/${diaMonitorAcessoPublico}`);
-            conexoesPublicasRef.on("value", snap => {
-                document.getElementById("kpi-online-publico").textContent = snap.numChildren();
-            }, () => {
-                document.getElementById("kpi-online-publico").textContent = "--";
-            });
-            metricasAcessoPublicoRef.on("value", snap => atualizarMetricasAcessoPublico(snap.val() || {}), () => {
-                atualizarMetricasAcessoPublico();
-            });
         }
 
         function dataBrISO(dataISO) {
@@ -2220,7 +2146,6 @@ Até logo!`;
                 document.getElementById('login-screen').style.display='none';
                 document.getElementById('painel-screen').style.display='block';
                 resetarTimerInatividade();
-                iniciarMonitorAcessoPublico();
                 // Impede selecionar datas passadas no input de nova data.
                 document.getElementById('cfg-data').min = hojeISO();
                 document.getElementById('m-data').min = hojeISO();
@@ -2240,7 +2165,6 @@ Até logo!`;
                 agendarAtualizacaoAutomatica();
             }
             else {
-                pararMonitorAcessoPublico();
                 document.getElementById('login-screen').style.display='block';
                 document.getElementById('painel-screen').style.display='none';
                 document.title = "Recepção CIN — Câmara de Itanhandu";
@@ -2248,7 +2172,7 @@ Até logo!`;
         });
 
         function fazerLogin() { auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('senha').value).catch(e => alert("Acesso negado.")); }
-        function fazerLogout() { clearTimeout(timerAviso); clearTimeout(timerLogout); clearInterval(timerAtualizacaoAutomatica); removerAvisoSessao(); pararMonitorAcessoPublico(); auth.signOut(); }
+        function fazerLogout() { clearTimeout(timerAviso); clearTimeout(timerLogout); clearInterval(timerAtualizacaoAutomatica); removerAvisoSessao(); auth.signOut(); }
         function abrirModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='flex'; }
         function fecharModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='none'; }
         function fecharRemarcacao() { document.getElementById('modal-remarcar').style.display='none'; }
@@ -2931,7 +2855,6 @@ Até logo!`;
             clearInterval(timerAtualizacaoAutomatica);
             timerAtualizacaoAutomatica = setInterval(() => {
                 const filtroCurto = filtroRapidoAtual === "hoje" || filtroRapidoAtual === "amanha";
-                if (auth.currentUser && diaMonitorAcessoPublico !== hojeISO()) iniciarMonitorAcessoPublico();
                 if (auth.currentUser && (vistaPainelAtual === "hoje" || filtroCurto)) {
                     listarAgendamentos({ silencioso: true, preservarFiltros: true });
                 }
