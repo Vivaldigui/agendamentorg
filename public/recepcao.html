@@ -9,7 +9,11 @@
     <style>
         :root { --primary: #0056b3; --primary-dark: #003d82; --success: #1d6f42; --bg: #f4f7f9; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #1e293b; }
-        #login-screen { max-width: 400px; margin: 10vh auto; background: white; padding: 40px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.06); text-align: center; }
+        #login-screen { display: none; max-width: 400px; margin: 10vh auto; background: white; padding: 40px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.06); text-align: center; }
+        #boot-splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: var(--bg); color: #475569; z-index: 9999; font-weight: 600; }
+        #boot-splash i { font-size: 2rem; color: var(--primary); }
+        body.modo-escuro #boot-splash { background: #0f172a; color: #cbd5e1; }
+        body.modo-escuro #boot-splash i { color: #60a5fa; }
         .input-group { margin-bottom: 15px; text-align: left; }
         .input-group label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 5px; }
         .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; background: white; font-family: inherit; }
@@ -1073,6 +1077,11 @@
 </head>
 <body class="modo-escuro">
 
+    <div id="boot-splash">
+        <i class="fa-solid fa-spinner fa-spin"></i>
+        <span>Carregando painel...</span>
+    </div>
+
     <div id="login-screen">
         <img src="/assets/header-logo.png" style="max-width:180px; margin-bottom:20px;">
         <h2>Gestão Oficial CIN</h2>
@@ -1422,6 +1431,8 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         if (firebase.appCheck) firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
         const db = firebase.firestore(); const auth = firebase.auth(); const functions = firebase.functions();
+        // Mantem o login salvo entre fechamentos do navegador.
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.warn("Persistencia de login indisponivel", e));
         const DIAS_INICIAIS = ["2026-06-02","2026-06-03","2026-06-09","2026-06-10","2026-06-11","2026-06-12","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-28","2026-07-29","2026-07-30"];
         const HORARIOS_PADRAO = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
         const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
@@ -1469,8 +1480,8 @@ Até logo!`;
         let credenciaisCache = [];
         let credenciaisCarregadas = false;
         let filtroCredencialAtual = "ativas";
-        const INATIVIDADE_AVISO_MS = 25 * 60 * 1000;
-        const INATIVIDADE_LOGOUT_MS = 30 * 60 * 1000;
+        const INATIVIDADE_AVISO_MS = 7 * 60 * 60 * 1000 + 55 * 60 * 1000; // 7h55min
+        const INATIVIDADE_LOGOUT_MS = 8 * 60 * 60 * 1000; // 8h (jornada completa)
         const ATUALIZACAO_AUTOMATICA_MS = 2 * 60 * 1000;
         let timerAviso = null, timerLogout = null, timerSessaoContagem = null, timerAtualizacaoAutomatica = null;
         let ultimaAtualizacaoLista = null;
@@ -2189,6 +2200,8 @@ Até logo!`;
         }
 
         auth.onAuthStateChanged(async user => {
+            const splash = document.getElementById('boot-splash');
+            if (splash) splash.style.display = 'none';
             if (user) {
                 document.getElementById('login-screen').style.display='none';
                 document.getElementById('painel-screen').style.display='block';
