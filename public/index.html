@@ -1430,6 +1430,7 @@
 
         const MAX_TENTATIVAS = 3;
         let ultimoErro = null;
+        let substituirAnterior = false;
 
         for (let tentativa = 0; tentativa < MAX_TENTATIVAS; tentativa++) {
             try {
@@ -1453,11 +1454,13 @@
                     email,
                     nascimento: nascISO,
                     data: dataSel,
-                    hora: horaSel
+                    hora: horaSel,
+                    substituirAnterior
                 });
 
                 // Sucesso!
                 const ag = resposta.data.agendamento || {};
+                const substituiu = resposta.data && resposta.data.substituiu;
                 ultimoAgendamentoConfirmado = {
                     id: ag.id || "",
                     nome,
@@ -1481,10 +1484,28 @@
                 carregarConfig({ ignorarCache: true })
                     .then(() => atualizarBannerVagas())
                     .catch((ex) => console.warn("Erro ao atualizar agenda apos confirmacao:", ex));
+                if (substituiu) {
+                    aviso(`Seu agendamento anterior${substituiu.dataBR ? ` (${substituiu.dataBR}` : ""}${substituiu.hora ? ` às ${substituiu.hora})` : (substituiu.dataBR ? ")" : "")} foi cancelado automaticamente.`);
+                }
                 return;
             } catch(e) {
                 ultimoErro = e;
                 const codigo = (e && e.code) || "";
+                const detalhes = (e && e.details) || null;
+                // CPF ja possui agendamento: confirmar substituicao e retentar
+                if (codigo === "already-exists" && detalhes && detalhes.tipo === "cpf-ja-agendado" && !substituirAnterior) {
+                    const dataBR = textoSeguro(detalhes.dataBR || "");
+                    const hora = textoSeguro(detalhes.hora || "");
+                    const confirmou = confirm(`Atenção: Você já possui um agendamento marcado${dataBR ? ` para ${dataBR}` : ""}${hora ? ` às ${hora}` : ""}.\n\nSe prosseguir e marcar este novo horário, o seu agendamento anterior será cancelado.\n\nDeseja continuar?`);
+                    if (!confirmou) {
+                        btn.disabled = false;
+                        btn.innerHTML = 'FINALIZAR AGENDAMENTO <i class="fa-solid fa-arrow-right"></i>';
+                        return;
+                    }
+                    substituirAnterior = true;
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> SUBSTITUINDO AGENDAMENTO ANTERIOR...';
+                    continue;
+                }
                 // Erros definitivos: não retentar
                 if (["already-exists", "invalid-argument", "failed-precondition", "resource-exhausted"].includes(codigo)) break;
                 // Erro de App Check: tentar refresh e retentar

@@ -14,6 +14,9 @@ const realtimeDb = getDatabaseWithUrl(RTDB_URL);
 const CANCELAMENTO_TTL_MS = 30 * 60 * 1000;
 const DIAS_INICIAIS = ["2026-06-02", "2026-06-03", "2026-06-09", "2026-06-10", "2026-06-11", "2026-06-12", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-19", "2026-06-30", "2026-07-01", "2026-07-02", "2026-07-03", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24", "2026-07-28", "2026-07-29", "2026-07-30"];
 const HORAS_FALLBACK = ["14:20", "14:40", "15:00", "15:20", "15:40", "16:00", "16:20", "16:40"];
+const HORAS_FALLBACK_EXPANDIDO = ["14:20", "14:40", "15:00", "15:10", "15:20", "15:40", "16:00", "16:10", "16:20", "16:30", "16:40"];
+const NOVA_GRADE_INICIO_DATA = "2026-06-08";
+const NOVA_GRADE_PUBLICAR_EM = "2026-06-05T08:00:00";
 const DATA_NOVAS_VAGAS_PADRAO = "01/06/2026";
 const STATUS_VALIDOS = [
   "agendado",
@@ -252,7 +255,15 @@ function diaSemanaISO(dataISO) {
   return Number.isNaN(data.getTime()) ? -1 : data.getDay();
 }
 
-function horariosParaData(agenda, dataISO) {
+function novaGradeAtivaPara(dataISO, agoraParam) {
+  const agora = agoraParam || agoraSaoPauloInput();
+  return dataISO >= NOVA_GRADE_INICIO_DATA && agora >= NOVA_GRADE_PUBLICAR_EM;
+}
+
+function horariosParaData(agenda, dataISO, agoraParam) {
+  if (novaGradeAtivaPara(dataISO, agoraParam)) {
+    return [...HORAS_FALLBACK_EXPANDIDO];
+  }
   const chave = String(diaSemanaISO(dataISO));
   if (agenda.horariosPorDiaSemana && Object.prototype.hasOwnProperty.call(agenda.horariosPorDiaSemana, chave)) {
     return agenda.horariosPorDiaSemana[chave];
@@ -352,8 +363,9 @@ function respostaPublica(dados) {
 }
 
 function agendamentoEstaAtivo(dados) {
+  if (dados && dados.ativo === false) return false;
   const status = String(dados && dados.status || "agendado");
-  return !["cancelado", "cancelado_cidadao", "cancelado_camara"].includes(status);
+  return !["cancelado", "cancelado_cidadao", "cancelado_camara", "remarcado"].includes(status);
 }
 
 function normalizarBloqueadoAte(valor) {
@@ -840,6 +852,7 @@ exports.consultarAgendamentoCidadao = onCall(publicCallableOptions, async (reque
 exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request) => {
   const nome = normalizarTexto(request.data.nome, "o nome completo", 5, 120);
   const cpfNum = normalizarCpf(request.data.cpf);
+  const substituirAnterior = request.data && request.data.substituirAnterior === true;
   await aplicarRateLimit(request, "criar_agendamento", 6, 10 * 60 * 1000, cpfNum);
   const bloqueio = await buscarBloqueioAtivoCpf(cpfNum);
   if (bloqueio) {
@@ -864,6 +877,8 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
   const cpfLegadoRef = db.collection("cpfs_agendados").doc(cpfNum);
   const bloqueioRef = db.collection("bloqueios_agendamento").doc(cpfNum);
   const agendaRef = AGENDA_REF();
+
+  let agendamentoSubstituido = null;
 
   await db.runTransaction(async (t) => {
     const [slotDoc, cpfDoc, cpfLegadoDoc, bloqueioDoc, agendaDoc] = await Promise.all([
@@ -900,7 +915,8 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
       { ref: cpfLegadoRef, doc: cpfLegadoDoc }
     ].filter((item, index, lista) => item.doc.exists && lista.findIndex((outro) => outro.ref.path === item.ref.path) === index);
 
-    let cpfAtivo = false;
+    let agendamentoAtivoExistente = null;
+    let agendamentoAtivoExistenteRef = null;
     const cpfRefsObsoletos = [];
     for (const item of cpfRefs) {
       const agendamentoId = item.doc.data().agendamentoId;
@@ -908,16 +924,50 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
         cpfRefsObsoletos.push(item.ref);
         continue;
       }
-      const agCpfDoc = await t.get(db.collection("dados_cidadaos").doc(agendamentoId));
+      const agRef = db.collection("dados_cidadaos").doc(agendamentoId);
+      const agCpfDoc = await t.get(agRef);
       if (agCpfDoc.exists && agendamentoEstaAtivo(agCpfDoc.data())) {
-        cpfAtivo = true;
+        if (!agendamentoAtivoExistente) {
+          agendamentoAtivoExistente = agCpfDoc.data();
+          agendamentoAtivoExistenteRef = agRef;
+        }
       } else {
         cpfRefsObsoletos.push(item.ref);
       }
     }
 
-    if (cpfAtivo) {
-      throw new HttpsError("already-exists", "Este CPF ja possui um agendamento ativo.");
+    if (agendamentoAtivoExistente && !substituirAnterior) {
+      throw new HttpsError(
+        "already-exists",
+        `Este CPF ja possui um agendamento ativo em ${dataBr(agendamentoAtivoExistente.dataISO)} as ${agendamentoAtivoExistente.hora}.`,
+        {
+          tipo: "cpf-ja-agendado",
+          dataISO: agendamentoAtivoExistente.dataISO,
+          dataBR: dataBr(agendamentoAtivoExistente.dataISO),
+          hora: agendamentoAtivoExistente.hora
+        }
+      );
+    }
+
+    if (agendamentoAtivoExistente && substituirAnterior) {
+      const slotAntigoId = agendamentoAtivoExistente.slotId || `${agendamentoAtivoExistente.dataISO}_${agendamentoAtivoExistente.hora}`;
+      if (slotAntigoId && slotAntigoId !== slotId && slotAntigoId !== "undefined_undefined") {
+        t.delete(db.collection("vagas_ocupadas").doc(slotAntigoId));
+      }
+      t.set(agendamentoAtivoExistenteRef, {
+        status: "remarcado",
+        canceladoEm: criado,
+        canceladoPor: "cidadao_substituicao",
+        statusAtualizadoEm: criado,
+        ativo: false,
+        remarcadoParaAgendamentoId: agendamentoRef.id
+      }, { merge: true });
+      agendamentoSubstituido = {
+        id: agendamentoAtivoExistenteRef.id,
+        dataISO: agendamentoAtivoExistente.dataISO,
+        dataBR: dataBr(agendamentoAtivoExistente.dataISO),
+        hora: agendamentoAtivoExistente.hora
+      };
     }
 
     if (limparSlotObsoleto) t.delete(slotRef);
@@ -946,7 +996,8 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
       dataISO,
       dataBR: dataBr(dataISO),
       hora
-    }
+    },
+    substituiu: agendamentoSubstituido
   };
 });
 
