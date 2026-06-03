@@ -422,20 +422,22 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app-check.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
 
 <script>
     const APP_CHECK_RECAPTCHA_SITE_KEY = "6LdoYfcsAAAAALyCdBKewXtFLB1e9biRnXTWqNv0";
 
-    var firebaseConfig = { 
-        apiKey: "AIzaSyBqmzQw8CtTD6O2C3fiXcm7_GBmkgite_c", 
-        authDomain: "agendamento-cin-itanhandu.firebaseapp.com", 
+    var firebaseConfig = {
+        apiKey: "AIzaSyBqmzQw8CtTD6O2C3fiXcm7_GBmkgite_c",
+        authDomain: "agendamento-cin-itanhandu.firebaseapp.com",
         databaseURL: "https://agendamento-cin-itanhandu-default-rtdb.firebaseio.com",
-        projectId: "agendamento-cin-itanhandu", 
-        storageBucket: "agendamento-cin-itanhandu.firebasestorage.app", 
-        messagingSenderId: "144820039253", 
-        appId: "1:144820039253:web:af179156ce8da4b73a6edc" 
+        projectId: "agendamento-cin-itanhandu",
+        storageBucket: "agendamento-cin-itanhandu.firebasestorage.app",
+        messagingSenderId: "144820039253",
+        appId: "1:144820039253:web:af179156ce8da4b73a6edc",
+        measurementId: "G-KWKF7NCJHK"
     };
-    
+
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     if (
         firebase.appCheck &&
@@ -446,6 +448,7 @@
     } else {
         console.warn("Firebase App Check ainda nao foi ativado: informe a chave publica do reCAPTCHA v3 no index.html.");
     }
+    try { if (firebase.analytics) firebase.analytics(); } catch (e) { console.warn("Analytics indisponivel:", e); }
     var functions = firebase.functions();
     var realtimeDb = firebase.database();
 

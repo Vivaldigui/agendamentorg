@@ -1424,12 +1424,14 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
 
     <script>
         const APP_CHECK_RECAPTCHA_SITE_KEY = "6LdoYfcsAAAAALyCdBKewXtFLB1e9biRnXTWqNv0";
-        var firebaseConfig = { apiKey: "AIzaSyBqmzQw8CtTD6O2C3fiXcm7_GBmkgite_c", authDomain: "agendamento-cin-itanhandu.firebaseapp.com", databaseURL: "https://agendamento-cin-itanhandu-default-rtdb.firebaseio.com", projectId: "agendamento-cin-itanhandu", storageBucket: "agendamento-cin-itanhandu.firebasestorage.app", messagingSenderId: "144820039253", appId: "1:144820039253:web:af179156ce8da4b73a6edc" };
+        var firebaseConfig = { apiKey: "AIzaSyBqmzQw8CtTD6O2C3fiXcm7_GBmkgite_c", authDomain: "agendamento-cin-itanhandu.firebaseapp.com", databaseURL: "https://agendamento-cin-itanhandu-default-rtdb.firebaseio.com", projectId: "agendamento-cin-itanhandu", storageBucket: "agendamento-cin-itanhandu.firebasestorage.app", messagingSenderId: "144820039253", appId: "1:144820039253:web:af179156ce8da4b73a6edc", measurementId: "G-KWKF7NCJHK" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         if (firebase.appCheck) firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
+        try { if (firebase.analytics) firebase.analytics(); } catch (e) { console.warn("Analytics indisponivel:", e); }
         const db = firebase.firestore(); const auth = firebase.auth(); const functions = firebase.functions();
         // Mantem o login salvo entre fechamentos do navegador.
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.warn("Persistencia de login indisponivel", e));
