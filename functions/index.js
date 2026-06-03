@@ -57,7 +57,7 @@ const publicCallableOptions = {
 
 const agendamentoPicoOptions = {
   ...publicCallableOptions,
-  maxInstances: 30,
+  maxInstances: 80,
   minInstances: 1,
   timeoutSeconds: 300
 };
@@ -726,9 +726,9 @@ exports.carregarAgendaPublicaHttp = onRequest({
   }
 
   try {
-    await aplicarRateLimit({ rawRequest: req }, "carregar_agenda_publica_http", 120, 10 * 60 * 1000);
+    await aplicarRateLimit({ rawRequest: req }, "carregar_agenda_publica_http", 240, 10 * 60 * 1000);
     const dados = await carregarDisponibilidadePublica();
-    res.set("Cache-Control", "public, max-age=10, s-maxage=10");
+    res.set("Cache-Control", "public, max-age=20, s-maxage=20, stale-while-revalidate=40");
     res.status(200).json(dados);
   } catch (err) {
     const status = err && err.code === "resource-exhausted" ? 429 : 500;
@@ -853,7 +853,7 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
   const nome = normalizarTexto(request.data.nome, "o nome completo", 5, 120);
   const cpfNum = normalizarCpf(request.data.cpf);
   const substituirAnterior = request.data && request.data.substituirAnterior === true;
-  await aplicarRateLimit(request, "criar_agendamento", 6, 10 * 60 * 1000, cpfNum);
+  await aplicarRateLimit(request, "criar_agendamento", 20, 10 * 60 * 1000, cpfNum);
   const bloqueio = await buscarBloqueioAtivoCpf(cpfNum);
   if (bloqueio) {
     throw new HttpsError("failed-precondition", mensagemCpfBloqueado(bloqueio));
