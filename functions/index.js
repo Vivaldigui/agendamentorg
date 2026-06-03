@@ -55,10 +55,15 @@ const publicCallableOptions = {
   minInstances: 1
 };
 
+// Pre-aquecimento configuravel via env var no momento do deploy (sem editar codigo no dia).
+// Repouso: 1 instancia quente. Para eventos de pico, defina PICO_MIN_INSTANCES (ex.: 10) antes do deploy.
+const PICO_MIN_INSTANCES = Number(process.env.PICO_MIN_INSTANCES) || 1;
+const PICO_MIN_INSTANCES_LEITURA = PICO_MIN_INSTANCES > 1 ? Math.ceil(PICO_MIN_INSTANCES / 2) : 0;
+
 const agendamentoPicoOptions = {
   ...publicCallableOptions,
   maxInstances: 80,
-  minInstances: 1,
+  minInstances: PICO_MIN_INSTANCES,
   timeoutSeconds: 300
 };
 
@@ -718,7 +723,8 @@ exports.carregarAgendaPublica = onCall(publicCallableOptions, async (request) =>
 
 exports.carregarAgendaPublicaHttp = onRequest({
   cors: callableOptions.cors,
-  maxInstances: 50
+  maxInstances: 50,
+  minInstances: PICO_MIN_INSTANCES_LEITURA
 }, async (req, res) => {
   if (req.method !== "GET" && req.method !== "POST") {
     res.status(405).json({ erro: "Metodo nao permitido." });
