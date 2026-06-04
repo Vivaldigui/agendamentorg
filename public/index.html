@@ -455,8 +455,6 @@
     const DIAS_INICIAIS = ["2026-06-02","2026-06-03","2026-06-09","2026-06-10","2026-06-11","2026-06-12","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-28","2026-07-29","2026-07-30"];
     const HORAS_FALLBACK = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
     const DATA_NOVAS_VAGAS_PADRAO = "data a definir";
-    // Liberacao programada da grade expandida (espelha NOVA_GRADE_PUBLICAR_EM do backend).
-    const ABERTURA_NOVA_GRADE_ISO = "2026-06-08T18:00:00-03:00";
     let DIAS_DISPONIVEIS = [], HORARIOS = [], DATA_NOVAS_VAGAS = DATA_NOVAS_VAGAS_PADRAO; 
     let DISPONIBILIDADE_PUBLICA = { porData: {}, totalVagasRestantes: 0 };
 
@@ -1354,31 +1352,6 @@
         }
     }
 
-    // Atualizacao reforcada nos minutos ao redor da liberacao programada das novas vagas.
-    // Cada sessao recebe um jitter aleatorio (0-30s) para espalhar o pico no instante exato.
-    function vigiarAberturaNovaGrade() {
-        const alvo = new Date(ABERTURA_NOVA_GRADE_ISO).getTime();
-        if (Number.isNaN(alvo)) return;
-        const ANTES = 60 * 60 * 1000;   // so ativa na ultima 1h antes da abertura
-        const DEPOIS = 10 * 60 * 1000;  // segue ate 10 min apos a abertura
-        const agora = Date.now();
-        if (agora < alvo - ANTES || agora > alvo + DEPOIS) return; // fora da janela: inerte
-        const jitter = Math.floor(Math.random() * 30000);
-        let ultimoReload = 0;
-        const iv = setInterval(async () => {
-            const t = Date.now();
-            if (t > alvo + DEPOIS) { clearInterval(iv); return; }
-            if (t < alvo + jitter) return;          // aguarda o instante da abertura + jitter
-            if (t - ultimoReload < 22000) return;   // no maximo 1 atualizacao a cada ~22s
-            ultimoReload = t;
-            try { localStorage.removeItem("cin_agenda_cache"); } catch (e) {}
-            try {
-                await carregarConfig();             // usa a CDN, ignorando o cache local de 3 min
-                if (podeRedesenharAgenda()) { renderDatas(); atualizarBannerVagas(); }
-            } catch (e) { /* silencioso: proxima iteracao tenta de novo */ }
-        }, 5000);
-    }
-
     async function abrirAlterarHorario() { 
         horaSel = null;
         document.getElementById("dados-pessoais").style.display = "none"; 
@@ -1845,7 +1818,6 @@
         renderDatas(); 
         atualizarBannerVagas(); 
         iniciarAtualizacaoAutomatica();
-        vigiarAberturaNovaGrade();
         inicializarRipple();
         atualizarVisibilidadeAtalhos();
     })();

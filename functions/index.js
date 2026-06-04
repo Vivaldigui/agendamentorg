@@ -14,9 +14,6 @@ const realtimeDb = getDatabaseWithUrl(RTDB_URL);
 const CANCELAMENTO_TTL_MS = 30 * 60 * 1000;
 const DIAS_INICIAIS = ["2026-06-02", "2026-06-03", "2026-06-09", "2026-06-10", "2026-06-11", "2026-06-12", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-19", "2026-06-30", "2026-07-01", "2026-07-02", "2026-07-03", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24", "2026-07-28", "2026-07-29", "2026-07-30"];
 const HORAS_FALLBACK = ["14:20", "14:40", "15:00", "15:20", "15:40", "16:00", "16:20", "16:40"];
-const HORAS_FALLBACK_EXPANDIDO = ["14:20", "14:40", "15:00", "15:10", "15:20", "15:40", "16:00", "16:10", "16:20", "16:30", "16:40"];
-const NOVA_GRADE_INICIO_DATA = "2026-06-08";
-const NOVA_GRADE_PUBLICAR_EM = "2026-06-08T18:00:00";
 const DATA_NOVAS_VAGAS_PADRAO = "01/06/2026";
 const STATUS_VALIDOS = [
   "agendado",
@@ -260,15 +257,7 @@ function diaSemanaISO(dataISO) {
   return Number.isNaN(data.getTime()) ? -1 : data.getDay();
 }
 
-function novaGradeAtivaPara(dataISO, agoraParam) {
-  const agora = agoraParam || agoraSaoPauloInput();
-  return dataISO >= NOVA_GRADE_INICIO_DATA && agora >= NOVA_GRADE_PUBLICAR_EM;
-}
-
-function horariosParaData(agenda, dataISO, agoraParam) {
-  if (novaGradeAtivaPara(dataISO, agoraParam)) {
-    return [...HORAS_FALLBACK_EXPANDIDO];
-  }
+function horariosParaData(agenda, dataISO) {
   const chave = String(diaSemanaISO(dataISO));
   if (agenda.horariosPorDiaSemana && Object.prototype.hasOwnProperty.call(agenda.horariosPorDiaSemana, chave)) {
     return agenda.horariosPorDiaSemana[chave];
