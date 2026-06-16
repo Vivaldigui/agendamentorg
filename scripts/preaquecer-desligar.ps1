@@ -1,7 +1,7 @@
 # ============================================================
 #  PRE-AQUECIMENTO: DESLIGAR  (rodar ~1h DEPOIS da abertura)
 # ============================================================
-#  Volta ao repouso (1 instancia quente) para nao gerar custo
+#  Volta ao repouso (escala a zero) para nao gerar custo
 #  desnecessario. Para o evento de 08/06/2026 18h: rode por
 #  volta das 19h30-20h.
 #
@@ -11,10 +11,10 @@
 # ============================================================
 
 $ErrorActionPreference = "Stop"
-$env:PICO_MIN_INSTANCES = "1"
+$env:PICO_MIN_INSTANCES = "0"
 
 Write-Host ""
-Write-Host "==> Pre-aquecimento DESLIGADO (voltando ao repouso: minInstances = 1)" -ForegroundColor Cyan
+Write-Host "==> Pre-aquecimento DESLIGADO (voltando ao repouso: minInstances = 0)" -ForegroundColor Cyan
 Write-Host "==> Fazendo deploy das funcoes de pico..." -ForegroundColor Cyan
 Write-Host ""
 

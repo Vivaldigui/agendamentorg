@@ -48,13 +48,12 @@ const callableOptions = {
 
 const publicCallableOptions = {
   ...callableOptions,
-  enforceAppCheck: true,
-  minInstances: 1
+  enforceAppCheck: true
 };
 
 // Pre-aquecimento configuravel via env var no momento do deploy (sem editar codigo no dia).
-// Repouso: 1 instancia quente. Para eventos de pico, defina PICO_MIN_INSTANCES (ex.: 10) antes do deploy.
-const PICO_MIN_INSTANCES = Number(process.env.PICO_MIN_INSTANCES) || 1;
+// Repouso: escala a zero para reduzir custo. Para eventos de pico, defina PICO_MIN_INSTANCES (ex.: 10) antes do deploy.
+const PICO_MIN_INSTANCES = Number(process.env.PICO_MIN_INSTANCES) || 0;
 const PICO_MIN_INSTANCES_LEITURA = PICO_MIN_INSTANCES > 1 ? Math.ceil(PICO_MIN_INSTANCES / 2) : 0;
 
 const agendamentoPicoOptions = {
@@ -723,7 +722,7 @@ exports.carregarAgendaPublicaHttp = onRequest({
   try {
     await aplicarRateLimit({ rawRequest: req }, "carregar_agenda_publica_http", 240, 10 * 60 * 1000);
     const dados = await carregarDisponibilidadePublica();
-    res.set("Cache-Control", "public, max-age=20, s-maxage=20, stale-while-revalidate=40");
+    res.set("Cache-Control", "public, max-age=60, s-maxage=60, stale-while-revalidate=120");
     res.status(200).json(dados);
   } catch (err) {
     const status = err && err.code === "resource-exhausted" ? 429 : 500;

@@ -420,12 +420,13 @@
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app-check.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
 
 <script>
     const APP_CHECK_RECAPTCHA_SITE_KEY = "6LdoYfcsAAAAALyCdBKewXtFLB1e9biRnXTWqNv0";
+    const METRICAS_ACESSO_PUBLICO_ATIVAS = false;
+    const ATUALIZACAO_AGENDA_PUBLICA_MS = 3 * 60 * 1000;
 
     var firebaseConfig = {
         apiKey: "AIzaSyBqmzQw8CtTD6O2C3fiXcm7_GBmkgite_c",
@@ -450,7 +451,7 @@
     }
     try { if (firebase.analytics) firebase.analytics(); } catch (e) { console.warn("Analytics indisponivel:", e); }
     var functions = firebase.functions();
-    var realtimeDb = firebase.database();
+    var realtimeDb = firebase.database ? firebase.database() : null;
 
     const DIAS_INICIAIS = ["2026-06-02","2026-06-03","2026-06-09","2026-06-10","2026-06-11","2026-06-12","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-28","2026-07-29","2026-07-30"];
     const HORAS_FALLBACK = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
@@ -459,6 +460,7 @@
     let DISPONIBILIDADE_PUBLICA = { porData: {}, totalVagasRestantes: 0 };
 
     function registrarPresencaPublica() {
+        if (!METRICAS_ACESSO_PUBLICO_ATIVAS || !realtimeDb) return;
         const conexaoRef = realtimeDb.ref("presenca_publica/conexoes").push();
         realtimeDb.ref(".info/connected").on("value", snapshot => {
             if (snapshot.val() !== true) return;
@@ -1348,7 +1350,7 @@
 
     function iniciarAtualizacaoAutomatica() {
         if (!intervaloAtualizacaoAutomatica) {
-            intervaloAtualizacaoAutomatica = setInterval(agendarAtualizacaoAutomatica, 60000);
+            intervaloAtualizacaoAutomatica = setInterval(agendarAtualizacaoAutomatica, ATUALIZACAO_AGENDA_PUBLICA_MS);
         }
     }
 
