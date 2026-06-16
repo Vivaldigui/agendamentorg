@@ -2700,10 +2700,56 @@ Até logo!`;
             renderSerieMensal("ind-faltas-mes", faltasPorMes);
         }
 
+        // Cache diario dos indicadores historicos. A consulta original lia TODO o historico
+        // (compareceu + nao_compareceu, que cresce sem limite) a cada login/recarga. Os indicadores
+        // so usam dataISO, entao guardamos uma versao enxuta no navegador valida pelo dia corrente:
+        // a varredura completa roda no maximo 1x/dia/navegador, e mudancas de status feitas na sessao
+        // atualizam o cache na hora (atualizarEstatisticasLocalmente). Indicadores sao de tendencia,
+        // entao defasagem de ate 1 dia entre dispositivos diferentes e aceitavel.
+        const STATS_HIST_CACHE_KEY = "statsHistoricas_v1";
+
+        function persistirStatsHistoricas() {
+            try {
+                const enxugar = bucket => (estatisticasHistoricas[bucket] || []).map(ag => ({
+                    id: ag.id,
+                    dataISO: (ag.dados && ag.dados.dataISO) || ""
+                }));
+                localStorage.setItem(STATS_HIST_CACHE_KEY, JSON.stringify({
+                    dia: hojeISO(),
+                    cin: enxugar("cin"),
+                    faltas: enxugar("faltas")
+                }));
+            } catch (e) { /* localStorage indisponivel: segue sem cache */ }
+        }
+
+        function lerStatsHistoricasCache() {
+            try {
+                const bruto = localStorage.getItem(STATS_HIST_CACHE_KEY);
+                if (!bruto) return null;
+                const dados = JSON.parse(bruto);
+                if (!dados || dados.dia !== hojeISO() || !Array.isArray(dados.cin) || !Array.isArray(dados.faltas)) return null;
+                const hidratar = lista => lista.map(item => ({ id: item.id, dados: { dataISO: item.dataISO || "" } }));
+                return { cin: hidratar(dados.cin), faltas: hidratar(dados.faltas) };
+            } catch (e) {
+                return null;
+            }
+        }
+
         async function carregarTotalAtendimentosRealizados() {
             totalAtendimentosCarregado = false;
             document.getElementById("kpi-atendidos").textContent = "...";
             marcarIndicadoresHistoricosCarregando();
+
+            const cache = lerStatsHistoricasCache();
+            if (cache) {
+                estatisticasHistoricas = cache;
+                totalAtendimentosRealizados = estatisticasHistoricas.cin.length;
+                totalAtendimentosCarregado = true;
+                renderIndicadoresHistoricos();
+                atualizarResumo();
+                return;
+            }
+
             try {
                 const [cinSnap, faltasSnap] = await Promise.all([
                     db.collection("dados_cidadaos").where("status", "==", "compareceu").get(),
@@ -2715,6 +2761,7 @@ Até logo!`;
                 };
                 totalAtendimentosRealizados = estatisticasHistoricas.cin.length;
                 totalAtendimentosCarregado = true;
+                persistirStatsHistoricas();
                 renderIndicadoresHistoricos();
                 atualizarResumo();
             } catch (e) {
@@ -2741,6 +2788,7 @@ Até logo!`;
                 estatisticasHistoricas.faltas.push({ id, dados: dadosAtualizados });
             }
             totalAtendimentosRealizados = estatisticasHistoricas.cin.length;
+            persistirStatsHistoricas();
             renderIndicadoresHistoricos();
             atualizarResumo();
         }
@@ -2925,6 +2973,37 @@ Até logo!`;
             });
         }
 
+        // Refresh automatico leve: re-le apenas hoje/amanha (poucos documentos) e mescla no cache,
+        // preservando o restante do periodo ja carregado. Antes relia a janela inteira (ate 900 docs)
+        // a cada ciclo; agora le ~dezenas, reduzindo drasticamente as leituras do Firestore.
+        async function atualizarDiasVisiveisSilencioso() {
+            const inicio = hojeISO();
+            const fim = amanhaISO();
+            try {
+                const snap = await db.collection("dados_cidadaos")
+                    .where("dataISO", ">=", inicio)
+                    .where("dataISO", "<=", fim)
+                    .orderBy("dataISO")
+                    .limit(400)
+                    .get();
+                const novos = snap.docs.map(doc => ({ id: doc.id, dados: doc.data() }));
+                const idsNovos = new Set(novos.map(ag => ag.id));
+                // Mantem o que esta fora do intervalo recarregado; remove ids reaparecidos (ex.: remarcados
+                // para hoje/amanha) e as entradas antigas do proprio intervalo, depois aplica as versoes novas.
+                agendamentosCache = agendamentosCache.filter(ag => {
+                    if (idsNovos.has(ag.id)) return false;
+                    const data = String(ag.dados.dataISO || "");
+                    return data < inicio || data > fim;
+                }).concat(novos);
+                ordenarAgendamentosCache();
+                atualizarResumo();
+                renderTabelaAgendamentos();
+                marcarAtualizacaoLista();
+            } catch (e) {
+                console.warn("Falha no refresh automatico leve", e);
+            }
+        }
+
         function agendarAtualizacaoAutomatica() {
             clearInterval(timerAtualizacaoAutomatica);
             timerAtualizacaoAutomatica = setInterval(() => {
@@ -2932,7 +3011,7 @@ Até logo!`;
                 // Nao sobrescreve cache quando o admin esta vendo busca historica ou bloqueados.
                 if (origemAgendamentosCache !== "lista") return;
                 if (auth.currentUser && (vistaPainelAtual === "hoje" || filtroCurto)) {
-                    listarAgendamentos({ silencioso: true, preservarFiltros: true });
+                    atualizarDiasVisiveisSilencioso();
                 }
             }, ATUALIZACAO_AUTOMATICA_MS);
         }
