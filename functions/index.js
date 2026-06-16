@@ -1,16 +1,11 @@
 const crypto = require("crypto");
 const admin = require("firebase-admin");
-const { getDatabaseWithUrl } = require("firebase-admin/database");
 const { HttpsError, onCall, onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const { onValueCreated } = require("firebase-functions/v2/database");
 
 admin.initializeApp();
 
 const db = admin.firestore();
-const RTDB_INSTANCE = "agendamento-cin-itanhandu-default-rtdb";
-const RTDB_URL = `https://${RTDB_INSTANCE}.firebaseio.com`;
-const realtimeDb = getDatabaseWithUrl(RTDB_URL);
 const CANCELAMENTO_TTL_MS = 30 * 60 * 1000;
 const DIAS_INICIAIS = ["2026-06-02", "2026-06-03", "2026-06-09", "2026-06-10", "2026-06-11", "2026-06-12", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-19", "2026-06-30", "2026-07-01", "2026-07-02", "2026-07-03", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24", "2026-07-28", "2026-07-29", "2026-07-30"];
 const HORAS_FALLBACK = ["14:20", "14:40", "15:00", "15:20", "15:40", "16:00", "16:20", "16:40"];
@@ -704,11 +699,6 @@ async function carregarDisponibilidadePublica() {
   };
 }
 
-exports.carregarAgendaPublica = onCall(publicCallableOptions, async (request) => {
-  await aplicarRateLimit(request, "carregar_agenda_publica", 120, 10 * 60 * 1000);
-  return carregarDisponibilidadePublica();
-});
-
 exports.carregarAgendaPublicaHttp = onRequest({
   cors: callableOptions.cors,
   maxInstances: 50,
@@ -728,45 +718,6 @@ exports.carregarAgendaPublicaHttp = onRequest({
     const status = err && err.code === "resource-exhausted" ? 429 : 500;
     res.status(status).json({ erro: err && err.message ? err.message : "Erro ao carregar agenda publica." });
   }
-});
-
-exports.registrarMetricasAcessoPublico = onValueCreated({
-  ref: "/presenca_publica/conexoes/{conexaoId}",
-  instance: RTDB_INSTANCE,
-  region: "us-central1",
-  maxInstances: 10
-}, async (event) => {
-  const agora = Date.now();
-  const agoraLocal = agoraSaoPauloInput();
-  const dataISO = agoraLocal.slice(0, 10);
-  const hora = agoraLocal.slice(11, 13);
-  const sessaoRef = realtimeDb.ref(`presenca_publica/sessoes/${dataISO}/${event.params.conexaoId}`);
-  const sessaoNova = await sessaoRef.transaction((valorAtual) => valorAtual ? undefined : agora);
-  const contarAbertura = sessaoNova.committed;
-  const conexoesSnap = await realtimeDb.ref("presenca_publica/conexoes").once("value");
-  const totalOnline = conexoesSnap.numChildren();
-  const metricasRef = realtimeDb.ref(`presenca_publica/metricas/${dataISO}`);
-
-  await metricasRef.transaction((valorAtual) => {
-    const metricas = valorAtual && typeof valorAtual === "object" ? valorAtual : {};
-    const acessosPorHora = metricas.acessosPorHora && typeof metricas.acessosPorHora === "object"
-      ? { ...metricas.acessosPorHora }
-      : {};
-    const picoAtual = Number(metricas.picoSimultaneo) || 0;
-    const proximo = {
-      ...metricas,
-      totalAcessos: (Number(metricas.totalAcessos) || 0) + (contarAbertura ? 1 : 0),
-      acessosPorHora: {
-        ...acessosPorHora,
-        [hora]: (Number(acessosPorHora[hora]) || 0) + (contarAbertura ? 1 : 0)
-      },
-      picoSimultaneo: Math.max(picoAtual, totalOnline),
-      ultimaAtualizacao: agora
-    };
-
-    if (totalOnline > picoAtual) proximo.picoEm = agora;
-    return proximo;
-  });
 });
 
 exports.verificarBloqueioCpf = onCall(publicCallableOptions, async (request) => {
@@ -1383,19 +1334,53 @@ exports.limparDatasPassadasAgenda = onSchedule({
   }
 });
 
-exports.limparSessoesAcessoPublico = onSchedule({
-  schedule: "15 4 * * *",
+// Remove documentos ja expirados das colecoes auxiliares (rate_limits e cancelamentos_pendentes).
+// Esses docs tem campo expiraEm e nao eram apagados por nenhuma rotina, crescendo indefinidamente.
+const LIMPEZA_AUXILIARES_PAGINA = 300;
+const LIMPEZA_AUXILIARES_MAX = 5000;
+
+async function limparColecaoExpirada(colecao, agoraTimestamp) {
+  let total = 0;
+  while (total < LIMPEZA_AUXILIARES_MAX) {
+    const snap = await db.collection(colecao)
+      .where("expiraEm", "<=", agoraTimestamp)
+      .limit(LIMPEZA_AUXILIARES_PAGINA)
+      .get();
+    if (snap.empty) break;
+    const batch = db.batch();
+    snap.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+    total += snap.size;
+    if (snap.size < LIMPEZA_AUXILIARES_PAGINA) break;
+  }
+  return total;
+}
+
+exports.limparAuxiliaresExpirados = onSchedule({
+  schedule: "30 3 * * *",
   timeZone: "America/Sao_Paulo",
   maxInstances: 1
 }, async () => {
-  const hoje = hojeSaoPauloISO();
-  const sessoesRef = realtimeDb.ref("presenca_publica/sessoes");
-  const sessoesSnap = await sessoesRef.once("value");
-  const atualizacoes = {};
-
-  sessoesSnap.forEach((diaSnap) => {
-    if (diaSnap.key < hoje) atualizacoes[diaSnap.key] = null;
-  });
-
-  if (Object.keys(atualizacoes).length) await sessoesRef.update(atualizacoes);
+  const agora = admin.firestore.Timestamp.now();
+  let rateLimits = 0;
+  let cancelamentos = 0;
+  try {
+    rateLimits = await limparColecaoExpirada("rate_limits", agora);
+    cancelamentos = await limparColecaoExpirada("cancelamentos_pendentes", agora);
+    await db.collection("logs_admin").add({
+      acao: "limpeza_auxiliares_expirados",
+      detalhes: { rateLimits, cancelamentos },
+      adminEmail: "sistema",
+      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      criado: new Date().toISOString()
+    });
+  } catch (err) {
+    await db.collection("logs_admin").add({
+      acao: "erro_limpeza_auxiliares",
+      detalhes: { mensagem: err.message, rateLimits, cancelamentos },
+      adminEmail: "sistema",
+      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      criado: new Date().toISOString()
+    }).catch(() => {});
+  }
 });
