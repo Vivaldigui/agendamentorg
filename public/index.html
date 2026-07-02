@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0056b3">
     <title>Agendamento de RG - CIN Itanhandu</title>
+    <meta name="description" content="Agende online a emissão da Carteira de Identidade Nacional (CIN/RG) na Câmara Municipal de Itanhandu. Escolha data e horário, gratuito e sem filas.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Agendamento de RG/CIN — Câmara de Itanhandu">
+    <meta property="og:description" content="Escolha data e horário para emitir sua Carteira de Identidade Nacional. Gratuito, rápido e online.">
+    <meta property="og:image" content="https://agendamento-cin-itanhandu.web.app/icons/icon-512.png">
+    <meta property="og:url" content="https://agendamento-cin-itanhandu.web.app/">
+    <meta property="og:locale" content="pt_BR">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <link rel="manifest" href="/manifest.json">
     <link rel="preconnect" href="https://www.gstatic.com">
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
@@ -315,13 +324,13 @@
                     </div>
                     <button class="btn-alterar" onclick="abrirAlterarHorario()"><i class="fa-solid fa-pen"></i> Alterar</button>
                 </div>
-                <div class="form-grupo"><label>Nome Completo: <span style="color:var(--danger)">*</span></label><input id="inp-nome" type="text" autocomplete="name" autocapitalize="words" placeholder="Ex: João da Silva" onblur="formatarNomeProprio(this)" /><div class="msg-campo-erro" id="erro-nome">Informe o nome completo.</div></div>
+                <div class="form-grupo"><label for="inp-nome">Nome Completo: <span style="color:var(--danger)">*</span></label><input id="inp-nome" type="text" autocomplete="name" autocapitalize="words" placeholder="Ex: João da Silva" onblur="formatarNomeProprio(this)" /><div class="msg-campo-erro" id="erro-nome">Informe o nome completo.</div></div>
                 <div class="grid-2">
-                    <div class="form-grupo"><label>CPF: <span style="color:var(--danger)">*</span></label><input id="inp-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" onblur="validarCpfAgendamento()" type="text" placeholder="000.000.000-00" /><div class="msg-campo-erro" id="erro-cpf">CPF inválido.</div></div>
-                    <div class="form-grupo"><label>Nascimento: <span style="color:var(--danger)">*</span></label><input id="inp-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this); validarNascimentoAgendamento()" type="text" placeholder="DD/MM/AAAA" /><div class="msg-campo-erro" id="erro-nasc">Data inválida.</div><div class="msg-campo-alerta" id="erro-menor-3"><i class="fa-solid fa-circle-info"></i> <strong>Atenção:</strong> Por ser menor de 3 anos, além dos demais documentos necessários listados abaixo, é <strong>obrigatório levar 1 foto 3x4 recente</strong>.</div></div>
+                    <div class="form-grupo"><label for="inp-cpf">CPF: <span style="color:var(--danger)">*</span></label><input id="inp-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" onblur="validarCpfAgendamento()" type="text" placeholder="000.000.000-00" /><div class="msg-campo-erro" id="erro-cpf">CPF inválido.</div></div>
+                    <div class="form-grupo"><label for="inp-nasc">Nascimento: <span style="color:var(--danger)">*</span></label><input id="inp-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this); validarNascimentoAgendamento()" type="text" placeholder="DD/MM/AAAA" /><div class="msg-campo-erro" id="erro-nasc">Data inválida.</div><div class="msg-campo-alerta" id="erro-menor-3"><i class="fa-solid fa-circle-info"></i> <strong>Atenção:</strong> Por ser menor de 3 anos, além dos demais documentos necessários listados abaixo, é <strong>obrigatório levar 1 foto 3x4 recente</strong>.</div></div>
                 </div>
-                <div class="form-grupo"><label>Celular / WhatsApp: <span class="ajuda-campo">(para receber o comprovante)</span> <span style="color:var(--danger)">*</span></label><input id="inp-tel" maxlength="15" inputmode="tel" autocomplete="tel" oninput="mascaraTel(this)" type="tel" placeholder="(00) 00000-0000" /><div class="msg-campo-erro" id="erro-tel">Informe um telefone válido.</div></div>
-                <div class="form-grupo"><label>E-mail (Opcional)</label><input id="inp-email" type="email" placeholder="seu.email@exemplo.com" /><div class="msg-campo-erro" id="erro-email">E-mail inválido.</div></div>
+                <div class="form-grupo"><label for="inp-tel">Celular / WhatsApp: <span class="ajuda-campo">(para receber o comprovante)</span> <span style="color:var(--danger)">*</span></label><input id="inp-tel" maxlength="15" inputmode="tel" autocomplete="tel" oninput="mascaraTel(this)" type="tel" placeholder="(00) 00000-0000" /><div class="msg-campo-erro" id="erro-tel">Informe um telefone válido.</div></div>
+                <div class="form-grupo"><label for="inp-email">E-mail (Opcional)</label><input id="inp-email" type="email" placeholder="seu.email@exemplo.com" /><div class="msg-campo-erro" id="erro-email">E-mail inválido.</div></div>
                 <div class="docs-container compacto">
                     <h4><i class="fa-regular fa-folder-open"></i> Confira os documentos antes de finalizar</h4>
                     <ul class="checklist-docs">
@@ -390,8 +399,8 @@
         <div class="secao" id="secao-consultar">
             <h3 style="color:var(--gray-800); font-size:1.1rem; margin:0 0 20px; font-weight:800;"><i class="fa-solid fa-magnifying-glass" style="color:var(--primary);"></i> Consultar Agendamento</h3>
             <p style="color:var(--gray-600); font-size:0.9rem; margin:0 0 20px;">Informe CPF e data de nascimento para ver seu agendamento.</p>
-            <div class="form-grupo"><label>CPF:</label><input id="cons-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" /></div>
-            <div class="form-grupo"><label>Data de Nascimento:</label><input id="cons-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" /></div>
+            <div class="form-grupo"><label for="cons-cpf">CPF:</label><input id="cons-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" /></div>
+            <div class="form-grupo"><label for="cons-nasc">Data de Nascimento:</label><input id="cons-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" /></div>
             <button class="btn-principal azul" id="btnConsultar" onclick="consultarAgendamento()">Buscar Meu Horário <i class="fa-solid fa-search"></i></button>
             <div id="resultado-consulta" style="margin-top:24px;"></div>
         </div>
@@ -399,8 +408,8 @@
         <div class="secao" id="secao-cancelar">
             <h3 style="color:var(--gray-800); font-size:1.1rem; margin:0 0 12px; font-weight:800;"><i class="fa-regular fa-calendar-xmark" style="color:var(--danger);"></i> Cancelar Agendamento</h3>
             <p style="color:var(--gray-600); font-size:0.9rem; margin:0 0 20px;">Informe CPF e data de nascimento para localizar seu horário. Confira os dados antes de confirmar o cancelamento.</p>
-            <div class="form-grupo"><label>CPF:</label><input id="cancelar-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" /></div>
-            <div class="form-grupo"><label>Data de Nascimento:</label><input id="cancelar-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" /></div>
+            <div class="form-grupo"><label for="cancelar-cpf">CPF:</label><input id="cancelar-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" /></div>
+            <div class="form-grupo"><label for="cancelar-nasc">Data de Nascimento:</label><input id="cancelar-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" /></div>
             <button class="btn-principal vermelho" id="btnBuscarCancelamento" onclick="buscarParaCancelar()">Localizar Agendamento <i class="fa-solid fa-search"></i></button>
             <div id="resultado-cancelamento" style="margin-top:24px;"></div>
         </div>
@@ -453,7 +462,6 @@
     var functions = firebase.functions();
     var realtimeDb = firebase.database ? firebase.database() : null;
 
-    const DIAS_INICIAIS = ["2026-06-02","2026-06-03","2026-06-09","2026-06-10","2026-06-11","2026-06-12","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-28","2026-07-29","2026-07-30"];
     const HORAS_FALLBACK = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
     const DATA_NOVAS_VAGAS_PADRAO = "data a definir";
     let DIAS_DISPONIVEIS = [], HORARIOS = [], DATA_NOVAS_VAGAS = DATA_NOVAS_VAGAS_PADRAO; 
@@ -646,24 +654,57 @@
     let ultimoAgendamentoConfirmado = null;
     const MAPS_CAMARA = "https://www.google.com/maps/search/?api=1&query=C%C3%A2mara%20Municipal%20de%20Itanhandu";
 
-    function modal({ icone, titulo, mensagem, botoes }) {
-        document.getElementById("modal-icone").innerHTML = icone || ""; 
-        document.getElementById("modal-titulo").textContent = titulo || ""; 
+    let modalOnDismiss = null;
+
+    function fecharModalGlobal() {
+        document.getElementById("modal-global").classList.add("oculto");
+        const aoDispensar = modalOnDismiss;
+        modalOnDismiss = null;
+        if (aoDispensar) aoDispensar();
+    }
+
+    function modal({ icone, titulo, mensagem, botoes, onDismiss }) {
+        document.getElementById("modal-icone").innerHTML = icone || "";
+        document.getElementById("modal-titulo").textContent = titulo || "";
         document.getElementById("modal-mensagem").textContent = mensagem || "";
-        const cont = document.getElementById("modal-botoes"); 
+        const cont = document.getElementById("modal-botoes");
         cont.innerHTML = "";
-        
-        botoes.forEach(b => { 
-            const btn = document.createElement("button"); 
-            btn.className = "modal-btn " + (b.classe || "primario"); 
-            btn.textContent = b.texto; 
-            btn.onclick = () => { 
-                document.getElementById("modal-global").classList.add("oculto"); 
-                if (b.acao) b.acao(); 
-            }; 
-            cont.appendChild(btn); 
+        modalOnDismiss = onDismiss || null;
+
+        botoes.forEach(b => {
+            const btn = document.createElement("button");
+            btn.className = "modal-btn " + (b.classe || "primario");
+            btn.textContent = b.texto;
+            btn.onclick = () => {
+                modalOnDismiss = null;
+                document.getElementById("modal-global").classList.add("oculto");
+                if (b.acao) b.acao();
+            };
+            cont.appendChild(btn);
         });
         document.getElementById("modal-global").classList.remove("oculto");
+    }
+
+    document.getElementById("modal-global").addEventListener("click", e => {
+        if (e.target === e.currentTarget) fecharModalGlobal();
+    });
+    document.addEventListener("keydown", e => {
+        if (e.key === "Escape" && !document.getElementById("modal-global").classList.contains("oculto")) fecharModalGlobal();
+    });
+
+    function confirmarModalAsync({ titulo, mensagem, textoConfirmar = "Confirmar", textoCancelar = "Cancelar" }) {
+        return new Promise(resolve => {
+            modal({
+                icone: '<i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);"></i>',
+                titulo: titulo || "Confirmar",
+                mensagem,
+                botoes: [
+                    { texto: textoCancelar, classe: "neutro", acao: () => resolve(false) },
+                    { texto: textoConfirmar, classe: "perigo", acao: () => resolve(true) }
+                ],
+                onDismiss: () => resolve(false)
+            });
+        });
     }
 
     function aviso(m) { 
@@ -1088,8 +1129,8 @@
         return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
     }
 
-    function baixarAgenda() {
-        const ag = ultimoAgendamentoConfirmado;
+    function baixarAgenda(agParam) {
+        const ag = agParam || ultimoAgendamentoConfirmado;
         if (!ag) return aviso("Finalize um agendamento antes de adicionar à agenda.");
         const fim = somarMinutosHora(ag.hora, 20);
         const agendaId = String(ag.id || `${ag.dataISO}-${ag.hora}`).replace(/[^a-zA-Z0-9-]/g, "");
@@ -1200,9 +1241,11 @@
                                 Todas as vagas disponíveis no momento já foram preenchidas.<br>
                                 ${avisoProximasVagas}
                             </span>
+                            <div id="countdown-container"></div>
                         </div>
                     </div>
                 `;
+                iniciarContadorRegressivo(DATA_NOVAS_VAGAS);
                 if (podeControlarCalendario) etapaSelecao.style.display = "none";
             }
         } catch(e) { banner.style.display = "none"; }
@@ -1253,7 +1296,7 @@
                 }
                 grade.appendChild(btn);
             });
-        } catch(e) { grade.innerHTML = '<p color="red">Erro ao carregar datas. Tente novamente.</p>'; }
+        } catch(e) { grade.innerHTML = '<p style="color:var(--danger); text-align:center; font-weight:700; grid-column:1/-1;"><i class="fa-solid fa-circle-exclamation"></i> Erro ao carregar datas. Tente novamente.</p>'; }
     }
 
     async function renderHoras(data) {
@@ -1308,7 +1351,7 @@
                 }
                 grade.appendChild(btn);
             });
-        } catch(e) { grade.innerHTML = '<p color="red">Erro ao carregar horários.</p>'; }
+        } catch(e) { grade.innerHTML = '<p style="color:var(--danger); text-align:center; font-weight:700; grid-column:1/-1;"><i class="fa-solid fa-circle-exclamation"></i> Erro ao carregar horários.</p>'; }
     }
 
     let timerAtualizacaoAutomatica = null;
@@ -1410,7 +1453,7 @@
               
         let val=true; 
         setErroCampo("inp-nome","erro-nome",nome.split(' ').length < 2); if(nome.split(' ').length < 2) val=false; 
-        setErroCampo("inp-cpf","erro-cpf",cpfLimpo.length !== 11); if(cpfLimpo.length !== 11) val=false; 
+        setErroCampo("inp-cpf","erro-cpf",!cpfValido(cpf)); if(!cpfValido(cpf)) val=false;
         setErroCampo("inp-nasc","erro-nasc",!nascISO); if(!nascISO) val=false; 
         setErroCampo("inp-tel","erro-tel",tel.length<14); if(tel.length<14) val=false;
         
@@ -1496,9 +1539,14 @@
                 const detalhes = (e && e.details) || null;
                 // CPF ja possui agendamento: confirmar substituicao e retentar
                 if (codigo === "already-exists" && detalhes && detalhes.tipo === "cpf-ja-agendado" && !substituirAnterior) {
-                    const dataBR = textoSeguro(detalhes.dataBR || "");
-                    const hora = textoSeguro(detalhes.hora || "");
-                    const confirmou = confirm(`Atenção: Você já possui um agendamento marcado${dataBR ? ` para ${dataBR}` : ""}${hora ? ` às ${hora}` : ""}.\n\nSe prosseguir e marcar este novo horário, o seu agendamento anterior será cancelado.\n\nDeseja continuar?`);
+                    const dataBR = detalhes.dataBR || "";
+                    const hora = detalhes.hora || "";
+                    const confirmou = await confirmarModalAsync({
+                        titulo: "Você já tem um agendamento",
+                        mensagem: `Você já possui um agendamento marcado${dataBR ? ` para ${dataBR}` : ""}${hora ? ` às ${hora}` : ""}.\n\nSe continuar, o agendamento anterior será cancelado e este novo horário passará a valer.`,
+                        textoConfirmar: "Substituir agendamento",
+                        textoCancelar: "Manter o anterior"
+                    });
                     if (!confirmou) {
                         btn.disabled = false;
                         btn.innerHTML = 'FINALIZAR AGENDAMENTO <i class="fa-solid fa-arrow-right"></i>';
@@ -1568,6 +1616,23 @@
         else { console.error(e); erro("Não foi possível concluir o agendamento agora. Atualize a página (Ctrl+F5) e tente novamente."); }
     }
 
+    let ultimaConsultaAgendamento = null;
+
+    function baixarAgendaConsulta() {
+        if (!ultimaConsultaAgendamento || !ultimaConsultaAgendamento.dataISO) {
+            return aviso("Consulte seu agendamento novamente para adicionar à agenda.");
+        }
+        baixarAgenda(ultimaConsultaAgendamento);
+    }
+
+    function irCancelarComDadosConsulta() {
+        const cpf = document.getElementById("cons-cpf").value;
+        const nasc = document.getElementById("cons-nasc").value;
+        if (cpf) document.getElementById("cancelar-cpf").value = cpf;
+        if (nasc) document.getElementById("cancelar-nasc").value = nasc;
+        abrirAbaCancelar();
+    }
+
     async function consultarAgendamento() {
         const cpf=document.getElementById("cons-cpf").value,
               nascBR=document.getElementById("cons-nasc").value,
@@ -1593,7 +1658,19 @@
                 const consulta = firebase.functions().httpsCallable("consultarAgendamentoCidadao");
                 const resposta = await consulta({ cpf, nascimento: nascISO });
                 const ag = resposta.data.agendamento;
-                res.innerHTML = `<div class="ticket-consulta"><div class="nome-ag"><i class="fa-solid fa-user"></i> ${textoSeguro(ag.nome)}</div><span class="data-ag">${textoSeguro(ag.dataBR)} às ${textoSeguro(ag.hora)}</span></div>`;
+                ultimaConsultaAgendamento = { dataISO: ag.dataISO || "", hora: ag.hora || "" };
+                res.innerHTML = `
+                    <div class="ticket-consulta">
+                        <div class="nome-ag"><i class="fa-solid fa-user"></i> ${textoSeguro(ag.nome)}</div>
+                        <span class="data-ag">${textoSeguro(ag.dataBR)} às ${textoSeguro(ag.hora)}</span>
+                        <p style="margin:4px 0 0; font-size:0.88rem; color:var(--gray-600);"><i class="fa-solid fa-location-dot" style="color:var(--primary);"></i> Câmara Municipal de Itanhandu</p>
+                    </div>
+                    <div class="acoes-sucesso">
+                        <button class="btn-acao-sucesso azul" onclick="abrirDocumentosNecessarios()"><i class="fa-regular fa-folder-open"></i> Ver documentos</button>
+                        <button class="btn-acao-sucesso cinza" onclick="baixarAgendaConsulta()"><i class="fa-regular fa-calendar-plus"></i> Adicionar à Agenda</button>
+                        <a class="btn-acao-sucesso cinza" href="${MAPS_CAMARA}" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-map-location-dot"></i> Abrir no Maps</a>
+                        <button class="btn-acao-sucesso vermelho" onclick="irCancelarComDadosConsulta()"><i class="fa-solid fa-calendar-xmark"></i> Cancelar horário</button>
+                    </div>`;
                 return;
             } catch(e) {
                 ultimoErro = e;

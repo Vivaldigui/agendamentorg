@@ -699,6 +699,24 @@ async function carregarDisponibilidadePublica() {
   };
 }
 
+// Segunda-feira de manhã é a janela semanal de abertura de vagas: cache curto para a
+// disponibilidade refletir quase em tempo real. No resto da semana o CDN pode segurar
+// a resposta por mais tempo, cortando invocações (o fluxo de agendamento revalida com
+// cache-buster antes de confirmar, então dado defasado não vende vaga duplicada).
+function cacheControlAgendaPublica() {
+  const partes = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    weekday: "short",
+    hour: "numeric",
+    hourCycle: "h23"
+  }).formatToParts(new Date());
+  const valores = Object.fromEntries(partes.map((p) => [p.type, p.value]));
+  const janelaAbertura = valores.weekday === "Mon" && Number(valores.hour) < 14;
+  return janelaAbertura
+    ? "public, max-age=60, s-maxage=60, stale-while-revalidate=120"
+    : "public, max-age=120, s-maxage=300, stale-while-revalidate=600";
+}
+
 exports.carregarAgendaPublicaHttp = onRequest({
   cors: callableOptions.cors,
   maxInstances: 50,
@@ -712,7 +730,7 @@ exports.carregarAgendaPublicaHttp = onRequest({
   try {
     await aplicarRateLimit({ rawRequest: req }, "carregar_agenda_publica_http", 240, 10 * 60 * 1000);
     const dados = await carregarDisponibilidadePublica();
-    res.set("Cache-Control", "public, max-age=60, s-maxage=60, stale-while-revalidate=120");
+    res.set("Cache-Control", cacheControlAgendaPublica());
     res.status(200).json(dados);
   } catch (err) {
     const status = err && err.code === "resource-exhausted" ? 429 : 500;

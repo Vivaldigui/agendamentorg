@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recepção CIN — Câmara de Itanhandu</title>
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <link href="/vendor/fontawesome/css/all.min.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
@@ -1043,7 +1045,10 @@
         .toast-container { position:fixed; right:18px; bottom:18px; z-index:11000; display:grid; gap:10px; width:min(380px, calc(100vw - 28px)); }
         .toast-painel { display:flex; gap:10px; align-items:flex-start; padding:13px 14px; color:#14532d; background:#f0fdf4; border:1px solid #86efac; border-radius:10px; box-shadow:0 18px 36px rgba(15,23,42,0.18); font-size:0.86rem; font-weight:800; }
         .toast-painel.erro { color:#7f1d1d; background:#fef2f2; border-color:#fca5a5; }
+        .toast-painel.aviso { color:#78350f; background:#fffbeb; border-color:#fcd34d; }
         .toast-sessao { color:#78350f; background:#fffbeb; border-color:#fbbf24; }
+        .login-erro { margin:0 0 14px; padding:10px 12px; border-radius:9px; background:#fef2f2; border:1px solid #fca5a5; color:#b91c1c; font-size:0.85rem; font-weight:700; text-align:left; }
+        body.modo-escuro .login-erro { background:#450a0a; border-color:#991b1b; color:#fecaca; }
         .toast-sessao button { margin-left:auto; border:1px solid #92400e; background:white; color:#78350f; border-radius:7px; padding:5px 9px; font-weight:900; cursor:pointer; }
         .painel-horarios, .painel-preferencias, .painel-logs { margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
         details > summary { cursor:pointer; color:var(--primary-dark); font-weight:900; }
@@ -1073,6 +1078,72 @@
             .config-grid { grid-template-columns:1fr; }
             .log-item { grid-template-columns:1fr; gap:2px; }
         }
+
+        /* Navegação fixa entre vistas e seções secundárias recolhíveis */
+        .abas-operacao {
+            position: sticky;
+            top: 12px;
+            z-index: 60;
+            padding: 8px;
+            margin-bottom: 18px;
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            box-shadow: var(--shadow-sm);
+            backdrop-filter: blur(8px);
+        }
+        .btn-vista { box-shadow: none; }
+        .fila-topo { top: 76px; }
+        .painel-config { scroll-margin-top: 84px; }
+        .painel-recolhivel {
+            margin-bottom: 18px;
+            padding: 20px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius-lg);
+            background: rgba(255, 255, 255, 0.94);
+            box-shadow: var(--shadow-sm);
+        }
+        .painel-recolhivel > summary {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            color: var(--primary-dark);
+            font-size: 1.03rem;
+            font-weight: 900;
+            list-style: none;
+        }
+        .painel-recolhivel > summary::-webkit-details-marker { display: none; }
+        .painel-recolhivel > summary::after {
+            content: "\f078";
+            margin-left: auto;
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            font-size: 0.8rem;
+            color: var(--muted);
+            transition: transform 0.18s ease;
+        }
+        .painel-recolhivel[open] > summary::after { transform: rotate(180deg); }
+        .painel-recolhivel > summary i { color: var(--primary); }
+        .painel-recolhivel[open] > summary { margin-bottom: 16px; }
+        body.modo-escuro .abas-operacao,
+        body.modo-escuro .painel-recolhivel {
+            background: rgba(17, 28, 47, 0.94);
+            border-color: var(--line);
+        }
+        body.modo-escuro .btn-vista {
+            background: var(--surface-soft);
+            color: var(--ink);
+            border-color: var(--line);
+        }
+        body.modo-escuro .btn-vista.ativo {
+            background: linear-gradient(135deg, #1d74d8, #4d9cff);
+            color: white;
+            border-color: #4d9cff;
+        }
+        @media (max-width: 760px) {
+            .abas-operacao { position: static; }
+            .fila-topo { top: 4px; }
+        }
     </style>
 </head>
 <body class="modo-escuro">
@@ -1085,9 +1156,10 @@
     <div id="login-screen">
         <img src="/assets/header-logo.png" style="max-width:180px; margin-bottom:20px;">
         <h2>Gestão Oficial CIN</h2>
-        <div class="input-group"><label>E-mail:</label><input type="email" id="email"></div>
-        <div class="input-group"><label>Senha:</label><input type="password" id="senha"></div>
-        <button class="btn-login" onclick="fazerLogin()">ACESSAR PAINEL SEGURO</button>
+        <div class="input-group"><label for="email">E-mail:</label><input type="email" id="email" autocomplete="username"></div>
+        <div class="input-group"><label for="senha">Senha:</label><input type="password" id="senha" autocomplete="current-password"></div>
+        <div id="login-erro" class="login-erro" style="display:none;"></div>
+        <button class="btn-login" id="btn-login" onclick="fazerLogin()">ACESSAR PAINEL SEGURO</button>
     </div>
 
     <div id="painel-screen">
@@ -1127,6 +1199,13 @@
             </button>
             <span class="atualizado-em" id="lista-atualizado"><i class="fa-solid fa-rotate"></i> Aguardando atualização</span>
         </div>
+        <div class="cards-resumo">
+            <button type="button" class="card-kpi clicavel" onclick="mostrarVistaPainel('hoje')"><span>Hoje</span><strong id="kpi-hoje">0</strong></button>
+            <button type="button" class="card-kpi clicavel" onclick="filtroRapidoPainel('amanha')"><span>Amanhã</span><strong id="kpi-amanha">0</strong></button>
+            <button type="button" class="card-kpi clicavel" onclick="irParaConfiguracaoAgenda()"><span>Vagas Restantes</span><strong id="kpi-vagas">0</strong></button>
+            <button type="button" class="card-kpi clicavel" onclick="irParaConfiguracaoAgenda()"><span>Datas Lotadas</span><strong id="kpi-lotadas">0</strong></button>
+            <button type="button" class="card-kpi clicavel" onclick="filtroRapidoPainel('compareceram')"><span>Atendimentos realizados</span><strong id="kpi-atendidos">0</strong></button>
+        </div>
         <div class="painel-periodo">
             <h3><i class="fa-solid fa-calendar-days"></i> Período carregado no painel</h3>
             <div class="config-form">
@@ -1143,33 +1222,56 @@
             </div>
             <span class="periodo-info" id="info-periodo-lista">Por padrão, o painel carrega apenas agendamentos de ontem em diante.</span>
         </div>
-        <div class="cards-resumo">
-            <button type="button" class="card-kpi clicavel" onclick="mostrarVistaPainel('hoje')"><span>Hoje</span><strong id="kpi-hoje">0</strong></button>
-            <button type="button" class="card-kpi clicavel" onclick="filtroRapidoPainel('amanha')"><span>Amanhã</span><strong id="kpi-amanha">0</strong></button>
-            <button type="button" class="card-kpi clicavel" onclick="irParaConfiguracaoAgenda()"><span>Vagas Restantes</span><strong id="kpi-vagas">0</strong></button>
-            <button type="button" class="card-kpi clicavel" onclick="irParaConfiguracaoAgenda()"><span>Datas Lotadas</span><strong id="kpi-lotadas">0</strong></button>
-            <button type="button" class="card-kpi clicavel" onclick="filtroRapidoPainel('compareceram')"><span>Atendimentos realizados</span><strong id="kpi-atendidos">0</strong></button>
-        </div>
-        <div class="painel-indicadores">
-            <h3><i class="fa-solid fa-chart-simple"></i> Indicadores históricos</h3>
-            <div class="indicadores-grid">
-                <div class="indicador-card"><span>CIN feitas</span><strong id="ind-total-cin">...</strong><small id="ind-cin-mes-top">Carregando...</small></div>
-                <div class="indicador-card"><span>Faltantes</span><strong id="ind-total-faltas">...</strong><small id="ind-faltas-mes-top">Carregando...</small></div>
-                <div class="indicador-card"><span>Taxa de ausência</span><strong id="ind-taxa-faltas">...</strong><small>Faltas sobre comparecimentos + faltas</small></div>
-                <div class="indicador-card"><span>Maior dia</span><strong id="ind-melhor-dia">...</strong><small id="ind-melhor-dia-data">Carregando...</small></div>
-                <div class="indicador-card"><span>Média por dia</span><strong id="ind-media-dia">...</strong><small>Dias com atendimento realizado</small></div>
-            </div>
-            <div class="indicadores-tabelas">
-                <div class="indicador-bloco">
-                    <h4>CIN feitas por mês</h4>
-                    <div class="serie-mensal" id="ind-cin-mes"></div>
+        <div class="painel-filtros">
+            <h3 style="margin:0 0 14px; color:var(--primary-dark); font-size:1rem;"><i class="fa-solid fa-filter"></i> Filtros da Lista</h3>
+            <div class="filtros-grid">
+                <div class="input-group">
+                    <label>Buscar:</label>
+                    <input id="filtro-busca" type="text" placeholder="Nome, CPF, telefone ou protocolo" oninput="renderTabelaAgendamentos()">
                 </div>
-                <div class="indicador-bloco">
-                    <h4>Faltantes por mês</h4>
-                    <div class="serie-mensal serie-faltas" id="ind-faltas-mes"></div>
+                <div class="input-group">
+                    <label>Data:</label>
+                    <input id="filtro-data" type="date" onchange="renderTabelaAgendamentos()">
                 </div>
+                <div class="input-group">
+                    <label>Status:</label>
+                    <select id="filtro-status" onchange="renderTabelaAgendamentos()">
+                        <option value="">Todos</option>
+                        <option value="agendado">Agendado</option>
+                        <option value="compareceu">Compareceu</option>
+                        <option value="nao_compareceu">Não compareceu</option>
+                        <option value="cancelado">Cancelado</option>
+                        <option value="remarcado">Remarcado</option>
+                    </select>
+                </div>
+                <label class="filtro-check"><input type="checkbox" id="filtro-futuros" checked onchange="renderTabelaAgendamentos()"> Ocultar passados</label>
+                <button class="btn btn-sair" onclick="limparFiltros()"><i class="fa-solid fa-broom"></i> Limpar</button>
+            </div>
+            <div class="filtros-rapidos">
+                <button type="button" onclick="filtroRapidoPainel('hoje')">Hoje</button>
+                <button type="button" onclick="filtroRapidoPainel('amanha')">Amanhã</button>
+                <button type="button" onclick="filtroRapidoPainel('semana')">Esta semana</button>
+                <button type="button" onclick="filtroRapidoPainel('agendados')">Agendados</button>
+                <button type="button" onclick="filtroRapidoPainel('compareceram')">Compareceram</button>
+                <button type="button" onclick="filtroRapidoPainel('faltaram')">Não compareceram</button>
+                <button type="button" onclick="filtroRapidoPainel('cancelados')">Cancelados</button>
+                <button type="button" onclick="filtroRapidoPainel('bloqueados')">Bloqueados</button>
+                <button type="button" onclick="filtroRapidoPainel('manuais')">Manuais</button>
             </div>
         </div>
+        <div class="tabela-wrap">
+            <table>
+                <thead><tr><th>Data/Hora</th><th>Cidadão</th><th>CPF / Nasc</th><th>Contato</th><th>Status</th><th>Ações</th></tr></thead>
+                <tbody id="corpo-tabela"></tbody>
+            </table>
+        </div>
+        <details class="painel-logs painel-recolhivel" open>
+            <summary><i class="fa-solid fa-clock-rotate-left"></i> Histórico de ações de hoje</summary>
+            <div style="margin-top:10px;">
+                <button type="button" class="btn btn-atualizar" onclick="carregarLogsAdmin()"><i class="fa-solid fa-rotate"></i> Atualizar histórico</button>
+            </div>
+            <div class="logs-lista" id="logs-lista"></div>
+        </details>
         <div class="painel-config">
             <h3><i class="fa-solid fa-calendar-days"></i> Datas de Atendimento</h3>
             <div class="config-form">
@@ -1236,55 +1338,25 @@
                 <button type="button" class="btn btn-config" style="margin-top:12px;" onclick="salvarPreferenciasOperacionais()"><i class="fa-solid fa-floppy-disk"></i> Salvar preferências</button>
             </details>
         </div>
-        <div class="painel-filtros">
-            <h3 style="margin:0 0 14px; color:var(--primary-dark); font-size:1rem;"><i class="fa-solid fa-filter"></i> Filtros da Lista</h3>
-            <div class="filtros-grid">
-                <div class="input-group">
-                    <label>Buscar:</label>
-                    <input id="filtro-busca" type="text" placeholder="Nome, CPF, telefone ou protocolo" oninput="renderTabelaAgendamentos()">
-                </div>
-                <div class="input-group">
-                    <label>Data:</label>
-                    <input id="filtro-data" type="date" onchange="renderTabelaAgendamentos()">
-                </div>
-                <div class="input-group">
-                    <label>Status:</label>
-                    <select id="filtro-status" onchange="renderTabelaAgendamentos()">
-                        <option value="">Todos</option>
-                        <option value="agendado">Agendado</option>
-                        <option value="compareceu">Compareceu</option>
-                        <option value="nao_compareceu">Não compareceu</option>
-                        <option value="cancelado">Cancelado</option>
-                        <option value="remarcado">Remarcado</option>
-                    </select>
-                </div>
-                <label class="filtro-check"><input type="checkbox" id="filtro-futuros" checked onchange="renderTabelaAgendamentos()"> Ocultar passados</label>
-                <button class="btn btn-sair" onclick="limparFiltros()"><i class="fa-solid fa-broom"></i> Limpar</button>
+        <details class="painel-indicadores painel-recolhivel">
+            <summary><i class="fa-solid fa-chart-simple"></i> Indicadores históricos</summary>
+            <div class="indicadores-grid">
+                <div class="indicador-card"><span>CIN feitas</span><strong id="ind-total-cin">...</strong><small id="ind-cin-mes-top">Carregando...</small></div>
+                <div class="indicador-card"><span>Faltantes</span><strong id="ind-total-faltas">...</strong><small id="ind-faltas-mes-top">Carregando...</small></div>
+                <div class="indicador-card"><span>Taxa de ausência</span><strong id="ind-taxa-faltas">...</strong><small>Faltas sobre comparecimentos + faltas</small></div>
+                <div class="indicador-card"><span>Maior dia</span><strong id="ind-melhor-dia">...</strong><small id="ind-melhor-dia-data">Carregando...</small></div>
+                <div class="indicador-card"><span>Média por dia</span><strong id="ind-media-dia">...</strong><small>Dias com atendimento realizado</small></div>
             </div>
-            <div class="filtros-rapidos">
-                <button type="button" onclick="filtroRapidoPainel('hoje')">Hoje</button>
-                <button type="button" onclick="filtroRapidoPainel('amanha')">Amanhã</button>
-                <button type="button" onclick="filtroRapidoPainel('semana')">Esta semana</button>
-                <button type="button" onclick="filtroRapidoPainel('agendados')">Agendados</button>
-                <button type="button" onclick="filtroRapidoPainel('compareceram')">Compareceram</button>
-                <button type="button" onclick="filtroRapidoPainel('faltaram')">Não compareceram</button>
-                <button type="button" onclick="filtroRapidoPainel('cancelados')">Cancelados</button>
-                <button type="button" onclick="filtroRapidoPainel('bloqueados')">Bloqueados</button>
-                <button type="button" onclick="filtroRapidoPainel('manuais')">Manuais</button>
+            <div class="indicadores-tabelas">
+                <div class="indicador-bloco">
+                    <h4>CIN feitas por mês</h4>
+                    <div class="serie-mensal" id="ind-cin-mes"></div>
+                </div>
+                <div class="indicador-bloco">
+                    <h4>Faltantes por mês</h4>
+                    <div class="serie-mensal serie-faltas" id="ind-faltas-mes"></div>
+                </div>
             </div>
-        </div>
-        <div class="tabela-wrap">
-            <table>
-                <thead><tr><th>Data/Hora</th><th>Cidadão</th><th>CPF / Nasc</th><th>Contato</th><th>Status</th><th>Ações</th></tr></thead>
-                <tbody id="corpo-tabela"></tbody>
-            </table>
-        </div>
-        <details class="painel-logs" open>
-            <summary><i class="fa-solid fa-clock-rotate-left"></i> Histórico de ações de hoje</summary>
-            <div style="margin-top:10px;">
-                <button type="button" class="btn btn-atualizar" onclick="carregarLogsAdmin()"><i class="fa-solid fa-rotate"></i> Atualizar histórico</button>
-            </div>
-            <div class="logs-lista" id="logs-lista"></div>
         </details>
         </div>
         <div id="vista-credenciais" style="display:none;">
@@ -1417,6 +1489,17 @@
         </div>
     </div>
 
+    <div id="modal-confirmacao" class="modal">
+        <div class="modal-content" style="max-width:460px;">
+            <h3 id="confirmacao-titulo" style="margin-top:0;"></h3>
+            <p id="confirmacao-mensagem" style="margin:0; color:#64748b; font-size:0.92rem; line-height:1.55; white-space:pre-line;"></p>
+            <div style="display:flex; gap:10px; margin-top:22px;">
+                <button type="button" class="btn btn-sair" style="flex:1" onclick="resolverConfirmacao(false)">Voltar</button>
+                <button type="button" class="btn btn-atualizar" style="flex:1.4" id="btn-confirmacao-ok" onclick="resolverConfirmacao(true)">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
     <div class="toast-container" id="toast-container"></div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -1424,18 +1507,15 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
 
     <script>
         const APP_CHECK_RECAPTCHA_SITE_KEY = "6LdoYfcsAAAAALyCdBKewXtFLB1e9biRnXTWqNv0";
         var firebaseConfig = { apiKey: "AIzaSyBqmzQw8CtTD6O2C3fiXcm7_GBmkgite_c", authDomain: "agendamento-cin-itanhandu.firebaseapp.com", databaseURL: "https://agendamento-cin-itanhandu-default-rtdb.firebaseio.com", projectId: "agendamento-cin-itanhandu", storageBucket: "agendamento-cin-itanhandu.firebasestorage.app", messagingSenderId: "144820039253", appId: "1:144820039253:web:af179156ce8da4b73a6edc", measurementId: "G-KWKF7NCJHK" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         if (firebase.appCheck) firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
-        try { if (firebase.analytics) firebase.analytics(); } catch (e) { console.warn("Analytics indisponivel:", e); }
         const db = firebase.firestore(); const auth = firebase.auth(); const functions = firebase.functions();
         // Mantem o login salvo entre fechamentos do navegador.
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.warn("Persistencia de login indisponivel", e));
-        const DIAS_INICIAIS = ["2026-06-02","2026-06-03","2026-06-09","2026-06-10","2026-06-11","2026-06-12","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-28","2026-07-29","2026-07-30"];
         const HORARIOS_PADRAO = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
         const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
         const RESPONSAVEL_POSTO_PADRAO = "Guilherme Ribeiro Pinto";
@@ -1709,7 +1789,7 @@ Até logo!`;
         function adicionarHorarioSemana(dia) {
             const input = document.getElementById(`novo-horario-${dia}`);
             const hora = input ? input.value : "";
-            if (!/^\d{2}:\d{2}$/.test(hora)) return alert("Informe um horário válido.");
+            if (!/^\d{2}:\d{2}$/.test(hora)) return avisoPainel("Informe um horário válido.");
             const chave = String(dia);
             agendaHorariosPorDiaSemana[chave] = ordenarHorariosEditaveis([...(agendaHorariosPorDiaSemana[chave] || []), hora]);
             renderHorariosSemana();
@@ -1866,11 +1946,62 @@ Até logo!`;
             const box = document.getElementById("toast-container");
             if (!box) return;
             const toast = document.createElement("div");
-            toast.className = `toast-painel${tipo === "erro" ? " erro" : ""}`;
-            toast.innerHTML = `<i class="fa-solid ${tipo === "erro" ? "fa-circle-exclamation" : "fa-circle-check"}"></i><span>${textoSeguro(mensagem)}</span>`;
+            const classeTipo = tipo === "erro" ? " erro" : (tipo === "aviso" ? " aviso" : "");
+            const icone = tipo === "erro" ? "fa-circle-exclamation" : (tipo === "aviso" ? "fa-circle-info" : "fa-circle-check");
+            toast.className = `toast-painel${classeTipo}`;
+            toast.innerHTML = `<i class="fa-solid ${icone}"></i><span>${textoSeguro(mensagem)}</span>`;
             box.appendChild(toast);
             setTimeout(() => toast.remove(), duracao);
         }
+
+        // Substitui os antigos alertas nativos: erro vira toast vermelho, informativo vira toast âmbar.
+        function avisoPainel(mensagem, tipo) {
+            const texto = String(mensagem || "");
+            const tipoFinal = tipo || (/^(erro|falha|n[aã]o foi|acesso negado)/i.test(texto.trim()) ? "erro" : "aviso");
+            mostrarToast(texto, tipoFinal, 5600);
+        }
+
+        // Substitui as confirmações nativas por um modal com promessa (true = confirmou).
+        let confirmacaoResolver = null;
+        function confirmarPainel(mensagem, opcoes = {}) {
+            return new Promise(resolve => {
+                if (confirmacaoResolver) confirmacaoResolver(false);
+                confirmacaoResolver = resolve;
+                document.getElementById("confirmacao-titulo").innerHTML =
+                    `<i class="fa-solid fa-triangle-exclamation" style="color:#d97706;"></i> ${textoSeguro(opcoes.titulo || "Confirmar ação")}`;
+                document.getElementById("confirmacao-mensagem").textContent = mensagem;
+                const ok = document.getElementById("btn-confirmacao-ok");
+                ok.textContent = opcoes.textoConfirmar || "Confirmar";
+                ok.style.background = opcoes.perigo ? "linear-gradient(135deg, #dc2626, #ef4444)" : "";
+                document.getElementById("modal-confirmacao").style.display = "flex";
+            });
+        }
+        function resolverConfirmacao(valor) {
+            document.getElementById("modal-confirmacao").style.display = "none";
+            const resolver = confirmacaoResolver;
+            confirmacaoResolver = null;
+            if (resolver) resolver(valor);
+        }
+
+        // Todos os modais fecham com Esc ou clique fora da caixa.
+        const FECHADORES_MODAIS = {
+            "modal-manual": () => fecharModal(),
+            "modal-remarcar": () => fecharRemarcacao(),
+            "modal-lote-flexivel": () => fecharModalLoteFlex(),
+            "modal-observacao": () => fecharObservacao(),
+            "modal-confirmacao": () => resolverConfirmacao(false)
+        };
+        Object.keys(FECHADORES_MODAIS).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener("click", e => { if (e.target === el) FECHADORES_MODAIS[id](); });
+        });
+        document.addEventListener("keydown", e => {
+            if (e.key !== "Escape") return;
+            Object.keys(FECHADORES_MODAIS).forEach(id => {
+                const el = document.getElementById(id);
+                if (el && el.style.display === "flex") FECHADORES_MODAIS[id]();
+            });
+        });
 
         function destacarAtendimento(id) {
             ["row-ag-", "fila-ag-"].forEach(prefixo => {
@@ -1899,8 +2030,8 @@ Até logo!`;
         async function salvarPreferenciasOperacionais() {
             const responsavel = document.getElementById("cfg-responsavel-posto").value.trim();
             const template = document.getElementById("cfg-template-lembrete").value.trim();
-            if (responsavel.length < 3) return alert("Informe o nome do responsável do posto.");
-            if (!template || template.length > 2500) return alert("Informe uma mensagem de lembrete válida.");
+            if (responsavel.length < 3) return avisoPainel("Informe o nome do responsável do posto.");
+            if (!template || template.length > 2500) return avisoPainel("Informe uma mensagem de lembrete válida.");
             responsavelPosto = responsavel;
             templateLembrete = template;
             try {
@@ -1960,7 +2091,7 @@ Até logo!`;
             const protocolo = dados.protocolo || "Não informado";
             const janela = window.open("", "_blank");
             if (!janela) {
-                alert("O navegador bloqueou a janela do comprovante. Permita pop-ups para emitir o PDF.");
+                avisoPainel("O navegador bloqueou a janela do comprovante. Permita pop-ups para emitir o PDF.");
                 return;
             }
 
@@ -2030,7 +2161,7 @@ Até logo!`;
 
         function emitirComprovanteDaLista(id) {
             const ag = buscarAgendamentoCache(id);
-            if (!ag) return alert("Agendamento não encontrado na lista atual.");
+            if (!ag) return avisoPainel("Agendamento não encontrado na lista atual.");
             emitirComprovantePDF(ag.dados);
             registrarLog("emitir_comprovante", { agendamentoId: id, protocolo: ag.dados.protocolo || "" });
         }
@@ -2042,7 +2173,7 @@ Até logo!`;
             const emitidoEm = new Date().toLocaleString("pt-BR");
             const janela = window.open("", "_blank");
             if (!janela) {
-                alert("O navegador bloqueou a janela da declaracao. Permita pop-ups para emitir o PDF.");
+                avisoPainel("O navegador bloqueou a janela da declaracao. Permita pop-ups para emitir o PDF.");
                 return;
             }
 
@@ -2116,10 +2247,10 @@ Até logo!`;
             janela.document.close();
         }
 
-        function emitirDeclaracaoComparecimentoDaLista(id) {
+        async function emitirDeclaracaoComparecimentoDaLista(id) {
             const ag = buscarAgendamentoCache(id);
-            if (!ag) return alert("Agendamento nao encontrado na lista atual.");
-            if (statusValor(ag.dados) !== "compareceu" && !confirm("Este atendimento ainda nao esta marcado como Compareceu. Deseja emitir a declaracao mesmo assim?")) {
+            if (!ag) return avisoPainel("Agendamento nao encontrado na lista atual.");
+            if (statusValor(ag.dados) !== "compareceu" && !(await confirmarPainel("Este atendimento ainda não está marcado como Compareceu. Deseja emitir a declaração mesmo assim?", { titulo: "Declaração de comparecimento", textoConfirmar: "Emitir declaração" }))) {
                 return;
             }
             emitirDeclaracaoComparecimentoPDF(ag.dados);
@@ -2236,7 +2367,40 @@ Até logo!`;
             }
         });
 
-        function fazerLogin() { auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('senha').value).catch(e => alert("Acesso negado.")); }
+        async function fazerLogin() {
+            const email = document.getElementById("email").value.trim();
+            const senha = document.getElementById("senha").value;
+            const btn = document.getElementById("btn-login");
+            const erroEl = document.getElementById("login-erro");
+            erroEl.style.display = "none";
+            if (!email || !senha) {
+                erroEl.textContent = "Informe e-mail e senha para entrar.";
+                erroEl.style.display = "block";
+                return;
+            }
+            const htmlOriginal = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ENTRANDO...';
+            try {
+                await auth.signInWithEmailAndPassword(email, senha);
+            } catch (e) {
+                const codigo = (e && e.code) || "";
+                let msg;
+                if (codigo === "auth/invalid-email") msg = "E-mail inválido. Confira o endereço digitado.";
+                else if (["auth/user-not-found", "auth/wrong-password", "auth/invalid-credential", "auth/invalid-login-credentials"].includes(codigo)) msg = "E-mail ou senha incorretos.";
+                else if (codigo === "auth/too-many-requests") msg = "Muitas tentativas seguidas. Aguarde alguns minutos e tente novamente.";
+                else if (codigo === "auth/network-request-failed") msg = "Sem conexão com a internet. Verifique a rede e tente novamente.";
+                else msg = "Não foi possível entrar. Tente novamente.";
+                erroEl.textContent = msg;
+                erroEl.style.display = "block";
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = htmlOriginal;
+            }
+        }
+        ["email", "senha"].forEach(id => document.getElementById(id).addEventListener("keydown", e => {
+            if (e.key === "Enter") fazerLogin();
+        }));
         function fazerLogout() { clearTimeout(timerAviso); clearTimeout(timerLogout); clearInterval(timerAtualizacaoAutomatica); removerAvisoSessao(); auth.signOut(); }
         function abrirModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='flex'; }
         function fecharModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='none'; }
@@ -2245,7 +2409,7 @@ Até logo!`;
 
         function abrirObservacao(id) {
             const ag = buscarAgendamentoCache(id);
-            if (!ag) return alert("Agendamento não encontrado.");
+            if (!ag) return avisoPainel("Agendamento não encontrado.");
             document.getElementById("observacao-id").value = id;
             document.getElementById("observacao-nome").value = ag.dados.nome || "";
             document.getElementById("observacao-texto").value = ag.dados.observacaoInterna || "";
@@ -2260,7 +2424,7 @@ Até logo!`;
             const id = document.getElementById("observacao-id").value;
             const texto = document.getElementById("observacao-texto").value.trim();
             const ag = buscarAgendamentoCache(id);
-            if (!ag) return alert("Agendamento não encontrado.");
+            if (!ag) return avisoPainel("Agendamento não encontrado.");
             const btn = document.getElementById("btnSalvarObservacao");
             btn.disabled = true;
             try {
@@ -2338,7 +2502,7 @@ Até logo!`;
             try {
                 const doc = await db.collection("configuracoes").doc("agenda").get();
                 const cfg = doc.exists ? doc.data() : {};
-                agendaDias = ordenarDatas(Array.isArray(cfg.dias) && cfg.dias.length ? cfg.dias : DIAS_INICIAIS);
+                agendaDias = ordenarDatas(Array.isArray(cfg.dias) ? cfg.dias : []);
                 agendaHorarios = ordenarHorarios(cfg.horarios);
                 agendaHorariosPorDiaSemana = normalizarHorariosSemana(cfg.horariosPorDiaSemana);
                 agendaPublicacaoDatas = normalizarPublicacaoDatas(cfg.publicacaoDatas);
@@ -2384,20 +2548,20 @@ Até logo!`;
                 atualizado: new Date().toISOString()
             }, { merge: true });
             renderAgendaDatas();
-            if (msg) alert(msg);
+            if (msg) avisoPainel(msg);
         }
 
         async function adicionarDataAgenda() {
             const input = document.getElementById("cfg-data");
             const data = input.value;
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return alert("Escolha uma data valida.");
-            if (data < hojeISO()) return alert("Nao e possivel adicionar data que ja passou.");
-            if (agendaDias.includes(data)) return alert("Esta data ja esta cadastrada.");
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return avisoPainel("Escolha uma data valida.");
+            if (data < hojeISO()) return avisoPainel("Nao e possivel adicionar data que ja passou.");
+            if (agendaDias.includes(data)) return avisoPainel("Esta data ja esta cadastrada.");
             const modo = document.getElementById("cfg-disponibilidade-data").value;
             const publicarEm = document.getElementById("cfg-publicar-em-data").value;
             if (modo === "programar") {
-                if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(publicarEm)) return alert("Informe a data e hora de liberacao.");
-                if (publicarEm <= agoraSaoPauloInput()) return alert("Escolha uma data e hora futura para liberar a data.");
+                if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(publicarEm)) return avisoPainel("Informe a data e hora de liberacao.");
+                if (publicarEm <= agoraSaoPauloInput()) return avisoPainel("Escolha uma data e hora futura para liberar a data.");
                 agendaPublicacaoDatas[data] = publicarEm;
             } else {
                 delete agendaPublicacaoDatas[data];
@@ -2411,18 +2575,18 @@ Até logo!`;
                 alternarProgramacaoData();
                 registrarLog("agenda_adicionar_data", { dataISO: data, publicarEm: agendaPublicacaoDatas[data] || "agora" });
             }
-            catch (e) { alert("Erro ao salvar data."); carregarAgendaGestao(); }
+            catch (e) { avisoPainel("Erro ao salvar data."); carregarAgendaGestao(); }
         }
 
         async function removerDataAgenda(data) {
-            if (!confirm(`Remover a data ${dataBrISO(data)} da agenda?`)) return;
+            if (!(await confirmarPainel(`Remover a data ${dataBrISO(data)} da agenda?`, { titulo: "Remover data", perigo: true, textoConfirmar: "Remover" }))) return;
             agendaDias = agendaDias.filter(d => d !== data);
             delete agendaPublicacaoDatas[data];
             try {
                 await salvarAgendaGestao("Data removida.");
                 registrarLog("agenda_remover_data", { dataISO: data });
             }
-            catch (e) { alert("Erro ao remover data."); carregarAgendaGestao(); }
+            catch (e) { avisoPainel("Erro ao remover data."); carregarAgendaGestao(); }
         }
 
         function abrirModalLoteFlex() {
@@ -2458,8 +2622,8 @@ Até logo!`;
             const fim = document.getElementById("lote-flex-fim").value;
             const box = document.getElementById("box-previa-lote");
 
-            if (!inicio || !fim) return alert("Informe a data inicial e a data final.");
-            if (fim < inicio) return alert("A data final deve ser igual ou posterior a inicial.");
+            if (!inicio || !fim) return avisoPainel("Informe a data inicial e a data final.");
+            if (fim < inicio) return avisoPainel("A data final deve ser igual ou posterior a inicial.");
 
             box.innerHTML = "";
             let dataAtual = inicio;
@@ -2500,21 +2664,21 @@ Até logo!`;
             }
 
             box.style.display = qtd > 0 ? "grid" : "none";
-            if (qtd === 0) alert("Nenhum dia util (segunda a sexta) encontrado neste periodo.");
+            if (qtd === 0) avisoPainel("Nenhum dia util (segunda a sexta) encontrado neste periodo.");
         }
 
         async function salvarLoteFlexivel() {
             const checkboxes = document.querySelectorAll(".cb-data-previa:checked:not(:disabled)");
             const datasSelecionadas = Array.from(checkboxes).map(cb => cb.value);
 
-            if (datasSelecionadas.length === 0) return alert("Nenhuma data nova foi selecionada.");
+            if (datasSelecionadas.length === 0) return avisoPainel("Nenhuma data nova foi selecionada.");
 
             const modo = document.getElementById("lote-flex-disp").value;
             const publicarEm = document.getElementById("lote-flex-pub-data").value;
 
             if (modo === "programar") {
-                if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(publicarEm)) return alert("Informe a data e hora para liberacao.");
-                if (publicarEm <= agoraSaoPauloInput()) return alert("Escolha uma data/hora futura para publicar.");
+                if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(publicarEm)) return avisoPainel("Informe a data e hora para liberacao.");
+                if (publicarEm <= agoraSaoPauloInput()) return avisoPainel("Escolha uma data/hora futura para publicar.");
             }
 
             const btn = document.getElementById("btnSalvarLoteFlex");
@@ -2538,7 +2702,7 @@ Até logo!`;
                 registrarLog("agenda_adicionar_lote_flexivel", { qtd: datasSelecionadas.length, modo });
                 fecharModalLoteFlex();
             } catch (e) {
-                alert("Erro ao salvar multiplas datas.");
+                avisoPainel("Erro ao salvar multiplas datas.");
                 carregarAgendaGestao();
             } finally {
                 btn.disabled = false;
@@ -2549,13 +2713,13 @@ Até logo!`;
         async function salvarAvisoNovasVagas() {
             const input = document.getElementById("cfg-data-novas-vagas");
             const data = input.value;
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return alert("Escolha uma data valida para o aviso.");
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return avisoPainel("Escolha uma data valida para o aviso.");
             const modo = document.getElementById("cfg-disponibilidade-aviso").value;
             const publicarEm = document.getElementById("cfg-publicar-em-aviso").value;
             const payload = { atualizado: new Date().toISOString() };
             if (modo === "programar") {
-                if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(publicarEm)) return alert("Informe a data e hora para exibir o aviso.");
-                if (publicarEm <= agoraSaoPauloInput()) return alert("Escolha uma data e hora futura para exibir o aviso.");
+                if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(publicarEm)) return avisoPainel("Informe a data e hora para exibir o aviso.");
+                if (publicarEm <= agoraSaoPauloInput()) return avisoPainel("Escolha uma data e hora futura para exibir o aviso.");
                 payload.avisoNovasVagasProgramado = {
                     dataNovasVagas: dataBrISO(data),
                     publicarEm
@@ -2566,13 +2730,13 @@ Até logo!`;
             }
             try {
                 await db.collection("configuracoes").doc("agenda").set(payload, { merge: true });
-                alert(modo === "programar" ? "Aviso de novas vagas programado." : "Aviso de novas vagas atualizado.");
+                avisoPainel(modo === "programar" ? "Aviso de novas vagas programado." : "Aviso de novas vagas atualizado.");
                 registrarLog("agenda_salvar_aviso_novas_vagas", {
                     dataNovasVagas: dataBrISO(data),
                     publicarEm: modo === "programar" ? publicarEm : "agora"
                 });
             } catch (e) {
-                alert("Erro ao salvar aviso.");
+                avisoPainel("Erro ao salvar aviso.");
             }
         }
 
@@ -2587,11 +2751,11 @@ Até logo!`;
             const fim = document.getElementById("consulta-fim").value || fimPeriodoPadraoISO();
             const info = document.getElementById("info-periodo-lista");
             if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio) || !/^\d{4}-\d{2}-\d{2}$/.test(fim)) {
-                alert("Informe um período válido.");
+                avisoPainel("Informe um período válido.");
                 return;
             }
             if (fim < inicio) {
-                alert("A data final precisa ser igual ou posterior à data inicial.");
+                avisoPainel("A data final precisa ser igual ou posterior à data inicial.");
                 return;
             }
             try {
@@ -2618,7 +2782,7 @@ Até logo!`;
                 marcarAtualizacaoLista();
             } catch (e) {
                 console.warn("Erro ao carregar lista", e);
-                if (!silencioso) alert("Erro ao carregar lista.");
+                if (!silencioso) avisoPainel("Erro ao carregar lista.");
             }
         }
 
@@ -2800,7 +2964,7 @@ Até logo!`;
             const corpo = document.getElementById("corpo-tabela");
             const info = document.getElementById("info-periodo-lista");
             if (cpf.length !== 11 && protocolo.length < 6) {
-                alert("Digite um CPF completo ou protocolo no campo Buscar.");
+                avisoPainel("Digite um CPF completo ou protocolo no campo Buscar.");
                 return;
             }
             corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Buscando histórico...</td></tr>";
@@ -2825,7 +2989,7 @@ Até logo!`;
                 renderTabelaAgendamentos();
             } catch (e) {
                 console.error("Erro na busca histórica", e);
-                alert("Erro ao buscar histórico.");
+                avisoPainel("Erro ao buscar histórico.");
             }
         }
 
@@ -2851,7 +3015,7 @@ Até logo!`;
                 renderTabelaAgendamentos();
             } catch (e) {
                 console.error("Erro ao carregar bloqueios", e);
-                alert("Erro ao carregar bloqueios.");
+                avisoPainel("Erro ao carregar bloqueios.");
             }
         }
 
@@ -2913,7 +3077,10 @@ Até logo!`;
                 .filter(ag => ag.dados.dataISO === hojeISO() && statusValor(ag.dados) !== "cancelado")
                 .sort((a, b) => String(a.dados.hora || "").localeCompare(String(b.dados.hora || "")));
             const atendidos = listaHoje.filter(ag => statusValor(ag.dados) === "compareceu").length;
-            document.getElementById("fila-contagem").textContent = `${atendidos} de ${listaHoje.length} atendidos hoje`;
+            const faltas = listaHoje.filter(ag => statusValor(ag.dados) === "nao_compareceu").length;
+            const aguardando = Math.max(0, listaHoje.length - atendidos - faltas);
+            document.getElementById("fila-contagem").textContent =
+                `${atendidos} atendido${atendidos === 1 ? "" : "s"} · ${faltas} falta${faltas === 1 ? "" : "s"} · ${aguardando} aguardando`;
             const proximo = horarioMaisProximoHoje(listaHoje);
             const filtrados = busca ? listaHoje.filter(ag => textoBusca(ag).includes(busca)) : listaHoje;
             if (!filtrados.length) {
@@ -3192,7 +3359,7 @@ Até logo!`;
 
         function abrirRemarcacao(id) {
             const ag = buscarAgendamentoCache(id);
-            if (!ag) return alert("Agendamento não encontrado.");
+            if (!ag) return avisoPainel("Agendamento não encontrado.");
             document.getElementById("remarcar-id").value = id;
             document.getElementById("remarcar-nome").value = ag.dados.nome || "";
             document.getElementById("remarcar-data").value = ag.dados.dataISO || "";
@@ -3209,9 +3376,9 @@ Até logo!`;
             const contabilizaVaga = document.getElementById("remarcar-contabiliza").checked;
             const ag = buscarAgendamentoCache(id);
             if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !/^\d{2}:\d{2}$/.test(hora)) {
-                return alert("Informe data e horário para remarcar.");
+                return avisoPainel("Informe data e horário para remarcar.");
             }
-            if (!ag) return alert("Agendamento não encontrado.");
+            if (!ag) return avisoPainel("Agendamento não encontrado.");
             btn.disabled = true;
             btn.innerText = "Remarcando...";
             try {
@@ -3266,7 +3433,7 @@ Até logo!`;
                 renderFilaHoje();
                 mostrarToast("Agendamento remarcado.");
             } catch (e) {
-                alert(e.message || "Erro ao remarcar.");
+                avisoPainel(e.message || "Erro ao remarcar.");
             }
             btn.disabled = false;
             btn.innerText = "Salvar Remarcação";
@@ -3293,15 +3460,15 @@ Até logo!`;
         }
 
         async function alterarStatus(id, status) {
-            if (!STATUS_LABELS[status]) return alert("Status inválido.");
+            if (!STATUS_LABELS[status]) return avisoPainel("Status inválido.");
             if (status === "cancelado") {
                 await cancelarAgendamentoPainel(id);
                 return;
             }
             const ag = buscarAgendamentoCache(id);
-            if (!ag) return alert("Agendamento não encontrado.");
+            if (!ag) return avisoPainel("Agendamento não encontrado.");
             if (status === "nao_compareceu" && statusValor(ag.dados) !== "nao_compareceu") {
-                const confirmar = confirm("Confirmar não comparecimento? Este CPF será bloqueado por 6 meses para novos agendamentos.");
+                const confirmar = await confirmarPainel("Confirmar não comparecimento? Este CPF será bloqueado por 6 meses para novos agendamentos.", { titulo: "Registrar falta", perigo: true, textoConfirmar: "Confirmar falta" });
                 if (!confirmar) {
                     renderTabelaAgendamentos();
                     renderFilaHoje();
@@ -3334,15 +3501,15 @@ Até logo!`;
                     : `${ag.dados.nome} marcado como ${statusLabel(status)}.`;
                 mostrarToast(mensagem);
             } catch (e) {
-                alert("Erro ao atualizar status.");
+                avisoPainel("Erro ao atualizar status.");
                 listarAgendamentos();
             }
         }
 
         async function cancelarAgendamentoPainel(id) {
             const ag = buscarAgendamentoCache(id);
-            if (!ag) return alert("Agendamento não encontrado.");
-            if (!confirm("Cancelar este agendamento? A vaga será liberada quando houver data e horário vinculados.")) {
+            if (!ag) return avisoPainel("Agendamento não encontrado.");
+            if (!(await confirmarPainel("Cancelar este agendamento? A vaga será liberada quando houver data e horário vinculados.", { titulo: "Cancelar agendamento", perigo: true, textoConfirmar: "Cancelar agendamento" }))) {
                 renderTabelaAgendamentos();
                 return;
             }
@@ -3369,7 +3536,7 @@ Até logo!`;
                 renderFilaHoje();
                 mostrarToast(`${d.nome} teve o agendamento cancelado.`);
             } catch (e) {
-                alert("Erro ao cancelar agendamento.");
+                avisoPainel("Erro ao cancelar agendamento.");
                 listarAgendamentos();
             }
         }
@@ -3474,9 +3641,9 @@ Até logo!`;
             const tipo = document.getElementById("cred-tipo").value;
             const telBruto = document.getElementById("cred-tel").value;
             const telLimpo = String(telBruto).replace(/\D/g, "");
-            if (nome.length < 3) return alert("Informe o nome completo do requerente.");
-            if (!["idoso", "deficiente"].includes(tipo)) return alert("Selecione o tipo da credencial.");
-            if (telLimpo.length < 10) return alert("Informe um telefone válido com DDD.");
+            if (nome.length < 3) return avisoPainel("Informe o nome completo do requerente.");
+            if (!["idoso", "deficiente"].includes(tipo)) return avisoPainel("Selecione o tipo da credencial.");
+            if (telLimpo.length < 10) return avisoPainel("Informe um telefone válido com DDD.");
             const agora = new Date().toISOString();
             const dados = {
                 nome,
@@ -3502,7 +3669,7 @@ Até logo!`;
                 if (info) info.textContent = `${credenciaisCache.length} credencial(is) registrada(s) no total.`;
             } catch (e) {
                 console.error("Erro ao salvar credencial", e);
-                alert("Erro ao salvar credencial. Tente novamente.");
+                avisoPainel("Erro ao salvar credencial. Tente novamente.");
             }
         }
 
@@ -3523,7 +3690,7 @@ Até logo!`;
                 mostrarToast(`Credencial de ${cred.dados.nome} marcada como pronta.`);
             } catch (e) {
                 console.error("Erro ao marcar como pronta", e);
-                alert("Erro ao marcar como pronta.");
+                avisoPainel("Erro ao marcar como pronta.");
             }
         }
 
@@ -3531,7 +3698,7 @@ Até logo!`;
             const cred = credenciaisCache.find(c => c.id === id);
             if (!cred) return;
             const telLimpo = String(cred.dados.telefoneLimpo || cred.dados.telefone || "").replace(/\D/g, "");
-            if (telLimpo.length < 10) return alert("Telefone inválido para WhatsApp.");
+            if (telLimpo.length < 10) return avisoPainel("Telefone inválido para WhatsApp.");
             try {
                 const agora = new Date().toISOString();
                 await db.collection("credenciais_estacionamento").doc(id).set({
@@ -3550,7 +3717,7 @@ Até logo!`;
         async function marcarCredencialEntregue(id) {
             const cred = credenciaisCache.find(c => c.id === id);
             if (!cred) return;
-            if (!confirm(`Confirmar entrega da credencial de ${cred.dados.nome}?`)) return;
+            if (!(await confirmarPainel(`Confirmar entrega da credencial de ${cred.dados.nome}?`, { titulo: "Entregar credencial", textoConfirmar: "Confirmar entrega" }))) return;
             try {
                 const agora = new Date().toISOString();
                 await db.collection("credenciais_estacionamento").doc(id).set({
@@ -3565,14 +3732,14 @@ Até logo!`;
                 mostrarToast(`Credencial de ${cred.dados.nome} marcada como entregue.`);
             } catch (e) {
                 console.error("Erro ao marcar como entregue", e);
-                alert("Erro ao marcar como entregue.");
+                avisoPainel("Erro ao marcar como entregue.");
             }
         }
 
         async function reabrirCredencial(id) {
             const cred = credenciaisCache.find(c => c.id === id);
             if (!cred) return;
-            if (!confirm(`Reabrir a credencial de ${cred.dados.nome}? Ela voltará para "Pronta para entrega".`)) return;
+            if (!(await confirmarPainel(`Reabrir a credencial de ${cred.dados.nome}? Ela voltará para "Pronta para entrega".`, { titulo: "Reabrir credencial", textoConfirmar: "Reabrir" }))) return;
             try {
                 await db.collection("credenciais_estacionamento").doc(id).set({
                     status: "pronta",
@@ -3584,14 +3751,14 @@ Até logo!`;
                 renderCredenciais();
             } catch (e) {
                 console.error("Erro ao reabrir credencial", e);
-                alert("Erro ao reabrir credencial.");
+                avisoPainel("Erro ao reabrir credencial.");
             }
         }
 
         async function removerCredencial(id) {
             const cred = credenciaisCache.find(c => c.id === id);
             if (!cred) return;
-            if (!confirm(`Remover permanentemente a credencial de ${cred.dados.nome}?`)) return;
+            if (!(await confirmarPainel(`Remover permanentemente a credencial de ${cred.dados.nome}?`, { titulo: "Remover credencial", perigo: true, textoConfirmar: "Remover" }))) return;
             try {
                 await db.collection("credenciais_estacionamento").doc(id).delete();
                 credenciaisCache = credenciaisCache.filter(c => c.id !== id);
@@ -3602,7 +3769,7 @@ Até logo!`;
                 mostrarToast(`Credencial de ${cred.dados.nome} removida.`);
             } catch (e) {
                 console.error("Erro ao remover credencial", e);
-                alert("Erro ao remover credencial.");
+                avisoPainel("Erro ao remover credencial.");
             }
         }
 
@@ -3611,14 +3778,14 @@ Até logo!`;
             if (!ag) return;
             const d = ag.dados;
             const telLimpo = cpfNumeros(d.telefone);
-            if (telLimpo.length < 10) return alert("Telefone inválido para WhatsApp.");
+            if (telLimpo.length < 10) return avisoPainel("Telefone inválido para WhatsApp.");
             await registrarLog("whatsapp_lembrete", { agendamentoId: id, protocolo: d.protocolo || "", dataISO: d.dataISO, hora: d.hora });
             window.open(`https://wa.me/55${telLimpo}?text=${encodeURIComponent(mensagemLembrete(d))}`, "_blank", "noopener,noreferrer");
         }
 
         async function enviarLembretesAmanha() {
             if (!agendamentosCache.length) {
-                alert("Carregue a lista de agendamentos primeiro.");
+                avisoPainel("Carregue a lista de agendamentos primeiro.");
                 return;
             }
             const amanha = amanhaISO();
@@ -3629,10 +3796,10 @@ Até logo!`;
                 String(ag.dados.telefone).replace(/\D/g,"").length >= 10
             );
             if (!deAmanha.length) {
-                alert("Nenhum agendamento com telefone encontrado para amanhã.");
+                avisoPainel("Nenhum agendamento com telefone encontrado para amanhã.");
                 return;
             }
-            if (!confirm(`Abrir ${deAmanha.length} janela(s) do WhatsApp Web para enviar lembretes de amanhã?`)) return;
+            if (!(await confirmarPainel(`Abrir ${deAmanha.length} janela(s) do WhatsApp Web para enviar lembretes de amanhã?`, { titulo: "Lembretes de amanhã", textoConfirmar: "Abrir WhatsApp" }))) return;
             for (let i = 0; i < deAmanha.length; i++) {
                 const ag = deAmanha[i];
                 const tel = String(ag.dados.telefone).replace(/\D/g,"");
@@ -3641,7 +3808,7 @@ Até logo!`;
                 window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
                 await registrarLog("lembrete_lote", { agendamentoId: ag.id, protocolo: ag.dados.protocolo || "" });
             }
-            alert(`${deAmanha.length} lembrete(s) aberto(s). Confirme o envio em cada aba do WhatsApp Web.`);
+            avisoPainel(`${deAmanha.length} lembrete(s) aberto(s). Confirme o envio em cada aba do WhatsApp Web.`);
         }
 
         async function abrirZapBloqueio(id) {
@@ -3649,7 +3816,7 @@ Até logo!`;
             if (!ag) return;
             const d = ag.dados;
             const telLimpo = cpfNumeros(d.bloqueioTelefone || d.telefone);
-            if (telLimpo.length < 10) return alert("Telefone inválido para WhatsApp.");
+            if (telLimpo.length < 10) return avisoPainel("Telefone inválido para WhatsApp.");
             const msg = `Olá, ${d.bloqueioNome || d.nome}! Precisamos falar sobre seu agendamento de RG/CIN na Câmara Municipal de Itanhandu. Por favor, entre em contato com a recepção.`;
             await registrarLog("whatsapp_bloqueio", { agendamentoId: id, cpf: d.bloqueioCpf || cpfNumeros(d.cpf) });
             window.open(`https://wa.me/55${telLimpo}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
@@ -3657,8 +3824,8 @@ Até logo!`;
 
         async function liberarBloqueio(id) {
             const ag = buscarAgendamentoCache(id);
-            if (!ag) return alert("Registro não encontrado.");
-            if (!confirm("Tem certeza que deseja liberar este CPF para novo agendamento?")) return;
+            if (!ag) return avisoPainel("Registro não encontrado.");
+            if (!(await confirmarPainel("Tem certeza que deseja liberar este CPF para novo agendamento?", { titulo: "Liberar bloqueio", textoConfirmar: "Liberar CPF" }))) return;
             const cpf = ag.dados.bloqueioCpf || cpfNumeros(ag.dados.cpf);
             const liberacao = {
                 bloqueioAtivo: false,
@@ -3675,7 +3842,7 @@ Até logo!`;
                 renderFilaHoje();
                 mostrarToast("Bloqueio liberado.");
             } catch (e) {
-                alert("Erro ao liberar bloqueio.");
+                avisoPainel("Erro ao liberar bloqueio.");
             }
         }
 
@@ -3707,13 +3874,13 @@ Até logo!`;
                     hora: agendamento.hora || hora,
                     protocolo: agendamento.protocolo || ""
                 };
-                alert(`Encaixe realizado! Protocolo: ${dadosComprovante.protocolo}`);
+                avisoPainel(`Encaixe realizado! Protocolo: ${dadosComprovante.protocolo}`);
                 await registrarLog("encaixe_manual_painel", { protocolo: dadosComprovante.protocolo, dataISO: data, hora });
-                if (confirm("Deseja emitir o comprovante em PDF agora?")) {
+                if (await confirmarPainel("Deseja emitir o comprovante em PDF agora?", { titulo: "Comprovante do encaixe", textoConfirmar: "Emitir PDF" })) {
                     emitirComprovantePDF(dadosComprovante);
                 }
                 fecharModal(); listarAgendamentos();
-            } catch (e) { alert(e.message || "Erro ao salvar."); }
+            } catch (e) { avisoPainel(e.message || "Erro ao salvar."); }
             btn.disabled = false; btn.innerText = "Salvar Encaixe";
         }
 
@@ -3752,7 +3919,7 @@ Até logo!`;
             if (faltando.length) {
                 marcarErroManual(faltando.map(c => c.id));
                 document.getElementById(faltando[0].id).focus();
-                alert("Preencha os campos obrigatórios: " + faltando.map(c => c.nome).join(", ") + ".");
+                avisoPainel("Preencha os campos obrigatórios: " + faltando.map(c => c.nome).join(", ") + ".");
                 return false;
             }
 
@@ -3766,7 +3933,7 @@ Até logo!`;
             if (erros.length) {
                 marcarErroManual(erros.map(e => e.id));
                 document.getElementById(erros[0].id).focus();
-                alert("Corrija: " + erros.map(e => e.msg).join(", ") + ".");
+                avisoPainel("Corrija: " + erros.map(e => e.msg).join(", ") + ".");
                 return false;
             }
 
@@ -3789,9 +3956,9 @@ Até logo!`;
             const lista = agendamentosCache
                 .filter(ag => ag.dados.dataISO === hojeISO() && statusValor(ag.dados) !== "cancelado")
                 .sort((a, b) => String(a.dados.hora || "").localeCompare(String(b.dados.hora || "")));
-            if (!lista.length) return alert("Nenhum agendamento encontrado para hoje.");
+            if (!lista.length) return avisoPainel("Nenhum agendamento encontrado para hoje.");
             const janela = window.open("", "_blank");
-            if (!janela) return alert("O navegador bloqueou a janela de impressão. Permita pop-ups para continuar.");
+            if (!janela) return avisoPainel("O navegador bloqueou a janela de impressão. Permita pop-ups para continuar.");
             const linhas = lista.map(ag => {
                 const d = ag.dados;
                 return `<tr><td>${textoSeguro(d.hora)}</td><td>${textoSeguro(d.nome)}</td><td>${textoSeguro(cpfFormatado(d.cpf))}</td><td>${textoSeguro(statusLabel(statusValor(d)))}</td><td></td></tr>`;
