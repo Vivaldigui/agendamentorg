@@ -1029,6 +1029,13 @@
         .fila-card.nao_compareceu { border-left-color:#ef4444; }
         .fila-card.cancelado { border-left-color:#94a3b8; opacity:0.7; }
         .fila-card-topo { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+        .fila-detalhe-linha { display:flex; align-items:center; gap:7px; }
+        .fila-detalhe-linha .fila-detalhe { flex:1; min-width:0; }
+        .btn-copiar-contato { width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--line); border-radius:8px; color:var(--primary-dark); background:var(--surface-soft); cursor:pointer; }
+        .btn-copiar-contato:hover { border-color:#60a5fa; background:#eff6ff; }
+        .acessos-tempo-real { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin:0 0 12px; }
+        .acesso-card { padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--surface-soft); color:var(--muted); font-size:0.76rem; font-weight:800; }
+        .acesso-card strong { display:block; margin-top:2px; color:var(--ink); font-size:1.15rem; }
         .fila-hora { font-size:1.35rem; color:var(--primary-dark); font-weight:900; }
         .fila-nome { margin:8px 0 3px; font-size:0.98rem; font-weight:900; color:var(--ink); }
         .fila-detalhe { color:var(--muted); font-size:0.76rem; font-weight:700; }
@@ -1050,7 +1057,7 @@
         .login-erro { margin:0 0 14px; padding:10px 12px; border-radius:9px; background:#fef2f2; border:1px solid #fca5a5; color:#b91c1c; font-size:0.85rem; font-weight:700; text-align:left; }
         body.modo-escuro .login-erro { background:#450a0a; border-color:#991b1b; color:#fecaca; }
         .toast-sessao button { margin-left:auto; border:1px solid #92400e; background:white; color:#78350f; border-radius:7px; padding:5px 9px; font-weight:900; cursor:pointer; }
-        .painel-horarios, .painel-preferencias, .painel-logs { margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+        .painel-horarios, .painel-preferencias, .painel-automacao, .painel-logs { margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
         details > summary { cursor:pointer; color:var(--primary-dark); font-weight:900; }
         .horarios-semana { display:grid; gap:10px; margin-top:14px; }
         .horario-dia { display:grid; grid-template-columns:92px minmax(0,1fr) 164px auto; gap:10px; align-items:center; }
@@ -1061,6 +1068,17 @@
         .horario-dia input { width:100%; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); }
         .config-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px; }
         .config-grid .input-group { margin:0; }
+        .automacao-dias { display:flex; flex-wrap:wrap; gap:9px; margin:12px 0; }
+        .automacao-dias .filtro-check { padding:8px 10px; margin:0; border:1px solid var(--line); border-radius:9px; background:var(--surface-soft); }
+        .automacao-excecao { display:grid; grid-template-columns:minmax(150px,1fr) minmax(150px,1fr) minmax(140px,1fr) auto; gap:10px; align-items:end; margin-top:12px; }
+        .automacao-excecao.simples { grid-template-columns:minmax(180px,1fr) auto; }
+        .automacao-excecao .input-group { margin:0; }
+        .lista-excecoes { display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; min-height:22px; }
+        .chip-excecao { display:inline-flex; align-items:center; gap:6px; padding:6px 9px; color:#7c2d12; background:#fff7ed; border:1px solid #fdba74; border-radius:999px; font-size:0.76rem; font-weight:900; }
+        .chip-excecao button { border:0; background:transparent; color:#b91c1c; cursor:pointer; font-weight:900; }
+        .automacao-ajuda { display:block; margin-top:10px; color:var(--muted); font-size:0.78rem; line-height:1.5; }
+        body.modo-escuro .automacao-dias .filtro-check { background:#111827; border-color:#334155; }
+        body.modo-escuro .chip-excecao { color:#fed7aa; background:#431407; border-color:#9a3412; }
         .logs-lista { display:grid; gap:8px; margin-top:12px; }
         .log-item { display:grid; grid-template-columns:72px 170px 1fr minmax(150px, auto); gap:10px; padding:9px 10px; background:var(--surface-soft); border:1px solid var(--line); border-radius:8px; color:var(--muted); font-size:0.76rem; font-weight:700; }
         .log-item strong { color:var(--ink); }
@@ -1068,14 +1086,17 @@
         .card-kpi.clicavel { cursor:pointer; text-align:left; font-family:inherit; transition:0.16s; }
         .card-kpi.clicavel:hover { transform:translateY(-2px); border-color:#93c5fd; box-shadow:var(--shadow-sm); }
         body.modo-escuro .fila-topo, body.modo-escuro .fila-card, body.modo-escuro .card-kpi, body.modo-escuro .log-item { background:#111827; border-color:#334155; }
+        body.modo-escuro .acesso-card, body.modo-escuro .btn-copiar-contato { background:#111827; border-color:#334155; }
         body.modo-escuro .fila-nome, body.modo-escuro .horario-dia strong, body.modo-escuro .log-item strong { color:#e2e8f0; }
         body.modo-escuro .chip-horario { background:#082f49; color:#bae6fd; border-color:#075985; }
         body.modo-escuro .horario-dia input { background:#0b1220; color:#e2e8f0; border-color:#334155; }
         @media (max-width:760px) {
             .fila-topo { grid-template-columns:1fr; top:4px; }
             .fila-resumo { text-align:left; }
+            .acessos-tempo-real { grid-template-columns:1fr; }
             .horario-dia { grid-template-columns:1fr; padding:10px; border:1px solid var(--line); border-radius:10px; }
             .config-grid { grid-template-columns:1fr; }
+            .automacao-excecao, .automacao-excecao.simples { grid-template-columns:1fr; }
             .log-item { grid-template-columns:1fr; gap:2px; }
         }
 
@@ -1185,6 +1206,11 @@
                     <strong id="fila-contagem">0 de 0 atendidos hoje</strong><br>
                     <span class="atualizado-em" id="fila-atualizado"><i class="fa-solid fa-rotate"></i> Aguardando atualização</span>
                 </div>
+            </div>
+            <div class="acessos-tempo-real" aria-label="Acessos ao agendamento público em tempo real">
+                <div class="acesso-card">Acessos agora<strong id="acessos-agora">Medição desativada</strong></div>
+                <div class="acesso-card">Pico de hoje<strong id="acessos-pico-hoje">Medição desativada</strong></div>
+                <div class="acesso-card">Entradas hoje<strong id="acessos-total-hoje">Medição desativada</strong></div>
             </div>
             <div class="fila-cards" id="fila-hoje-cards"></div>
         </section>
@@ -1317,6 +1343,64 @@
         </div>
         <div class="painel-config">
             <h3><i class="fa-solid fa-gears"></i> Configurações operacionais</h3>
+            <details class="painel-automacao" open>
+                <summary><i class="fa-solid fa-calendar-check"></i> Abertura automática toda segunda-feira</summary>
+                <div class="config-grid">
+                    <label class="filtro-check" style="padding:0; align-self:end;">
+                        <input type="checkbox" id="cfg-auto-ativa" checked>
+                        Ativar abertura semanal automática
+                    </label>
+                    <div class="input-group">
+                        <label for="cfg-auto-hora">Horário de abertura na segunda</label>
+                        <input type="time" id="cfg-auto-hora" value="08:00">
+                    </div>
+                </div>
+                <strong style="display:block; margin-top:14px; color:var(--ink);">Dias normais de atendimento gerados em cada semana</strong>
+                <div class="automacao-dias" id="cfg-auto-dias">
+                    <label class="filtro-check"><input type="checkbox" value="1"> Segunda</label>
+                    <label class="filtro-check"><input type="checkbox" value="2" checked> Terça</label>
+                    <label class="filtro-check"><input type="checkbox" value="3" checked> Quarta</label>
+                    <label class="filtro-check"><input type="checkbox" value="4" checked> Quinta</label>
+                    <label class="filtro-check"><input type="checkbox" value="5" checked> Sexta</label>
+                </div>
+
+                <div class="automacao-excecao simples">
+                    <div class="input-group">
+                        <label for="cfg-auto-semana-pausada">Não abrir uma semana inteira</label>
+                        <input type="date" id="cfg-auto-semana-pausada">
+                    </div>
+                    <button type="button" class="btn btn-atualizar" onclick="adicionarSemanaPausada()"><i class="fa-solid fa-plus"></i> Pular semana</button>
+                </div>
+                <div class="lista-excecoes" id="lista-semanas-pausadas"></div>
+
+                <div class="automacao-excecao simples">
+                    <div class="input-group">
+                        <label for="cfg-auto-data-bloqueada">Não atender em um dia específico</label>
+                        <input type="date" id="cfg-auto-data-bloqueada">
+                    </div>
+                    <button type="button" class="btn btn-atualizar" onclick="adicionarDataBloqueada()"><i class="fa-solid fa-plus"></i> Bloquear dia</button>
+                </div>
+                <div class="lista-excecoes" id="lista-datas-bloqueadas"></div>
+
+                <div class="automacao-excecao">
+                    <div class="input-group">
+                        <label for="cfg-auto-ferias-inicio">Férias/pausa: início</label>
+                        <input type="date" id="cfg-auto-ferias-inicio">
+                    </div>
+                    <div class="input-group">
+                        <label for="cfg-auto-ferias-fim">Fim</label>
+                        <input type="date" id="cfg-auto-ferias-fim">
+                    </div>
+                    <div class="input-group">
+                        <label for="cfg-auto-ferias-motivo">Motivo (opcional)</label>
+                        <input type="text" id="cfg-auto-ferias-motivo" maxlength="120" placeholder="Ex.: férias">
+                    </div>
+                    <button type="button" class="btn btn-atualizar" onclick="adicionarPeriodoBloqueado()"><i class="fa-solid fa-plus"></i> Adicionar pausa</button>
+                </div>
+                <div class="lista-excecoes" id="lista-periodos-bloqueados"></div>
+                <small class="automacao-ajuda">As exceções vencem a regra automática. Datas cadastradas manualmente continuam sob controle da recepção. Para a semana seguinte, salve mudanças preferencialmente antes de segunda às 07:50.</small>
+                <button type="button" class="btn btn-config" id="btn-salvar-automacao" style="margin-top:12px;" onclick="salvarAutomacaoSemanal()"><i class="fa-solid fa-floppy-disk"></i> Salvar automação e exceções</button>
+            </details>
             <details class="painel-horarios">
                 <summary><i class="fa-solid fa-clock"></i> Horários disponíveis por dia da semana</summary>
                 <div class="horarios-semana" id="horarios-semana"></div>
@@ -1507,16 +1591,20 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <script>
         const APP_CHECK_RECAPTCHA_SITE_KEY = "6LdoYfcsAAAAALyCdBKewXtFLB1e9biRnXTWqNv0";
+        const METRICAS_ACESSO_PUBLICO_ATIVAS = false;
         var firebaseConfig = { apiKey: "AIzaSyBqmzQw8CtTD6O2C3fiXcm7_GBmkgite_c", authDomain: "agendamento-cin-itanhandu.firebaseapp.com", databaseURL: "https://agendamento-cin-itanhandu-default-rtdb.firebaseio.com", projectId: "agendamento-cin-itanhandu", storageBucket: "agendamento-cin-itanhandu.firebasestorage.app", messagingSenderId: "144820039253", appId: "1:144820039253:web:af179156ce8da4b73a6edc", measurementId: "G-KWKF7NCJHK" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         if (firebase.appCheck) firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
-        const db = firebase.firestore(); const auth = firebase.auth(); const functions = firebase.functions();
+        const db = firebase.firestore(); const auth = firebase.auth(); const functions = firebase.functions(); const realtimeDbAdmin = firebase.database();
         // Mantem o login salvo entre fechamentos do navegador.
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.warn("Persistencia de login indisponivel", e));
-        const HORARIOS_PADRAO = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
+        const HORARIOS_LEGADOS = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
+        const HORARIOS_PADRAO = ["14:30","14:45","15:00","15:15","15:30","15:45","16:00","16:15","16:30","16:45"];
+        const DATA_CORTE_GRADE_NOVA = "2026-08-18";
         const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
         const RESPONSAVEL_POSTO_PADRAO = "Guilherme Ribeiro Pinto";
         const TEMPLATE_LEMBRETE_PADRAO = `Olá, {nome}!
@@ -1548,6 +1636,8 @@ Até logo!`;
         let agendaHorarios = HORARIOS_PADRAO;
         let agendaHorariosPorDiaSemana = {};
         let agendaPublicacaoDatas = {};
+        let agendaAutomacaoSemanal = { ativa: true, horaAbertura: "08:00", diasSemana: [2, 3, 4, 5], semanasPausadas: [], datasBloqueadas: [], periodosBloqueados: [] };
+        let agendaDatasAutomaticas = [];
         let responsavelPosto = RESPONSAVEL_POSTO_PADRAO;
         let templateLembrete = TEMPLATE_LEMBRETE_PADRAO;
         let agendamentosCache = [];
@@ -1565,11 +1655,15 @@ Até logo!`;
         let credenciaisCache = [];
         let credenciaisCarregadas = false;
         let filtroCredencialAtual = "ativas";
+        let monitoramentoAcessosRef = null;
         const INATIVIDADE_AVISO_MS = 7 * 60 * 60 * 1000 + 55 * 60 * 1000; // 7h55min
         const INATIVIDADE_LOGOUT_MS = 8 * 60 * 60 * 1000; // 8h (jornada completa)
         const ATUALIZACAO_AUTOMATICA_MS = 2 * 60 * 1000;
         let timerAviso = null, timerLogout = null, timerSessaoContagem = null, timerAtualizacaoAutomatica = null;
         let ultimaAtualizacaoLista = null;
+        let carregamentoListaEmAndamento = false;
+        let atualizacaoDiasEmAndamento = false;
+        let geracaoConsultaAgendamentos = 0;
         let logsRecentes = [];
         try {
             mostrarDatasPassadas = localStorage.getItem("cin_mostrar_datas_passadas") === "true";
@@ -1728,13 +1822,185 @@ Até logo!`;
             return "";
         }
 
+        function dataISOValidaAutomacao(valor) {
+            const texto = String(valor || "");
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(texto)) return false;
+            const [ano, mes, dia] = texto.split("-").map(Number);
+            const data = new Date(ano, mes - 1, dia);
+            return data.getFullYear() === ano && data.getMonth() === mes - 1 && data.getDate() === dia;
+        }
+
+        function segundaDaSemanaPainel(dataISO) {
+            if (!dataISOValidaAutomacao(dataISO)) return "";
+            const [ano, mes, dia] = dataISO.split("-").map(Number);
+            const data = new Date(ano, mes - 1, dia);
+            const diaSemana = data.getDay();
+            return somarDiasISO(dataISO, diaSemana === 0 ? -6 : 1 - diaSemana);
+        }
+
+        function normalizarAutomacaoPainel(valor) {
+            const origem = valor && typeof valor === "object" && !Array.isArray(valor) ? valor : {};
+            const diasOrigem = Array.isArray(origem.diasSemana) ? origem.diasSemana : [2, 3, 4, 5];
+            const diasSemana = [...new Set(diasOrigem.map(Number).filter(dia => Number.isInteger(dia) && dia >= 1 && dia <= 5))].sort((a, b) => a - b);
+            const listaDatas = lista => [...new Set((Array.isArray(lista) ? lista : []).filter(dataISOValidaAutomacao).map(String))].sort();
+            const semanasPausadas = [...new Set(listaDatas(origem.semanasPausadas).map(segundaDaSemanaPainel).filter(Boolean))].sort();
+            const periodosBloqueados = (Array.isArray(origem.periodosBloqueados) ? origem.periodosBloqueados : [])
+                .filter(item => item && dataISOValidaAutomacao(item.inicio) && dataISOValidaAutomacao(item.fim) && item.fim >= item.inicio)
+                .map(item => ({ inicio: String(item.inicio), fim: String(item.fim), motivo: String(item.motivo || "").trim().slice(0, 120) }))
+                .sort((a, b) => a.inicio.localeCompare(b.inicio) || a.fim.localeCompare(b.fim));
+            return {
+                ativa: origem.ativa !== false,
+                horaAbertura: /^([01]\d|2[0-3]):[0-5]\d$/.test(String(origem.horaAbertura || "")) ? String(origem.horaAbertura) : "08:00",
+                diasSemana,
+                semanasPausadas,
+                datasBloqueadas: listaDatas(origem.datasBloqueadas),
+                periodosBloqueados
+            };
+        }
+
+        function renderAutomacaoSemanal() {
+            const cfg = normalizarAutomacaoPainel(agendaAutomacaoSemanal);
+            agendaAutomacaoSemanal = cfg;
+            document.getElementById("cfg-auto-ativa").checked = cfg.ativa;
+            document.getElementById("cfg-auto-hora").value = cfg.horaAbertura;
+            document.querySelectorAll("#cfg-auto-dias input[type='checkbox']").forEach(input => {
+                input.checked = cfg.diasSemana.includes(Number(input.value));
+            });
+            const vazio = '<span class="detalhe-pessoal">Nenhuma exceção cadastrada.</span>';
+            document.getElementById("lista-semanas-pausadas").innerHTML = cfg.semanasPausadas.length
+                ? cfg.semanasPausadas.map((segunda, indice) => `<span class="chip-excecao">Semana de ${textoSeguro(dataBrISO(segunda))}<button type="button" title="Remover exceção" onclick="removerSemanaPausada(${indice})">x</button></span>`).join("")
+                : vazio;
+            document.getElementById("lista-datas-bloqueadas").innerHTML = cfg.datasBloqueadas.length
+                ? cfg.datasBloqueadas.map((dataISO, indice) => `<span class="chip-excecao">${textoSeguro(dataBrISO(dataISO))}<button type="button" title="Remover exceção" onclick="removerDataBloqueada(${indice})">x</button></span>`).join("")
+                : vazio;
+            document.getElementById("lista-periodos-bloqueados").innerHTML = cfg.periodosBloqueados.length
+                ? cfg.periodosBloqueados.map((periodo, indice) => `<span class="chip-excecao">${textoSeguro(dataBrISO(periodo.inicio))} a ${textoSeguro(dataBrISO(periodo.fim))}${periodo.motivo ? ` · ${textoSeguro(periodo.motivo)}` : ""}<button type="button" title="Remover pausa" onclick="removerPeriodoBloqueado(${indice})">x</button></span>`).join("")
+                : vazio;
+        }
+
+        function adicionarSemanaPausada() {
+            const input = document.getElementById("cfg-auto-semana-pausada");
+            const segunda = segundaDaSemanaPainel(input.value);
+            if (!segunda) return avisoPainel("Escolha uma data válida da semana que não terá abertura.");
+            agendaAutomacaoSemanal.semanasPausadas = [...new Set([...(agendaAutomacaoSemanal.semanasPausadas || []), segunda])].sort();
+            input.value = "";
+            renderAutomacaoSemanal();
+        }
+
+        function removerSemanaPausada(indice) {
+            agendaAutomacaoSemanal.semanasPausadas.splice(indice, 1);
+            renderAutomacaoSemanal();
+        }
+
+        function adicionarDataBloqueada() {
+            const input = document.getElementById("cfg-auto-data-bloqueada");
+            if (!dataISOValidaAutomacao(input.value)) return avisoPainel("Escolha um dia válido para bloquear.");
+            agendaAutomacaoSemanal.datasBloqueadas = [...new Set([...(agendaAutomacaoSemanal.datasBloqueadas || []), input.value])].sort();
+            input.value = "";
+            renderAutomacaoSemanal();
+        }
+
+        function removerDataBloqueada(indice) {
+            agendaAutomacaoSemanal.datasBloqueadas.splice(indice, 1);
+            renderAutomacaoSemanal();
+        }
+
+        function adicionarPeriodoBloqueado() {
+            const inicio = document.getElementById("cfg-auto-ferias-inicio").value;
+            const fim = document.getElementById("cfg-auto-ferias-fim").value;
+            const motivo = document.getElementById("cfg-auto-ferias-motivo").value.trim();
+            if (!dataISOValidaAutomacao(inicio) || !dataISOValidaAutomacao(fim)) return avisoPainel("Informe o início e o fim da pausa.");
+            if (fim < inicio) return avisoPainel("O fim da pausa deve ser igual ou posterior ao início.");
+            agendaAutomacaoSemanal.periodosBloqueados = [...(agendaAutomacaoSemanal.periodosBloqueados || []), { inicio, fim, motivo }];
+            document.getElementById("cfg-auto-ferias-inicio").value = "";
+            document.getElementById("cfg-auto-ferias-fim").value = "";
+            document.getElementById("cfg-auto-ferias-motivo").value = "";
+            renderAutomacaoSemanal();
+        }
+
+        function removerPeriodoBloqueado(indice) {
+            agendaAutomacaoSemanal.periodosBloqueados.splice(indice, 1);
+            renderAutomacaoSemanal();
+        }
+
+        function automacaoDaTela() {
+            const diasSemana = Array.from(document.querySelectorAll("#cfg-auto-dias input[type='checkbox']:checked")).map(input => Number(input.value));
+            return normalizarAutomacaoPainel({
+                ...agendaAutomacaoSemanal,
+                ativa: document.getElementById("cfg-auto-ativa").checked,
+                horaAbertura: document.getElementById("cfg-auto-hora").value,
+                diasSemana
+            });
+        }
+
+        function dataPermitidaPelaAutomacao(cfg, dataISO) {
+            if (!cfg.ativa || !cfg.diasSemana.includes(indiceDiaSemana(dataISO))) return false;
+            if (cfg.semanasPausadas.includes(segundaDaSemanaPainel(dataISO))) return false;
+            if (cfg.datasBloqueadas.includes(dataISO)) return false;
+            return !cfg.periodosBloqueados.some(periodo => dataISO >= periodo.inicio && dataISO <= periodo.fim);
+        }
+
+        async function salvarAutomacaoSemanal() {
+            const cfg = automacaoDaTela();
+            if (cfg.ativa && !cfg.diasSemana.length) return avisoPainel("Marque ao menos um dia normal de atendimento ou desative a automação.");
+            const btn = document.getElementById("btn-salvar-automacao");
+            btn.disabled = true;
+            const htmlOriginal = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando...';
+            const agora = agoraSaoPauloInput();
+            const dias = new Set(agendaDias);
+            const geradas = new Set(agendaDatasAutomaticas);
+            const publicacoes = { ...agendaPublicacaoDatas };
+            const removidas = [];
+            const mantidasPorSeguranca = [];
+
+            for (const dataISO of [...geradas]) {
+                if (dataPermitidaPelaAutomacao(cfg, dataISO)) continue;
+                if (publicacoes[dataISO] && publicacoes[dataISO] > agora) {
+                    dias.delete(dataISO);
+                    geradas.delete(dataISO);
+                    delete publicacoes[dataISO];
+                    removidas.push(dataISO);
+                } else {
+                    mantidasPorSeguranca.push(dataISO);
+                }
+            }
+
+            try {
+                await db.collection("configuracoes").doc("agenda").set({
+                    automacaoSemanal: cfg,
+                    dias: [...dias].sort(),
+                    publicacaoDatas: publicacoes,
+                    datasGeradasAutomaticamente: [...geradas].sort(),
+                    atualizado: new Date().toISOString()
+                }, { merge: true });
+                agendaAutomacaoSemanal = cfg;
+                agendaDias = [...dias].sort();
+                agendaPublicacaoDatas = publicacoes;
+                agendaDatasAutomaticas = [...geradas].sort();
+                renderAutomacaoSemanal();
+                renderAgendaDatas();
+                await registrarLog("agenda_salvar_automacao_semanal", { removidas, mantidasPorSeguranca, automacao: cfg });
+                if (mantidasPorSeguranca.length) {
+                    mostrarToast("Configuração salva. Datas já publicadas foram mantidas para proteger agendamentos existentes; revise-as manualmente.", "aviso");
+                } else {
+                    mostrarToast(removidas.length ? `Automação salva; ${removidas.length} data(s) ainda não publicada(s) foram removidas.` : "Automação semanal salva.");
+                }
+            } catch (e) {
+                mostrarToast("Erro ao salvar a automação semanal.", "erro");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = htmlOriginal;
+            }
+        }
+
         function ordenarDatas(dias) {
             return [...new Set((dias || []).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)))].sort();
         }
 
         function ordenarHorarios(horarios) {
             const base = Array.isArray(horarios) ? horarios : [];
-            return [...new Set([...base, ...HORARIOS_PADRAO].filter(h => /^\d{2}:\d{2}$/.test(String(h || ""))))].sort();
+            return [...new Set(base.filter(h => /^\d{2}:\d{2}$/.test(String(h || ""))).map(String))].sort();
         }
 
         function ordenarHorariosEditaveis(horarios) {
@@ -1747,9 +2013,10 @@ Até logo!`;
             const limpo = {};
             for (let dia = 0; dia <= 6; dia++) {
                 const chave = String(dia);
-                limpo[chave] = Object.prototype.hasOwnProperty.call(origem, chave) && Array.isArray(origem[chave])
-                    ? ordenarHorariosEditaveis(origem[chave])
-                    : [...agendaHorarios];
+                if (Object.prototype.hasOwnProperty.call(origem, chave) && Array.isArray(origem[chave])) {
+                    // Lista vazia e explicita significa sem atendimento nesse dia.
+                    limpo[chave] = ordenarHorariosEditaveis(origem[chave]);
+                }
             }
             return limpo;
         }
@@ -1760,18 +2027,32 @@ Até logo!`;
             return new Date(ano, mes - 1, dia).getDay();
         }
 
+        // Espelho da regra canonica em functions/agenda-grade.js::horariosParaData.
+        function horariosPadraoParaDataPainel(dataISO) {
+            return String(dataISO || "") < DATA_CORTE_GRADE_NOVA
+                ? [...HORARIOS_LEGADOS]
+                : [...HORARIOS_PADRAO];
+        }
+
         function horariosDaData(dataISO) {
             const chave = String(indiceDiaSemana(dataISO));
             return Object.prototype.hasOwnProperty.call(agendaHorariosPorDiaSemana, chave)
                 ? agendaHorariosPorDiaSemana[chave]
-                : agendaHorarios;
+                : horariosPadraoParaDataPainel(dataISO);
+        }
+
+        function horariosEditaveisDiaSemana(dia) {
+            const chave = String(dia);
+            return Object.prototype.hasOwnProperty.call(agendaHorariosPorDiaSemana, chave)
+                ? agendaHorariosPorDiaSemana[chave]
+                : [...HORARIOS_PADRAO];
         }
 
         function renderHorariosSemana() {
             const box = document.getElementById("horarios-semana");
             if (!box) return;
             box.innerHTML = DIAS_SEMANA.map((nome, dia) => {
-                const horarios = agendaHorariosPorDiaSemana[String(dia)] || [];
+                const horarios = horariosEditaveisDiaSemana(dia);
                 const chips = horarios.length
                     ? horarios.map(hora => `<span class="chip-horario">${textoSeguro(hora)}<button type="button" title="Remover horário" onclick="removerHorarioSemana(${dia}, '${textoSeguro(hora)}')">x</button></span>`).join("")
                     : '<span class="detalhe-pessoal">Sem horários públicos neste dia.</span>';
@@ -1791,13 +2072,13 @@ Até logo!`;
             const hora = input ? input.value : "";
             if (!/^\d{2}:\d{2}$/.test(hora)) return avisoPainel("Informe um horário válido.");
             const chave = String(dia);
-            agendaHorariosPorDiaSemana[chave] = ordenarHorariosEditaveis([...(agendaHorariosPorDiaSemana[chave] || []), hora]);
+            agendaHorariosPorDiaSemana[chave] = ordenarHorariosEditaveis([...horariosEditaveisDiaSemana(dia), hora]);
             renderHorariosSemana();
         }
 
         function removerHorarioSemana(dia, hora) {
             const chave = String(dia);
-            agendaHorariosPorDiaSemana[chave] = (agendaHorariosPorDiaSemana[chave] || []).filter(item => item !== hora);
+            agendaHorariosPorDiaSemana[chave] = horariosEditaveisDiaSemana(dia).filter(item => item !== hora);
             renderHorariosSemana();
         }
 
@@ -2286,6 +2567,8 @@ Até logo!`;
                 remarcacao_painel: "Agendamento remarcado",
                 agenda_adicionar_data: "Data adicionada",
                 agenda_remover_data: "Data removida",
+                agenda_automacao_semanal: "Automação semanal executada",
+                agenda_salvar_automacao_semanal: "Automação semanal salva",
                 agenda_salvar_horarios_semana: "Horários salvos",
                 agenda_salvar_preferencias: "Preferências salvas",
                 credencial_cadastrar: "Credencial cadastrada",
@@ -2335,6 +2618,40 @@ Até logo!`;
             }
         }
 
+        function atualizarMetricasAcessoPainel(dados) {
+            const metricas = dados && typeof dados === "object" ? dados : {};
+            document.getElementById("acessos-agora").textContent = Number(metricas.ativosAgora) || 0;
+            document.getElementById("acessos-pico-hoje").textContent = Number(metricas.picoHoje) || 0;
+            document.getElementById("acessos-total-hoje").textContent = Number(metricas.acessosHoje) || 0;
+        }
+
+        function mostrarMetricasAcessoDesativadas() {
+            ["acessos-agora", "acessos-pico-hoje", "acessos-total-hoje"].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = "Medição desativada";
+            });
+        }
+
+        function iniciarMonitoramentoAcessos() {
+            if (!METRICAS_ACESSO_PUBLICO_ATIVAS) {
+                pararMonitoramentoAcessos();
+                mostrarMetricasAcessoDesativadas();
+                return;
+            }
+            if (monitoramentoAcessosRef) return;
+            monitoramentoAcessosRef = realtimeDbAdmin.ref("presenca_publica/metricas");
+            monitoramentoAcessosRef.on("value", snapshot => atualizarMetricasAcessoPainel(snapshot.val()), erro => {
+                console.warn("Monitoramento de acessos indisponível", erro);
+                ["acessos-agora", "acessos-pico-hoje", "acessos-total-hoje"].forEach(id => { document.getElementById(id).textContent = "Indisponível"; });
+            });
+        }
+
+        function pararMonitoramentoAcessos() {
+            if (!monitoramentoAcessosRef) return;
+            monitoramentoAcessosRef.off();
+            monitoramentoAcessosRef = null;
+        }
+
         auth.onAuthStateChanged(async user => {
             const splash = document.getElementById('boot-splash');
             if (splash) splash.style.display = 'none';
@@ -2348,6 +2665,9 @@ Até logo!`;
                 document.getElementById('remarcar-data').min = hojeISO();
                 document.getElementById('cfg-publicar-em-data').min = agoraSaoPauloInput();
                 document.getElementById('cfg-publicar-em-aviso').min = agoraSaoPauloInput();
+                ["cfg-auto-semana-pausada", "cfg-auto-data-bloqueada", "cfg-auto-ferias-inicio", "cfg-auto-ferias-fim"].forEach(id => {
+                    document.getElementById(id).min = hojeISO();
+                });
                 configurarPeriodoPadraoLista();
                 agendaGestaoCarregada = false;
                 listaAgendamentosCarregada = false;
@@ -2357,10 +2677,16 @@ Até logo!`;
                 await carregarAgendaGestao();
                 await Promise.all([listarAgendamentos(), carregarTotalAtendimentosRealizados()]);
                 await carregarLogsAdmin();
+                iniciarMonitoramentoAcessos();
                 mostrarVistaPainel("hoje");
                 agendarAtualizacaoAutomatica();
             }
             else {
+                geracaoConsultaAgendamentos++;
+                carregamentoListaEmAndamento = false;
+                atualizacaoDiasEmAndamento = false;
+                clearInterval(timerAtualizacaoAutomatica);
+                pararMonitoramentoAcessos();
                 document.getElementById('login-screen').style.display='block';
                 document.getElementById('painel-screen').style.display='none';
                 document.title = "Recepção CIN — Câmara de Itanhandu";
@@ -2401,7 +2727,7 @@ Até logo!`;
         ["email", "senha"].forEach(id => document.getElementById(id).addEventListener("keydown", e => {
             if (e.key === "Enter") fazerLogin();
         }));
-        function fazerLogout() { clearTimeout(timerAviso); clearTimeout(timerLogout); clearInterval(timerAtualizacaoAutomatica); removerAvisoSessao(); auth.signOut(); }
+        function fazerLogout() { clearTimeout(timerAviso); clearTimeout(timerLogout); clearInterval(timerAtualizacaoAutomatica); pararMonitoramentoAcessos(); removerAvisoSessao(); auth.signOut(); }
         function abrirModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='flex'; }
         function fecharModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='none'; }
         function fecharRemarcacao() { document.getElementById('modal-remarcar').style.display='none'; }
@@ -2467,6 +2793,7 @@ Até logo!`;
                 const label = document.createElement("span");
                 label.textContent = dataBrISO(dataISO)
                     + (dataISO < hoje ? " - encerrada" : "")
+                    + (agendaDatasAutomaticas.includes(dataISO) ? " - automática" : "")
                     + (estaProgramada(dataISO) ? ` - libera ${dataHoraBr(agendaPublicacaoDatas[dataISO])}` : "");
                 const btn = document.createElement("button");
                 btn.type = "button";
@@ -2506,6 +2833,8 @@ Até logo!`;
                 agendaHorarios = ordenarHorarios(cfg.horarios);
                 agendaHorariosPorDiaSemana = normalizarHorariosSemana(cfg.horariosPorDiaSemana);
                 agendaPublicacaoDatas = normalizarPublicacaoDatas(cfg.publicacaoDatas);
+                agendaAutomacaoSemanal = normalizarAutomacaoPainel(cfg.automacaoSemanal);
+                agendaDatasAutomaticas = ordenarDatas(Array.isArray(cfg.datasGeradasAutomaticamente) ? cfg.datasGeradasAutomaticamente : []);
                 responsavelPosto = String(cfg.responsavelPosto || RESPONSAVEL_POSTO_PADRAO).trim();
                 templateLembrete = String(cfg.mensagemLembreteTemplate || TEMPLATE_LEMBRETE_PADRAO);
                 document.getElementById("cfg-responsavel-posto").value = responsavelPosto;
@@ -2527,6 +2856,7 @@ Até logo!`;
                 }
                 alternarProgramacaoAviso();
                 renderAgendaDatas();
+                renderAutomacaoSemanal();
                 renderHorariosSemana();
                 agendaGestaoCarregada = true;
                 atualizarResumo();
@@ -2545,6 +2875,8 @@ Até logo!`;
                 horarios: agendaHorarios.length ? agendaHorarios : HORARIOS_PADRAO,
                 horariosPorDiaSemana: agendaHorariosPorDiaSemana,
                 publicacaoDatas: agendaPublicacaoDatas,
+                automacaoSemanal: agendaAutomacaoSemanal,
+                datasGeradasAutomaticamente: agendaDatasAutomaticas,
                 atualizado: new Date().toISOString()
             }, { merge: true });
             renderAgendaDatas();
@@ -2582,9 +2914,14 @@ Até logo!`;
             if (!(await confirmarPainel(`Remover a data ${dataBrISO(data)} da agenda?`, { titulo: "Remover data", perigo: true, textoConfirmar: "Remover" }))) return;
             agendaDias = agendaDias.filter(d => d !== data);
             delete agendaPublicacaoDatas[data];
+            if (agendaDatasAutomaticas.includes(data)) {
+                agendaDatasAutomaticas = agendaDatasAutomaticas.filter(d => d !== data);
+                agendaAutomacaoSemanal.datasBloqueadas = [...new Set([...(agendaAutomacaoSemanal.datasBloqueadas || []), data])].sort();
+            }
             try {
                 await salvarAgendaGestao("Data removida.");
-                registrarLog("agenda_remover_data", { dataISO: data });
+                renderAutomacaoSemanal();
+                registrarLog("agenda_remover_data", { dataISO: data, bloqueadaNaAutomacao: agendaAutomacaoSemanal.datasBloqueadas.includes(data) });
             }
             catch (e) { avisoPainel("Erro ao remover data."); carregarAgendaGestao(); }
         }
@@ -2740,12 +3077,47 @@ Até logo!`;
             }
         }
 
+        function aguardar(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function consultarFirestoreServidorComRetentativa(consulta, tentativas = 3) {
+            let ultimoErro = null;
+            for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
+                try {
+                    // Nunca substitui a tela por um snapshot vazio do cache offline.
+                    return await consulta.get({ source: "server" });
+                } catch (e) {
+                    ultimoErro = e;
+                    const codigo = String(e && e.code || "");
+                    if (codigo.includes("permission-denied") || codigo.includes("unauthenticated") || tentativa === tentativas) break;
+                    await aguardar(350 * (2 ** (tentativa - 1)));
+                }
+            }
+            throw ultimoErro || new Error("Não foi possível consultar o servidor.");
+        }
+
+        function marcarFalhaAtualizacaoLista() {
+            const horaAnterior = ultimaAtualizacaoLista
+                ? ultimaAtualizacaoLista.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+                : "ainda não concluída";
+            ["fila-atualizado", "lista-atualizado"].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.style.color = "#b45309";
+                el.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Sem conexão; mantendo dados de ${textoSeguro(horaAnterior)}`;
+            });
+        }
+
         async function listarAgendamentos(opcoes = {}) {
             const silencioso = opcoes.silencioso === true;
             const preservarFiltros = opcoes.preservarFiltros === true;
             const corpo = document.getElementById("corpo-tabela");
-            if (!silencioso) corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Carregando...</td></tr>";
-            if (!silencioso) listaAgendamentosCarregada = false;
+            const tinhaDadosVisiveis = listaAgendamentosCarregada || agendamentosCache.length > 0;
+            if (!silencioso && !tinhaDadosVisiveis) {
+                corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Carregando...</td></tr>";
+                listaAgendamentosCarregada = false;
+            }
             configurarPeriodoPadraoLista();
             const inicio = document.getElementById("consulta-inicio").value || ontemISO();
             const fim = document.getElementById("consulta-fim").value || fimPeriodoPadraoISO();
@@ -2758,13 +3130,16 @@ Até logo!`;
                 avisoPainel("A data final precisa ser igual ou posterior à data inicial.");
                 return;
             }
+            const geracao = ++geracaoConsultaAgendamentos;
+            carregamentoListaEmAndamento = true;
             try {
-                const snap = await db.collection("dados_cidadaos")
+                const consulta = db.collection("dados_cidadaos")
                     .where("dataISO", ">=", inicio)
                     .where("dataISO", "<=", fim)
                     .orderBy("dataISO")
-                    .limit(900)
-                    .get();
+                    .limit(900);
+                const snap = await consultarFirestoreServidorComRetentativa(consulta);
+                if (geracao !== geracaoConsultaAgendamentos) return;
                 agendamentosCache = snap.docs.map(doc => ({ id: doc.id, dados: doc.data() }));
                 origemAgendamentosCache = "lista";
                 ordenarAgendamentosCache();
@@ -2782,7 +3157,25 @@ Até logo!`;
                 marcarAtualizacaoLista();
             } catch (e) {
                 console.warn("Erro ao carregar lista", e);
-                if (!silencioso) avisoPainel("Erro ao carregar lista.");
+                if (geracao !== geracaoConsultaAgendamentos) return;
+                marcarFalhaAtualizacaoLista();
+                if (tinhaDadosVisiveis) {
+                    listaAgendamentosCarregada = true;
+                    atualizarResumo();
+                    renderTabelaAgendamentos();
+                    renderFilaHoje();
+                    if (!silencioso) avisoPainel("Falha de conexão. A lista anterior foi mantida e será atualizada automaticamente.");
+                } else {
+                    corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Sem conexão com o servidor. Tentando novamente...</td></tr>";
+                    if (!silencioso) avisoPainel("Falha de conexão. Tentaremos novamente automaticamente.");
+                    setTimeout(() => {
+                        if (auth.currentUser && !listaAgendamentosCarregada) {
+                            listarAgendamentos({ silencioso: true, preservarFiltros: true });
+                        }
+                    }, 5000);
+                }
+            } finally {
+                if (geracao === geracaoConsultaAgendamentos) carregamentoListaEmAndamento = false;
             }
         }
 
@@ -2967,17 +3360,20 @@ Até logo!`;
                 avisoPainel("Digite um CPF completo ou protocolo no campo Buscar.");
                 return;
             }
+            const geracao = ++geracaoConsultaAgendamentos;
+            carregamentoListaEmAndamento = false;
             corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Buscando histórico...</td></tr>";
             try {
                 const consultas = [];
                 if (cpf.length === 11) {
-                    consultas.push(db.collection("dados_cidadaos").where("cpf", "==", cpfFormatado(cpf)).limit(20).get());
-                    consultas.push(db.collection("dados_cidadaos").where("cpf", "==", cpf).limit(20).get());
-                    consultas.push(db.collection("dados_cidadaos").where("bloqueioCpf", "==", cpf).limit(20).get());
+                    consultas.push(consultarFirestoreServidorComRetentativa(db.collection("dados_cidadaos").where("cpf", "==", cpfFormatado(cpf)).limit(20)));
+                    consultas.push(consultarFirestoreServidorComRetentativa(db.collection("dados_cidadaos").where("cpf", "==", cpf).limit(20)));
+                    consultas.push(consultarFirestoreServidorComRetentativa(db.collection("dados_cidadaos").where("bloqueioCpf", "==", cpf).limit(20)));
                 } else {
-                    consultas.push(db.collection("dados_cidadaos").where("protocolo", "==", protocolo).limit(20).get());
+                    consultas.push(consultarFirestoreServidorComRetentativa(db.collection("dados_cidadaos").where("protocolo", "==", protocolo).limit(20)));
                 }
                 const snaps = await Promise.all(consultas);
+                if (geracao !== geracaoConsultaAgendamentos) return;
                 agendamentosCache = deduplicarAgendamentos(snaps.flatMap(snap => snap.docs.map(doc => ({ id: doc.id, dados: doc.data() }))));
                 origemAgendamentosCache = "historico";
                 ordenarAgendamentosCache();
@@ -2989,6 +3385,9 @@ Até logo!`;
                 renderTabelaAgendamentos();
             } catch (e) {
                 console.error("Erro na busca histórica", e);
+                if (geracao !== geracaoConsultaAgendamentos) return;
+                renderTabelaAgendamentos();
+                marcarFalhaAtualizacaoLista();
                 avisoPainel("Erro ao buscar histórico.");
             }
         }
@@ -2996,12 +3395,15 @@ Até logo!`;
         async function carregarBloqueadosAtivos() {
             const corpo = document.getElementById("corpo-tabela");
             const info = document.getElementById("info-periodo-lista");
+            const geracao = ++geracaoConsultaAgendamentos;
+            carregamentoListaEmAndamento = false;
             corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Carregando bloqueios...</td></tr>";
             try {
-                const snap = await db.collection("dados_cidadaos")
+                const consulta = db.collection("dados_cidadaos")
                     .where("bloqueioAtivo", "==", true)
-                    .limit(500)
-                    .get();
+                    .limit(500);
+                const snap = await consultarFirestoreServidorComRetentativa(consulta);
+                if (geracao !== geracaoConsultaAgendamentos) return;
                 agendamentosCache = snap.docs
                     .map(doc => ({ id: doc.id, dados: doc.data() }))
                     .filter(ag => bloqueioAtivo(ag.dados));
@@ -3015,6 +3417,9 @@ Até logo!`;
                 renderTabelaAgendamentos();
             } catch (e) {
                 console.error("Erro ao carregar bloqueios", e);
+                if (geracao !== geracaoConsultaAgendamentos) return;
+                renderTabelaAgendamentos();
+                marcarFalhaAtualizacaoLista();
                 avisoPainel("Erro ao carregar bloqueios.");
             }
         }
@@ -3069,6 +3474,30 @@ Até logo!`;
             `;
         }
 
+        async function copiarContatoFila(botao) {
+            const valor = decodeURIComponent(String(botao && botao.dataset && botao.dataset.copia || ""));
+            const rotulo = String(botao && botao.dataset && botao.dataset.rotulo || "Contato");
+            if (!valor) return mostrarToast(`${rotulo} não informado.`, "aviso");
+            try {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(valor);
+                } else {
+                    const campo = document.createElement("textarea");
+                    campo.value = valor;
+                    campo.setAttribute("readonly", "");
+                    campo.style.position = "fixed";
+                    campo.style.opacity = "0";
+                    document.body.appendChild(campo);
+                    campo.select();
+                    if (!document.execCommand("copy")) throw new Error("Cópia não suportada");
+                    campo.remove();
+                }
+                mostrarToast(`${rotulo} copiado.`);
+            } catch (e) {
+                mostrarToast(`Não foi possível copiar ${rotulo.toLowerCase()}.`, "erro");
+            }
+        }
+
         function renderFilaHoje() {
             const box = document.getElementById("fila-hoje-cards");
             if (!box) return;
@@ -3102,8 +3531,11 @@ Até logo!`;
                         </div>
                         <div class="fila-nome">${textoSeguro(d.nome)}${observacao}</div>
                         <div class="fila-detalhe"><i class="fa-solid fa-id-card"></i> ${textoSeguro(cpfFormatado(d.cpf) || "CPF não informado")}</div>
-                        <div class="fila-detalhe"><i class="fa-solid fa-phone"></i> ${textoSeguro(d.telefone || "Sem telefone")}</div>
-                        ${d.email ? `<div class="fila-detalhe"><i class="fa-solid fa-envelope"></i> ${textoSeguro(d.email)}</div>` : ""}
+                        <div class="fila-detalhe-linha">
+                            <div class="fila-detalhe"><i class="fa-solid fa-phone"></i> ${textoSeguro(d.telefone || "Sem telefone")}</div>
+                            ${d.telefone ? `<button type="button" class="btn-copiar-contato" title="Copiar telefone" aria-label="Copiar telefone" data-rotulo="Telefone" data-copia="${encodeURIComponent(String(d.telefone))}" onclick="copiarContatoFila(this)"><i class="fa-regular fa-copy"></i></button>` : ""}
+                        </div>
+                        ${d.email ? `<div class="fila-detalhe-linha"><div class="fila-detalhe"><i class="fa-solid fa-envelope"></i> ${textoSeguro(d.email)}</div><button type="button" class="btn-copiar-contato" title="Copiar e-mail" aria-label="Copiar e-mail" data-rotulo="E-mail" data-copia="${encodeURIComponent(String(d.email))}" onclick="copiarContatoFila(this)"><i class="fa-regular fa-copy"></i></button></div>` : ""}
                         <div class="fila-acoes">
                             ${acoesStatusDiretas(ag)}
                             <button type="button" class="btn-status-direto btn-status-obs" title="Observação interna" onclick="abrirObservacao('${textoSeguro(ag.id)}')"><i class="fa-solid fa-note-sticky"></i></button>
@@ -3136,7 +3568,10 @@ Até logo!`;
             const hora = ultimaAtualizacaoLista.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
             ["fila-atualizado", "lista-atualizado"].forEach(id => {
                 const el = document.getElementById(id);
-                if (el) el.innerHTML = `<i class="fa-solid fa-check"></i> Atualizado às ${textoSeguro(hora)}`;
+                if (el) {
+                    el.style.color = "";
+                    el.innerHTML = `<i class="fa-solid fa-check"></i> Atualizado às ${textoSeguro(hora)}`;
+                }
             });
         }
 
@@ -3144,15 +3579,20 @@ Até logo!`;
         // preservando o restante do periodo ja carregado. Antes relia a janela inteira (ate 900 docs)
         // a cada ciclo; agora le ~dezenas, reduzindo drasticamente as leituras do Firestore.
         async function atualizarDiasVisiveisSilencioso() {
+            if (atualizacaoDiasEmAndamento || carregamentoListaEmAndamento) return;
             const inicio = hojeISO();
             const fim = amanhaISO();
+            const origemNoInicio = origemAgendamentosCache;
+            const geracaoNoInicio = geracaoConsultaAgendamentos;
+            atualizacaoDiasEmAndamento = true;
             try {
-                const snap = await db.collection("dados_cidadaos")
+                const consulta = db.collection("dados_cidadaos")
                     .where("dataISO", ">=", inicio)
                     .where("dataISO", "<=", fim)
                     .orderBy("dataISO")
-                    .limit(400)
-                    .get();
+                    .limit(400);
+                const snap = await consultarFirestoreServidorComRetentativa(consulta, 2);
+                if (origemAgendamentosCache !== origemNoInicio || geracaoConsultaAgendamentos !== geracaoNoInicio) return;
                 const novos = snap.docs.map(doc => ({ id: doc.id, dados: doc.data() }));
                 const idsNovos = new Set(novos.map(ag => ag.id));
                 // Mantem o que esta fora do intervalo recarregado; remove ids reaparecidos (ex.: remarcados
@@ -3168,6 +3608,9 @@ Até logo!`;
                 marcarAtualizacaoLista();
             } catch (e) {
                 console.warn("Falha no refresh automatico leve", e);
+                marcarFalhaAtualizacaoLista();
+            } finally {
+                atualizacaoDiasEmAndamento = false;
             }
         }
 
@@ -3182,6 +3625,23 @@ Até logo!`;
                 }
             }, ATUALIZACAO_AUTOMATICA_MS);
         }
+
+        function atualizarPainelAoReconectar() {
+            if (!auth.currentUser || origemAgendamentosCache !== "lista") return;
+            const filtroCurto = filtroRapidoAtual === "hoje" || filtroRapidoAtual === "amanha";
+            if (vistaPainelAtual === "hoje" || filtroCurto) {
+                atualizarDiasVisiveisSilencioso();
+            } else {
+                listarAgendamentos({ silencioso: true, preservarFiltros: true });
+            }
+        }
+
+        window.addEventListener("online", atualizarPainelAoReconectar);
+        document.addEventListener("visibilitychange", () => {
+            const listaDesatualizada = !ultimaAtualizacaoLista
+                || Date.now() - ultimaAtualizacaoLista.getTime() > ATUALIZACAO_AUTOMATICA_MS;
+            if (document.visibilityState === "visible" && listaDesatualizada) atualizarPainelAoReconectar();
+        });
 
         function agendamentosFiltrados() {
             const busca = document.getElementById("filtro-busca").value.trim().toLowerCase();

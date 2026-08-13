@@ -1,5 +1,9 @@
 {
+  "scripts": {
+    "audit:prod": "npm audit --omit=dev --omit=optional"
+  },
   "dependencies": {
-    "firebase-admin": "^13.9.0"
+    "@google-cloud/firestore": "8.7.1",
+    "firebase-admin": "14.2.0"
   }
 }

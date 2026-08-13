@@ -430,10 +430,12 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app-check.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
 
 <script>
     const APP_CHECK_RECAPTCHA_SITE_KEY = "6LdoYfcsAAAAALyCdBKewXtFLB1e9biRnXTWqNv0";
+    // Desativada ate a telemetria idempotente e distribuida ser validada em homologacao.
     const METRICAS_ACESSO_PUBLICO_ATIVAS = false;
     const ATUALIZACAO_AGENDA_PUBLICA_MS = 3 * 60 * 1000;
 
@@ -462,7 +464,9 @@
     var functions = firebase.functions();
     var realtimeDb = firebase.database ? firebase.database() : null;
 
-    const HORAS_FALLBACK = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
+    const DATA_CORTE_GRADE_NOVA = "2026-08-18";
+    const HORARIOS_LEGADOS = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
+    const HORARIOS_NOVOS = ["14:30","14:45","15:00","15:15","15:30","15:45","16:00","16:15","16:30","16:45"];
     const DATA_NOVAS_VAGAS_PADRAO = "data a definir";
     let DIAS_DISPONIVEIS = [], HORARIOS = [], DATA_NOVAS_VAGAS = DATA_NOVAS_VAGAS_PADRAO; 
     let DISPONIBILIDADE_PUBLICA = { porData: {}, totalVagasRestantes: 0 };
@@ -539,19 +543,26 @@
         return [...new Set((dias || []).filter(d => typeof d === "string" && d >= hoje))].sort();
     }
 
-    function horariosAtivos(horarios) {
+    function normalizarListaHorariosPublica(horarios) {
         const base = Array.isArray(horarios) ? horarios : [];
-        return [...new Set([...base, ...HORAS_FALLBACK].filter(h => /^\d{2}:\d{2}$/.test(String(h || ""))))].sort();
+        return [...new Set(base.filter(h => /^\d{2}:\d{2}$/.test(String(h || ""))).map(String))].sort();
     }
 
-    function normalizarDisponibilidadePublica(diasResposta, horarios) {
+    // Espelho da regra canonica em functions/agenda-grade.js::horariosParaData.
+    function horariosPadraoParaDataPublica(dataISO) {
+        return String(dataISO || "") < DATA_CORTE_GRADE_NOVA
+            ? [...HORARIOS_LEGADOS]
+            : [...HORARIOS_NOVOS];
+    }
+
+    function normalizarDisponibilidadePublica(diasResposta) {
         const porData = {};
         (Array.isArray(diasResposta) ? diasResposta : []).forEach(item => {
             const dataISO = typeof item === "string" ? item : item && item.dataISO;
             if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dataISO || ""))) return;
             const horariosDia = Array.isArray(item.horarios)
                 ? item.horarios.filter(h => /^\d{2}:\d{2}$/.test(String(h.hora || "")))
-                : horarios.map(hora => ({ hora, disponivel: true }));
+                : horariosPadraoParaDataPublica(dataISO).map(hora => ({ hora, disponivel: true }));
             const horariosValidos = horariosDia.map(h => ({
                 hora: h.hora,
                 disponivel: h.disponivel === true && horarioAgendamentoFuturo(dataISO, h.hora)
@@ -575,7 +586,7 @@
             dataISO,
             vagas: 0,
             lotado: true,
-            horarios: HORARIOS.map(hora => ({ hora, disponivel: false }))
+            horarios: horariosPadraoParaDataPublica(dataISO).map(hora => ({ hora, disponivel: false }))
         };
     }
 
@@ -583,10 +594,13 @@
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 12000);
         try {
-            const sufixo = ignorarCache ? `?atualizar=${Date.now()}` : "";
+            // Todos os navegadores usam a mesma chave durante o mesmo minuto. Assim,
+            // o primeiro acesso atualiza o CDN e os demais compartilham a resposta,
+            // em vez de criarem milhares de URLs exclusivas no segundo da abertura.
+            const minutoCompartilhado = Math.floor(Date.now() / 60000);
+            const sufixo = ignorarCache ? `?atualizar-minuto=${minutoCompartilhado}` : "";
             const resposta = await fetch(`/api/agenda-publica${sufixo}`, {
                 method: "GET",
-                ...(ignorarCache ? { cache: "no-store" } : {}),
                 signal: controller.signal
             });
             if (!resposta.ok) {
@@ -607,8 +621,8 @@
                     const cache = JSON.parse(cacheRaw);
                     if (cache.expiraEm > Date.now() && cache.dados) {
                         const cfg = cache.dados;
-                        HORARIOS = horariosAtivos(cfg.horarios);
-                        DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias, HORARIOS);
+                        HORARIOS = normalizarListaHorariosPublica(cfg.horarios);
+                        DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias);
                         DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
                         DATA_NOVAS_VAGAS = cfg.dataNovasVagas || DATA_NOVAS_VAGAS_PADRAO;
                         // Renderiza imediatamente com o cache e busca atualização em background
@@ -622,8 +636,8 @@
         // Buscar dados atualizados da Cloud Function
         try {
             const cfg = await buscarAgendaPublicaAtualizada({ ignorarCache });
-            HORARIOS = horariosAtivos(cfg.horarios);
-            DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias, HORARIOS);
+            HORARIOS = normalizarListaHorariosPublica(cfg.horarios);
+            DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias);
             DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
             DATA_NOVAS_VAGAS = cfg.dataNovasVagas || DATA_NOVAS_VAGAS_PADRAO;
             renderDatas();
@@ -638,7 +652,7 @@
         } catch (e) {
             console.error("Erro ao carregar agenda publica", e);
             if (!DIAS_DISPONIVEIS.length) {
-                HORARIOS = horariosAtivos(HORAS_FALLBACK);
+                HORARIOS = [...HORARIOS_NOVOS];
                 DIAS_DISPONIVEIS = [];
                 DISPONIBILIDADE_PUBLICA = { porData: {}, totalVagasRestantes: 0 };
             }
@@ -1282,7 +1296,7 @@
                 } else {
                     const badgeClass = vagas <= 2 ? 'low' : 'ok';
                     const vagaText = vagas === 1 ? 'vaga' : 'vagas';
-                    const totalSlots = HORARIOS.length || 8;
+                    const totalSlots = infoDia.horarios.length || 1;
                     const pct = Math.round((vagas / totalSlots) * 100);
                     btn.innerHTML += `<div style="width:100%;text-align:center;"><span class="vagas-badge ${badgeClass}">${vagas} ${vagaText}</span><div class="vaga-progress"><div class="vaga-progress-fill ${badgeClass}" style="width:${pct}%"></div></div></div>`;
                     btn.onclick = async () => {
@@ -1309,7 +1323,8 @@
             const disponibilidadePorHora = {};
             infoDia.horarios.forEach(item => { disponibilidadePorHora[item.hora] = item.disponivel === true; });
             grade.innerHTML = "";
-            HORARIOS.forEach(h => {
+            infoDia.horarios.forEach(itemHorario => {
+                const h = itemHorario.hora;
                 const btn = document.createElement("button"); 
                 btn.className = "btn-hora"; 
                 btn.innerHTML = `<i class="fa-regular fa-clock"></i> ${h}`;

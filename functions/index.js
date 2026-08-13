@@ -1,14 +1,34 @@
 const crypto = require("crypto");
-const admin = require("firebase-admin");
+const { initializeApp } = require("firebase-admin/app");
+const { getDatabase } = require("firebase-admin/database");
+const { FieldValue, Timestamp, getFirestore } = require("firebase-admin/firestore");
 const { HttpsError, onCall, onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onValueCreated, onValueDeleted } = require("firebase-functions/v2/database");
+const {
+  dataISOValida,
+  somarDiasISO,
+  segundaDaSemanaISO,
+  normalizarAutomacaoSemanal,
+  planoSemana,
+  proximaSemanaComAtendimento
+} = require("./agenda-automation");
+const {
+  HORARIOS_NOVOS,
+  normalizarHorariosPorDiaSemana,
+  horariosParaData,
+  horarioPertenceAgenda
+} = require("./agenda-grade");
 
-admin.initializeApp();
+initializeApp({
+  databaseURL: process.env.FIREBASE_DATABASE_URL
+    || "https://agendamento-cin-itanhandu-default-rtdb.firebaseio.com"
+});
 
-const db = admin.firestore();
+const db = getFirestore();
+const realtimeDb = getDatabase();
 const CANCELAMENTO_TTL_MS = 30 * 60 * 1000;
 const DIAS_INICIAIS = ["2026-06-02", "2026-06-03", "2026-06-09", "2026-06-10", "2026-06-11", "2026-06-12", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-19", "2026-06-30", "2026-07-01", "2026-07-02", "2026-07-03", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24", "2026-07-28", "2026-07-29", "2026-07-30"];
-const HORAS_FALLBACK = ["14:20", "14:40", "15:00", "15:20", "15:40", "16:00", "16:20", "16:40"];
 const DATA_NOVAS_VAGAS_PADRAO = "01/06/2026";
 const STATUS_VALIDOS = [
   "agendado",
@@ -29,6 +49,8 @@ const STATUS_ANONIMIZAR_LGPD = new Set([
 const LGPD_RETENCAO_MESES = 6;
 const LGPD_MAX_LEITURAS_POR_EXECUCAO = 5000;
 const LGPD_TAMANHO_PAGINA = 250;
+const SESSAO_ACESSO_TTL_MS = 24 * 60 * 60 * 1000;
+const CONEXAO_ACESSO_MAX_MS = 12 * 60 * 60 * 1000;
 
 const callableOptions = {
   cors: [
@@ -47,7 +69,7 @@ const publicCallableOptions = {
 };
 
 // Pre-aquecimento configuravel via env var no momento do deploy (sem editar codigo no dia).
-// Repouso: escala a zero para reduzir custo. Para eventos de pico, defina PICO_MIN_INSTANCES (ex.: 10) antes do deploy.
+// Repouso: escala a zero. O script economico usa somente uma instancia da criacao.
 const PICO_MIN_INSTANCES = Number(process.env.PICO_MIN_INSTANCES) || 0;
 const PICO_MIN_INSTANCES_LEITURA = PICO_MIN_INSTANCES > 1 ? Math.ceil(PICO_MIN_INSTANCES / 2) : 0;
 
@@ -227,36 +249,26 @@ function normalizarPublicacaoDatas(valor) {
   return limpo;
 }
 
-function normalizarListaHorarios(valor) {
-  const base = Array.isArray(valor) ? valor : [];
-  return [...new Set(base
-    .filter((hora) => /^\d{2}:\d{2}$/.test(String(hora || "")))
-    .map((hora) => String(hora)))].sort();
+async function quantidadeConexoesPublicasAtivas() {
+  const snap = await realtimeDb.ref("presenca_publica/conexoes").once("value");
+  return snap.numChildren();
 }
 
-function normalizarHorariosPorDiaSemana(valor) {
-  if (!valor || typeof valor !== "object" || Array.isArray(valor)) return {};
-  const limpo = {};
-  for (let dia = 0; dia <= 6; dia++) {
-    const chave = String(dia);
-    if (Object.prototype.hasOwnProperty.call(valor, chave) && Array.isArray(valor[chave])) {
-      limpo[chave] = normalizarListaHorarios(valor[chave]);
-    }
-  }
-  return limpo;
-}
-
-function diaSemanaISO(dataISO) {
-  const data = new Date(`${dataISO}T12:00:00-03:00`);
-  return Number.isNaN(data.getTime()) ? -1 : data.getDay();
-}
-
-function horariosParaData(agenda, dataISO) {
-  const chave = String(diaSemanaISO(dataISO));
-  if (agenda.horariosPorDiaSemana && Object.prototype.hasOwnProperty.call(agenda.horariosPorDiaSemana, chave)) {
-    return agenda.horariosPorDiaSemana[chave];
-  }
-  return agenda.horarios;
+async function atualizarContagemAcessosAtivos(ativosAgora) {
+  const dia = hojeSaoPauloISO();
+  const agora = Date.now();
+  await realtimeDb.ref("presenca_publica/metricas").transaction((atual) => {
+    const base = atual && typeof atual === "object" ? atual : {};
+    const mesmoDia = base.dataReferencia === dia;
+    return {
+      ...base,
+      dataReferencia: dia,
+      ativosAgora,
+      picoHoje: mesmoDia ? Math.max(Number(base.picoHoje) || 0, ativosAgora) : ativosAgora,
+      acessosHoje: mesmoDia ? Number(base.acessosHoje) || 0 : 0,
+      atualizadoEm: agora
+    };
+  });
 }
 
 function avisoNovasVagasAtivo(agenda) {
@@ -475,8 +487,8 @@ async function aplicarRateLimit(request, acao, limite, janelaMs, extra = "") {
       acao,
       inicio: dentroDaJanela ? inicio : agora,
       contagem: proximaContagem,
-      expiraEm: admin.firestore.Timestamp.fromMillis(agora + janelaMs),
-      atualizadoEm: admin.firestore.FieldValue.serverTimestamp()
+      expiraEm: Timestamp.fromMillis(agora + janelaMs),
+      atualizadoEm: FieldValue.serverTimestamp()
     }, { merge: true });
   });
 }
@@ -523,7 +535,7 @@ async function anonimizarDadosAntigosLGPD() {
             bloqueadoAte: dados.bloqueadoAte,
             motivoBloqueio: "nao_compareceu",
             migradoDeAnonimizacao: true,
-            criadoEm: admin.firestore.FieldValue.serverTimestamp()
+            criadoEm: FieldValue.serverTimestamp()
           },
           { merge: true }
         );
@@ -531,16 +543,16 @@ async function anonimizarDadosAntigosLGPD() {
       }
       batch.set(doc.ref, {
         nome: "ANONIMIZADO",
-        cpf: admin.firestore.FieldValue.delete(),
-        telefone: admin.firestore.FieldValue.delete(),
-        email: admin.firestore.FieldValue.delete(),
-        dataNasc: admin.firestore.FieldValue.delete(),
-        nascimento: admin.firestore.FieldValue.delete(),
-        bloqueioCpf: admin.firestore.FieldValue.delete(),
-        bloqueioNome: admin.firestore.FieldValue.delete(),
-        bloqueioTelefone: admin.firestore.FieldValue.delete(),
+        cpf: FieldValue.delete(),
+        telefone: FieldValue.delete(),
+        email: FieldValue.delete(),
+        dataNasc: FieldValue.delete(),
+        nascimento: FieldValue.delete(),
+        bloqueioCpf: FieldValue.delete(),
+        bloqueioNome: FieldValue.delete(),
+        bloqueioTelefone: FieldValue.delete(),
         anonimizadoLGPD: true,
-        anonimizadoLGPDEm: admin.firestore.FieldValue.serverTimestamp(),
+        anonimizadoLGPDEm: FieldValue.serverTimestamp(),
         anonimizadoLGPDCorte: corte
       }, { merge: true });
       operacoes += 1;
@@ -562,7 +574,7 @@ async function anonimizarDadosAntigosLGPD() {
 
   if (totalAnonimizados > 0) {
     await db.collection("configuracoes").doc("estatisticas").set({
-      totalAtendimentosHistorico: admin.firestore.FieldValue.increment(totalAnonimizados),
+      totalAtendimentosHistorico: FieldValue.increment(totalAnonimizados),
       ultimaAtualizacao: new Date().toISOString()
     }, { merge: true });
   }
@@ -578,7 +590,7 @@ async function anonimizarDadosAntigosLGPD() {
       totalAtendimentosHistorico: totalAnonimizados
     },
     adminEmail: "sistema",
-    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    criadoEm: FieldValue.serverTimestamp(),
     criado: new Date().toISOString()
   });
 
@@ -589,13 +601,12 @@ function processarAgenda(dadosBrutos) {
   const agenda = dadosBrutos || {};
   const hoje = hojeSaoPauloISO();
   const dias = Array.isArray(agenda.dias) && agenda.dias.length ? agenda.dias : DIAS_INICIAIS;
-  const horariosConfig = Array.isArray(agenda.horarios) ? agenda.horarios : [];
-  const horarios = normalizarListaHorarios([...horariosConfig, ...HORAS_FALLBACK]);
   const publicacaoDatas = normalizarPublicacaoDatas(agenda.publicacaoDatas);
   const agora = agoraSaoPauloInput();
   return {
     dias: dias.filter((dia) => typeof dia === "string" && dia >= hoje && (!publicacaoDatas[dia] || publicacaoDatas[dia] <= agora)).sort(),
-    horarios,
+    // Campo mantido por compatibilidade. A grade efetiva e sempre resolvida por data.
+    horarios: [...HORARIOS_NOVOS],
     horariosPorDiaSemana: normalizarHorariosPorDiaSemana(agenda.horariosPorDiaSemana),
     dataNovasVagas: avisoNovasVagasAtivo(agenda)
   };
@@ -612,7 +623,7 @@ function checarDisponibilidade(agenda, dataISO, hora) {
   if (dataISO < hojeSaoPauloISO()) {
     throw new HttpsError("failed-precondition", "Data indisponivel para agendamento.");
   }
-  if (!agenda.dias.includes(dataISO) || !horariosParaData(agenda, dataISO).includes(hora)) {
+  if (!horarioPertenceAgenda(agenda, dataISO, hora)) {
     throw new HttpsError("failed-precondition", "Horario indisponivel para agendamento.");
   }
   if (!horarioAgendamentoFuturo(dataISO, hora)) {
@@ -970,13 +981,13 @@ exports.prepararCancelamentoCidadao = onCall(publicCallableOptions, async (reque
   const encontrado = await localizarAgendamento(request.data.cpf, request.data.nascimento);
   validarAgendamentoPublicoFuturo(encontrado.dados, "Este agendamento ja passou do horario e nao pode mais ser cancelado pelo site.");
   const token = crypto.randomBytes(32).toString("hex");
-  const expiraEm = admin.firestore.Timestamp.fromMillis(Date.now() + CANCELAMENTO_TTL_MS);
+  const expiraEm = Timestamp.fromMillis(Date.now() + CANCELAMENTO_TTL_MS);
 
   await db.collection("cancelamentos_pendentes").doc(token).set({
     agendamentoId: encontrado.agendamentoId,
     cpfDocIds: [...new Set([...(encontrado.cpfDocIds || []), cpfDocId(cpfNum), cpfNum])],
     slotId: encontrado.slotId,
-    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    criadoEm: FieldValue.serverTimestamp(),
     expiraEm
   });
 
@@ -1043,6 +1054,49 @@ exports.cancelarAgendamentoCidadao = onCall(publicCallableOptions, async (reques
   return { cancelado: true };
 });
 
+exports.registrarMetricasAcessoPublico = onValueCreated({
+  ref: "/presenca_publica/conexoes/{conexaoId}",
+  region: "us-central1",
+  maxInstances: 20
+}, async (event) => {
+  const conexaoId = String(event.params.conexaoId || "");
+  const conectadoEm = Number(event.data && event.data.val && event.data.val().conectadoEm) || Date.now();
+  const agora = Date.now();
+  const dia = hojeSaoPauloISO();
+  const ativosAgora = await quantidadeConexoesPublicasAtivas();
+  const raiz = realtimeDb.ref("presenca_publica");
+
+  await Promise.all([
+    raiz.child(`sessoes/${conexaoId}`).set({
+      conectadoEm,
+      registradoEm: agora,
+      expiraEm: agora + SESSAO_ACESSO_TTL_MS
+    }),
+    raiz.child("metricas").transaction((atual) => {
+      const base = atual && typeof atual === "object" ? atual : {};
+      const mesmoDia = base.dataReferencia === dia;
+      return {
+        ...base,
+        dataReferencia: dia,
+        ativosAgora,
+        picoHoje: mesmoDia ? Math.max(Number(base.picoHoje) || 0, ativosAgora) : ativosAgora,
+        acessosHoje: (mesmoDia ? Number(base.acessosHoje) || 0 : 0) + 1,
+        totalAcessos: (Number(base.totalAcessos) || 0) + 1,
+        ultimoAcessoEm: agora,
+        atualizadoEm: agora
+      };
+    })
+  ]);
+});
+
+exports.atualizarMetricasSaidaAcessoPublico = onValueDeleted({
+  ref: "/presenca_publica/conexoes/{conexaoId}",
+  region: "us-central1",
+  maxInstances: 20
+}, async () => {
+  await atualizarContagemAcessosAtivos(await quantidadeConexoesPublicasAtivas());
+});
+
 exports.criarEncaixeManual = onCall(callableOptions, async (request) => {
   const adminEmail = await assertAdmin(request);
   const nome = normalizarTexto(request.data.nome, "o nome", 2, 120);
@@ -1102,7 +1156,7 @@ exports.criarEncaixeManual = onCall(callableOptions, async (request) => {
       dataISO,
       hora,
       adminEmail,
-      criadoEm: admin.firestore.FieldValue.serverTimestamp()
+      criadoEm: FieldValue.serverTimestamp()
     });
   });
 
@@ -1142,7 +1196,7 @@ exports.atualizarObservacaoAdmin = onCall(callableOptions, async (request) => {
     agendamentoId,
     protocolo: agDoc.data().protocolo || "",
     adminEmail,
-    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    criadoEm: FieldValue.serverTimestamp(),
     criado: new Date().toISOString()
   });
 
@@ -1213,7 +1267,7 @@ exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
       insercaoManual: !contabilizaVaga,
       remarcadoEm: agora,
       remarcadoPor: adminEmail,
-      remarcacoes: admin.firestore.FieldValue.arrayUnion(remarcacao)
+      remarcacoes: FieldValue.arrayUnion(remarcacao)
     }, { merge: true });
 
     const cpfNum = String(dados.cpf || "").replace(/\D/g, "");
@@ -1228,7 +1282,7 @@ exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
       protocolo: dados.protocolo || "",
       detalhes: remarcacao,
       adminEmail,
-      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      criadoEm: FieldValue.serverTimestamp(),
       criado: agora
     });
 
@@ -1293,7 +1347,7 @@ exports.gerarBackupAdmin = onCall(callableOptions, async (request) => {
     acao: "gerar_backup",
     detalhes: { quantidadeAgendamentos: backup.agendamentos.length },
     adminEmail,
-    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    criadoEm: FieldValue.serverTimestamp(),
     criado
   });
 
@@ -1306,11 +1360,124 @@ exports.anonimizarDadosAntigosLGPD = onSchedule({
   maxInstances: 1
 }, async () => anonimizarDadosAntigosLGPD());
 
-exports.limparDatasPassadasAgenda = onSchedule({
-  schedule: "0 2 * * *",
+// Prepara a semana alguns minutos antes do horario de abertura. A funcao roda duas
+// vezes de forma intencional e idempotente (07:50, 07:55 e 07:59). A ultima
+// execucao tambem aquece a leitura publica imediatamente antes da abertura.
+exports.prepararAgendaSemanalAutomatica = onSchedule({
+  schedule: "50,55,59 7 * * 1",
   timeZone: "America/Sao_Paulo",
-  maxInstances: 1
+  retryCount: 3,
+  minBackoffSeconds: 60,
+  maxBackoffSeconds: 300,
+  maxRetrySeconds: 900,
+  maxInstances: 1,
+  timeoutSeconds: 120
 }, async () => {
+  const agendaRef = AGENDA_REF();
+  const hoje = hojeSaoPauloISO();
+  const segunda = segundaDaSemanaISO(hoje);
+  const agora = agoraSaoPauloInput();
+  let resultado = null;
+
+  await db.runTransaction(async (t) => {
+    const agendaDoc = await t.get(agendaRef);
+    const cfg = agendaDoc.exists ? agendaDoc.data() : {};
+    const automacao = normalizarAutomacaoSemanal(cfg.automacaoSemanal);
+    const plano = planoSemana(automacao, segunda);
+    const proxima = automacao.ativa ? proximaSemanaComAtendimento(automacao, segunda) : null;
+    const dias = new Set(Array.isArray(cfg.dias) ? cfg.dias.filter(dataISOValida) : []);
+    const publicacaoDatas = normalizarPublicacaoDatas(cfg.publicacaoDatas);
+    const geradas = new Set(Array.isArray(cfg.datasGeradasAutomaticamente)
+      ? cfg.datasGeradasAutomaticamente.filter(dataISOValida)
+      : []);
+    const fimSemana = somarDiasISO(segunda, 6);
+    const removidasPorExcecao = [];
+    const adicionadas = [];
+
+    // Excecoes manuais prevalecem, mas uma data ja publicada nunca e removida
+    // automaticamente, pois ela pode conter agendamentos de cidadaos.
+    for (const dataISO of [...geradas]) {
+      const pertenceSemana = dataISO >= segunda && dataISO <= fimSemana;
+      const deixouDeFazerParteDoPlano = pertenceSemana && !plano.datas.includes(dataISO);
+      const aindaNaoPublicada = publicacaoDatas[dataISO] && publicacaoDatas[dataISO] > agora;
+      if (deixouDeFazerParteDoPlano && aindaNaoPublicada) {
+        dias.delete(dataISO);
+        delete publicacaoDatas[dataISO];
+        geradas.delete(dataISO);
+        removidasPorExcecao.push(dataISO);
+      }
+    }
+
+    for (const dataISO of plano.datas) {
+      if (dias.has(dataISO)) continue; // Cadastro manual sempre prevalece.
+      dias.add(dataISO);
+      publicacaoDatas[dataISO] = plano.publicarEm;
+      geradas.add(dataISO);
+      adicionadas.push(dataISO);
+    }
+
+    const atualizacao = {
+      automacaoSemanal: automacao,
+      dias: [...dias].sort(),
+      publicacaoDatas,
+      datasGeradasAutomaticamente: [...geradas].sort(),
+      ultimaExecucaoAutomacaoSemanal: {
+        executadaEm: new Date().toISOString(),
+        segunda,
+        semanaPausada: plano.semanaPausada,
+        adicionadas,
+        removidasPorExcecao
+      },
+      atualizado: new Date().toISOString()
+    };
+
+    if (proxima) {
+      atualizacao.avisoNovasVagasProgramado = {
+        dataNovasVagas: dataBr(proxima.segunda),
+        publicarEm: plano.publicarEm
+      };
+    }
+
+    t.set(agendaRef, atualizacao, { merge: true });
+    resultado = {
+      ativa: automacao.ativa,
+      segunda,
+      semanaPausada: plano.semanaPausada,
+      adicionadas,
+      removidasPorExcecao,
+      proximaAbertura: proxima ? proxima.segunda : ""
+    };
+  });
+
+  // A chamada direta usa uma URL exclusiva, portanto nao coloca a agenda ainda
+  // fechada no cache publico. Ela apenas inicia o container de leitura; se o
+  // Cloud Run mantiver a instancia ociosa ate 08:00, o primeiro miss do CDN nao
+  // paga o cold start. Falha aqui nao impede a abertura da agenda.
+  try {
+    const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || "agendamento-cin-itanhandu";
+    const url = `https://us-central1-${projectId}.cloudfunctions.net/carregarAgendaPublicaHttp?preaquecer=${encodeURIComponent(agora)}`;
+    const resposta = await fetch(url, {
+      headers: { "User-Agent": "agenda-automacao-preaquecimento" },
+      signal: AbortSignal.timeout(10000)
+    });
+    resultado.leituraPreaquecida = resposta.ok;
+  } catch (err) {
+    resultado.leituraPreaquecida = false;
+    resultado.erroPreaquecimentoLeitura = String(err && err.message || err).slice(0, 180);
+  }
+
+  await db.collection("logs_admin").add({
+    acao: "agenda_automacao_semanal",
+    detalhes: resultado,
+    adminEmail: "sistema",
+    criadoEm: FieldValue.serverTimestamp(),
+    criado: new Date().toISOString()
+  });
+
+  return resultado;
+});
+
+async function limparDatasPassadasAgenda() {
   try {
     const agendaRef = db.collection("configuracoes").doc("agenda");
     const agendaDoc = await agendaRef.get();
@@ -1322,6 +1489,8 @@ exports.limparDatasPassadasAgenda = onSchedule({
     const diasOriginais = Array.isArray(cfg.dias) ? cfg.dias : [];
     const diasFuturos = diasOriginais.filter(d => typeof d === "string" && d >= hoje);
     const datasRemovidas = diasOriginais.length - diasFuturos.length;
+    const datasAutomaticasFuturas = (Array.isArray(cfg.datasGeradasAutomaticamente) ? cfg.datasGeradasAutomaticamente : [])
+      .filter(d => typeof d === "string" && d >= hoje);
 
     const publicacaoDatasLimpo = {};
     const pubDatas = cfg.publicacaoDatas || {};
@@ -1331,14 +1500,15 @@ exports.limparDatasPassadasAgenda = onSchedule({
 
     await agendaRef.set({
       dias: diasFuturos,
-      publicacaoDatas: publicacaoDatasLimpo
+      publicacaoDatas: publicacaoDatasLimpo,
+      datasGeradasAutomaticamente: datasAutomaticasFuturas
     }, { merge: true });
 
     await db.collection("logs_admin").add({
       acao: "limpeza_agenda_automatica",
       detalhes: { datasRemovidas, totalRestantes: diasFuturos.length },
       adminEmail: "sistema",
-      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      criadoEm: FieldValue.serverTimestamp(),
       criado: new Date().toISOString()
     });
   } catch (err) {
@@ -1346,11 +1516,11 @@ exports.limparDatasPassadasAgenda = onSchedule({
       acao: "erro_limpeza_agenda",
       detalhes: { mensagem: err.message },
       adminEmail: "sistema",
-      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      criadoEm: FieldValue.serverTimestamp(),
       criado: new Date().toISOString()
     }).catch(() => {});
   }
-});
+}
 
 // Remove documentos ja expirados das colecoes auxiliares (rate_limits e cancelamentos_pendentes).
 // Esses docs tem campo expiraEm e nao eram apagados por nenhuma rotina, crescendo indefinidamente.
@@ -1374,12 +1544,8 @@ async function limparColecaoExpirada(colecao, agoraTimestamp) {
   return total;
 }
 
-exports.limparAuxiliaresExpirados = onSchedule({
-  schedule: "30 3 * * *",
-  timeZone: "America/Sao_Paulo",
-  maxInstances: 1
-}, async () => {
-  const agora = admin.firestore.Timestamp.now();
+async function limparAuxiliaresExpirados() {
+  const agora = Timestamp.now();
   let rateLimits = 0;
   let cancelamentos = 0;
   try {
@@ -1389,7 +1555,7 @@ exports.limparAuxiliaresExpirados = onSchedule({
       acao: "limpeza_auxiliares_expirados",
       detalhes: { rateLimits, cancelamentos },
       adminEmail: "sistema",
-      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      criadoEm: FieldValue.serverTimestamp(),
       criado: new Date().toISOString()
     });
   } catch (err) {
@@ -1397,8 +1563,54 @@ exports.limparAuxiliaresExpirados = onSchedule({
       acao: "erro_limpeza_auxiliares",
       detalhes: { mensagem: err.message, rateLimits, cancelamentos },
       adminEmail: "sistema",
-      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      criadoEm: FieldValue.serverTimestamp(),
       criado: new Date().toISOString()
     }).catch(() => {});
   }
+}
+
+async function limparSessoesAcessoPublico() {
+  const raiz = realtimeDb.ref("presenca_publica");
+  const agora = Date.now();
+  const atualizacoes = {};
+  const [sessoesSnap, conexoesAntigasSnap] = await Promise.all([
+    raiz.child("sessoes").orderByChild("expiraEm").endAt(agora).limitToFirst(1000).once("value"),
+    raiz.child("conexoes").orderByChild("conectadoEm").endAt(agora - CONEXAO_ACESSO_MAX_MS).limitToFirst(1000).once("value")
+  ]);
+
+  sessoesSnap.forEach((item) => { atualizacoes[`sessoes/${item.key}`] = null; });
+  conexoesAntigasSnap.forEach((item) => { atualizacoes[`conexoes/${item.key}`] = null; });
+  if (Object.keys(atualizacoes).length) await raiz.update(atualizacoes);
+  const ativosAgora = await quantidadeConexoesPublicasAtivas();
+  await atualizarContagemAcessosAtivos(ativosAgora);
+
+  await db.collection("logs_admin").add({
+    acao: "limpeza_sessoes_acesso_publico",
+    detalhes: {
+      sessoesRemovidas: sessoesSnap.numChildren(),
+      conexoesAntigasRemovidas: conexoesAntigasSnap.numChildren(),
+      ativosAgora
+    },
+    adminEmail: "sistema",
+    criadoEm: FieldValue.serverTimestamp(),
+    criado: new Date().toISOString()
+  });
+}
+
+// Um unico job diario substitui os tres agendamentos de limpeza. Junto da
+// automacao semanal e da anonimizacao mensal, o projeto passa a ter tres jobs
+// do Cloud Scheduler, dentro da franquia gratuita quando a conta nao possui
+// outros jobs agendados.
+exports.executarManutencaoDiaria = onSchedule({
+  schedule: "0 2 * * *",
+  timeZone: "America/Sao_Paulo",
+  retryCount: 2,
+  minBackoffSeconds: 60,
+  maxBackoffSeconds: 300,
+  maxInstances: 1,
+  timeoutSeconds: 540
+}, async () => {
+  await limparDatasPassadasAgenda();
+  await limparAuxiliaresExpirados();
+  await limparSessoesAcessoPublico();
 });
