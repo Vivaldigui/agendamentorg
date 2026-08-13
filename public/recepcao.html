@@ -1064,6 +1064,20 @@
         .horario-dia strong { color:var(--ink); font-size:0.84rem; }
         .horario-chips { display:flex; gap:6px; flex-wrap:wrap; min-height:32px; align-items:center; }
         .chip-horario { display:inline-flex; align-items:center; gap:5px; padding:5px 8px; color:#075985; background:#f0f9ff; border:1px solid #bae6fd; border-radius:999px; font-size:0.74rem; font-weight:900; }
+        .horario-dia.automatico { grid-template-columns:92px minmax(0,1fr) auto; }
+        .horario-auto-info { color:var(--muted); font-size:0.76rem; font-weight:700; line-height:1.5; }
+        .horario-auto-info strong { color:var(--ink); }
+        .horario-auto-etiqueta { display:inline-block; padding:2px 7px; margin-right:6px; border-radius:999px; background:#ecfdf5; border:1px solid #6ee7b7; color:#065f46; font-size:0.68rem; font-weight:900; }
+        .horario-personalizado-aviso { grid-column:1 / -1; margin:2px 0 0; padding:7px 9px; border-radius:8px; background:#fff7ed; border:1px solid #fdba74; color:#7c2d12; font-size:0.72rem; font-weight:800; line-height:1.5; }
+        .horario-personalizado-aviso button { margin-left:8px; padding:3px 8px; border:1px solid #fdba74; border-radius:7px; background:transparent; color:#7c2d12; font-size:0.7rem; font-weight:900; cursor:pointer; }
+        .horario-personalizado-aviso button:hover { background:#fed7aa; }
+        body.modo-escuro .horario-personalizado-aviso button { border-color:#9a3412; color:#fed7aa; }
+        body.modo-escuro .horario-personalizado-aviso button:hover { background:#7c2d12; }
+        .horarios-aviso-geral { margin:12px 0 0; padding:10px 12px; border-radius:9px; background:#fef3c7; border:1px solid #fcd34d; color:#78350f; font-size:0.79rem; font-weight:700; line-height:1.55; }
+        .horarios-aviso-geral strong { font-weight:900; }
+        body.modo-escuro .horario-auto-etiqueta { background:#022c22; border-color:#047857; color:#6ee7b7; }
+        body.modo-escuro .horario-personalizado-aviso { background:#431407; border-color:#9a3412; color:#fed7aa; }
+        body.modo-escuro .horarios-aviso-geral { background:#422006; border-color:#a16207; color:#fde68a; }
         .chip-horario button { border:0; background:transparent; color:#b91c1c; cursor:pointer; font-weight:900; }
         .horario-dia input { width:100%; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); }
         .config-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px; }
@@ -1403,6 +1417,15 @@
             </details>
             <details class="painel-horarios">
                 <summary><i class="fa-solid fa-clock"></i> Horários disponíveis por dia da semana</summary>
+                <p class="horarios-aviso-geral">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    Esta tela é por <strong>dia da semana</strong>, não por data. Um dia deixado em
+                    <strong>Automático</strong> usa a grade correta de cada período: 8 horários até 17/08/2026
+                    e 10 horários a partir de 18/08/2026. Ao personalizar um dia, a lista escolhida passa a
+                    valer para <strong>todas as datas daquele dia da semana</strong>, inclusive as anteriores
+                    a 18/08 — o que pode criar atendimentos sobrepostos em datas já publicadas.
+                    Só personalize se for realmente necessário.
+                </p>
                 <div class="horarios-semana" id="horarios-semana"></div>
                 <button type="button" class="btn btn-config" style="margin-top:12px;" onclick="salvarHorariosSemana()"><i class="fa-solid fa-floppy-disk"></i> Salvar horários</button>
             </details>
@@ -1967,13 +1990,13 @@ Até logo!`;
             }
 
             try {
-                await db.collection("configuracoes").doc("agenda").set({
+                await gravarAgendaConfig({
                     automacaoSemanal: cfg,
                     dias: [...dias].sort(),
                     publicacaoDatas: publicacoes,
                     datasGeradasAutomaticamente: [...geradas].sort(),
                     atualizado: new Date().toISOString()
-                }, { merge: true });
+                });
                 agendaAutomacaoSemanal = cfg;
                 agendaDias = [...dias].sort();
                 agendaPublicacaoDatas = publicacoes;
@@ -1991,6 +2014,21 @@ Até logo!`;
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = htmlOriginal;
+            }
+        }
+
+        // Grava a configuracao da agenda com update, nao com set/merge.
+        // set com merge FUNDE mapas: chaves removidas de publicacaoDatas ou de
+        // horariosPorDiaSemana sobreviveriam no banco, e a remocao nao teria efeito.
+        // Foi assim que 2026-08-21 ficou com horario de publicacao sem estar em dias.
+        async function gravarAgendaConfig(conteudo) {
+            const ref = db.collection("configuracoes").doc("agenda");
+            try {
+                await ref.update(conteudo);
+            } catch (e) {
+                // Documento ainda nao existe: nao ha chave antiga a remover.
+                if (e && e.code === "not-found") await ref.set(conteudo, { merge: true });
+                else throw e;
             }
         }
 
@@ -2041,11 +2079,53 @@ Até logo!`;
                 : horariosPadraoParaDataPainel(dataISO);
         }
 
+        // Devolve a lista personalizada do dia da semana, ou null quando o dia esta em
+        // modo automatico. Nesse modo a grade e resolvida por data (ver horariosDaData
+        // e o espelho canonico em functions/agenda-grade.js::horariosParaData), o que
+        // mantem 8 horarios antes do corte e 10 a partir dele.
         function horariosEditaveisDiaSemana(dia) {
             const chave = String(dia);
             return Object.prototype.hasOwnProperty.call(agendaHorariosPorDiaSemana, chave)
                 ? agendaHorariosPorDiaSemana[chave]
-                : [...HORARIOS_PADRAO];
+                : null;
+        }
+
+        function diaSemanaPersonalizado(dia) {
+            return horariosEditaveisDiaSemana(dia) !== null;
+        }
+
+        function linhaDiaAutomatico(nome, dia) {
+            return `
+                    <div class="horario-dia automatico">
+                        <strong>${textoSeguro(nome)}</strong>
+                        <div class="horario-auto-info">
+                            <span class="horario-auto-etiqueta">Automático</span>
+                            até 17/08/2026: <strong>${HORARIOS_LEGADOS.length} horários</strong>
+                            &middot; a partir de 18/08/2026: <strong>${HORARIOS_PADRAO.length} horários</strong>
+                        </div>
+                        <button type="button" class="btn btn-atualizar" onclick="personalizarDiaSemana(${dia})"><i class="fa-solid fa-pen"></i> Personalizar</button>
+                    </div>
+                `;
+        }
+
+        function linhaDiaPersonalizado(nome, dia, horarios) {
+            const chips = horarios.length
+                ? horarios.map(hora => `<span class="chip-horario">${textoSeguro(hora)}<button type="button" title="Remover horário" onclick="removerHorarioSemana(${dia}, '${textoSeguro(hora)}')">x</button></span>`).join("")
+                : '<span class="detalhe-pessoal">Sem horários públicos neste dia.</span>';
+            return `
+                    <div class="horario-dia">
+                        <strong>${textoSeguro(nome)}</strong>
+                        <div class="horario-chips">${chips}</div>
+                        <input type="time" id="novo-horario-${dia}" aria-label="Novo horário de ${textoSeguro(nome)}">
+                        <button type="button" class="btn btn-atualizar" onclick="adicionarHorarioSemana(${dia})"><i class="fa-solid fa-plus"></i> Adicionar</button>
+                        <p class="horario-personalizado-aviso">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            Personalizado: esta lista vale para <strong>todas</strong> as datas de ${textoSeguro(nome.toLowerCase())},
+                            inclusive as anteriores a 18/08/2026.
+                            <button type="button" onclick="voltarDiaSemanaAoAutomatico(${dia})">Voltar ao automático</button>
+                        </p>
+                    </div>
+                `;
         }
 
         function renderHorariosSemana() {
@@ -2053,18 +2133,26 @@ Até logo!`;
             if (!box) return;
             box.innerHTML = DIAS_SEMANA.map((nome, dia) => {
                 const horarios = horariosEditaveisDiaSemana(dia);
-                const chips = horarios.length
-                    ? horarios.map(hora => `<span class="chip-horario">${textoSeguro(hora)}<button type="button" title="Remover horário" onclick="removerHorarioSemana(${dia}, '${textoSeguro(hora)}')">x</button></span>`).join("")
-                    : '<span class="detalhe-pessoal">Sem horários públicos neste dia.</span>';
-                return `
-                    <div class="horario-dia">
-                        <strong>${textoSeguro(nome)}</strong>
-                        <div class="horario-chips">${chips}</div>
-                        <input type="time" id="novo-horario-${dia}" aria-label="Novo horário de ${textoSeguro(nome)}">
-                        <button type="button" class="btn btn-atualizar" onclick="adicionarHorarioSemana(${dia})"><i class="fa-solid fa-plus"></i> Adicionar</button>
-                    </div>
-                `;
+                return horarios === null
+                    ? linhaDiaAutomatico(nome, dia)
+                    : linhaDiaPersonalizado(nome, dia, horarios);
             }).join("");
+        }
+
+        async function personalizarDiaSemana(dia) {
+            const nome = DIAS_SEMANA[dia] || "este dia";
+            const confirmou = await confirmarPainel(
+                `Personalizar ${nome} faz a lista escolhida valer para TODAS as datas desse dia da semana, inclusive as anteriores a 18/08/2026 que já estejam publicadas.\n\nEm datas já publicadas isso pode criar atendimentos sobrepostos. Deseja continuar?`,
+                { titulo: `Personalizar ${nome}`, perigo: true, textoConfirmar: "Personalizar" }
+            );
+            if (!confirmou) return;
+            agendaHorariosPorDiaSemana[String(dia)] = [...HORARIOS_PADRAO];
+            renderHorariosSemana();
+        }
+
+        function voltarDiaSemanaAoAutomatico(dia) {
+            delete agendaHorariosPorDiaSemana[String(dia)];
+            renderHorariosSemana();
         }
 
         function adicionarHorarioSemana(dia) {
@@ -2072,27 +2160,40 @@ Até logo!`;
             const hora = input ? input.value : "";
             if (!/^\d{2}:\d{2}$/.test(hora)) return avisoPainel("Informe um horário válido.");
             const chave = String(dia);
-            agendaHorariosPorDiaSemana[chave] = ordenarHorariosEditaveis([...horariosEditaveisDiaSemana(dia), hora]);
+            agendaHorariosPorDiaSemana[chave] = ordenarHorariosEditaveis([...(horariosEditaveisDiaSemana(dia) || []), hora]);
             renderHorariosSemana();
         }
 
         function removerHorarioSemana(dia, hora) {
             const chave = String(dia);
-            agendaHorariosPorDiaSemana[chave] = horariosEditaveisDiaSemana(dia).filter(item => item !== hora);
+            agendaHorariosPorDiaSemana[chave] = (horariosEditaveisDiaSemana(dia) || []).filter(item => item !== hora);
             renderHorariosSemana();
         }
 
         async function salvarHorariosSemana() {
+            const personalizados = DIAS_SEMANA.filter((nome, dia) => diaSemanaPersonalizado(dia));
+            const resumo = personalizados.length
+                ? `Dias personalizados: ${personalizados.join(", ")}.\n\nEsses dias deixam de seguir a regra por data e passam a valer para todas as datas do respectivo dia da semana, inclusive antes de 18/08/2026.`
+                : "Nenhum dia personalizado. Todos seguem a regra por data: 8 horários até 17/08/2026 e 10 a partir de 18/08/2026.";
+            if (!(await confirmarPainel(`${resumo}\n\nSalvar assim?`, { titulo: "Salvar horários", textoConfirmar: "Salvar" }))) return;
+            const conteudo = {
+                horariosPorDiaSemana: agendaHorariosPorDiaSemana,
+                atualizado: new Date().toISOString()
+            };
             try {
-                await db.collection("configuracoes").doc("agenda").set({
-                    horariosPorDiaSemana: agendaHorariosPorDiaSemana,
-                    atualizado: new Date().toISOString()
-                }, { merge: true });
-                await registrarLog("agenda_salvar_horarios_semana", { horariosPorDiaSemana: agendaHorariosPorDiaSemana });
-                atualizarResumo();
-                mostrarToast("Horários da semana salvos.");
+                await gravarAgendaConfig(conteudo);
             } catch (e) {
                 mostrarToast("Erro ao salvar horários.", "erro");
+                return;
+            }
+            try {
+                await registrarLog("agenda_salvar_horarios_semana", { horariosPorDiaSemana: agendaHorariosPorDiaSemana, personalizados });
+                atualizarResumo();
+                mostrarToast(personalizados.length
+                    ? `Horários salvos. ${personalizados.length} dia(s) personalizado(s).`
+                    : "Horários salvos. Todos os dias seguem a regra por data.");
+            } catch (e) {
+                mostrarToast("Horários salvos, mas houve erro ao registrar o log.", "aviso");
             }
         }
 
@@ -2870,7 +2971,7 @@ Até logo!`;
             Object.keys(agendaPublicacaoDatas).forEach(data => {
                 if (!agendaDias.includes(data)) delete agendaPublicacaoDatas[data];
             });
-            await db.collection("configuracoes").doc("agenda").set({
+            await gravarAgendaConfig({
                 dias: agendaDias,
                 horarios: agendaHorarios.length ? agendaHorarios : HORARIOS_PADRAO,
                 horariosPorDiaSemana: agendaHorariosPorDiaSemana,
@@ -2878,7 +2979,7 @@ Até logo!`;
                 automacaoSemanal: agendaAutomacaoSemanal,
                 datasGeradasAutomaticamente: agendaDatasAutomaticas,
                 atualizado: new Date().toISOString()
-            }, { merge: true });
+            });
             renderAgendaDatas();
             if (msg) avisoPainel(msg);
         }

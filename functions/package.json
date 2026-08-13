@@ -6,7 +6,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "test": "node --test agenda-automation.test.js agenda-grade.test.js agenda-grade-surfaces.test.js telemetria-publica.test.js",
+    "test": "node --test",
     "audit:prod": "npm audit --omit=dev --omit=optional"
   },
   "dependencies": {

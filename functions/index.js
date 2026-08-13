@@ -1416,6 +1416,12 @@ exports.prepararAgendaSemanalAutomatica = onSchedule({
       adicionadas.push(dataISO);
     }
 
+    // set com merge FUNDE mapas: sem o marcador explicito a data excluida por
+    // excecao continuaria com horario de publicacao e voltaria a aparecer.
+    for (const dataISO of removidasPorExcecao) {
+      publicacaoDatas[dataISO] = FieldValue.delete();
+    }
+
     const atualizacao = {
       automacaoSemanal: automacao,
       dias: [...dias].sort(),
@@ -1492,10 +1498,18 @@ async function limparDatasPassadasAgenda() {
     const datasAutomaticasFuturas = (Array.isArray(cfg.datasGeradasAutomaticamente) ? cfg.datasGeradasAutomaticamente : [])
       .filter(d => typeof d === "string" && d >= hoje);
 
+    // set com merge FUNDE mapas: sem o marcador explicito de exclusao as datas
+    // antigas sobreviveriam e publicacaoDatas cresceria indefinidamente.
     const publicacaoDatasLimpo = {};
     const pubDatas = cfg.publicacaoDatas || {};
+    let publicacoesRemovidas = 0;
     Object.keys(pubDatas).forEach(data => {
-      if (data >= hoje) publicacaoDatasLimpo[data] = pubDatas[data];
+      if (data >= hoje) {
+        publicacaoDatasLimpo[data] = pubDatas[data];
+      } else {
+        publicacaoDatasLimpo[data] = FieldValue.delete();
+        publicacoesRemovidas += 1;
+      }
     });
 
     await agendaRef.set({
@@ -1506,7 +1520,7 @@ async function limparDatasPassadasAgenda() {
 
     await db.collection("logs_admin").add({
       acao: "limpeza_agenda_automatica",
-      detalhes: { datasRemovidas, totalRestantes: diasFuturos.length },
+      detalhes: { datasRemovidas, publicacoesRemovidas, totalRestantes: diasFuturos.length },
       adminEmail: "sistema",
       criadoEm: FieldValue.serverTimestamp(),
       criado: new Date().toISOString()

@@ -80,7 +80,11 @@ Os P1, itens 6 a 11, somente devem começar após confirmação dos P0. O detalh
 
 ## Pendência bloqueante de dados
 
-O documento versionado `docs/HANDOFF.md` registra que `configuracoes/agenda.horariosPorDiaSemana` contém seis chaves com a grade legada de 8 horários. Como configuração explícita prevalece, isso faria a semana de 18 a 21/08 abrir com 32 vagas, não 40.
+Leitura direta da produção em 13/08/2026 corrigiu os números que circulavam antes. Ver a seção “Estado real da configuração de produção” em `docs/HANDOFF.md`, que é a fonte da verdade.
+
+Resumo: `horariosPorDiaSemana` tem **sete** chaves (0 a 6), todas com a grade legada de 8 horários; **`dias` não contém 2026-08-21**, embora `publicacaoDatas` já traga a data; e `automacaoSemanal` está ausente, valendo os padrões (ativa, terça a sexta, 08:00).
+
+Estado efetivo hoje: **3 dias × 8 horários = 24 vagas**. Para chegar a 40 são necessárias três ações — implantar o código novo, apagar `horariosPorDiaSemana` e colocar 2026-08-21 em `dias`. Não confiar na automação para o 21/08: 17/08 seria a primeira execução dela em produção.
 
 A ação proposta é remover o campo inteiro antes da abertura, com backup e validação. Não substituir diretamente pela grade nova, pois o campo é indexado por dia da semana e poderia aplicar horários novos também a datas anteriores ao corte.
 

@@ -21,9 +21,38 @@ O plano completo, com critérios de aceite por item, está em [`PROMPT-correcoes
 
 ## Duas pendências fora do código
 
+### 0. Estado real da configuração de produção (lido em 13/08/2026)
+
+Leitura direta do documento `configuracoes/agenda`. **Os números que circularam antes estavam errados** — não são 40 vagas nem 32, e não são 6 chaves.
+
+```
+dias:            ["2026-08-13","2026-08-14","2026-08-18","2026-08-19","2026-08-20"]
+publicacaoDatas:  ... "2026-08-18","2026-08-19","2026-08-20","2026-08-21" → todas "2026-08-17T08:00"
+horariosPorDiaSemana: chaves 0 a 6, TODAS com a grade legada de 8 horários
+automacaoSemanal: ausente
+```
+
+Três consequências:
+
+1. **21/08 (sexta) não está em `dias`.** Tem horário de publicação, mas `processarAgenda` filtra a partir de `dias`, então a data não existe. A entrada em `publicacaoDatas` está órfã — provavelmente causada pelo bug de merge descrito abaixo, que preservou a publicação quando a data foi removida.
+2. **São 7 chaves em `horariosPorDiaSemana`**, a semana inteira, não 6.
+3. **`automacaoSemanal` está ausente**, mas `normalizarAutomacaoSemanal(undefined)` devolve os padrões (`ativa: true`, terça a sexta, 08:00). A automação funciona sem o campo — desde que esteja implantada.
+
+Estado efetivo hoje: **3 dias × 8 horários = 24 vagas**, não 40.
+
+Para chegar a 40 são necessárias **três** ações, não duas:
+
+| Ação | Sem ela |
+|---|---|
+| Implantar o código novo | o corte por data não existe em produção |
+| Apagar `horariosPorDiaSemana` | config explícita vence o corte: 8 horários por dia |
+| Colocar **2026-08-21** em `dias` | a semana abre com 3 dias |
+
+**Não confie na automação para o 21/08.** Ela resolveria (veria 18, 19 e 20 já em `dias`, pularia os três e adicionaria o 21), mas 17/08 seria a primeira execução dela em produção. Adicione a data manualmente pelo painel; o horário de publicação já está correto.
+
 ### 1. Apagar `configuracoes/agenda.horariosPorDiaSemana` (BLOQUEANTE)
 
-O campo tem **6 chaves, todas com a grade legada de 8 horários**, gravadas pelo painel antigo. Como configuração explícita por dia da semana prevalece sobre o corte por data, a semana de 18 a 21/08 abriria com **32 vagas em vez de 40**.
+O campo tem **7 chaves (0 a 6), todas com a grade legada de 8 horários**, gravadas pelo painel antigo. Como configuração explícita por dia da semana prevalece sobre o corte por data, a semana abriria com 8 horários por dia mesmo depois do deploy.
 
 Console → Firestore → `configuracoes` → `agenda` → apagar o campo `horariosPorDiaSemana` inteiro (tirar print antes como backup).
 
@@ -50,6 +79,17 @@ Depois que o campo for apagado, `horariosEditaveisDiaSemana` (`public/recepcao.h
 Correção mínima aceitável: aviso visível no editor de que salvar ali vale para todas as datas daquele dia da semana, inclusive as anteriores a 18/08. Ideal: exibir as duas grades com rótulo de vigência.
 
 Até isso existir, **a recepção não deve abrir "Horários disponíveis por dia da semana"**.
+
+## Bug de merge em mapas — corrigido, mas conheça o padrão
+
+`set(..., { merge: true })` **funde mapas**: uma chave removida do objeto em memória **sobrevive no banco**. Arrays são substituídos inteiros, mapas não. Foi por isso que `publicacaoDatas` acumulou 34 entradas de junho e julho apesar da limpeza diária rodar todo dia, e provavelmente foi assim que 21/08 ficou órfã.
+
+Corrigido em cinco pontos:
+
+- `functions/index.js` — `limparDatasPassadasAgenda` e `prepararAgendaSemanalAutomatica` passam a gravar `FieldValue.delete()` nas chaves removidas
+- `public/recepcao.html` — as três telas que gravam a agenda (`salvarHorariosSemana`, `salvarAgendaGestao`, `salvarAutomacaoSemanal`) passam pelo helper `gravarAgendaConfig`, que usa `update` e cai para `set/merge` só quando o documento não existe
+
+Gravar `responsavelPosto` ou `avisoNovasVagasProgramado` com `set/merge` **continua correto** — não há chave a remover. A trava em `functions/painel-grade-editor.test.js` só reprova `set/merge` direto quando o payload toca `publicacaoDatas` ou `horariosPorDiaSemana`.
 
 ## Decisões tomadas, e por quê
 
