@@ -706,6 +706,7 @@ async function carregarDisponibilidadePublica() {
     dias,
     horarios: agenda.horarios,
     dataNovasVagas: agenda.dataNovasVagas,
+    servidorEm: agora,
     totalVagasRestantes: dias.reduce((total, dia) => total + dia.vagas, 0)
   };
 }
