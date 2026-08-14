@@ -5,6 +5,7 @@
     "presenca_publica": {
       "conexoes": {
         ".read": "auth != null",
+        ".indexOn": ["conectadoEm"],
         "$conexaoId": {
           ".write": "(!data.exists() && newData.exists()) || !newData.exists()",
           ".validate": "newData.hasChildren(['conectadoEm'])",
@@ -19,6 +20,11 @@
       "metricas": {
         ".read": "auth != null",
         ".write": false
+      },
+      "sessoes": {
+        ".read": "auth != null",
+        ".write": false,
+        ".indexOn": ["expiraEm"]
       }
     }
   }

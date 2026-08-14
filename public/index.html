@@ -55,6 +55,13 @@
         .banner-vagas.sem-vagas .status-vagas-card { background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%); border-color: #fca5a5; box-shadow: inset 0 0 0 1px rgba(239,68,68,0.08); }
         .banner-vagas.sem-vagas .status-vagas-icone { background: white; color: var(--danger-dark); }
         .banner-vagas.sem-vagas .status-vagas-titulo { color: var(--danger-dark); }
+        .banner-vagas.liberando-vagas .status-vagas-card { background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%); border-color: #93c5fd; }
+        .banner-vagas.liberando-vagas .status-vagas-icone { background: white; color: var(--primary); }
+        .banner-vagas.liberando-vagas .status-vagas-titulo { color: var(--primary-dark); }
+        .banner-vagas.erro-agenda .status-vagas-card { background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%); border-color: #fbbf24; }
+        .banner-vagas.erro-agenda .status-vagas-icone { background: white; color: #b45309; }
+        .banner-vagas.erro-agenda .status-vagas-titulo { color: #92400e; }
+        .acao-atualizar-agenda { display: inline-flex; align-items: center; gap: 7px; margin-top: 12px; padding: 10px 14px; border: 1px solid #d97706; border-radius: 999px; background: white; color: #92400e; font-weight: 900; cursor: pointer; }
         .abas { display: flex; background: var(--gray-50); padding: 8px; gap: 8px; border-bottom: 1px solid var(--gray-200); margin: 0; }
         .aba { flex: 1; padding: 12px 5px; cursor: pointer; border: none; background: transparent; border-radius: 10px; font-weight: 700; color: var(--gray-600); transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.85rem; touch-action: manipulation; }
         .aba.ativa { background: white; color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
@@ -430,12 +437,23 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app-check.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
 
 <script>
     const APP_CHECK_RECAPTCHA_SITE_KEY = "6LdoYfcsAAAAALyCdBKewXtFLB1e9biRnXTWqNv0";
+    // Desativada ate a telemetria idempotente e distribuida ser validada em homologacao.
     const METRICAS_ACESSO_PUBLICO_ATIVAS = false;
     const ATUALIZACAO_AGENDA_PUBLICA_MS = 3 * 60 * 1000;
+    const JANELA_ATUALIZACAO_ABERTURA_MS = 60 * 1000;
+    const JITTER_ATUALIZACAO_ABERTURA_MS = 1500;
+    const ATRASOS_ATUALIZACAO_ABERTURA_MS = [0, 2000, 4000, 7000, 11000, 16000, 22000];
+    // Date/Age e servidorEm ainda podem carregar ruido de rede e truncamento.
+    // So corrigimos diferencas inequivocas do relogio do aparelho.
+    const LIMIAR_DESVIO_RELOGIO_SERVIDOR_MS = 90 * 1000;
+    let DESVIO_RELOGIO_SERVIDOR_MS = 0;
+    let RELOGIO_SERVIDOR_SINCRONIZADO = false;
+    let atualizacaoAberturaEmCurso = null;
 
     var firebaseConfig = {
         apiKey: "AIzaSyBqmzQw8CtTD6O2C3fiXcm7_GBmkgite_c",
@@ -462,7 +480,9 @@
     var functions = firebase.functions();
     var realtimeDb = firebase.database ? firebase.database() : null;
 
-    const HORAS_FALLBACK = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
+    const DATA_CORTE_GRADE_NOVA = "2026-08-18";
+    const HORARIOS_LEGADOS = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
+    const HORARIOS_NOVOS = ["14:30","14:45","15:00","15:15","15:30","15:45","16:00","16:15","16:30","16:45"];
     const DATA_NOVAS_VAGAS_PADRAO = "data a definir";
     let DIAS_DISPONIVEIS = [], HORARIOS = [], DATA_NOVAS_VAGAS = DATA_NOVAS_VAGAS_PADRAO; 
     let DISPONIBILIDADE_PUBLICA = { porData: {}, totalVagasRestantes: 0 };
@@ -491,7 +511,7 @@
         return `${valores.year}-${valores.month}-${valores.day}`;
     }
 
-    function agoraSaoPauloInput() {
+    function dataHoraSaoPauloInputEm(instanteMs) {
         const partes = new Intl.DateTimeFormat("en", {
             timeZone: "America/Sao_Paulo",
             year: "numeric",
@@ -500,9 +520,52 @@
             hour: "2-digit",
             minute: "2-digit",
             hourCycle: "h23"
-        }).formatToParts(new Date());
+        }).formatToParts(new Date(instanteMs));
         const valores = Object.fromEntries(partes.map(parte => [parte.type, parte.value]));
         return `${valores.year}-${valores.month}-${valores.day}T${valores.hour}:${valores.minute}`;
+    }
+
+    function agoraSaoPauloInput() {
+        return dataHoraSaoPauloInputEm(Date.now());
+    }
+
+    function servidorEmSaoPauloParaMs(servidorEm) {
+        if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(String(servidorEm || ""))) return null;
+        const servidorMs = Date.parse(`${servidorEm}:00-03:00`);
+        return Number.isFinite(servidorMs) ? servidorMs : null;
+    }
+
+    function horaServidorDaResposta(resposta, servidorEmFallback) {
+        const dataCabecalho = resposta && resposta.headers ? resposta.headers.get("Date") : null;
+        const idadeCabecalho = resposta && resposta.headers ? resposta.headers.get("Age") : null;
+        const idadeNumero = Number(idadeCabecalho);
+        const idadeValida = idadeCabecalho !== null && idadeCabecalho !== ""
+            && Number.isFinite(idadeNumero) && idadeNumero >= 0;
+        const idadeCacheMs = idadeValida ? idadeNumero * 1000 : 0;
+        const dataCabecalhoMs = Date.parse(String(dataCabecalho || ""));
+        const baseServidorMs = Number.isFinite(dataCabecalhoMs)
+            ? dataCabecalhoMs
+            : servidorEmSaoPauloParaMs(servidorEmFallback);
+        return {
+            servidorMs: Number.isFinite(baseServidorMs) ? baseServidorMs + idadeCacheMs : null,
+            respostaFresca: idadeCabecalho === null || idadeCabecalho === "" || (idadeValida && idadeNumero === 0)
+        };
+    }
+
+    function calcularDesvioRelogioServidor(servidorMs, referenciaLocalMs = Date.now()) {
+        if (!Number.isFinite(servidorMs) || !Number.isFinite(referenciaLocalMs)) return null;
+        const desvio = servidorMs - referenciaLocalMs;
+        return Math.abs(desvio) > LIMIAR_DESVIO_RELOGIO_SERVIDOR_MS ? desvio : 0;
+    }
+
+    function sincronizarRelogioServidor(relogioServidor, referenciaLocalMs = Date.now()) {
+        if (!relogioServidor || !Number.isFinite(relogioServidor.servidorMs)) return false;
+        if (RELOGIO_SERVIDOR_SINCRONIZADO && !relogioServidor.respostaFresca) return false;
+        const desvio = calcularDesvioRelogioServidor(relogioServidor.servidorMs, referenciaLocalMs);
+        if (desvio === null) return false;
+        DESVIO_RELOGIO_SERVIDOR_MS = desvio;
+        RELOGIO_SERVIDOR_SINCRONIZADO = true;
+        return true;
     }
 
     function horarioAgendamentoFuturo(dataISO, hora) {
@@ -524,9 +587,12 @@
         const texto = String(dataTexto || "");
         const partesBr = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
         const dataISO = /^\d{4}-\d{2}-\d{2}$/.test(texto);
-        return partesBr
+        const alvoSaoPaulo = partesBr
             ? new Date(`${partesBr[3]}-${partesBr[2]}-${partesBr[1]}T08:00:00-03:00`)
             : (dataISO ? new Date(`${texto}T08:00:00-03:00`) : null);
+        return alvoSaoPaulo
+            ? new Date(alvoSaoPaulo.getTime() - DESVIO_RELOGIO_SERVIDOR_MS)
+            : null;
     }
 
     function contadorNovasVagasAtivo(dataTexto) {
@@ -539,19 +605,26 @@
         return [...new Set((dias || []).filter(d => typeof d === "string" && d >= hoje))].sort();
     }
 
-    function horariosAtivos(horarios) {
+    function normalizarListaHorariosPublica(horarios) {
         const base = Array.isArray(horarios) ? horarios : [];
-        return [...new Set([...base, ...HORAS_FALLBACK].filter(h => /^\d{2}:\d{2}$/.test(String(h || ""))))].sort();
+        return [...new Set(base.filter(h => /^\d{2}:\d{2}$/.test(String(h || ""))).map(String))].sort();
     }
 
-    function normalizarDisponibilidadePublica(diasResposta, horarios) {
+    // Espelho da regra canonica em functions/agenda-grade.js::horariosParaData.
+    function horariosPadraoParaDataPublica(dataISO) {
+        return String(dataISO || "") < DATA_CORTE_GRADE_NOVA
+            ? [...HORARIOS_LEGADOS]
+            : [...HORARIOS_NOVOS];
+    }
+
+    function normalizarDisponibilidadePublica(diasResposta) {
         const porData = {};
         (Array.isArray(diasResposta) ? diasResposta : []).forEach(item => {
             const dataISO = typeof item === "string" ? item : item && item.dataISO;
             if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dataISO || ""))) return;
             const horariosDia = Array.isArray(item.horarios)
                 ? item.horarios.filter(h => /^\d{2}:\d{2}$/.test(String(h.hora || "")))
-                : horarios.map(hora => ({ hora, disponivel: true }));
+                : horariosPadraoParaDataPublica(dataISO).map(hora => ({ hora, disponivel: true }));
             const horariosValidos = horariosDia.map(h => ({
                 hora: h.hora,
                 disponivel: h.disponivel === true && horarioAgendamentoFuturo(dataISO, h.hora)
@@ -575,30 +648,35 @@
             dataISO,
             vagas: 0,
             lotado: true,
-            horarios: HORARIOS.map(hora => ({ hora, disponivel: false }))
+            horarios: horariosPadraoParaDataPublica(dataISO).map(hora => ({ hora, disponivel: false }))
         };
     }
 
-    async function buscarAgendaPublicaAtualizada({ ignorarCache = false } = {}) {
+    async function buscarAgendaPublicaAtualizada({ ignorarCache = false, timeoutMs = 12000 } = {}) {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 12000);
+        const timeout = setTimeout(() => controller.abort(), Math.max(1, timeoutMs));
         try {
-            const sufixo = ignorarCache ? `?atualizar=${Date.now()}` : "";
+            // Todos os navegadores usam a mesma chave durante o mesmo minuto. Assim,
+            // o primeiro acesso atualiza o CDN e os demais compartilham a resposta,
+            // em vez de criarem milhares de URLs exclusivas no segundo da abertura.
+            const minutoCompartilhado = Math.floor(Date.now() / 60000);
+            const sufixo = ignorarCache ? `?atualizar-minuto=${minutoCompartilhado}` : "";
             const resposta = await fetch(`/api/agenda-publica${sufixo}`, {
                 method: "GET",
-                ...(ignorarCache ? { cache: "no-store" } : {}),
                 signal: controller.signal
             });
             if (!resposta.ok) {
                 throw new Error("Nao foi possivel carregar a agenda publica.");
             }
-            return await resposta.json();
+            const dados = await resposta.json();
+            const relogioServidor = horaServidorDaResposta(resposta, dados.servidorEm);
+            return { dados, relogioServidor };
         } finally {
             clearTimeout(timeout);
         }
     }
 
-    async function carregarConfig({ ignorarCache = false } = {}) {
+    async function carregarConfig({ ignorarCache = false, atualizarInterface = true, timeoutMs = 12000 } = {}) {
         // Tentar usar cache local primeiro (válido por 3 minutos)
         if (!ignorarCache) {
             try {
@@ -607,13 +685,17 @@
                     const cache = JSON.parse(cacheRaw);
                     if (cache.expiraEm > Date.now() && cache.dados) {
                         const cfg = cache.dados;
-                        HORARIOS = horariosAtivos(cfg.horarios);
-                        DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias, HORARIOS);
+                        HORARIOS = normalizarListaHorariosPublica(cfg.horarios);
+                        DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias);
                         DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
                         DATA_NOVAS_VAGAS = cfg.dataNovasVagas || DATA_NOVAS_VAGAS_PADRAO;
                         // Renderiza imediatamente com o cache e busca atualização em background
-                        renderDatas();
-                        atualizarBannerVagas();
+                        if (atualizarInterface) {
+                            renderDatas();
+                            // O cache nao sincroniza o relogio. Aguarde a resposta ao vivo
+                            // antes de decidir que a virada das 08:00 ja aconteceu.
+                            atualizarBannerVagas({ iniciarAbertura: false });
+                        }
                     }
                 }
             } catch (e) {}
@@ -621,13 +703,18 @@
 
         // Buscar dados atualizados da Cloud Function
         try {
-            const cfg = await buscarAgendaPublicaAtualizada({ ignorarCache });
-            HORARIOS = horariosAtivos(cfg.horarios);
-            DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias, HORARIOS);
+            const buscaIniciadaEm = Date.now();
+            const { dados: cfg, relogioServidor } = await buscarAgendaPublicaAtualizada({ ignorarCache, timeoutMs });
+            const referenciaLocalMs = Math.round((buscaIniciadaEm + Date.now()) / 2);
+            sincronizarRelogioServidor(relogioServidor, referenciaLocalMs);
+            HORARIOS = normalizarListaHorariosPublica(cfg.horarios);
+            DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias);
             DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
             DATA_NOVAS_VAGAS = cfg.dataNovasVagas || DATA_NOVAS_VAGAS_PADRAO;
-            renderDatas();
-            atualizarBannerVagas();
+            if (atualizarInterface) {
+                renderDatas();
+                atualizarBannerVagas();
+            }
             // Salvar no cache com expiração de 3 minutos
             try {
                 localStorage.setItem("cin_agenda_cache", JSON.stringify({
@@ -635,10 +722,11 @@
                     expiraEm: Date.now() + 3 * 60 * 1000
                 }));
             } catch (e) {}
+            return cfg;
         } catch (e) {
             console.error("Erro ao carregar agenda publica", e);
             if (!DIAS_DISPONIVEIS.length) {
-                HORARIOS = horariosAtivos(HORAS_FALLBACK);
+                HORARIOS = [...HORARIOS_NOVOS];
                 DIAS_DISPONIVEIS = [];
                 DISPONIBILIDADE_PUBLICA = { porData: {}, totalVagasRestantes: 0 };
             }
@@ -1202,7 +1290,7 @@
         document.getElementById("secao-cancelar").scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
-    async function atualizarBannerVagas() {
+    async function atualizarBannerVagas({ iniciarAbertura = true } = {}) {
         const banner = document.getElementById("banner-vagas");
         const etapaSelecao = document.getElementById("etapa-selecao");
         const dadosPessoais = document.getElementById("dados-pessoais");
@@ -1226,26 +1314,32 @@
                     </div>
                 `; 
                 if (podeControlarCalendario) etapaSelecao.style.display = "block";
-            } else { 
-                const avisoProximasVagas = avisoNovasVagasEmBreve()
-                    ? '<strong class="proxima-liberacao">Novas vagas em breve</strong>'
-                    : `A liberação de novos horários ocorrerá em:
-                        <strong class="proxima-liberacao">${textoSeguro(DATA_NOVAS_VAGAS)}</strong>`;
+            } else {
+                const existemDatasPublicadas = DIAS_DISPONIVEIS.length > 0;
+                const avisoProximasVagas = existemDatasPublicadas
+                    ? `Próxima abertura:
+                        <strong class="proxima-liberacao">${textoSeguro(DATA_NOVAS_VAGAS)}</strong>`
+                    : (avisoNovasVagasEmBreve()
+                        ? '<strong class="proxima-liberacao">Novas vagas em breve</strong>'
+                        : `A liberação de novos horários ocorrerá em:
+                            <strong class="proxima-liberacao">${textoSeguro(DATA_NOVAS_VAGAS)}</strong>`);
                 banner.className = "banner-vagas sem-vagas";
                 banner.innerHTML = `
                     <div class="status-vagas-card agenda-fechada">
-                        <span class="status-vagas-icone"><i class="fa-solid fa-clock"></i></span>
+                        <span class="status-vagas-icone"><i class="fa-solid ${existemDatasPublicadas ? "fa-calendar-xmark" : "fa-clock"}"></i></span>
                         <div>
-                            <span class="status-vagas-titulo">Agenda fechada</span>
+                            <span class="status-vagas-titulo">${existemDatasPublicadas ? "Vagas preenchidas" : "Agenda fechada"}</span>
                             <span class="status-vagas-sub">
-                                Todas as vagas disponíveis no momento já foram preenchidas.<br>
+                                ${existemDatasPublicadas
+                                    ? "As vagas desta abertura foram preenchidas."
+                                    : "As novas vagas ainda não foram liberadas."}<br>
                                 ${avisoProximasVagas}
                             </span>
                             <div id="countdown-container"></div>
                         </div>
                     </div>
                 `;
-                iniciarContadorRegressivo(DATA_NOVAS_VAGAS);
+                if (iniciarAbertura) iniciarContadorRegressivo(DATA_NOVAS_VAGAS);
                 if (podeControlarCalendario) etapaSelecao.style.display = "none";
             }
         } catch(e) { banner.style.display = "none"; }
@@ -1282,7 +1376,7 @@
                 } else {
                     const badgeClass = vagas <= 2 ? 'low' : 'ok';
                     const vagaText = vagas === 1 ? 'vaga' : 'vagas';
-                    const totalSlots = HORARIOS.length || 8;
+                    const totalSlots = infoDia.horarios.length || 1;
                     const pct = Math.round((vagas / totalSlots) * 100);
                     btn.innerHTML += `<div style="width:100%;text-align:center;"><span class="vagas-badge ${badgeClass}">${vagas} ${vagaText}</span><div class="vaga-progress"><div class="vaga-progress-fill ${badgeClass}" style="width:${pct}%"></div></div></div>`;
                     btn.onclick = async () => {
@@ -1309,7 +1403,8 @@
             const disponibilidadePorHora = {};
             infoDia.horarios.forEach(item => { disponibilidadePorHora[item.hora] = item.disponivel === true; });
             grade.innerHTML = "";
-            HORARIOS.forEach(h => {
+            infoDia.horarios.forEach(itemHorario => {
+                const h = itemHorario.hora;
                 const btn = document.createElement("button"); 
                 btn.className = "btn-hora"; 
                 btn.innerHTML = `<i class="fa-regular fa-clock"></i> ${h}`;
@@ -1845,23 +1940,125 @@
         }
     }
 
+    function atrasoRetentativaAbertura(indice, aleatorio = Math.random()) {
+        const posicao = Math.min(Math.max(0, indice), ATRASOS_ATUALIZACAO_ABERTURA_MS.length - 1);
+        const base = ATRASOS_ATUALIZACAO_ABERTURA_MS[posicao];
+        const fator = Math.min(1, Math.max(0, Number(aleatorio) || 0));
+        return base + Math.floor(fator * JITTER_ATUALIZACAO_ABERTURA_MS);
+    }
+
+    function esperarAtualizacaoAbertura(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function mostrarEstadoLiberandoVagas() {
+        const banner = document.getElementById("banner-vagas");
+        if (!banner) return;
+        banner.style.display = "flex";
+        banner.className = "banner-vagas liberando-vagas";
+        banner.innerHTML = `
+            <div class="status-vagas-card agenda-fechada" role="status" aria-live="polite">
+                <span class="status-vagas-icone"><i class="fa-solid fa-rotate fa-spin"></i></span>
+                <div>
+                    <span class="status-vagas-titulo">Liberando vagas</span>
+                    <span class="status-vagas-sub">Liberando vagas, mantenha esta página aberta</span>
+                    ${HTML_LOADING}
+                </div>
+            </div>
+        `;
+    }
+
+    function mostrarErroAtualizacaoAbertura() {
+        const banner = document.getElementById("banner-vagas");
+        if (!banner) return;
+        banner.style.display = "flex";
+        banner.className = "banner-vagas erro-agenda";
+        banner.innerHTML = `
+            <div class="status-vagas-card agenda-fechada" role="alert">
+                <span class="status-vagas-icone"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                <div>
+                    <span class="status-vagas-titulo">Não foi possível atualizar a agenda</span>
+                    <span class="status-vagas-sub">A conexão pode estar instável. Seus dados nesta página foram preservados.</span>
+                    <button type="button" class="acao-atualizar-agenda" onclick="tentarAtualizarAbertura()">
+                        <i class="fa-solid fa-rotate-right"></i> Tentar novamente
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    async function executarAtualizacaoAbertura() {
+        const inicio = Date.now();
+        let tentativa = 0;
+        mostrarEstadoLiberandoVagas();
+
+        while (Date.now() - inicio < JANELA_ATUALIZACAO_ABERTURA_MS) {
+            const atraso = atrasoRetentativaAbertura(tentativa);
+            const restanteAntesDaEspera = JANELA_ATUALIZACAO_ABERTURA_MS - (Date.now() - inicio);
+            if (restanteAntesDaEspera <= 0) break;
+            if (atraso > 0) {
+                await esperarAtualizacaoAbertura(Math.min(atraso, restanteAntesDaEspera));
+            }
+
+            const tempoRestante = JANELA_ATUALIZACAO_ABERTURA_MS - (Date.now() - inicio);
+            if (tempoRestante <= 0) break;
+            try {
+                const cfg = await carregarConfig({
+                    ignorarCache: true,
+                    atualizarInterface: false,
+                    timeoutMs: Math.min(12000, tempoRestante)
+                });
+                if (cfg && DIAS_DISPONIVEIS.length > 0) {
+                    await renderDatas();
+                    atualizarBannerVagas();
+                    return true;
+                }
+                const alvoCorrigido = alvoContadorNovasVagas(DATA_NOVAS_VAGAS);
+                if (alvoCorrigido && !Number.isNaN(alvoCorrigido.getTime()) && alvoCorrigido > new Date()) {
+                    atualizarBannerVagas();
+                    return false;
+                }
+            } catch (e) {
+                // Ainda ha tentativas: o estado visual continua sendo de liberacao.
+            }
+            tentativa += 1;
+        }
+
+        mostrarErroAtualizacaoAbertura();
+        return false;
+    }
+
+    function tentarAtualizarAbertura() {
+        if (atualizacaoAberturaEmCurso) return atualizacaoAberturaEmCurso;
+        atualizacaoAberturaEmCurso = executarAtualizacaoAbertura().finally(() => {
+            atualizacaoAberturaEmCurso = null;
+        });
+        return atualizacaoAberturaEmCurso;
+    }
+
+    function retomarAtualizacaoAbertura() {
+        if (atualizacaoAberturaEmCurso || DIAS_DISPONIVEIS.length > 0) return;
+        const alvo = alvoContadorNovasVagas(DATA_NOVAS_VAGAS);
+        if (!alvo || Number.isNaN(alvo.getTime()) || alvo > new Date()) return;
+        tentarAtualizarAbertura();
+    }
+
     function iniciarContadorRegressivo(dataTexto) {
         if (window._contadorInterval) { clearInterval(window._contadorInterval); window._contadorInterval = null; }
         const alvo = alvoContadorNovasVagas(dataTexto);
-        if (!alvo || Number.isNaN(alvo.getTime()) || alvo <= new Date()) return;
+        if (!alvo || Number.isNaN(alvo.getTime())) return;
+        if (alvo <= new Date()) {
+            if (!DIAS_DISPONIVEIS.length) tentarAtualizarAbertura();
+            return;
+        }
         function atualizar() {
             const el = document.getElementById('countdown-container');
             if (!el) { clearInterval(window._contadorInterval); return; }
             const diff = alvo - new Date();
             if (diff <= 0) {
                 clearInterval(window._contadorInterval);
-                el.innerHTML = '<strong class="proxima-liberacao" style="display:inline-block;margin-top:10px;">🎉 Vagas liberadas! Atualizando...</strong>';
-                carregarConfig({ ignorarCache: true }).then(() => {
-                    renderDatas();
-                    atualizarBannerVagas();
-                }).catch(() => {
-                    el.innerHTML = '<strong class="proxima-liberacao" style="display:inline-block;margin-top:10px;">🎉 Vagas liberadas! <a href="#" onclick="location.reload();return false;">Clique aqui para atualizar</a></strong>';
-                });
+                window._contadorInterval = null;
+                tentarAtualizarAbertura();
                 return;
             }
             const d = Math.floor(diff / 86400000), h = Math.floor((diff % 86400000) / 3600000);
@@ -1872,6 +2069,11 @@
         atualizar();
         window._contadorInterval = setInterval(atualizar, 1000);
     }
+
+    window.addEventListener("online", retomarAtualizacaoAbertura);
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") retomarAtualizacaoAbertura();
+    });
 
     function inicializarRipple() {
         document.querySelectorAll('.btn-principal').forEach(btn => btn.addEventListener('click', function(e) {

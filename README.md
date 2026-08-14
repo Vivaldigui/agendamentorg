@@ -24,7 +24,7 @@ Toda gravação de dados passa por **Cloud Functions** — o frontend nunca escr
 ## Stack
 
 - **Firebase Hosting** — frontend estático + PWA ([`manifest.json`](public/manifest.json), [`sw.js`](public/sw.js))
-- **Cloud Functions (2ª geração, Node.js 22)** — `firebase-functions ^7`, `firebase-admin ^13`
+- **Cloud Functions (2ª geração, Node.js 22)** — `firebase-functions 7.3.2`, `firebase-admin 14.2.0`
 - **Cloud Firestore** — dados de agendamento e configuração
 - **Realtime Database** — métricas de presença/acesso em tempo real
 - **Firebase App Check** (reCAPTCHA v3) — proteção das funções públicas contra abuso
@@ -87,9 +87,10 @@ Definidas em [`functions/index.js`](functions/index.js).
 | Função | Gatilho |
 |---|---|
 | `registrarMetricasAcessoPublico` | RTDB `onValueCreated` em `presenca_publica/conexoes` |
-| `limparDatasPassadasAgenda` | Cron diário `0 2 * * *` (America/Sao_Paulo) |
+| `atualizarMetricasSaidaAcessoPublico` | RTDB `onValueDeleted` em `presenca_publica/conexoes` |
+| `prepararAgendaSemanalAutomatica` | Cron de segunda às 07:50, 07:55 e 07:59 — prepara a semana, aquece a leitura e publica às 08:00 |
 | `anonimizarDadosAntigosLGPD` | Cron mensal `0 3 1 * *` — anonimiza dados com retenção > 6 meses |
-| `limparSessoesAcessoPublico` | Cron diário `15 4 * * *` |
+| `executarManutencaoDiaria` | Cron diário `0 2 * * *` — limpa agenda passada, auxiliares expirados e sessões de acesso |
 
 ---
 
@@ -163,6 +164,9 @@ Após um deploy de Hosting, force a atualização do service worker incrementand
 Aberturas de agenda com hora marcada geram pico simultâneo (efeito manada). Os scripts em `scripts/` ajustam o número de instâncias "quentes" sem editar código:
 
 ```powershell
+# Apenas uma vez nesta máquina, antes do primeiro uso dos scripts
+npx.cmd --yes firebase-tools@15.26.0 login
+
 # ~30-45 min antes do pico — sobe minInstances
 .\scripts\preaquecer-ligar.ps1
 
@@ -170,7 +174,30 @@ Aberturas de agenda com hora marcada geram pico simultâneo (efeito manada). Os 
 .\scripts\preaquecer-desligar.ps1
 ```
 
-Internamente eles definem a variável de ambiente `PICO_MIN_INSTANCES` e fazem deploy de `criarAgendamentoCidadao` e `carregarAgendaPublicaHttp`. **Não execute outros `firebase deploy` entre ligar e desligar**, pois o pré-aquecimento seria desfeito.
+O Firebase CLI global é usado quando estiver instalado; caso contrário, os scripts usam automaticamente a versão `15.26.0` via `npx`. O modo econômico mantém somente **uma** instância de `criarAgendamentoCidadao` quente. A leitura permanece com `minInstances = 0`, recebe uma chamada leve da automação às 07:59 e depois é absorvida pelo cache compartilhado do Firebase Hosting/CDN. Esse aquecimento de leitura reduz a chance de cold start, mas não é uma reserva garantida de instância. Os scripts fazem deploy apenas da função de criação. **Não execute outros `firebase deploy` entre ligar e desligar**, pois o pré-aquecimento seria desfeito.
+
+As tarefas agendadas estão consolidadas em três jobs: manutenção diária, abertura semanal e anonimização mensal. Isso permanece dentro dos três jobs gratuitos do Cloud Scheduler quando a conta de faturamento não possui outros jobs. No primeiro deploy desta consolidação, confirme a exclusão das funções antigas `limparDatasPassadasAgenda`, `limparAuxiliaresExpirados` e `limparSessoesAcessoPublico`; caso contrário, seus jobs antigos continuarão existentes.
+
+### Abertura semanal automática
+
+A configuração `configuracoes/agenda.automacaoSemanal` controla a abertura de cada segunda-feira. Por padrão, o backend prepara terça, quarta, quinta e sexta às 07:50/07:55/07:59 e programa a visibilidade para 08:00 (fuso `America/Sao_Paulo`). As execuções são idempotentes; a última serve como redundância e aquece a leitura pública.
+
+A grade é resolvida por data para preservar atendimentos existentes. Até `17/08/2026`, o padrão continua com os oito horários legados (`14:20` a `16:40`, em intervalos de 20 minutos). A partir de `18/08/2026`, o padrão passa a ter dez horários: `14:30`, `14:45`, `15:00`, `15:15`, `15:30`, `15:45`, `16:00`, `16:15`, `16:30`, `16:45`. Uma grade explicitamente configurada para o dia da semana sempre prevalece sobre esse corte.
+
+No painel da recepção, em **Configurações operacionais → Abertura automática toda segunda-feira**, é possível:
+
+- ativar ou suspender toda a automação;
+- escolher os dias normais de atendimento;
+- alterar o horário de abertura;
+- pular uma semana inteira;
+- bloquear um dia específico;
+- cadastrar férias ou outro intervalo sem atendimento.
+
+As exceções sempre prevalecem sobre a regra automática. Datas cadastradas manualmente nunca são atrasadas ou substituídas pela automação. Ao salvar uma exceção, o painel remove automaticamente apenas datas automáticas que ainda não foram publicadas; datas já abertas são mantidas para proteger eventuais agendamentos existentes e devem ser revisadas pela recepção.
+
+Na abertura das 08:00, o aviso público de novas vagas também passa automaticamente para a próxima segunda-feira que tenha algum dia de atendimento, pulando semanas suspensas, datas bloqueadas e períodos de férias. Com a automação desligada, o aviso continua sob controle manual.
+
+Para garantir que a exceção entre na primeira execução, salve-a antes de segunda-feira às 07:50. Se uma data automática for removida manualmente, ela também é adicionada à lista de dias bloqueados, evitando que seja recriada na execução redundante das 07:55.
 
 ---
 
@@ -197,4 +224,19 @@ Requer credenciais de aplicação (`GOOGLE_APPLICATION_CREDENTIALS`) com acesso 
 firebase functions:log --only criarAgendamentoCidadao --project agendamento-cin-itanhandu
 ```
 
-Métricas de uso e acessos em tempo real ficam no Realtime Database (`presenca_publica`) e no Firebase Analytics.
+A telemetria pública de presença está **desativada temporariamente** para não competir com o agendamento durante o pico. Por isso, o painel **Recepção → Lista de hoje** mostra “Medição desativada” nos cartões de acessos simultâneos, pico e entradas do dia. O código dos gatilhos e a estrutura `presenca_publica` foram preservados. A telemetria só deve ser religada depois que o processamento tiver deduplicação idempotente, contadores distribuídos em shards e validação de carga em homologação.
+
+A atualização pública das 08:00 usa uma chave de cache comum por minuto. Assim, os navegadores recebem a agenda atualizada sem criar uma URL única por visitante e o CDN consegue compartilhar a mesma resposta durante o pico.
+
+## Dependências e testes de carga
+
+As dependências de produção ficam fixadas em versões auditadas. Dependências opcionais não utilizadas, inclusive o cliente de Cloud Storage, são omitidas; o cliente do Firestore usado pelo sistema é declarado diretamente.
+
+```bash
+npm run audit:prod
+cd functions
+npm run audit:prod
+npm test
+```
+
+Os cenários k6 para leitura da agenda e disputa simultânea pela mesma vaga estão documentados em [`tests/load/README.md`](tests/load/README.md). Execute-os somente em homologação ou emuladores.

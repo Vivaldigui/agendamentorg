@@ -1,8 +1,8 @@
 # ============================================================
 #  PRE-AQUECIMENTO: LIGAR  (rodar ~30-45 min ANTES da abertura)
 # ============================================================
-#  Sobe instancias "quentes" para eliminar o cold start no pico.
-#  Para o evento de 08/06/2026 18h: rode por volta das 17h15.
+#  Modo economico: mantem somente uma instancia quente da funcao
+#  de criacao. A leitura continua em escala zero e usa o cache CDN.
 #
 #  COMO USAR:
 #    1. Abra o PowerShell na pasta do projeto (agendamentorg)
@@ -13,16 +13,23 @@
 # ============================================================
 
 $ErrorActionPreference = "Stop"
-$env:PICO_MIN_INSTANCES = "10"
+$env:PICO_MIN_INSTANCES = "1"
 
 Write-Host ""
-Write-Host "==> Pre-aquecimento LIGADO (minInstances = 10 para criar agendamento)" -ForegroundColor Yellow
-Write-Host "==> Fazendo deploy das funcoes de pico..." -ForegroundColor Yellow
+Write-Host "==> Pre-aquecimento ECONOMICO (1 instancia para criar agendamento; leitura permanece em 0)" -ForegroundColor Yellow
+Write-Host "==> Fazendo deploy somente da funcao de criacao..." -ForegroundColor Yellow
 Write-Host ""
 
-firebase deploy --only functions:criarAgendamentoCidadao,functions:carregarAgendaPublicaHttp --project agendamento-cin-itanhandu
+$firebaseCli = Get-Command firebase.cmd -ErrorAction SilentlyContinue
+if ($firebaseCli) {
+    & firebase.cmd deploy --only functions:criarAgendamentoCidadao --project agendamento-cin-itanhandu
+} else {
+    Write-Host "==> Firebase CLI global nao encontrado; usando npx (firebase-tools 15.26.0)." -ForegroundColor DarkYellow
+    & npx.cmd --yes firebase-tools@15.26.0 deploy --only functions:criarAgendamentoCidadao --project agendamento-cin-itanhandu
+}
+if ($LASTEXITCODE -ne 0) { throw "Falha ao ativar o pre-aquecimento. Confira o login do Firebase e tente novamente." }
 
 Write-Host ""
-Write-Host "==> PRONTO. Instancias quentes ativas." -ForegroundColor Green
+Write-Host "==> PRONTO. Uma instancia quente ativa para a operacao critica." -ForegroundColor Green
 Write-Host "==> Lembre-se de rodar .\scripts\preaquecer-desligar.ps1 cerca de 1h apos a abertura." -ForegroundColor Green
 Write-Host ""

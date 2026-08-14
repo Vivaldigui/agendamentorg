@@ -5,8 +5,13 @@
     "node": "22"
   },
   "main": "index.js",
+  "scripts": {
+    "test": "node --test",
+    "audit:prod": "npm audit --omit=dev --omit=optional"
+  },
   "dependencies": {
-    "firebase-admin": "^13.9.0",
-    "firebase-functions": "^7.2.5"
+    "@google-cloud/firestore": "8.7.1",
+    "firebase-admin": "14.2.0",
+    "firebase-functions": "7.3.2"
   }
 }
