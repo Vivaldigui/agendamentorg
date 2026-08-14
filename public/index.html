@@ -29,7 +29,7 @@
             --danger: #ef4444; --danger-dark: #dc2626; --danger-light: #fef2f2;
             --gray-50: #f8fafc; --gray-100: #f1f5f9; --gray-200: #e2e8f0; 
             --gray-400: #94a3b8; --gray-600: #475569; --gray-800: #1e293b;
-            --whatsapp: #25d366; --radius: 14px; 
+            --radius: 14px;
             --shadow-soft: 0 20px 40px rgba(0, 0, 0, 0.06);
             --shadow-hover: 0 10px 25px rgba(0, 86, 179, 0.15);
         }
@@ -155,8 +155,6 @@
         .instagram-suporte .titulo-instagram { display: block; font-size: 1rem; line-height: 1.5; font-weight: 800; margin-bottom: 16px; color: var(--gray-800); }
         .btn-instagram { display: inline-flex; align-items: center; justify-content: center; gap: 10px; background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045); color: white; padding: 14px 24px; border-radius: 50px; text-decoration: none; font-weight: 900; box-shadow: 0 10px 24px rgba(131, 58, 180, 0.22); }
         .btn-instagram:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgba(131, 58, 180, 0.28); }
-        .whatsapp-flutuante { position: fixed; right: 22px; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); width: 58px; height: 58px; border-radius: 50%; background: var(--whatsapp); color: white; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 1.9rem; box-shadow: 0 12px 28px rgba(37, 211, 102, 0.35); z-index: 9990; transition: 0.2s; }
-        .whatsapp-flutuante:hover { transform: translateY(-2px); box-shadow: 0 16px 32px rgba(37, 211, 102, 0.42); }
         .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
         .modal-overlay.oculto { display: none; }
         .modal-caixa { background: white; border-radius: 24px; padding: 36px 32px calc(36px + env(safe-area-inset-bottom, 0px)); max-width: 440px; width: 100%; text-align: center; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto; }
@@ -195,7 +193,6 @@
             .grade { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); }
             .instagram-suporte { margin: 24px 10px 78px; padding: 22px 18px; }
             .btn-instagram { width: 100%; padding: 14px 16px; }
-            .whatsapp-flutuante { right: 14px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); width: 54px; height: 54px; font-size: 1.75rem; }
         }
 
 
@@ -209,9 +206,6 @@
         .countdown-num { display: block; font-size: 1.5rem; font-weight: 900; color: var(--primary); line-height: 1; }
         .countdown-label { display: block; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-600); margin-top: 3px; }
 
-        /* 2. WhatsApp pulse */
-        @keyframes wp-pulse { 0%, 100% { box-shadow: 0 12px 28px rgba(37,211,102,0.35); } 50% { box-shadow: 0 0 0 12px rgba(37,211,102,0), 0 12px 28px rgba(37,211,102,0.35); } }
-        .whatsapp-flutuante { animation: wp-pulse 2.6s ease-in-out infinite; }
 
         /* 3. Confetti */
         @keyframes confetti-fall { 0% { transform: translateY(-20px) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(900deg); opacity: 0; } }
@@ -429,10 +423,6 @@
         <i class="fa-brands fa-instagram"></i> @camaraitanhandu
     </a>
 </div>
-
-<a class="whatsapp-flutuante" href="https://wa.me/553535040397" target="_blank" rel="noopener noreferrer" aria-label="Falar com a Câmara no WhatsApp" title="Falar com a Câmara no WhatsApp">
-    <i class="fa-brands fa-whatsapp"></i>
-</a>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app-check.js"></script>
@@ -1129,6 +1119,7 @@
         return `Ola, ${ag.nome}!\n\nSeu atendimento para emissao do RG/CIN foi agendado para ${ag.dataBR} as ${ag.hora} na Camara Municipal de Itanhandu.\n\nSe nao puder comparecer, cancele seu horario para liberar a vaga para outra pessoa e evitar bloqueio futuro.\n\n${documentosTexto()}\n\nLocal: Camara Municipal de Itanhandu\nMapa: ${MAPS_CAMARA}`;
     }
 
+    // Envia para o numero do proprio cidadao, informado no agendamento.
     function enviarConfirmacaoWhatsApp() {
         const ag = ultimoAgendamentoConfirmado;
         if (!ag) return aviso("Finalize um agendamento antes de enviar a confirmação.");
