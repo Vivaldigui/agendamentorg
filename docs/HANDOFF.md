@@ -91,6 +91,55 @@ Corrigido em cinco pontos:
 
 Gravar `responsavelPosto` ou `avisoNovasVagasProgramado` com `set/merge` **continua correto** — não há chave a remover. A trava em `functions/painel-grade-editor.test.js` só reprova `set/merge` direto quando o payload toca `publicacaoDatas` ou `horariosPorDiaSemana`.
 
+## Primeiro item depois de 17/08 — segundo fator é código morto
+
+Descoberto durante o ensaio de homologação de 14/08, ao conferir no banco o agendamento vencedor
+da disputa: o campo `protocolo` veio `undefined`.
+
+Investigando, o problema é maior que o campo ausente. **`validarFatorExtra`
+(`functions/index.js:772`) nunca é chamada** — aparece uma única vez no arquivo, a própria
+definição. E o cliente envia apenas `{ cpf, nascimento }` nas duas chamadas que a usariam
+(`public/index.html:1754` e `1818`).
+
+Consequência: **qualquer pessoa que saiba o CPF e a data de nascimento de outra pode consultar e
+cancelar o agendamento dela.** Não há segundo fator, para nenhum agendamento — nem os criados
+pela recepção, que têm protocolo. A verificação simplesmente não roda.
+
+**Não é regressão deste trabalho.** O commit `09903c9`, em produção hoje, tem o mesmo
+comportamento.
+
+### Tamanho da correção
+
+| # | Onde | O quê |
+|---|---|---|
+| 1 | `criarAgendamentoCidadao` | gravar `protocolo` no documento (hoje `gerarProtocolo` só é usada em `criarEncaixeManual`) |
+| 2 | idem | devolver o protocolo ao cliente |
+| 3 | `consultarAgendamentoCidadao:826` | chamar `validarFatorExtra` |
+| 4 | `prepararCancelamentoCidadao:989` | chamar `validarFatorExtra` |
+| 5 | `public/index.html` | exibir o protocolo no comprovante |
+| 6 | `public/index.html` | coletar telefone **ou** protocolo no fluxo de consulta e cancelamento |
+
+A guarda `if (!dados.protocolo) return;` torna a mudança retrocompatível: agendamentos antigos
+seguem funcionando com CPF e nascimento, só os novos passam a exigir o segundo fator. Ninguém
+fica trancado para fora.
+
+### Por que ficou para depois de 17/08
+
+- Toca `criarAgendamentoCidadao`, a função mais crítica, logo após ela ter sido validada sob 50
+  tentativas simultâneas. Alterá-la invalida essa validação.
+- O item 6 muda o fluxo de cancelamento do cidadão. Se falhar no dia, gente que quer cancelar não
+  consegue — pior do que o risco mitigado.
+- A exposição é específica: exige saber CPF e data de nascimento de alguém em particular, e querer
+  cancelar o agendamento daquela pessoa.
+
+### Mitigação disponível sem código
+
+Cancelamentos de cidadão **não geram entrada em `logs_admin`**, mas ficam registrados no próprio
+agendamento: `status: "cancelado_cidadao"`, `canceladoEm` e `canceladoPor: "cidadao"`. A recepção
+consegue detectar cancelamento anômalo pelo painel. Há também rate limit de 10 cancelamentos por
+10 minutos por IP e User-Agent — sujeito, porém, ao contorno por User-Agent descrito no item 9 do
+plano.
+
 ## Decisões tomadas, e por quê
 
 - **Corte por data em `2026-08-18`**, com regra canônica em `functions/agenda-grade.js` e espelhos nos dois HTMLs. Sem isso, dias já publicados com os 8 slots legados ocupados ganhariam mais 8 slots livres, chegando a 16 atendimentos com pares separados por 10 minutos.
