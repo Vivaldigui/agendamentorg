@@ -834,7 +834,12 @@ exports.consultarAgendamentoCidadao = onCall(publicCallableOptions, async (reque
 exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request) => {
   const nome = normalizarTexto(request.data.nome, "o nome completo", 5, 120);
   const cpfNum = normalizarCpf(request.data.cpf);
-  const substituirAnterior = request.data && request.data.substituirAnterior === true;
+  // CONTENCAO B4. O booleano vinha do cliente e nada ligava quem chamava ao CPF
+  // informado: com substituirAnterior=true bastava conhecer um CPF para liberar a
+  // vaga da vitima, inativar o agendamento dela e criar outro com dados proprios.
+  // Ate existir prova de titularidade (token emitido apos autenticacao real do
+  // agendamento), a substituicao fica desativada e o cidadao precisa cancelar antes.
+  const substituirAnterior = false;
   await aplicarRateLimit(request, "criar_agendamento", 20, 10 * 60 * 1000, cpfNum);
   const bloqueio = await buscarBloqueioAtivoCpf(cpfNum);
   if (bloqueio) {
@@ -919,15 +924,13 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
     }
 
     if (agendamentoAtivoExistente && !substituirAnterior) {
+      // CONTENCAO B4. Nao devolver data e hora: quem chama provou apenas conhecer
+      // um CPF, e isso revelava quando a pessoa sera atendida. Para ver ou cancelar
+      // o proprio agendamento o cidadao usa a consulta, que exige data de nascimento.
       throw new HttpsError(
         "already-exists",
-        `Este CPF ja possui um agendamento ativo em ${dataBr(agendamentoAtivoExistente.dataISO)} as ${agendamentoAtivoExistente.hora}.`,
-        {
-          tipo: "cpf-ja-agendado",
-          dataISO: agendamentoAtivoExistente.dataISO,
-          dataBR: dataBr(agendamentoAtivoExistente.dataISO),
-          hora: agendamentoAtivoExistente.hora
-        }
+        "Este CPF ja possui um agendamento ativo. Use \"Consultar meu agendamento\" para ver os detalhes ou cancelar.",
+        { tipo: "cpf-ja-agendado" }
       );
     }
 
@@ -1036,8 +1039,22 @@ exports.cancelarAgendamentoCidadao = onCall(publicCallableOptions, async (reques
       validarAgendamentoPublicoFuturo(dados, "Este agendamento ja passou do horario e nao pode mais ser cancelado pelo site.");
     }
 
-    if (slotId && slotId !== "undefined_undefined") {
-      t.delete(db.collection("vagas_ocupadas").doc(slotId));
+    // CONTENCAO B5. O token guarda uma fotografia de 30 minutos. Sem conferir o
+    // dono atual, dois tokens irmaos do mesmo agendamento permitiam: cancelar com
+    // o primeiro, outra pessoa reservar a vaga liberada, e o segundo apagar a vaga
+    // dela -- deixando o agendamento sem vaga e a mesma vaga livre para um terceiro.
+    // Toda leitura precisa vir antes de qualquer escrita na transacao.
+    const cpfDocIdsUnicos = [...new Set((Array.isArray(pendente.cpfDocIds) ? pendente.cpfDocIds : []).filter(Boolean))];
+    const slotRefAlvo = slotId && slotId !== "undefined_undefined"
+      ? db.collection("vagas_ocupadas").doc(slotId)
+      : null;
+    const [slotDoc, cpfDocs] = await Promise.all([
+      slotRefAlvo ? t.get(slotRefAlvo) : Promise.resolve(null),
+      Promise.all(cpfDocIdsUnicos.map((docId) => t.get(db.collection("cpfs_agendados").doc(docId))))
+    ]);
+
+    if (slotRefAlvo && slotDoc.exists && slotDoc.data().agendamentoId === pendente.agendamentoId) {
+      t.delete(slotRefAlvo);
     }
 
     if (agDoc.exists) {
@@ -1051,9 +1068,12 @@ exports.cancelarAgendamentoCidadao = onCall(publicCallableOptions, async (reques
       }, { merge: true });
     }
 
-    const cpfDocIds = Array.isArray(pendente.cpfDocIds) ? pendente.cpfDocIds : [];
-    cpfDocIds.forEach((docId) => {
-      if (docId) t.delete(db.collection("cpfs_agendados").doc(docId));
+    // Mesma regra para os indices de CPF: so remove o que ainda aponta para este
+    // agendamento. Um indice ja reapontado pertence a um agendamento posterior.
+    cpfDocs.forEach((doc, indice) => {
+      if (doc.exists && doc.data().agendamentoId === pendente.agendamentoId) {
+        t.delete(db.collection("cpfs_agendados").doc(cpfDocIdsUnicos[indice]));
+      }
     });
 
     t.delete(tokenRef);

@@ -1623,24 +1623,20 @@
                 ultimoErro = e;
                 const codigo = (e && e.code) || "";
                 const detalhes = (e && e.details) || null;
-                // CPF ja possui agendamento: confirmar substituicao e retentar
-                if (codigo === "already-exists" && detalhes && detalhes.tipo === "cpf-ja-agendado" && !substituirAnterior) {
-                    const dataBR = detalhes.dataBR || "";
-                    const hora = detalhes.hora || "";
-                    const confirmou = await confirmarModalAsync({
+                // CONTENCAO B4. A substituicao automatica foi desativada: ela permitia
+                // que qualquer pessoa que soubesse um CPF tomasse o agendamento alheio.
+                // Quem ja tem horario precisa cancelar pela consulta, que exige a data
+                // de nascimento, antes de marcar outro.
+                if (codigo === "already-exists" && detalhes && detalhes.tipo === "cpf-ja-agendado") {
+                    btn.disabled = false;
+                    btn.innerHTML = 'FINALIZAR AGENDAMENTO <i class="fa-solid fa-arrow-right"></i>';
+                    await confirmarModalAsync({
                         titulo: "Você já tem um agendamento",
-                        mensagem: `Você já possui um agendamento marcado${dataBR ? ` para ${dataBR}` : ""}${hora ? ` às ${hora}` : ""}.\n\nSe continuar, o agendamento anterior será cancelado e este novo horário passará a valer.`,
-                        textoConfirmar: "Substituir agendamento",
-                        textoCancelar: "Manter o anterior"
-                    });
-                    if (!confirmou) {
-                        btn.disabled = false;
-                        btn.innerHTML = 'FINALIZAR AGENDAMENTO <i class="fa-solid fa-arrow-right"></i>';
-                        return;
-                    }
-                    substituirAnterior = true;
-                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> SUBSTITUINDO AGENDAMENTO ANTERIOR...';
-                    continue;
+                        mensagem: "Este CPF já possui um agendamento ativo.\n\nPara marcar outro horário, primeiro cancele o atual em \"Consultar meu agendamento\".",
+                        textoConfirmar: "Consultar meu agendamento",
+                        textoCancelar: "Fechar"
+                    }) && abrirAbaCancelar();
+                    return;
                 }
                 // Erros definitivos: não retentar
                 if (["already-exists", "invalid-argument", "failed-precondition", "resource-exhausted"].includes(codigo)) break;
