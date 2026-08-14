@@ -40,6 +40,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /operacoes_agendamento/{documentId} {
+      allow read, write: if false;
+    }
+
     match /logs_admin/{documentId} {
       allow create, get, list: if isAdmin();
       allow update, delete: if false;

@@ -19,6 +19,13 @@ const {
   horariosParaData,
   horarioPertenceAgenda
 } = require("./agenda-grade");
+const {
+  OPERACAO_AGENDAMENTO_VERSAO,
+  OPERACAO_AGENDAMENTO_TTL_MS,
+  normalizarOperationId,
+  hashPayloadAgendamento,
+  resolverOperacaoExistente
+} = require("./agendamento-idempotencia");
 
 initializeApp();
 
@@ -86,6 +93,14 @@ const agendamentoPicoOptions = {
   minInstances: PICO_MIN_INSTANCES,
   timeoutSeconds: 300
 };
+
+const verificacaoSlotOptions = {
+  ...publicCallableOptions,
+  maxInstances: 50,
+  minInstances: PICO_MIN_INSTANCES_LEITURA,
+  timeoutSeconds: 30
+};
+const RATE_LIMIT_VERIFICACAO_FRAGMENTOS = 16;
 
 function normalizarCpf(cpf) {
   const cpfNum = String(cpf || "").replace(/\D/g, "");
@@ -375,6 +390,23 @@ function agendamentoEstaAtivo(dados) {
   return !["cancelado", "cancelado_cidadao", "cancelado_camara", "remarcado"].includes(status);
 }
 
+function slotRepresentaOcupacaoAtual(slotExiste, dadosSlot, agendamentoExiste, dadosAgendamento) {
+  if (!slotExiste) return false;
+  if (!dadosSlot || !dadosSlot.agendamentoId) return true;
+  return agendamentoExiste && agendamentoEstaAtivo(dadosAgendamento);
+}
+
+function agendamentoCorrespondeAoPedido(dados, pedido) {
+  if (!dados || !pedido) return false;
+  return String(dados.nome || "").trim().replace(/\s+/g, " ") === pedido.nome &&
+    cpfNumeros(dados.cpf) === pedido.cpfNum &&
+    digitosTelefone(dados.telefone) === digitosTelefone(pedido.telefone) &&
+    String(dados.email || "").trim().toLowerCase() === String(pedido.email || "").trim().toLowerCase() &&
+    dados.dataNasc === pedido.dataNasc &&
+    dados.dataISO === pedido.dataISO &&
+    dados.hora === pedido.hora;
+}
+
 function normalizarBloqueadoAte(valor) {
   if (!valor) return null;
   if (typeof valor === "string") {
@@ -449,6 +481,28 @@ function fingerprintRequisicao(request, extra = "") {
   return crypto.createHash("sha256").update(`${ip}|${userAgent}|${extra}`).digest("hex");
 }
 
+function ipOrigemConfiavel(request) {
+  const raw = request.rawRequest || {};
+  const encaminhados = String(raw.headers && raw.headers["x-forwarded-for"] || "")
+    .split(",")
+    .map((valor) => valor.trim())
+    .filter(Boolean);
+  // O balanceador acrescenta <client-ip>,<load-balancer-ip> ao final. Valores
+  // anteriores podem ter sido fornecidos pelo chamador e nao entram no limite.
+  const ipDoCliente = encaminhados.length >= 2 ? encaminhados[encaminhados.length - 2] : "";
+  return String(ipDoCliente || raw.ip || "sem-ip").trim().slice(0, 128) || "sem-ip";
+}
+
+function fingerprintOrigemRequisicao(request, extra = "") {
+  const ip = ipOrigemConfiavel(request);
+  return crypto.createHash("sha256").update(`${ip}|${extra}`).digest("hex");
+}
+
+function fragmentoRateLimitVerificacao(sessaoId) {
+  const hash = crypto.createHash("sha256").update(sessaoId).digest("hex");
+  return parseInt(hash.slice(0, 8), 16) % RATE_LIMIT_VERIFICACAO_FRAGMENTOS;
+}
+
 async function comRetry(fn, { tentativas = 3, baseMs = 200 } = {}) {
   let ultimoErro;
   for (let i = 0; i < tentativas; i++) {
@@ -471,9 +525,9 @@ async function comRetry(fn, { tentativas = 3, baseMs = 200 } = {}) {
   throw ultimoErro;
 }
 
-async function aplicarRateLimit(request, acao, limite, janelaMs, extra = "") {
+async function aplicarRateLimitComFingerprint(fingerprint, acao, limite, janelaMs) {
   const chave = crypto.createHash("sha256")
-    .update(`${acao}|${fingerprintRequisicao(request, extra)}`)
+    .update(`${acao}|${fingerprint}`)
     .digest("hex");
   const ref = db.collection("rate_limits").doc(chave);
   const agora = Date.now();
@@ -498,6 +552,24 @@ async function aplicarRateLimit(request, acao, limite, janelaMs, extra = "") {
       atualizadoEm: FieldValue.serverTimestamp()
     }, { merge: true });
   });
+}
+
+async function aplicarRateLimit(request, acao, limite, janelaMs, extra = "") {
+  return aplicarRateLimitComFingerprint(
+    fingerprintRequisicao(request, extra),
+    acao,
+    limite,
+    janelaMs
+  );
+}
+
+async function aplicarRateLimitOrigem(request, acao, limite, janelaMs, extra = "") {
+  return aplicarRateLimitComFingerprint(
+    fingerprintOrigemRequisicao(request, extra),
+    acao,
+    limite,
+    janelaMs
+  );
 }
 
 async function anonimizarDadosAntigosLGPD() {
@@ -720,8 +792,8 @@ async function carregarDisponibilidadePublica() {
 
 // Segunda-feira de manhã é a janela semanal de abertura de vagas: cache curto para a
 // disponibilidade refletir quase em tempo real. No resto da semana o CDN pode segurar
-// a resposta por mais tempo, cortando invocações (o fluxo de agendamento revalida com
-// cache-buster antes de confirmar, então dado defasado não vende vaga duplicada).
+// a resposta por mais tempo, cortando invocações. A seleção revalida um único slot
+// por callable sem CDN, e a transação continua sendo a autoridade final da reserva.
 function cacheControlAgendaPublica() {
   const partes = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Sao_Paulo",
@@ -755,6 +827,46 @@ exports.carregarAgendaPublicaHttp = onRequest({
     const status = err && err.code === "resource-exhausted" ? 429 : 500;
     res.status(status).json({ erro: err && err.message ? err.message : "Erro ao carregar agenda publica." });
   }
+});
+
+exports.verificarDisponibilidadeSlotCidadao = onCall(verificacaoSlotOptions, async (request) => {
+  const dataISO = normalizarData(request.data && request.data.data, "data do agendamento");
+  const hora = normalizarHora(request.data && request.data.hora);
+  const sessaoId = normalizarSessaoVerificacaoPublica(request.data && request.data.sessaoId);
+  // O identificador do navegador escolhe apenas um de 16 fragmentos fixos. Mesmo
+  // rotacionando o valor, uma origem nao cria buckets ilimitados nem supera o teto
+  // agregado de 2.000 verificacoes por janela (16 x 125).
+  const fragmento = fragmentoRateLimitVerificacao(sessaoId);
+  await aplicarRateLimitOrigem(
+    request,
+    "verificar_disponibilidade_slot_origem",
+    125,
+    10 * 60 * 1000,
+    `fragmento_${fragmento}`
+  );
+  await validarSlotDisponivel(dataISO, hora);
+
+  const slotRef = db.collection("vagas_ocupadas").doc(`${dataISO}_${hora}`);
+  const slotDoc = await slotRef.get();
+  let agendamentoDoc = null;
+  const agendamentoId = slotDoc.exists && slotDoc.data().agendamentoId;
+  if (agendamentoId) {
+    agendamentoDoc = await db.collection("dados_cidadaos").doc(agendamentoId).get();
+  }
+
+  const ocupado = slotRepresentaOcupacaoAtual(
+    slotDoc.exists,
+    slotDoc.exists ? slotDoc.data() : null,
+    Boolean(agendamentoDoc && agendamentoDoc.exists),
+    agendamentoDoc && agendamentoDoc.exists ? agendamentoDoc.data() : null
+  );
+
+  return {
+    dataISO,
+    hora,
+    disponivel: !ocupado,
+    verificadoEm: new Date().toISOString()
+  };
 });
 
 exports.verificarBloqueioCpf = onCall(publicCallableOptions, async (request) => {
@@ -831,30 +943,94 @@ exports.consultarAgendamentoCidadao = onCall(publicCallableOptions, async (reque
   };
 });
 
+function normalizarOperationIdPublico(valor) {
+  try {
+    return normalizarOperationId(valor);
+  } catch (_) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Esta pagina esta desatualizada. Recarregue-a antes de tentar agendar."
+    );
+  }
+}
+
+function normalizarSessaoVerificacaoPublica(valor) {
+  try {
+    return normalizarOperationId(valor);
+  } catch (_) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Identificador de sessao invalido. Recarregue a pagina e tente novamente."
+    );
+  }
+}
+
+function resolverResultadoOperacaoAgendamento(dados, payloadHash) {
+  try {
+    return resolverOperacaoExistente(dados, payloadHash);
+  } catch (err) {
+    if (err && err.code === "operacao-conflitante") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Esta tentativa de agendamento ja foi associada a outros dados. Recarregue a pagina."
+      );
+    }
+    throw new HttpsError(
+      "internal",
+      "Nao foi possivel validar com seguranca esta tentativa de agendamento."
+    );
+  }
+}
+
 exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request) => {
-  const nome = normalizarTexto(request.data.nome, "o nome completo", 5, 120);
-  const cpfNum = normalizarCpf(request.data.cpf);
+  const dadosRequisicao = request.data || {};
+  const nome = normalizarTexto(dadosRequisicao.nome, "o nome completo", 5, 120);
+  const cpfNum = normalizarCpf(dadosRequisicao.cpf);
+  const telefone = normalizarTelefone(dadosRequisicao.telefone);
+  const email = normalizarEmail(dadosRequisicao.email);
+  const dataNasc = normalizarData(dadosRequisicao.nascimento);
+  const dataISO = normalizarData(dadosRequisicao.data, "data do agendamento");
+  const hora = normalizarHora(dadosRequisicao.hora);
   // CONTENCAO B4. O booleano vinha do cliente e nada ligava quem chamava ao CPF
   // informado: com substituirAnterior=true bastava conhecer um CPF para liberar a
   // vaga da vitima, inativar o agendamento dela e criar outro com dados proprios.
   // Ate existir prova de titularidade (token emitido apos autenticacao real do
   // agendamento), a substituicao fica desativada e o cidadao precisa cancelar antes.
   const substituirAnterior = false;
+  const operationIdInformado = typeof dadosRequisicao.operationId === "string"
+    && dadosRequisicao.operationId.trim() !== "";
+  const operationId = operationIdInformado
+    ? normalizarOperationIdPublico(dadosRequisicao.operationId)
+    : crypto.randomBytes(16).toString("hex");
+  validarIdadeMinimaAgendamento(dataNasc, dataISO);
+
+  const payloadHash = hashPayloadAgendamento({
+    operationId,
+    nome,
+    cpfNum,
+    telefone,
+    email,
+    dataNasc,
+    dataISO,
+    hora,
+    substituirAnterior
+  });
+  const operacaoRef = db.collection("operacoes_agendamento").doc(operationId);
+  const operacaoExistenteDoc = await operacaoRef.get();
+  if (operacaoExistenteDoc.exists) {
+    await aplicarRateLimit(request, "repetir_agendamento", 60, 10 * 60 * 1000, operationId);
+    return resolverResultadoOperacaoAgendamento(operacaoExistenteDoc.data(), payloadHash);
+  }
+
   await aplicarRateLimit(request, "criar_agendamento", 20, 10 * 60 * 1000, cpfNum);
   const bloqueio = await buscarBloqueioAtivoCpf(cpfNum);
   if (bloqueio) {
     throw new HttpsError("failed-precondition", mensagemCpfBloqueado(bloqueio));
   }
-  const telefone = normalizarTelefone(request.data.telefone);
-  const email = normalizarEmail(request.data.email);
-  const dataNasc = normalizarData(request.data.nascimento);
-  const dataISO = normalizarData(request.data.data, "data do agendamento");
-  const hora = normalizarHora(request.data.hora);
-  validarIdadeMinimaAgendamento(dataNasc, dataISO);
+
   const cpfFormatado = formatarCpf(cpfNum);
   const cpfHashId = cpfDocId(cpfNum);
   const slotId = `${dataISO}_${hora}`;
-
   await validarSlotDisponivel(dataISO, hora);
 
   const criado = new Date().toISOString();
@@ -864,10 +1040,14 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
   const cpfLegadoRef = db.collection("cpfs_agendados").doc(cpfNum);
   const bloqueioRef = db.collection("bloqueios_agendamento").doc(cpfNum);
   const agendaRef = AGENDA_REF();
+  const expiraEmOperacao = Timestamp.fromMillis(Date.now() + OPERACAO_AGENDAMENTO_TTL_MS);
 
-  let agendamentoSubstituido = null;
+  const resultadoTransacao = await db.runTransaction(async (t) => {
+    const operacaoDoc = await t.get(operacaoRef);
+    if (operacaoDoc.exists) {
+      return resolverResultadoOperacaoAgendamento(operacaoDoc.data(), payloadHash);
+    }
 
-  await db.runTransaction(async (t) => {
     const [slotDoc, cpfDoc, cpfLegadoDoc, bloqueioDoc, agendaDoc] = await Promise.all([
       t.get(slotRef),
       t.get(cpfRef),
@@ -885,8 +1065,9 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
 
     let slotOcupado = slotDoc.exists;
     let limparSlotObsoleto = false;
+    let agSlotDoc = null;
     if (slotDoc.exists && slotDoc.data().agendamentoId) {
-      const agSlotDoc = await t.get(db.collection("dados_cidadaos").doc(slotDoc.data().agendamentoId));
+      agSlotDoc = await t.get(db.collection("dados_cidadaos").doc(slotDoc.data().agendamentoId));
       if (!agSlotDoc.exists || !agendamentoEstaAtivo(agSlotDoc.data())) {
         slotOcupado = false;
         limparSlotObsoleto = true;
@@ -894,6 +1075,25 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
     }
 
     if (slotOcupado) {
+      if (!operationIdInformado && agSlotDoc && agSlotDoc.exists && agendamentoCorrespondeAoPedido(agSlotDoc.data(), {
+        nome,
+        cpfNum,
+        telefone,
+        email,
+        dataNasc,
+        dataISO,
+        hora
+      })) {
+        return {
+          agendamento: {
+            id: agSlotDoc.id,
+            dataISO,
+            dataBR: dataBr(dataISO),
+            hora
+          },
+          substituiu: null
+        };
+      }
       throw new HttpsError("already-exists", "Este horario foi preenchido por outra pessoa. Escolha outro horario.");
     }
 
@@ -934,6 +1134,7 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
       );
     }
 
+    let agendamentoSubstituido = null;
     if (agendamentoAtivoExistente && substituirAnterior) {
       const slotAntigoId = agendamentoAtivoExistente.slotId || `${agendamentoAtivoExistente.dataISO}_${agendamentoAtivoExistente.hora}`;
       if (slotAntigoId && slotAntigoId !== slotId && slotAntigoId !== "undefined_undefined") {
@@ -958,6 +1159,16 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
     if (limparSlotObsoleto) t.delete(slotRef);
     cpfRefsObsoletos.forEach((ref) => t.delete(ref));
 
+    const resultado = {
+      agendamento: {
+        id: agendamentoRef.id,
+        dataISO,
+        dataBR: dataBr(dataISO),
+        hora
+      },
+      substituiu: agendamentoSubstituido
+    };
+
     t.set(slotRef, { dataISO, hora, contabilizaVaga: true, origem: "publico", agendamentoId: agendamentoRef.id, criado });
     t.set(cpfRef, { agendamentoId: agendamentoRef.id, slotId, criado });
     t.set(agendamentoRef, {
@@ -973,17 +1184,20 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
       criado,
       statusAtualizadoEm: criado
     });
+    t.create(operacaoRef, {
+      tipo: "criar_agendamento",
+      versao: OPERACAO_AGENDAMENTO_VERSAO,
+      payloadHash,
+      resultado,
+      agendamentoId: agendamentoRef.id,
+      criadoEm: FieldValue.serverTimestamp(),
+      expiraEm: expiraEmOperacao
+    });
+
+    return resultado;
   });
 
-  return {
-    agendamento: {
-      id: agendamentoRef.id,
-      dataISO,
-      dataBR: dataBr(dataISO),
-      hora
-    },
-    substituiu: agendamentoSubstituido
-  };
+  return resultadoTransacao;
 });
 
 exports.prepararCancelamentoCidadao = onCall(publicCallableOptions, async (request) => {
@@ -1564,7 +1778,7 @@ async function limparDatasPassadasAgenda() {
   }
 }
 
-// Remove documentos ja expirados das colecoes auxiliares (rate_limits e cancelamentos_pendentes).
+// Remove documentos ja expirados das colecoes auxiliares.
 // Esses docs tem campo expiraEm e nao eram apagados por nenhuma rotina, crescendo indefinidamente.
 const LIMPEZA_AUXILIARES_PAGINA = 300;
 const LIMPEZA_AUXILIARES_MAX = 5000;
@@ -1590,12 +1804,14 @@ async function limparAuxiliaresExpirados() {
   const agora = Timestamp.now();
   let rateLimits = 0;
   let cancelamentos = 0;
+  let operacoesAgendamento = 0;
   try {
     rateLimits = await limparColecaoExpirada("rate_limits", agora);
     cancelamentos = await limparColecaoExpirada("cancelamentos_pendentes", agora);
+    operacoesAgendamento = await limparColecaoExpirada("operacoes_agendamento", agora);
     await db.collection("logs_admin").add({
       acao: "limpeza_auxiliares_expirados",
-      detalhes: { rateLimits, cancelamentos },
+      detalhes: { rateLimits, cancelamentos, operacoesAgendamento },
       adminEmail: "sistema",
       criadoEm: FieldValue.serverTimestamp(),
       criado: new Date().toISOString()
@@ -1603,7 +1819,7 @@ async function limparAuxiliaresExpirados() {
   } catch (err) {
     await db.collection("logs_admin").add({
       acao: "erro_limpeza_auxiliares",
-      detalhes: { mensagem: err.message, rateLimits, cancelamentos },
+      detalhes: { mensagem: err.message, rateLimits, cancelamentos, operacoesAgendamento },
       adminEmail: "sistema",
       criadoEm: FieldValue.serverTimestamp(),
       criado: new Date().toISOString()

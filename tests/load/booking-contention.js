@@ -84,7 +84,8 @@ export default function (dados) {
       nascimento: "1990-01-01",
       data: TEST_DATE,
       hora: TEST_TIME,
-      substituirAnterior: false
+      substituirAnterior: false,
+      operationId: identificador.toString(16).padStart(32, "0").slice(-32)
     }
   });
   const resposta = http.post(FUNCTION_URL, corpo, {

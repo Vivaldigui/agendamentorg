@@ -474,8 +474,20 @@
     const HORARIOS_LEGADOS = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
     const HORARIOS_NOVOS = ["14:30","14:45","15:00","15:15","15:30","15:45","16:00","16:15","16:30","16:45"];
     const DATA_NOVAS_VAGAS_PADRAO = "data a definir";
-    let DIAS_DISPONIVEIS = [], HORARIOS = [], DATA_NOVAS_VAGAS = DATA_NOVAS_VAGAS_PADRAO; 
+    const DURACAO_SLOT_OCUPADO_CONFIRMADO_MS = 16 * 60 * 1000;
+    let DIAS_DISPONIVEIS = [], HORARIOS = [], DATA_NOVAS_VAGAS = DATA_NOVAS_VAGAS_PADRAO;
     let DISPONIBILIDADE_PUBLICA = { porData: {}, totalVagasRestantes: 0 };
+    let ESTADO_AGENDA_PUBLICA = "desconhecido";
+    const SLOTS_OCUPADOS_CONFIRMADOS = new Map();
+    let operacaoAgendamentoPendente = null;
+    try {
+        const slotsSalvos = JSON.parse(sessionStorage.getItem("cin_slots_ocupados_confirmados") || "{}");
+        Object.entries(slotsSalvos).forEach(([chave, expiraEm]) => {
+            if (/^\d{4}-\d{2}-\d{2}_\d{2}:\d{2}$/.test(chave) && Number(expiraEm) > Date.now()) {
+                SLOTS_OCUPADOS_CONFIRMADOS.set(chave, Number(expiraEm));
+            }
+        });
+    } catch (_) {}
 
     function registrarPresencaPublica() {
         if (!METRICAS_ACESSO_PUBLICO_ATIVAS || !realtimeDb) return;
@@ -607,6 +619,109 @@
             : [...HORARIOS_NOVOS];
     }
 
+    function chaveSlotPublico(dataISO, hora) {
+        return `${dataISO}_${hora}`;
+    }
+
+    function salvarSlotsOcupadosConfirmados() {
+        try {
+            const dados = JSON.stringify(Object.fromEntries(SLOTS_OCUPADOS_CONFIRMADOS));
+            sessionStorage.setItem("cin_slots_ocupados_confirmados", dados);
+        } catch (_) {}
+    }
+
+    function slotConfirmadoOcupadoLocalmente(dataISO, hora) {
+        const chave = `${dataISO}_${hora}`;
+        const expiraEm = SLOTS_OCUPADOS_CONFIRMADOS.get(chave);
+        if (!Number.isFinite(expiraEm)) return false;
+        if (expiraEm <= Date.now()) {
+            SLOTS_OCUPADOS_CONFIRMADOS.delete(chave);
+            salvarSlotsOcupadosConfirmados();
+            return false;
+        }
+        return true;
+    }
+
+    function marcarSlotIndisponivelLocalmente(dataISO, hora) {
+        const agora = Date.now();
+        SLOTS_OCUPADOS_CONFIRMADOS.set(
+            chaveSlotPublico(dataISO, hora),
+            agora + DURACAO_SLOT_OCUPADO_CONFIRMADO_MS
+        );
+        salvarSlotsOcupadosConfirmados();
+
+        const dia = DISPONIBILIDADE_PUBLICA.porData[dataISO];
+        if (dia) {
+            const slot = dia.horarios.find(item => item.hora === hora);
+            if (slot) slot.disponivel = false;
+            dia.vagas = dia.horarios.filter(item => item.disponivel === true).length;
+            dia.lotado = dia.vagas <= 0;
+            DISPONIBILIDADE_PUBLICA.totalVagasRestantes = Object.values(DISPONIBILIDADE_PUBLICA.porData)
+                .reduce((total, item) => total + item.vagas, 0);
+        }
+        try { localStorage.removeItem("cin_agenda_cache"); } catch (_) {}
+    }
+
+    function desmarcarSlotIndisponivelLocalmente(dataISO, hora) {
+        SLOTS_OCUPADOS_CONFIRMADOS.delete(chaveSlotPublico(dataISO, hora));
+        salvarSlotsOcupadosConfirmados();
+        try { localStorage.removeItem("cin_agenda_cache"); } catch (_) {}
+    }
+
+    let REVALIDACAO_SLOTS_OCUPADOS_EM_CURSO = null;
+
+    async function revalidarSlotsOcupadosConfirmados(cfg) {
+        if (REVALIDACAO_SLOTS_OCUPADOS_EM_CURSO) return REVALIDACAO_SLOTS_OCUPADOS_EM_CURSO;
+        const candidatos = [];
+        (cfg && Array.isArray(cfg.dias) ? cfg.dias : []).forEach(dia => {
+            if (!dia || !Array.isArray(dia.horarios)) return;
+            dia.horarios.forEach(slot => {
+                if (slot && slot.disponivel === true && slotConfirmadoOcupadoLocalmente(dia.dataISO, slot.hora)) {
+                    candidatos.push({ dataISO: dia.dataISO, hora: slot.hora });
+                }
+            });
+        });
+        if (!candidatos.length) return false;
+
+        const executar = (async () => {
+            let alterou = false;
+            await Promise.all(candidatos.map(async ({ dataISO, hora }) => {
+                try {
+                    if (!await verificarDisponibilidadeSlotAtual(dataISO, hora)) return;
+                    desmarcarSlotIndisponivelLocalmente(dataISO, hora);
+                    const diaAtual = DISPONIBILIDADE_PUBLICA.porData[dataISO];
+                    const slotAtual = diaAtual && diaAtual.horarios.find(item => item.hora === hora);
+                    if (slotAtual && horarioAgendamentoFuturo(dataISO, hora)) {
+                        slotAtual.disponivel = true;
+                        diaAtual.vagas = diaAtual.horarios.filter(item => item.disponivel === true).length;
+                        diaAtual.lotado = diaAtual.vagas <= 0;
+                        alterou = true;
+                    }
+                } catch (e) {
+                    console.warn("Nao foi possivel revalidar um slot ocultado localmente:", e);
+                }
+            }));
+
+            if (alterou) {
+                DISPONIBILIDADE_PUBLICA.totalVagasRestantes = Object.values(DISPONIBILIDADE_PUBLICA.porData)
+                    .reduce((total, dia) => total + dia.vagas, 0);
+                await renderDatas();
+                if (dataSel) await renderHoras(dataSel);
+                atualizarBannerVagas();
+            }
+            return alterou;
+        })();
+
+        REVALIDACAO_SLOTS_OCUPADOS_EM_CURSO = executar;
+        try {
+            return await executar;
+        } finally {
+            if (REVALIDACAO_SLOTS_OCUPADOS_EM_CURSO === executar) {
+                REVALIDACAO_SLOTS_OCUPADOS_EM_CURSO = null;
+            }
+        }
+    }
+
     function normalizarDisponibilidadePublica(diasResposta) {
         const porData = {};
         (Array.isArray(diasResposta) ? diasResposta : []).forEach(item => {
@@ -617,7 +732,9 @@
                 : horariosPadraoParaDataPublica(dataISO).map(hora => ({ hora, disponivel: true }));
             const horariosValidos = horariosDia.map(h => ({
                 hora: h.hora,
-                disponivel: h.disponivel === true && horarioAgendamentoFuturo(dataISO, h.hora)
+                disponivel: h.disponivel === true
+                    && horarioAgendamentoFuturo(dataISO, h.hora)
+                    && !slotConfirmadoOcupadoLocalmente(dataISO, h.hora)
             }));
             const vagas = horariosValidos.filter(h => h.disponivel).length;
             porData[dataISO] = {
@@ -631,6 +748,43 @@
             porData,
             totalVagasRestantes: Object.values(porData).reduce((total, dia) => total + dia.vagas, 0)
         };
+    }
+
+    function configAgendaPublicaValida(cfg) {
+        if (!cfg || !Array.isArray(cfg.dias) || !Array.isArray(cfg.horarios)) return false;
+        const dataValida = valor => /^\d{4}-\d{2}-\d{2}$/.test(String(valor || ""))
+            && Boolean(dataISOValida(valor));
+        const horaValida = valor => {
+            if (!/^\d{2}:\d{2}$/.test(String(valor || ""))) return false;
+            const [horas, minutos] = String(valor).split(":").map(Number);
+            return horas >= 0 && horas <= 23 && minutos >= 0 && minutos <= 59;
+        };
+        if (!cfg.horarios.every(horaValida)) return false;
+        return cfg.dias.every(item => Boolean(
+            item
+            && typeof item === "object"
+            && !Array.isArray(item)
+            && dataValida(item.dataISO)
+            && Array.isArray(item.horarios)
+            && item.horarios.every(slot => Boolean(
+                slot
+                && typeof slot === "object"
+                && horaValida(slot.hora)
+                && typeof slot.disponivel === "boolean"
+            ))
+        ));
+    }
+
+    function aplicarConfigAgendaPublica(cfg) {
+        if (!configAgendaPublicaValida(cfg)) {
+            throw new Error("A agenda publica retornou um formato invalido.");
+        }
+        HORARIOS = normalizarListaHorariosPublica(cfg.horarios);
+        DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias);
+        DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
+        DATA_NOVAS_VAGAS = cfg.dataNovasVagas || DATA_NOVAS_VAGAS_PADRAO;
+        ESTADO_AGENDA_PUBLICA = "valido";
+        return cfg;
     }
 
     function disponibilidadeDia(dataISO) {
@@ -673,12 +827,8 @@
                 const cacheRaw = localStorage.getItem("cin_agenda_cache");
                 if (cacheRaw) {
                     const cache = JSON.parse(cacheRaw);
-                    if (cache.expiraEm > Date.now() && cache.dados) {
-                        const cfg = cache.dados;
-                        HORARIOS = normalizarListaHorariosPublica(cfg.horarios);
-                        DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias);
-                        DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
-                        DATA_NOVAS_VAGAS = cfg.dataNovasVagas || DATA_NOVAS_VAGAS_PADRAO;
+                    if (cache.expiraEm > Date.now() && configAgendaPublicaValida(cache.dados)) {
+                        aplicarConfigAgendaPublica(cache.dados);
                         // Renderiza imediatamente com o cache e busca atualização em background
                         if (atualizarInterface) {
                             renderDatas();
@@ -697,14 +847,13 @@
             const { dados: cfg, relogioServidor } = await buscarAgendaPublicaAtualizada({ ignorarCache, timeoutMs });
             const referenciaLocalMs = Math.round((buscaIniciadaEm + Date.now()) / 2);
             sincronizarRelogioServidor(relogioServidor, referenciaLocalMs);
-            HORARIOS = normalizarListaHorariosPublica(cfg.horarios);
-            DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias);
-            DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
-            DATA_NOVAS_VAGAS = cfg.dataNovasVagas || DATA_NOVAS_VAGAS_PADRAO;
+            aplicarConfigAgendaPublica(cfg);
             if (atualizarInterface) {
                 renderDatas();
                 atualizarBannerVagas();
             }
+            revalidarSlotsOcupadosConfirmados(cfg)
+                .catch(e => console.warn("Nao foi possivel reconciliar slots ocupados:", e));
             // Salvar no cache com expiração de 3 minutos
             try {
                 localStorage.setItem("cin_agenda_cache", JSON.stringify({
@@ -715,12 +864,12 @@
             return cfg;
         } catch (e) {
             console.error("Erro ao carregar agenda publica", e);
-            if (!DIAS_DISPONIVEIS.length) {
-                HORARIOS = [...HORARIOS_NOVOS];
-                DIAS_DISPONIVEIS = [];
-                DISPONIBILIDADE_PUBLICA = { porData: {}, totalVagasRestantes: 0 };
+            if (ESTADO_AGENDA_PUBLICA !== "valido") {
+                ESTADO_AGENDA_PUBLICA = "erro";
+                if (!ignorarCache) tentarAtualizarAbertura();
             }
             if (ignorarCache) throw e;
+            return null;
         }
     }
 
@@ -948,14 +1097,14 @@
             } catch (e) {
                 ultimoErro = e;
                 console.warn(`Tentativa ${tentativa + 1}/${MAX_TENTATIVAS} de verificar bloqueio falhou:`, e);
-                const codigo = (e && e.code) || "";
+                const codigo = codigoErroFunctions(e);
                 // Erros que não devem ser retentados
                 if (codigo === "invalid-argument") break;
             }
         }
 
         console.error("Erro ao consultar bloqueio de CPF após tentativas:", ultimoErro);
-        const codigoErro = (ultimoErro && ultimoErro.code) || "";
+        const codigoErro = codigoErroFunctions(ultimoErro);
         let mensagemErro;
         if (codigoErro === "resource-exhausted") {
             mensagemErro = "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.";
@@ -997,6 +1146,13 @@
             '"': "&quot;",
             "'": "&#039;"
         }[c]));
+    }
+
+    function codigoErroFunctions(erroObj) {
+        return String(erroObj && erroObj.code || "")
+            .trim()
+            .toLowerCase()
+            .replace(/^functions\//, "");
     }
 
     function normalizarErroTexto(erroObj) {
@@ -1289,6 +1445,15 @@
         const podeControlarCalendario = etapaSelecao
             && (!dadosPessoais || dadosPessoais.style.display !== "block")
             && (!sucessoDocs || sucessoDocs.style.display !== "block");
+        if (ESTADO_AGENDA_PUBLICA !== "valido") {
+            if (podeControlarCalendario) etapaSelecao.style.display = "none";
+            if (ESTADO_AGENDA_PUBLICA === "desconhecido" || atualizacaoAberturaEmCurso) {
+                mostrarEstadoLiberandoVagas();
+            } else {
+                mostrarErroAtualizacaoAbertura();
+            }
+            return;
+        }
         try {
             const res = Math.max(0, DISPONIBILIDADE_PUBLICA.totalVagasRestantes || 0);
             banner.style.display = "flex";
@@ -1340,6 +1505,10 @@
         const grade = document.getElementById("gradeDatas"); 
         grade.innerHTML = htmlSkeletonDatas();
         document.getElementById("container-horas").style.display = "none";
+        if (ESTADO_AGENDA_PUBLICA !== "valido") {
+            grade.innerHTML = '<p style="color:var(--gray-600); text-align:center; grid-column:1/-1;">Atualizando a agenda...</p>';
+            return;
+        }
         try {
             grade.innerHTML = "";
             if (!DIAS_DISPONIVEIS.length) {
@@ -1384,6 +1553,39 @@
         } catch(e) { grade.innerHTML = '<p style="color:var(--danger); text-align:center; font-weight:700; grid-column:1/-1;"><i class="fa-solid fa-circle-exclamation"></i> Erro ao carregar datas. Tente novamente.</p>'; }
     }
 
+    let SESSAO_VERIFICACAO_SLOT = null;
+
+    function obterSessaoVerificacaoSlot() {
+        if (/^[a-f0-9]{32}$/.test(String(SESSAO_VERIFICACAO_SLOT || ""))) {
+            return SESSAO_VERIFICACAO_SLOT;
+        }
+        try {
+            const salvo = String(sessionStorage.getItem("cin_sessao_verificacao_slot") || "").toLowerCase();
+            if (/^[a-f0-9]{32}$/.test(salvo)) {
+                SESSAO_VERIFICACAO_SLOT = salvo;
+                return salvo;
+            }
+        } catch (_) {}
+
+        SESSAO_VERIFICACAO_SLOT = gerarOperationIdAgendamento();
+        try { sessionStorage.setItem("cin_sessao_verificacao_slot", SESSAO_VERIFICACAO_SLOT); } catch (_) {}
+        return SESSAO_VERIFICACAO_SLOT;
+    }
+
+    async function verificarDisponibilidadeSlotAtual(data, hora) {
+        if (!horarioAgendamentoFuturo(data, hora)) return false;
+        const verificarSlot = firebase.functions().httpsCallable("verificarDisponibilidadeSlotCidadao");
+        const sessaoId = obterSessaoVerificacaoSlot();
+        const resposta = await verificarSlot({ data, hora, sessaoId });
+        const resultado = resposta && resposta.data;
+        return Boolean(
+            resultado
+            && resultado.dataISO === data
+            && resultado.hora === hora
+            && resultado.disponivel === true
+        );
+    }
+
     async function renderHoras(data) {
         const grade = document.getElementById("gradeHoras"); 
         document.getElementById("container-horas").style.display = "block"; 
@@ -1409,10 +1611,10 @@
                         btn.disabled = true;
                         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando...';
                         try {
-                            await carregarConfig({ ignorarCache: true });
-                            const infoAtual = disponibilidadeDia(data);
-                            const horaAtual = infoAtual.horarios.find(item => item.hora === h);
-                            if (!horaAtual || horaAtual.disponivel !== true || !horarioAgendamentoFuturo(data, h)) {
+                            const disponivelAgora = await verificarDisponibilidadeSlotAtual(data, h);
+                            if (!disponivelAgora) {
+                                marcarSlotIndisponivelLocalmente(data, h);
+                                await renderDatas();
                                 await renderHoras(data);
                                 aviso("Este horário foi preenchido agora mesmo. Escolha outro horário disponível.");
                                 return;
@@ -1428,8 +1630,15 @@
                             validarNascimentoAgendamento();
                             document.getElementById("dados-pessoais").scrollIntoView({ behavior: "smooth", block: "start" });
                         } catch (e) {
-                            await renderHoras(data);
-                            aviso("Não foi possível confirmar a disponibilidade agora. Tente selecionar o horário novamente.");
+                            if (codigoErroFunctions(e) === "failed-precondition") {
+                                marcarSlotIndisponivelLocalmente(data, h);
+                                await renderDatas();
+                                await renderHoras(data);
+                                aviso("Este horário não faz mais parte da agenda disponível. Escolha outro horário.");
+                            } else {
+                                await renderHoras(data);
+                                aviso("Não foi possível confirmar a disponibilidade agora. Tente selecionar o horário novamente.");
+                            }
                         } finally {
                             selecionandoHora = false;
                         }
@@ -1457,7 +1666,11 @@
             if (vagasDepois < vagasAntes && podeRedesenharAgenda()) {
                 mostrarToastAgenda(`${vagasAntes - vagasDepois} vaga(s) preenchida(s) agora.`);
             }
-            if (document.getElementById("dados-pessoais").style.display === "block" && dataSel && horaSel) {
+            const confirmacaoComResultadoIncerto = operacaoAgendamentoPendente
+                && (operacaoAgendamentoPendente.resultadoIncerto === true
+                    || operacaoAgendamentoPendente.emEnvio === true);
+            if (document.getElementById("dados-pessoais").style.display === "block"
+                && dataSel && horaSel && !confirmacaoComResultadoIncerto) {
                 const infoDia = disponibilidadeDia(dataSel);
                 const horaAtual = infoDia.horarios.find(item => item.hora === horaSel);
                 if (!horaAtual || horaAtual.disponivel !== true || !horarioAgendamentoFuturo(dataSel, horaSel)) {
@@ -1484,6 +1697,10 @@
     }
 
     async function abrirAlterarHorario() { 
+        if (operacaoAgendamentoPendente && operacaoAgendamentoPendente.resultadoIncerto) {
+            aviso("A confirmação anterior ainda pode estar sendo processada. Clique em FINALIZAR AGENDAMENTO novamente para consultar o mesmo pedido com segurança.");
+            return false;
+        }
         horaSel = null;
         document.getElementById("dados-pessoais").style.display = "none"; 
         document.getElementById("etapa-selecao").style.display = "block"; 
@@ -1496,8 +1713,8 @@
     }
 
     function erroTransiente(e) {
-        const codigo = (e && e.code) || "";
-        return ["deadline-exceeded", "unavailable", "internal", "aborted", "cancelled"].includes(codigo)
+        const codigo = codigoErroFunctions(e);
+        return ["deadline-exceeded", "unavailable", "internal", "aborted", "cancelled", "unknown", "data-loss"].includes(codigo)
             || (!codigo && e instanceof Error);
     }
 
@@ -1511,20 +1728,42 @@
         } catch (ex) { console.warn("Erro ao renovar App Check:", ex); }
     }
 
-    async function recuperarAposErroAgendamento() {
-        try { localStorage.removeItem("cin_agenda_cache"); } catch (ex) {}
-        try {
-            await carregarConfig({ ignorarCache: true });
-            atualizarBannerVagas();
-        } catch (ex) { console.warn("Erro ao atualizar agenda após falha:", ex); }
+    function gerarOperationIdAgendamento() {
+        if (window.crypto && typeof window.crypto.randomUUID === "function") {
+            return window.crypto.randomUUID().replace(/-/g, "").toLowerCase();
+        }
+        if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+            const bytes = new Uint8Array(16);
+            window.crypto.getRandomValues(bytes);
+            return Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+        }
+        throw new Error("Não foi possível gerar um identificador seguro para o agendamento.");
     }
 
-    async function slotAindaDisponivel() {
-        if (!dataSel || !horaSel) return false;
-        const infoDia = disponibilidadeDia(dataSel);
-        const horaAtual = infoDia.horarios.find(item => item.hora === horaSel);
-        return horaAtual && horaAtual.disponivel === true && horarioAgendamentoFuturo(dataSel, horaSel);
+    function definirCamposOperacaoBloqueados(bloqueados) {
+        ["inp-nome", "inp-cpf", "inp-tel", "inp-email", "inp-nasc"].forEach(id => {
+            const campo = document.getElementById(id);
+            if (campo) campo.readOnly = bloqueados;
+        });
+        const alterarHorario = document.querySelector("#dados-pessoais .btn-alterar");
+        if (alterarHorario) alterarHorario.disabled = bloqueados;
     }
+
+    function obterOperacaoAgendamentoPendente(assinatura) {
+        if (!operacaoAgendamentoPendente || operacaoAgendamentoPendente.assinatura !== assinatura) {
+            operacaoAgendamentoPendente = {
+                assinatura,
+                operationId: gerarOperationIdAgendamento(),
+                substituirAnterior: false,
+                resultadoIncerto: false,
+                emEnvio: false
+            };
+        }
+        return operacaoAgendamentoPendente;
+    }
+
+    // iniciarOperacaoSubstituicao foi removida junto com a contencao B4: nao ha
+    // mais fluxo de substituicao no cliente, entao a funcao ficaria sem chamador.
 
     async function confirmarAgendamento() {
         const nomeInput = document.getElementById("inp-nome");
@@ -1555,26 +1794,42 @@
             return;
         }
 
+        const dataOperacao = dataSel;
+        const horaOperacao = horaSel;
+
+        const assinaturaOperacao = JSON.stringify([
+            nome.replace(/\s+/g, " "),
+            cpfLimpo,
+            String(tel || "").replace(/\D/g, ""),
+            email.toLowerCase(),
+            nascISO,
+            dataOperacao,
+            horaOperacao
+        ]);
+        let operacaoPendente;
+        try {
+            operacaoPendente = obterOperacaoAgendamentoPendente(assinaturaOperacao);
+        } catch (e) {
+            console.error(e);
+            erro("Este navegador não conseguiu preparar uma confirmação segura. Atualize o navegador e tente novamente.");
+            return;
+        }
+        operacaoPendente.emEnvio = true;
+        definirCamposOperacaoBloqueados(true);
+
         const btn = document.getElementById("btnFinalizar"); 
         btn.disabled = true; 
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CONFIRMANDO...';
 
         const MAX_TENTATIVAS = 3;
         let ultimoErro = null;
-        let substituirAnterior = false;
+        let substituirAnterior = operacaoPendente.substituirAnterior === true;
 
         for (let tentativa = 0; tentativa < MAX_TENTATIVAS; tentativa++) {
             try {
                 if (tentativa > 0) {
                     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> TENTANDO NOVAMENTE...';
                     await new Promise(r => setTimeout(r, 2000 * tentativa));
-                    // Revalidar slot antes de retentar
-                    await recuperarAposErroAgendamento();
-                    if (!await slotAindaDisponivel()) {
-                        await abrirAlterarHorario();
-                        erro("O horário selecionado foi preenchido. Seus dados foram mantidos; escolha outro horário disponível.");
-                        return;
-                    }
                 }
 
                 const criarAgendamento = firebase.functions().httpsCallable("criarAgendamentoCidadao");
@@ -1584,23 +1839,27 @@
                     telefone: tel,
                     email,
                     nascimento: nascISO,
-                    data: dataSel,
-                    hora: horaSel,
-                    substituirAnterior
+                    data: dataOperacao,
+                    hora: horaOperacao,
+                    substituirAnterior,
+                    operationId: operacaoPendente.operationId
                 });
 
                 // Sucesso!
                 const ag = resposta.data.agendamento || {};
                 const substituiu = resposta.data && resposta.data.substituiu;
+                marcarSlotIndisponivelLocalmente(dataOperacao, horaOperacao);
+                definirCamposOperacaoBloqueados(false);
+                operacaoAgendamentoPendente = null;
                 ultimoAgendamentoConfirmado = {
                     id: ag.id || "",
                     nome,
                     cpf,
                     nascimento: nascBR,
                     telefone: tel,
-                    dataISO: ag.dataISO || dataSel,
+                    dataISO: ag.dataISO || dataOperacao,
                     dataBR: ag.dataBR || document.getElementById("resumo-data-txt").textContent,
-                    hora: ag.hora || horaSel
+                    hora: ag.hora || horaOperacao
                 };
 
                 document.getElementById("ticket-info").textContent = `${ultimoAgendamentoConfirmado.dataBR} às ${ultimoAgendamentoConfirmado.hora}`; 
@@ -1616,12 +1875,16 @@
                     .then(() => atualizarBannerVagas())
                     .catch((ex) => console.warn("Erro ao atualizar agenda apos confirmacao:", ex));
                 if (substituiu) {
+                    if (chaveSlotPublico(substituiu.dataISO, substituiu.hora)
+                        !== chaveSlotPublico(dataOperacao, horaOperacao)) {
+                        desmarcarSlotIndisponivelLocalmente(substituiu.dataISO, substituiu.hora);
+                    }
                     aviso(`Seu agendamento anterior${substituiu.dataBR ? ` (${substituiu.dataBR}` : ""}${substituiu.hora ? ` às ${substituiu.hora})` : (substituiu.dataBR ? ")" : "")} foi cancelado automaticamente.`);
                 }
                 return;
             } catch(e) {
                 ultimoErro = e;
-                const codigo = (e && e.code) || "";
+                const codigo = codigoErroFunctions(e);
                 const detalhes = (e && e.details) || null;
                 // CONTENCAO B4. A substituicao automatica foi desativada: ela permitia
                 // que qualquer pessoa que soubesse um CPF tomasse o agendamento alheio.
@@ -1636,6 +1899,10 @@
                         textoConfirmar: "Consultar meu agendamento",
                         textoCancelar: "Fechar"
                     }) && abrirAbaCancelar();
+                    // Libera o estado da operacao do B3 antes de sair: sem isso os
+                    // campos ficariam bloqueados e a operacao pendente presa.
+                    definirCamposOperacaoBloqueados(false);
+                    operacaoAgendamentoPendente = null;
                     return;
                 }
                 // Erros definitivos: não retentar
@@ -1648,6 +1915,7 @@
                 }
                 // Erros transientes: retentar
                 if (erroTransiente(e)) {
+                    operacaoPendente.resultadoIncerto = true;
                     console.warn(`Tentativa ${tentativa + 1}/${MAX_TENTATIVAS} falhou:`, e);
                     continue;
                 }
@@ -1659,29 +1927,34 @@
         // Todas as tentativas falharam
         btn.disabled = false; 
         btn.innerHTML = 'FINALIZAR AGENDAMENTO <i class="fa-solid fa-arrow-right"></i>';
-
-        // Limpar cache e atualizar dados em background
-        recuperarAposErroAgendamento().then(() => {
-            // Se slot não está mais disponível, voltar para seleção
-            if (dataSel && horaSel) {
-                const infoDia = disponibilidadeDia(dataSel);
-                const horaAtual = infoDia.horarios.find(item => item.hora === horaSel);
-                if (!horaAtual || horaAtual.disponivel !== true || !horarioAgendamentoFuturo(dataSel, horaSel)) {
-                    abrirAlterarHorario().then(() => {
-                        aviso("O horário selecionado não está mais disponível. Seus dados foram mantidos; escolha outro horário.");
-                    });
-                }
-            }
-        }).catch(() => {});
+        operacaoPendente.emEnvio = false;
+        if (!operacaoPendente.resultadoIncerto) {
+            operacaoAgendamentoPendente = null;
+            definirCamposOperacaoBloqueados(false);
+        }
 
         const e = ultimoErro;
+        const codigoFinal = codigoErroFunctions(e);
         if (erroHorarioOcupado(e)) {
+            marcarSlotIndisponivelLocalmente(dataOperacao, horaOperacao);
+            definirCamposOperacaoBloqueados(false);
+            operacaoAgendamentoPendente = null;
             await abrirAlterarHorario();
             erro("Outra pessoa concluiu o agendamento primeiro nesse horário. Seus dados foram mantidos; escolha outra data ou horário disponível.");
         }
-        else if (erroCpfBloqueado(e)) { exibirBloqueioCPF({ mensagem: e.message }); }
-        else if (erroCpfDuplicado(e)) { erro("Este CPF já possui um agendamento ativo. Cancele o anterior para agendar novamente."); }
-        else if (e && e.code === "invalid-argument") {
+        else if (erroCpfBloqueado(e)) {
+            definirCamposOperacaoBloqueados(false);
+            operacaoAgendamentoPendente = null;
+            exibirBloqueioCPF({ mensagem: e.message });
+        }
+        else if (erroCpfDuplicado(e)) {
+            definirCamposOperacaoBloqueados(false);
+            operacaoAgendamentoPendente = null;
+            erro("Este CPF já possui um agendamento ativo. Cancele o anterior para agendar novamente.");
+        }
+        else if (codigoFinal === "invalid-argument") {
+            definirCamposOperacaoBloqueados(false);
+            operacaoAgendamentoPendente = null;
             const msg = (e.message || "").toLowerCase();
             if (msg.includes("cpf")) erro("CPF inválido. Confira os números digitados e tente novamente.");
             else if (msg.includes("nome")) erro("Informe o nome completo (mínimo de 5 caracteres).");
@@ -1691,11 +1964,17 @@
             else if (msg.includes("hora")) erro("Horário inválido. Selecione outro horário.");
             else erro("Confira os dados informados e tente novamente.");
         }
-        else if (e && e.code === "deadline-exceeded") { erro("A conexão está lenta no momento. Clique em FINALIZAR AGENDAMENTO novamente para retentar."); }
-        else if (e && e.code === "resource-exhausted") { erro("Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente."); }
-        else if (e && (e.code === "unauthenticated" || e.code === "permission-denied")) { erro("Não foi possível verificar a segurança da requisição. Atualize a página (Ctrl+F5) e tente novamente."); }
-        else if (e && (e.code === "unavailable" || e.code === "internal")) { erro("O servidor está temporariamente indisponível. Tente novamente em alguns instantes."); }
-        else { console.error(e); erro("Não foi possível concluir o agendamento agora. Atualize a página (Ctrl+F5) e tente novamente."); }
+        else if (codigoFinal === "failed-precondition") {
+            operacaoAgendamentoPendente = null;
+            definirCamposOperacaoBloqueados(false);
+            await abrirAlterarHorario();
+            erro("O pedido não pode mais ser concluído com o horário selecionado. Seus dados foram mantidos; escolha um horário disponível e tente novamente.");
+        }
+        else if (codigoFinal === "deadline-exceeded") { erro("A conexão está lenta no momento. Clique em FINALIZAR AGENDAMENTO novamente para retentar."); }
+        else if (codigoFinal === "resource-exhausted") { erro("Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente."); }
+        else if (codigoFinal === "unauthenticated" || codigoFinal === "permission-denied") { erro("Não foi possível verificar a segurança da requisição. Clique em FINALIZAR AGENDAMENTO novamente; seus dados foram mantidos."); }
+        else if (codigoFinal === "unavailable" || codigoFinal === "internal") { erro("A confirmação pode ainda estar sendo processada. Clique em FINALIZAR AGENDAMENTO novamente para consultar o mesmo pedido com segurança."); }
+        else { console.error(e); erro("Não foi possível confirmar o resultado agora. Clique em FINALIZAR AGENDAMENTO novamente; seus dados foram mantidos."); }
     }
 
     let ultimaConsultaAgendamento = null;
@@ -1761,7 +2040,7 @@
             }
         }
 
-        const codigo = (ultimoErro && ultimoErro.code) || "";
+        const codigo = codigoErroFunctions(ultimoErro);
         let msgErro;
         if (codigo === "resource-exhausted") {
             msgErro = "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.";
@@ -1814,7 +2093,7 @@
 
         if (ultimoErroCancelamento || !respostaCancelamento) {
             const eCancel = ultimoErroCancelamento;
-            const codigo = (eCancel && eCancel.code) || "";
+            const codigo = codigoErroFunctions(eCancel);
             let msgErro;
             if (codigo === "resource-exhausted") {
                 msgErro = "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.";
@@ -1874,12 +2153,13 @@
                     try {
                         const cancelar = firebase.functions().httpsCallable("cancelarAgendamentoCidadao");
                         await cancelar({ token });
+                        desmarcarSlotIndisponivelLocalmente(ag.dataISO, ag.hora);
                         if (cancelTimerInterval) clearInterval(cancelTimerInterval);
                         modal({ icone: '<i class="fa-solid fa-circle-check" style="color:var(--success);"></i>', titulo: "Cancelado", mensagem: "Agendamento removido com sucesso.", botoes: [{ texto: "Ok", classe: "sucesso", acao: () => location.reload() }] });
                     } catch(e) {
                         btn.disabled = false;
                         btn.innerHTML = btnHtml;
-                        const codigo = (e && e.code) || "";
+                        const codigo = codigoErroFunctions(e);
                         if (codigo === "deadline-exceeded" || codigo === "not-found") {
                             if (cancelTimerInterval) clearInterval(cancelTimerInterval);
                             erro("O tempo para confirmar o cancelamento expirou. Localize o agendamento novamente para cancelar.");
@@ -1896,7 +2176,7 @@
             wrapper.appendChild(btn);
             res.appendChild(wrapper);
         } catch(e) {
-            const codigo = (e && e.code) || "";
+            const codigo = codigoErroFunctions(e);
             let msgErro;
             if (codigo === "resource-exhausted") {
                 msgErro = "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.";
@@ -1977,6 +2257,7 @@
     async function executarAtualizacaoAbertura() {
         const inicio = Date.now();
         let tentativa = 0;
+        let recebeuAgendaValida = false;
         mostrarEstadoLiberandoVagas();
 
         while (Date.now() - inicio < JANELA_ATUALIZACAO_ABERTURA_MS) {
@@ -1995,10 +2276,13 @@
                     atualizarInterface: false,
                     timeoutMs: Math.min(12000, tempoRestante)
                 });
-                if (cfg && DIAS_DISPONIVEIS.length > 0) {
-                    await renderDatas();
-                    atualizarBannerVagas();
-                    return true;
+                if (cfg) {
+                    recebeuAgendaValida = true;
+                    if (DIAS_DISPONIVEIS.length > 0) {
+                        await renderDatas();
+                        atualizarBannerVagas();
+                        return true;
+                    }
                 }
                 const alvoCorrigido = alvoContadorNovasVagas(DATA_NOVAS_VAGAS);
                 if (alvoCorrigido && !Number.isNaN(alvoCorrigido.getTime()) && alvoCorrigido > new Date()) {
@@ -2011,6 +2295,11 @@
             tentativa += 1;
         }
 
+        if (recebeuAgendaValida) {
+            await renderDatas();
+            atualizarBannerVagas();
+            return false;
+        }
         mostrarErroAtualizacaoAbertura();
         return false;
     }
@@ -2024,7 +2313,12 @@
     }
 
     function retomarAtualizacaoAbertura() {
-        if (atualizacaoAberturaEmCurso || DIAS_DISPONIVEIS.length > 0) return;
+        if (atualizacaoAberturaEmCurso) return;
+        if (ESTADO_AGENDA_PUBLICA !== "valido") {
+            tentarAtualizarAbertura();
+            return;
+        }
+        if (DIAS_DISPONIVEIS.length > 0) return;
         const alvo = alvoContadorNovasVagas(DATA_NOVAS_VAGAS);
         if (!alvo || Number.isNaN(alvo.getTime()) || alvo > new Date()) return;
         tentarAtualizarAbertura();
