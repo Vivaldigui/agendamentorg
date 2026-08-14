@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "agendamento-cin-itanhandu"
+    "default": "agendamento-cin-itanhandu",
+    "homolog": "cin-itanhandu-homolog"
   }
 }
