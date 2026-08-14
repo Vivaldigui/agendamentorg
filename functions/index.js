@@ -20,13 +20,20 @@ const {
   horarioPertenceAgenda
 } = require("./agenda-grade");
 
-initializeApp({
-  databaseURL: process.env.FIREBASE_DATABASE_URL
-    || "https://agendamento-cin-itanhandu-default-rtdb.firebaseio.com"
-});
+initializeApp();
 
 const db = getFirestore();
-const realtimeDb = getDatabase();
+
+// getDatabase() lanca "Can't determine Firebase Database URL" quando o
+// FIREBASE_CONFIG do projeto nao traz databaseURL. Em escopo de modulo isso
+// derrubaria TODAS as funcoes do arquivo na carga, inclusive o agendamento.
+// O Realtime Database so e usado pela telemetria de presenca (hoje desativada),
+// entao a inicializacao e adiada: uma URL ausente falha apenas ali.
+let _realtimeDb = null;
+function obterRealtimeDb() {
+  if (!_realtimeDb) _realtimeDb = getDatabase();
+  return _realtimeDb;
+}
 const CANCELAMENTO_TTL_MS = 30 * 60 * 1000;
 const DIAS_INICIAIS = ["2026-06-02", "2026-06-03", "2026-06-09", "2026-06-10", "2026-06-11", "2026-06-12", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-19", "2026-06-30", "2026-07-01", "2026-07-02", "2026-07-03", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24", "2026-07-28", "2026-07-29", "2026-07-30"];
 const DATA_NOVAS_VAGAS_PADRAO = "01/06/2026";
@@ -250,14 +257,14 @@ function normalizarPublicacaoDatas(valor) {
 }
 
 async function quantidadeConexoesPublicasAtivas() {
-  const snap = await realtimeDb.ref("presenca_publica/conexoes").once("value");
+  const snap = await obterRealtimeDb().ref("presenca_publica/conexoes").once("value");
   return snap.numChildren();
 }
 
 async function atualizarContagemAcessosAtivos(ativosAgora) {
   const dia = hojeSaoPauloISO();
   const agora = Date.now();
-  await realtimeDb.ref("presenca_publica/metricas").transaction((atual) => {
+  await obterRealtimeDb().ref("presenca_publica/metricas").transaction((atual) => {
     const base = atual && typeof atual === "object" ? atual : {};
     const mesmoDia = base.dataReferencia === dia;
     return {
@@ -1065,7 +1072,7 @@ exports.registrarMetricasAcessoPublico = onValueCreated({
   const agora = Date.now();
   const dia = hojeSaoPauloISO();
   const ativosAgora = await quantidadeConexoesPublicasAtivas();
-  const raiz = realtimeDb.ref("presenca_publica");
+  const raiz = obterRealtimeDb().ref("presenca_publica");
 
   await Promise.all([
     raiz.child(`sessoes/${conexaoId}`).set({
@@ -1585,7 +1592,7 @@ async function limparAuxiliaresExpirados() {
 }
 
 async function limparSessoesAcessoPublico() {
-  const raiz = realtimeDb.ref("presenca_publica");
+  const raiz = obterRealtimeDb().ref("presenca_publica");
   const agora = Date.now();
   const atualizacoes = {};
   const [sessoesSnap, conexoesAntigasSnap] = await Promise.all([

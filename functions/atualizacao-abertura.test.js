@@ -245,6 +245,41 @@ test("resposta cacheada usa Date mais Age e nao atrasa relogio local correto", (
   assert.equal(alvo.getTime(), Date.parse("2026-08-17T08:00:00-03:00"));
 });
 
+// Forma observada em producao: em X-Cache HIT o Google Frontend renova Date,
+// mas nao envia Age. Nao remova este caso por parecer redundante.
+test("Date presente sem Age usa a hora real e permite corrigir relogio adiantado", () => {
+  const resposta = respostaHttp("Mon, 17 Aug 2026 11:00:00 GMT", null);
+  const relogioCorreto = montarRelogio();
+  const horaCorreta = relogioCorreto.horaServidorDaResposta(resposta, "2026-08-17T07:55");
+
+  assert.equal(horaCorreta.respostaFresca, true);
+  assert.equal(
+    relogioCorreto.calcularDesvioRelogioServidor(
+      horaCorreta.servidorMs,
+      Date.parse("2026-08-17T08:00:20-03:00")
+    ),
+    0
+  );
+  relogioCorreto.sincronizarRelogioServidor(
+    horaCorreta,
+    Date.parse("2026-08-17T08:00:20-03:00")
+  );
+
+  const alvoCodigo = extrairFuncao(sitePublico, "alvoContadorNovasVagas");
+  const alvoSemDesvio = new Function(
+    "DESVIO_RELOGIO_SERVIDOR_MS",
+    `${alvoCodigo}; return alvoContadorNovasVagas;`
+  )(relogioCorreto.estado().DESVIO_RELOGIO_SERVIDOR_MS)("17/08/2026");
+  assert.equal(alvoSemDesvio.getTime(), Date.parse("2026-08-17T08:00:00-03:00"));
+
+  const relogioAdiantado = montarRelogio();
+  relogioAdiantado.sincronizarRelogioServidor(
+    horaCorreta,
+    Date.parse("2026-08-17T08:10:00-03:00")
+  );
+  assert.equal(relogioAdiantado.estado().DESVIO_RELOGIO_SERVIDOR_MS, -10 * 60 * 1000);
+});
+
 test("resposta fresca corrige celular dez minutos adiantado e ignora ruido de quarenta segundos", () => {
   const relogio = montarRelogio();
   const hora = relogio.horaServidorDaResposta(

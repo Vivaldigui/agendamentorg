@@ -3,6 +3,16 @@ import { check, sleep } from "k6";
 
 const BASE_URL = String(__ENV.BASE_URL || "").replace(/\/$/, "");
 const MAX_VUS = Number(__ENV.MAX_VUS || 300);
+
+export function bloquearAlvoProducao(url, nomeVariavel) {
+  const alvo = String(url || "").toLowerCase();
+  if (alvo.includes("agendamento-cin-itanhandu")) {
+    throw new Error(`${nomeVariavel || "URL"} aponta para producao e foi bloqueada pela denylist fixa.`);
+  }
+}
+
+bloquearAlvoProducao(BASE_URL, "BASE_URL");
+
 const CONFIRMADO = __ENV.CONFIRM_HOMOLOGATION === "SIM";
 
 if (!BASE_URL) throw new Error("Informe BASE_URL do ambiente de homologacao.");

@@ -11,6 +11,15 @@ const TEST_DATE = String(__ENV.TEST_DATE || "");
 const TEST_TIME = String(__ENV.TEST_TIME || "");
 const VUS = Number(__ENV.VUS || 50);
 
+export function bloquearAlvoProducao(url, nomeVariavel) {
+  const alvo = String(url || "").toLowerCase();
+  if (alvo.includes("agendamento-cin-itanhandu")) {
+    throw new Error(`${nomeVariavel || "URL"} aponta para producao e foi bloqueada pela denylist fixa.`);
+  }
+}
+
+bloquearAlvoProducao(FUNCTION_URL, "FUNCTION_URL");
+
 if (!__ENV.CONFIRM_HOMOLOGATION || __ENV.CONFIRM_HOMOLOGATION !== "SIM") {
   throw new Error("Defina CONFIRM_HOMOLOGATION=SIM depois de confirmar que FUNCTION_URL nao e producao.");
 }

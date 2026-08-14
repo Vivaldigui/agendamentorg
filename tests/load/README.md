@@ -2,6 +2,8 @@
 
 Execute somente em um projeto Firebase de homologação ou nos emuladores. Nunca aponte estes scripts para produção: o teste de disputa cria um agendamento real no ambiente escolhido e dezenas de requisições concorrentes podem consumir quota ou afetar cidadãos.
 
+Os dois scripts aplicam uma **denylist fixa e explícita**: qualquer URL que contenha `agendamento-cin-itanhandu` é recusada antes da confirmação de homologação. A denylist não pode ser contornada por variável de ambiente; `CONFIRM_HOMOLOGATION=SIM` apenas autoriza ambientes de homologação cujo nome não corresponda ao padrão reconhecido automaticamente.
+
 ## 1. Instalar o k6 no Windows
 
 Com `winget` disponível:
