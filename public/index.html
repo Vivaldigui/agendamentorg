@@ -1577,14 +1577,49 @@
         if (!horarioAgendamentoFuturo(data, hora)) return false;
         const verificarSlot = firebase.functions().httpsCallable("verificarDisponibilidadeSlotCidadao");
         const sessaoId = obterSessaoVerificacaoSlot();
-        const resposta = await verificarSlot({ data, hora, sessaoId });
-        const resultado = resposta && resposta.data;
-        return Boolean(
-            resultado
-            && resultado.dataISO === data
-            && resultado.hora === hora
-            && resultado.disponivel === true
-        );
+        // Esta e a primeira chamada do cidadao as 08:00 e acumula dois riscos: o cold
+        // start da funcao de leitura (minInstances = 0 no modo economico) e a busca de
+        // um token de App Check que pode ter vencido com a aba em segundo plano. Sem
+        // retry, qualquer um dos dois virava "tente novamente" na tela.
+        // A leitura e idempotente, entao retentar e seguro. As tentativas sao poucas de
+        // proposito: o rate limit da funcao e por IP de origem (125 por fragmento, teto
+        // de 2.000 por 10 minutos para um mesmo IP). Cidadaos atras do mesmo CGNAT da
+        // operadora dividem esse teto, entao repetir demais prejudicaria os vizinhos.
+        const MAX_TENTATIVAS = 3;
+        const ESPERA_ENTRE_TENTATIVAS_MS = [0, 600, 1400];
+        let ultimoErro = null;
+        let refreshAppCheckUsado = false;
+
+        for (let tentativa = 0; tentativa < MAX_TENTATIVAS; tentativa++) {
+            try {
+                const resposta = await verificarSlot({ data, hora, sessaoId });
+                const resultado = resposta && resposta.data;
+                return Boolean(
+                    resultado
+                    && resultado.dataISO === data
+                    && resultado.hora === hora
+                    && resultado.disponivel === true
+                );
+            } catch (e) {
+                ultimoErro = e;
+                if (erroAppCheck(e)) {
+                    if (refreshAppCheckUsado) break;
+                    refreshAppCheckUsado = true;
+                    await tentarRefreshAppCheck();
+                    continue;
+                }
+                // failed-precondition e resource-exhausted sao definitivos e tem
+                // tratamento proprio em quem chama. Retentar nao ajudaria e ainda
+                // consumiria o teto compartilhado do rate limit.
+                if (!erroTransiente(e)) break;
+                console.warn(`Tentativa ${tentativa + 1}/${MAX_TENTATIVAS} de verificar o horário falhou:`, e);
+                if (tentativa < MAX_TENTATIVAS - 1) {
+                    await new Promise(r => setTimeout(r, ESPERA_ENTRE_TENTATIVAS_MS[tentativa + 1]));
+                }
+            }
+        }
+
+        throw ultimoErro;
     }
 
     async function renderHoras(data) {
@@ -1631,11 +1666,18 @@
                             validarNascimentoAgendamento();
                             document.getElementById("dados-pessoais").scrollIntoView({ behavior: "smooth", block: "start" });
                         } catch (e) {
-                            if (codigoErroFunctions(e) === "failed-precondition") {
+                            const codigoSlot = codigoErroFunctions(e);
+                            if (codigoSlot === "failed-precondition") {
                                 marcarSlotIndisponivelLocalmente(data, h);
                                 await renderDatas();
                                 await renderHoras(data);
                                 aviso("Este horário não faz mais parte da agenda disponível. Escolha outro horário.");
+                            } else if (erroAppCheck(e)) {
+                                await renderHoras(data);
+                                aviso("Não foi possível validar a segurança da sua conexão. Se você usa bloqueador de anúncios ou VPN, desative e recarregue a página; em seguida escolha o horário novamente.");
+                            } else if (codigoSlot === "resource-exhausted") {
+                                await renderHoras(data);
+                                aviso("O sistema está recebendo muitos acessos neste momento. Aguarde alguns instantes e escolha o horário novamente.");
                             } else {
                                 await renderHoras(data);
                                 aviso("Não foi possível confirmar a disponibilidade agora. Tente selecionar o horário novamente.");
@@ -1719,6 +1761,14 @@
             || (!codigo && e instanceof Error);
     }
 
+    // Token de App Check vencido ou negado chega como unauthenticated/permission-denied.
+    // Vale uma nova tentativa depois de renovar o token, mas so uma: se o reCAPTCHA
+    // estiver bloqueado na rede do cidadao, insistir nao resolve e so aumenta a espera.
+    function erroAppCheck(e) {
+        const codigo = codigoErroFunctions(e);
+        return codigo === "unauthenticated" || codigo === "permission-denied";
+    }
+
     async function tentarRefreshAppCheck() {
         try {
             if (!firebase.appCheck || !APP_CHECK_RECAPTCHA_SITE_KEY || APP_CHECK_RECAPTCHA_SITE_KEY.includes("COLE_AQUI")) return;
@@ -1727,6 +1777,21 @@
                 await ac.getToken(/* forceRefresh */ true);
             }
         } catch (ex) { console.warn("Erro ao renovar App Check:", ex); }
+    }
+
+    // A aba em segundo plano estrangula os timers do navegador, entao o auto-refresh
+    // do App Check nao roda. Quem abriu a pagina as 07h40 e voltou as 08h00 chegaria ao
+    // primeiro clique com token vencido, pagando a renovacao dentro do pico. Renovar na
+    // volta ao primeiro plano tira esse custo do caminho critico. O intervalo minimo
+    // evita execucoes extras do reCAPTCHA em quem alterna de aba com frequencia.
+    const INTERVALO_REFRESH_APPCHECK_PREVENTIVO_MS = 5 * 60 * 1000;
+    let ultimoRefreshAppCheckMs = 0;
+
+    async function renovarAppCheckPreventivo() {
+        const agora = Date.now();
+        if (agora - ultimoRefreshAppCheckMs < INTERVALO_REFRESH_APPCHECK_PREVENTIVO_MS) return;
+        ultimoRefreshAppCheckMs = agora;
+        await tentarRefreshAppCheck();
     }
 
     function gerarOperationIdAgendamento() {
@@ -2036,7 +2101,10 @@
                 return;
             } catch(e) {
                 ultimoErro = e;
-                if (!erroTransiente(e)) break;
+                // Erro de App Check tambem merece a segunda tentativa: o topo do laco
+                // renova o token antes de repetir. Sem isso o tentarRefreshAppCheck()
+                // daqui de cima nunca era alcancado.
+                if (!erroTransiente(e) && !erroAppCheck(e)) break;
                 console.warn(`Tentativa ${tentativa + 1}/${MAX_TENTATIVAS} de consultar falhou:`, e);
             }
         }
@@ -2087,7 +2155,9 @@
                 break;
             } catch(e) {
                 ultimoErroCancelamento = e;
-                if (!erroTransiente(e)) break;
+                // Mesmo motivo da consulta: o topo do laco renova o App Check antes de
+                // repetir, entao vale deixar o erro de App Check chegar la.
+                if (!erroTransiente(e) && !erroAppCheck(e)) break;
                 console.warn(`Tentativa ${tentativa + 1}/${MAX_TENTATIVAS} de buscar para cancelar falhou:`, e);
             }
         }
@@ -2153,7 +2223,16 @@
                     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CANCELANDO...';
                     try {
                         const cancelar = firebase.functions().httpsCallable("cancelarAgendamentoCidadao");
-                        await cancelar({ token });
+                        try {
+                            await cancelar({ token });
+                        } catch (eCancelar) {
+                            // Rejeicao de App Check acontece antes do corpo da funcao rodar,
+                            // entao o cancelamento comprovadamente nao ocorreu: repetir aqui
+                            // nao arrisca efeito duplicado. Vale exatamente uma repeticao.
+                            if (!erroAppCheck(eCancelar)) throw eCancelar;
+                            await tentarRefreshAppCheck();
+                            await cancelar({ token });
+                        }
                         desmarcarSlotIndisponivelLocalmente(ag.dataISO, ag.hora);
                         if (cancelTimerInterval) clearInterval(cancelTimerInterval);
                         modal({ icone: '<i class="fa-solid fa-circle-check" style="color:var(--success);"></i>', titulo: "Cancelado", mensagem: "Agendamento removido com sucesso.", botoes: [{ texto: "Ok", classe: "sucesso", acao: () => location.reload() }] });
@@ -2166,6 +2245,8 @@
                             erro("O tempo para confirmar o cancelamento expirou. Localize o agendamento novamente para cancelar.");
                         } else if (codigo === "resource-exhausted") {
                             erro("Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.");
+                        } else if (erroAppCheck(e)) {
+                            erro("Não foi possível validar a segurança da sua conexão. Se você usa bloqueador de anúncios ou VPN, desative e recarregue a página para cancelar.");
                         } else {
                             erro(e.message || "Não foi possível cancelar o agendamento.");
                         }
@@ -2352,9 +2433,14 @@
         window._contadorInterval = setInterval(atualizar, 1000);
     }
 
-    window.addEventListener("online", retomarAtualizacaoAbertura);
+    window.addEventListener("online", () => {
+        retomarAtualizacaoAbertura();
+        renovarAppCheckPreventivo();
+    });
     document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible") retomarAtualizacaoAbertura();
+        if (document.visibilityState !== "visible") return;
+        retomarAtualizacaoAbertura();
+        renovarAppCheckPreventivo();
     });
 
     function inicializarRipple() {
