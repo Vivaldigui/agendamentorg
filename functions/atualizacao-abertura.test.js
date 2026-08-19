@@ -46,6 +46,49 @@ function constanteLista(codigo, nome) {
   return JSON.parse(match[1]);
 }
 
+function extrairRegistroEvento(codigo, evento) {
+  const marcador = new RegExp(`(?:\\w+\\.)?addEventListener\\(\\s*["']${evento}["']`);
+  const encontrado = codigo.match(marcador);
+  assert.ok(encontrado, `Registro do evento ${evento} nao encontrado.`);
+  const abre = codigo.indexOf("(", encontrado.index);
+  let nivel = 0;
+  for (let i = abre; i < codigo.length; i++) {
+    if (codigo[i] === "(") nivel++;
+    if (codigo[i] === ")") {
+      nivel--;
+      if (nivel === 0) return codigo.slice(encontrado.index, i + 1);
+    }
+  }
+  throw new Error(`Fim do registro do evento ${evento} nao encontrado.`);
+}
+
+// Instala o registro de verdade com um coletor no lugar de window/document e dispara o
+// handler, em vez de casar o texto do registro. Passar a funcao direto ou envolve-la
+// numa arrow que tambem renova o App Check tem que valer igual aqui.
+function retomadasAoDisparar(codigo, evento, visibilityState) {
+  const handlers = [];
+  const coletar = (nome, handler) => {
+    assert.equal(nome, evento);
+    handlers.push(handler);
+  };
+  let retomadas = 0;
+  new Function(
+    "window",
+    "document",
+    "retomarAtualizacaoAbertura",
+    "renovarAppCheckPreventivo",
+    extrairRegistroEvento(codigo, evento)
+  )(
+    { addEventListener: coletar },
+    { addEventListener: coletar, visibilityState },
+    () => { retomadas++; },
+    async () => {}
+  );
+  assert.equal(handlers.length, 1, `O evento ${evento} deve instalar exatamente um handler.`);
+  handlers[0]({ type: evento });
+  return retomadas;
+}
+
 test("retentativas usam janela de 60 segundos, backoff crescente e jitter de ate 1,5 segundo", () => {
   assert.match(sitePublico, /const\s+JANELA_ATUALIZACAO_ABERTURA_MS\s*=\s*60\s*\*\s*1000\s*;/);
   assert.match(sitePublico, /const\s+JITTER_ATUALIZACAO_ABERTURA_MS\s*=\s*1500\s*;/);
@@ -174,9 +217,9 @@ test("falha de rede nao apaga uma agenda valida que ja estava em memoria", async
 });
 
 test("online e retorno da aba retomam a abertura sem empilhar execucoes", () => {
-  assert.match(sitePublico, /addEventListener\(["']online["'],\s*retomarAtualizacaoAbertura\)/);
-  assert.match(sitePublico, /addEventListener\(["']visibilitychange["']/);
-  assert.match(sitePublico, /document\.visibilityState\s*===\s*["']visible["']/);
+  assert.equal(retomadasAoDisparar(sitePublico, "online", "visible"), 1);
+  assert.equal(retomadasAoDisparar(sitePublico, "visibilitychange", "visible"), 1);
+  assert.equal(retomadasAoDisparar(sitePublico, "visibilitychange", "hidden"), 0);
 
   const iniciar = extrairFuncao(sitePublico, "tentarAtualizarAbertura");
   assert.match(iniciar, /if\s*\(atualizacaoAberturaEmCurso\)\s*return\s+atualizacaoAberturaEmCurso\s*;/);

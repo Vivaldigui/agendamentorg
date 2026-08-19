@@ -41,6 +41,25 @@ function extrairFuncao(codigo, nome) {
   throw new Error(`Fim da funcao ${nome} nao encontrado.`);
 }
 
+// Devolve o bloco que segue um marcador, por exemplo o corpo do if de um codigo de erro.
+// Assim as assertivas nao dependem de a comparacao estar inline na condicao ou guardada
+// antes numa variavel.
+function blocoApos(codigo, marcador) {
+  const inicio = codigo.indexOf(marcador);
+  assert.notEqual(inicio, -1, `Marcador ${marcador} nao encontrado.`);
+  const abre = codigo.indexOf("{", inicio);
+  assert.notEqual(abre, -1, `Bloco apos ${marcador} nao encontrado.`);
+  let nivel = 0;
+  for (let i = abre; i < codigo.length; i++) {
+    if (codigo[i] === "{") nivel++;
+    if (codigo[i] === "}") {
+      nivel--;
+      if (nivel === 0) return codigo.slice(abre, i + 1);
+    }
+  }
+  throw new Error(`Fim do bloco apos ${marcador} nao encontrado.`);
+}
+
 test("verificacao pontual espelha a ocupacao usada pela transacao", () => {
   const codigo = extrairFuncao(backend, "slotRepresentaOcupacaoAtual");
   const verificar = new Function(
@@ -119,7 +138,11 @@ test("codigos de erro das callables aceitam o prefixo functions do SDK web", () 
   const confirmar = extrairFuncao(sitePublico, "confirmarAgendamento");
   const renderHoras = extrairFuncao(sitePublico, "renderHoras");
   assert.match(confirmar, /const\s+codigo\s*=\s*codigoErroFunctions\(e\)/);
-  assert.match(renderHoras, /codigoErroFunctions\(e\)\s*===\s*["']failed-precondition["']/);
+  // O que importa e renderHoras classificar o erro pelo normalizador, nunca pelo
+  // e.code cru: o SDK web entrega "functions/failed-precondition".
+  assert.match(renderHoras, /codigoErroFunctions\(e\)/);
+  assert.doesNotMatch(renderHoras, /\be\.code\b/);
+  assert.match(renderHoras, /["']failed-precondition["']/);
 });
 
 test("resposta geral obsoleta nao ressuscita slot confirmado no mesmo minuto", () => {
@@ -276,10 +299,10 @@ test("retry idempotente nao consulta o proprio slot antes de reenviar", () => {
 
 test("slot removido da agenda e ocultado depois de failed-precondition", () => {
   const renderHoras = extrairFuncao(sitePublico, "renderHoras");
-  assert.match(
-    renderHoras,
-    /catch\s*\(e\)\s*\{[\s\S]*?codigoErroFunctions\(e\)\s*===\s*["']failed-precondition["'][\s\S]*?marcarSlotIndisponivelLocalmente\(data,\s*h\)/
-  );
+  const tratamento = blocoApos(renderHoras, "failed-precondition");
+  assert.match(tratamento, /marcarSlotIndisponivelLocalmente\(data,\s*h\)/);
+  assert.match(tratamento, /renderDatas\(\)/);
+  assert.match(tratamento, /renderHoras\(data\)/);
 });
 
 test("overlay de conflito cobre o stale maximo e sobrevive ao reload da aba", () => {
