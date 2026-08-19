@@ -47,6 +47,7 @@ const DATA_NOVAS_VAGAS_PADRAO = "01/06/2026";
 const STATUS_VALIDOS = [
   "agendado",
   "compareceu",
+  "vai_voltar",
   "nao_compareceu",
   "cancelado",
   "cancelado_cidadao",
@@ -55,6 +56,7 @@ const STATUS_VALIDOS = [
 ];
 const STATUS_ANONIMIZAR_LGPD = new Set([
   "compareceu",
+  "vai_voltar",
   "nao_compareceu",
   "cancelado",
   "cancelado_cidadao",

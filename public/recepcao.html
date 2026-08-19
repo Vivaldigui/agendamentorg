@@ -73,6 +73,7 @@
         .badge-status { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 900; border: 1px solid transparent; }
         .st-agendado { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
         .st-compareceu { background:#ecfdf5; color:#047857; border-color:#a7f3d0; }
+        .st-vai_voltar { background:#fff7ed; color:#9a3412; border-color:#fed7aa; }
         .st-nao_compareceu { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
         .st-cancelado { background:#f8fafc; color:#475569; border-color:#e2e8f0; }
         .st-remarcado { background:#fffbeb; color:#92400e; border-color:#fde68a; }
@@ -265,6 +266,11 @@
             background:#052e16;
             color:#86efac;
             border-color:#15803d;
+        }
+        body.modo-escuro .st-vai_voltar {
+            background:#431407;
+            color:#fed7aa;
+            border-color:#c2410c;
         }
         body.modo-escuro .st-nao_compareceu,
         body.modo-escuro .bloqueio-badge {
@@ -1026,6 +1032,7 @@
         .fila-card { background:var(--surface); border:1px solid var(--line); border-left:5px solid #93c5fd; border-radius:12px; padding:14px; box-shadow:var(--shadow-sm); transition:0.2s; }
         .fila-card.proximo { border-left-color:#f59e0b; box-shadow:0 0 0 3px rgba(245,158,11,0.16), var(--shadow-sm); }
         .fila-card.compareceu { border-left-color:#22c55e; }
+        .fila-card.vai_voltar { border-left-color:#f97316; }
         .fila-card.nao_compareceu { border-left-color:#ef4444; }
         .fila-card.cancelado { border-left-color:#94a3b8; opacity:0.7; }
         .fila-card-topo { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
@@ -1044,6 +1051,7 @@
         .btn-status-direto:hover { transform:translateY(-1px); }
         .btn-status-ok { background:#15803d; }
         .btn-status-falta { background:#dc2626; }
+        .btn-status-voltar { background:#c2410c; }
         .btn-status-obs { background:#64748b; }
         .acoes-linha-rapida { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
         .observacao-icone { color:#d97706; margin-left:6px; cursor:help; }
@@ -1279,6 +1287,7 @@
                         <option value="">Todos</option>
                         <option value="agendado">Agendado</option>
                         <option value="compareceu">Compareceu</option>
+                        <option value="vai_voltar">Vai voltar depois</option>
                         <option value="nao_compareceu">Não compareceu</option>
                         <option value="cancelado">Cancelado</option>
                         <option value="remarcado">Remarcado</option>
@@ -1293,6 +1302,7 @@
                 <button type="button" onclick="filtroRapidoPainel('semana')">Esta semana</button>
                 <button type="button" onclick="filtroRapidoPainel('agendados')">Agendados</button>
                 <button type="button" onclick="filtroRapidoPainel('compareceram')">Compareceram</button>
+                <button type="button" onclick="filtroRapidoPainel('retornos')">Vão voltar depois</button>
                 <button type="button" onclick="filtroRapidoPainel('faltaram')">Não compareceram</button>
                 <button type="button" onclick="filtroRapidoPainel('cancelados')">Cancelados</button>
                 <button type="button" onclick="filtroRapidoPainel('bloqueados')">Bloqueados</button>
@@ -1650,11 +1660,12 @@ Até logo!`;
         const STATUS_LABELS = {
             agendado: "Agendado",
             compareceu: "Compareceu",
+            vai_voltar: "Vai voltar depois",
             nao_compareceu: "Não compareceu",
             cancelado: "Cancelado",
             remarcado: "Remarcado"
         };
-        const STATUS_ORDEM = ["agendado", "compareceu", "nao_compareceu", "cancelado", "remarcado"];
+        const STATUS_ORDEM = ["agendado", "compareceu", "vai_voltar", "nao_compareceu", "cancelado", "remarcado"];
         let agendaDias = [];
         let agendaHorarios = HORARIOS_PADRAO;
         let agendaHorariosPorDiaSemana = {};
@@ -3525,6 +3536,39 @@ Até logo!`;
             }
         }
 
+        // Lista independente do periodo carregado: quem foi atendido mas nao conseguiu fazer o RG
+        // na hora fica aqui ate ser marcado como compareceu (ou outro status) num retorno.
+        async function carregarRetornosPendentes() {
+            const corpo = document.getElementById("corpo-tabela");
+            const info = document.getElementById("info-periodo-lista");
+            const geracao = ++geracaoConsultaAgendamentos;
+            carregamentoListaEmAndamento = false;
+            corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Carregando lista de retorno...</td></tr>";
+            try {
+                const consulta = db.collection("dados_cidadaos")
+                    .where("status", "==", "vai_voltar")
+                    .limit(500);
+                const snap = await consultarFirestoreServidorComRetentativa(consulta);
+                if (geracao !== geracaoConsultaAgendamentos) return;
+                agendamentosCache = snap.docs.map(doc => ({ id: doc.id, dados: doc.data() }));
+                origemAgendamentosCache = "retornos";
+                ordenarAgendamentosCache();
+                filtroRapidoAtual = "retornos";
+                document.getElementById("filtro-data").value = "";
+                document.getElementById("filtro-status").value = "";
+                document.getElementById("filtro-futuros").checked = false;
+                marcarFiltroRapidoVisual("retornos");
+                if (info) info.textContent = `${agendamentosCache.length} cidadão(s) marcado(s) para voltar depois.`;
+                renderTabelaAgendamentos();
+            } catch (e) {
+                console.error("Erro ao carregar lista de retorno", e);
+                if (geracao !== geracaoConsultaAgendamentos) return;
+                renderTabelaAgendamentos();
+                marcarFalhaAtualizacaoLista();
+                avisoPainel("Erro ao carregar a lista de quem vai voltar depois.");
+            }
+        }
+
         function atualizarResumo() {
             if (!agendaGestaoCarregada || !listaAgendamentosCarregada) return;
             const hoje = hojeISO();
@@ -3567,10 +3611,15 @@ Até logo!`;
 
         function acoesStatusDiretas(ag) {
             const status = statusValor(ag.dados);
-            if (!["agendado", "remarcado"].includes(status)) return "";
             const id = textoSeguro(ag.id);
+            // Quem esta na lista de retorno so precisa do atalho de conclusao quando voltar.
+            if (status === "vai_voltar") {
+                return `<button type="button" class="btn-status-direto btn-status-ok" title="Voltou e foi atendido: marcar compareceu" onclick="alterarStatus('${id}', 'compareceu')"><i class="fa-solid fa-check"></i></button>`;
+            }
+            if (!["agendado", "remarcado"].includes(status)) return "";
             return `
                 <button type="button" class="btn-status-direto btn-status-ok" title="Marcar compareceu" onclick="alterarStatus('${id}', 'compareceu')"><i class="fa-solid fa-check"></i></button>
+                <button type="button" class="btn-status-direto btn-status-voltar" title="Marcar que vai voltar depois" onclick="alterarStatus('${id}', 'vai_voltar')"><i class="fa-solid fa-arrow-rotate-left"></i></button>
                 <button type="button" class="btn-status-direto btn-status-falta" title="Marcar não compareceu" onclick="alterarStatus('${id}', 'nao_compareceu')"><i class="fa-solid fa-user-xmark"></i></button>
             `;
         }
@@ -3608,9 +3657,10 @@ Até logo!`;
                 .sort((a, b) => String(a.dados.hora || "").localeCompare(String(b.dados.hora || "")));
             const atendidos = listaHoje.filter(ag => statusValor(ag.dados) === "compareceu").length;
             const faltas = listaHoje.filter(ag => statusValor(ag.dados) === "nao_compareceu").length;
-            const aguardando = Math.max(0, listaHoje.length - atendidos - faltas);
+            const retornos = listaHoje.filter(ag => statusValor(ag.dados) === "vai_voltar").length;
+            const aguardando = Math.max(0, listaHoje.length - atendidos - faltas - retornos);
             document.getElementById("fila-contagem").textContent =
-                `${atendidos} atendido${atendidos === 1 ? "" : "s"} · ${faltas} falta${faltas === 1 ? "" : "s"} · ${aguardando} aguardando`;
+                `${atendidos} atendido${atendidos === 1 ? "" : "s"} · ${faltas} falta${faltas === 1 ? "" : "s"} · ${retornos} volta${retornos === 1 ? "" : "m"} depois · ${aguardando} aguardando`;
             const proximo = horarioMaisProximoHoje(listaHoje);
             const filtrados = busca ? listaHoje.filter(ag => textoBusca(ag).includes(busca)) : listaHoje;
             if (!filtrados.length) {
@@ -3759,11 +3809,12 @@ Até logo!`;
                 // Nos filtros rapidos "hoje" e "amanha", exibindoCancelados permanece false, entao cancelados seguem ocultos.
                 if (statusAtual === "cancelado" && !exibindoCancelados) return false;
                 if (filtroRapidoAtual === "bloqueados" && !bloqueioAtivo(d)) return false;
+                if (filtroRapidoAtual === "retornos" && statusAtual !== "vai_voltar") return false;
                 if (filtroRapidoAtual === "manuais" && !d.insercaoManual) return false;
                 if (filtroRapidoAtual === "semana" && (d.dataISO < hoje || d.dataISO > fimSemana)) return false;
                 if (data && d.dataISO !== data) return false;
                 if (status && statusAtual !== status) return false;
-                if (soFuturos && d.dataISO < hoje && filtroRapidoAtual !== "bloqueados") return false;
+                if (soFuturos && d.dataISO < hoje && !["bloqueados", "retornos"].includes(filtroRapidoAtual)) return false;
                 return true;
             });
         }
@@ -3785,6 +3836,7 @@ Até logo!`;
                         <button type="button" onclick="abrirRemarcacao('${id}')"><i class="fa-solid fa-pen-to-square"></i> Remarcar</button>
                         <button type="button" onclick="abrirObservacao('${id}')"><i class="fa-solid fa-note-sticky"></i> Observação interna</button>
                         <button type="button" onclick="alterarStatus('${id}', 'compareceu')"><i class="fa-solid fa-check"></i> Marcar compareceu</button>
+                        <button type="button" onclick="alterarStatus('${id}', 'vai_voltar')"><i class="fa-solid fa-arrow-rotate-left"></i> Marcar que vai voltar depois</button>
                         <button type="button" onclick="alterarStatus('${id}', 'nao_compareceu')"><i class="fa-solid fa-user-xmark"></i> Marcar não compareceu</button>
                         ${liberar}
                         <button type="button" class="perigo" onclick="cancelarAgendamentoPainel('${id}')"><i class="fa-solid fa-ban"></i> Cancelar</button>
@@ -3817,7 +3869,9 @@ Até logo!`;
             const lista = agendamentosFiltrados();
             corpo.innerHTML = "";
             if (!lista.length) {
-                corpo.innerHTML = "<tr><td colspan='6'>Nenhum agendamento encontrado para os filtros atuais.</td></tr>";
+                corpo.innerHTML = filtroRapidoAtual === "retornos"
+                    ? "<tr><td colspan='6'>Ninguém marcado para voltar depois.</td></tr>"
+                    : "<tr><td colspan='6'>Nenhum agendamento encontrado para os filtros atuais.</td></tr>";
                 return;
             }
 
@@ -3882,6 +3936,10 @@ Até logo!`;
             mostrarVistaPainel("lista");
             if (tipo === "bloqueados") {
                 carregarBloqueadosAtivos();
+                return;
+            }
+            if (tipo === "retornos") {
+                carregarRetornosPendentes();
                 return;
             }
             filtroRapidoAtual = tipo;
@@ -4559,6 +4617,7 @@ Até logo!`;
             csv += `${csvCampo("Total visível")};${lista.length}\n`;
             csv += `${csvCampo("Agendados")};${contar("agendado")}\n`;
             csv += `${csvCampo("Compareceram")};${contar("compareceu")}\n`;
+            csv += `${csvCampo("Vão voltar depois")};${contar("vai_voltar")}\n`;
             csv += `${csvCampo("Não compareceram")};${contar("nao_compareceu")}\n`;
             const link = document.createElement("a");
             link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
