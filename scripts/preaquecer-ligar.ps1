@@ -4,8 +4,9 @@
 #  Modo economico: uma instancia quente em cada funcao do caminho
 #  critico - criacao, leitura publica e verificacao de vaga.
 #  A leitura NAO pode ficar em escala zero: nos minutos ao redor da
-#  abertura a resposta publica vale apenas 5 segundos, o CDN deixa de
-#  absorver a espera e um cold start de ~2s cai em cima da virada.
+#  abertura a resposta publica vale 5 segundos em vez de 60, entao o CDN
+#  segue absorvendo a rajada mas busca na origem doze vezes mais, e um
+#  cold start de ~2s numa dessas buscas cai em cima da virada.
 #
 #  COMO USAR:
 #    1. Abra o PowerShell na pasta do projeto (agendamentorg)
@@ -13,6 +14,10 @@
 #
 #  IMPORTANTE: nao faca outros "firebase deploy" entre LIGAR e
 #  DESLIGAR, senao o pre-aquecimento e desfeito.
+#
+#  ATENCAO: o script usa o Firebase CLI GLOBAL quando ele existe, e so
+#  cai no fallback 15.26.0 via npx quando nao existe. Um global
+#  desatualizado passa despercebido. Confira com "firebase --version".
 # ============================================================
 
 $ErrorActionPreference = "Stop"

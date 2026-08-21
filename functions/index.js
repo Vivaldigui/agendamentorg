@@ -89,12 +89,14 @@ const publicCallableOptions = {
 };
 
 // Pre-aquecimento configuravel via env var no momento do deploy (sem editar codigo no dia).
-// Repouso: escala a zero. O script economico usa somente uma instancia da criacao.
+// Repouso: escala a zero. O script economico mantem uma instancia em cada
+// funcao do caminho critico: criacao, leitura publica e verificacao de vaga.
 const PICO_MIN_INSTANCES = Number(process.env.PICO_MIN_INSTANCES) || 0;
-// Qualquer pre-aquecimento tem de alcancar a LEITURA tambem. Nos minutos
-// anteriores a abertura a resposta publica sai como no-store, entao o CDN
-// deixa de absorver a espera e cada visitante invoca a funcao: um cold start
-// de ~2s ali cai justamente em cima da virada.
+// Qualquer pre-aquecimento tem de alcancar a LEITURA tambem. Nos minutos ao
+// redor da abertura a resposta publica vale 5s em vez de 60s: o CDN segue
+// absorvendo a rajada, mas busca na origem doze vezes mais, e um cold start de
+// ~2s numa dessas buscas cai justamente em cima da virada. Esta constante
+// tambem configura verificarDisponibilidadeSlotCidadao, no caminho da selecao.
 const PICO_MIN_INSTANCES_LEITURA = PICO_MIN_INSTANCES > 0
   ? Math.max(1, Math.ceil(PICO_MIN_INSTANCES / 2))
   : 0;

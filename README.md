@@ -174,9 +174,11 @@ npx.cmd --yes firebase-tools@15.26.0 login
 .\scripts\preaquecer-desligar.ps1
 ```
 
-O Firebase CLI global é usado quando estiver instalado; caso contrário, os scripts usam automaticamente a versão `15.26.0` via `npx`. O modo econômico mantém **uma** instância quente de `criarAgendamentoCidadao` e **uma** de `carregarAgendaPublicaHttp`, e os scripts fazem deploy das duas funções.
+O modo econômico mantém **uma** instância quente em cada função do caminho crítico — `criarAgendamentoCidadao`, `carregarAgendaPublicaHttp` e `verificarDisponibilidadeSlotCidadao` —, e os scripts fazem deploy das três.
 
-A leitura não pode mais ficar em `minInstances = 0`: nos minutos ao redor das 08:00 a resposta pública sai com validade de segundos, então o CDN deixa de absorver a espera e um cold start de ~2 s cairia em cima da virada. A chamada leve da automação às 07:59 continua existindo, mas é complemento — não substitui a instância reservada. **Não execute outros `firebase deploy` entre ligar e desligar**, pois o pré-aquecimento seria desfeito.
+A leitura não pode mais ficar em `minInstances = 0`. Nos minutos ao redor das 08:00 a resposta pública vale 5 segundos em vez de 60, então o CDN continua absorvendo a rajada, mas passa a buscar na origem doze vezes mais. Um cold start de ~2 s numa dessas buscas cairia bem em cima da virada. A chamada leve da automação às 07:59 continua existindo, mas é complemento — não substitui a instância reservada. **Não execute outros `firebase deploy` entre ligar e desligar**, pois o pré-aquecimento seria desfeito.
+
+Sobre a versão do CLI: os scripts usam o Firebase CLI **global** quando ele existe no `PATH` e só caem no fallback `15.26.0` via `npx` quando não existe. Ou seja, um global desatualizado é usado silenciosamente. Confira com `firebase --version` antes do deploy e, se não for a versão homologada, atualize o global ou chame explicitamente `npx --yes firebase-tools@15.26.0 deploy ...`.
 
 As tarefas agendadas estão consolidadas em três jobs: manutenção diária, abertura semanal e anonimização mensal. Isso permanece dentro dos três jobs gratuitos do Cloud Scheduler quando a conta de faturamento não possui outros jobs. No primeiro deploy desta consolidação, confirme a exclusão das funções antigas `limparDatasPassadasAgenda`, `limparAuxiliaresExpirados` e `limparSessoesAcessoPublico`; caso contrário, seus jobs antigos continuarão existentes.
 
