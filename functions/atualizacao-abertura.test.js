@@ -178,9 +178,21 @@ test("online e retorno da aba retomam a abertura sem empilhar execucoes", () => 
   assert.match(sitePublico, /addEventListener\(["']visibilitychange["']/);
   assert.match(sitePublico, /document\.visibilityState\s*===\s*["']visible["']/);
 
+  // Nao empilha execucoes: quem chega no meio da janela reaproveita a promessa
+  // em curso...
   const iniciar = extrairFuncao(sitePublico, "tentarAtualizarAbertura");
-  assert.match(iniciar, /if\s*\(atualizacaoAberturaEmCurso\)\s*return\s+atualizacaoAberturaEmCurso\s*;/);
-  assert.match(iniciar, /\.finally\(/);
+  assert.match(iniciar, /if \(atualizacaoAberturaEmCurso\) \{[\s\S]*return atualizacaoAberturaEmCurso;/);
+
+  // ...mas o pedido nao pode ser engolido. Um aparelho adiantado termina a
+  // janela de 60s antes da virada do servidor; sem reexecucao a recuperacao
+  // ficaria para o polling de 3 minutos.
+  assert.match(iniciar, /reexecutarAberturaAoTerminar = true/);
+  const ciclo = extrairFuncao(sitePublico, "executarCicloAbertura");
+  assert.match(ciclo, /\.finally\(/);
+  assert.match(ciclo, /if \(pedido && !DIAS_DISPONIVEIS\.length && reexecucoesAberturaRestantes > 0\)/);
+  assert.match(ciclo, /executarCicloAbertura\(\)/);
+  // Com teto, para nao virar laco infinito se o servidor atrasar de verdade.
+  assert.match(sitePublico, /const MAX_REEXECUCOES_ABERTURA = \d+;/);
 });
 
 test("backend informa o horario de Sao Paulo usado na resposta publica", () => {
@@ -205,24 +217,43 @@ function montarRelogio() {
   const converter = extrairFuncao(sitePublico, "servidorEmSaoPauloParaMs");
   const extrair = extrairFuncao(sitePublico, "horaServidorDaResposta");
   const calcular = extrairFuncao(sitePublico, "calcularDesvioRelogioServidor");
+  // sincronizarRelogioServidor tambem alimenta a referencia bruta usada pela
+  // chave do minuto; o comportamento dela esta coberto em relogio-cliente.test.js.
+  const sincronizarBruto = extrairFuncao(sitePublico, "sincronizarRelogioServidorBruto");
   const sincronizar = extrairFuncao(sitePublico, "sincronizarRelogioServidor");
+  // O alvo do contador sai do mesmo sandbox para enxergar as duas referencias
+  // de relogio, e nao so o desvio conservador.
+  const desvioContador = extrairFuncao(sitePublico, "desvioParaContador");
+  const alvo = extrairFuncao(sitePublico, "alvoContadorNovasVagas");
   return new Function(
     "LIMIAR_DESVIO_RELOGIO_SERVIDOR_MS",
+    "PRECISAO_MAXIMA_RELOGIO_BRUTO_MS",
     `
       ${converter};
       ${extrair};
       ${calcular};
       let DESVIO_RELOGIO_SERVIDOR_MS = 0;
       let RELOGIO_SERVIDOR_SINCRONIZADO = false;
+      let DESVIO_RELOGIO_SERVIDOR_BRUTO_MS = 0;
+      let RELOGIO_SERVIDOR_BRUTO_SINCRONIZADO = false;
+      ${sincronizarBruto};
       ${sincronizar};
+      ${desvioContador};
+      ${alvo};
       return {
         horaServidorDaResposta,
         calcularDesvioRelogioServidor,
         sincronizarRelogioServidor,
-        estado: () => ({ DESVIO_RELOGIO_SERVIDOR_MS, RELOGIO_SERVIDOR_SINCRONIZADO })
+        alvoContadorNovasVagas,
+        estado: () => ({
+          DESVIO_RELOGIO_SERVIDOR_MS,
+          RELOGIO_SERVIDOR_SINCRONIZADO,
+          DESVIO_RELOGIO_SERVIDOR_BRUTO_MS,
+          RELOGIO_SERVIDOR_BRUTO_SINCRONIZADO
+        })
       };
     `
-  )(90 * 1000);
+  )(90 * 1000, 1000);
 }
 
 test("resposta cacheada usa Date mais Age e nao atrasa relogio local correto", () => {
@@ -237,12 +268,13 @@ test("resposta cacheada usa Date mais Age e nao atrasa relogio local correto", (
   relogio.sincronizarRelogioServidor(hora, localCorreto);
   assert.equal(relogio.estado().DESVIO_RELOGIO_SERVIDOR_MS, 0);
 
-  const alvoCodigo = extrairFuncao(sitePublico, "alvoContadorNovasVagas");
-  const alvo = new Function(
-    "DESVIO_RELOGIO_SERVIDOR_MS",
-    `${alvoCodigo}; return alvoContadorNovasVagas;`
-  )(relogio.estado().DESVIO_RELOGIO_SERVIDOR_MS)("17/08/2026");
-  assert.equal(alvo.getTime(), Date.parse("2026-08-17T08:00:00-03:00"));
+  // O desvio conservador continua zerado, mas o contador passou a usar a
+  // referencia bruta: o aparelho esta 20s adiantado, entao a virada do servidor
+  // acontece quando o relogio dele marca 08:00:20. Ignorar esses segundos fazia
+  // a janela de 60s de retentativas terminar antes da abertura.
+  const alvo = relogio.alvoContadorNovasVagas("17/08/2026");
+  assert.equal(relogio.estado().DESVIO_RELOGIO_SERVIDOR_BRUTO_MS, -20 * 1000);
+  assert.equal(alvo.getTime(), Date.parse("2026-08-17T08:00:20-03:00"));
 });
 
 // Forma observada em producao: em X-Cache HIT o Google Frontend renova Date,
@@ -265,12 +297,13 @@ test("Date presente sem Age usa a hora real e permite corrigir relogio adiantado
     Date.parse("2026-08-17T08:00:20-03:00")
   );
 
-  const alvoCodigo = extrairFuncao(sitePublico, "alvoContadorNovasVagas");
-  const alvoSemDesvio = new Function(
-    "DESVIO_RELOGIO_SERVIDOR_MS",
-    `${alvoCodigo}; return alvoContadorNovasVagas;`
-  )(relogioCorreto.estado().DESVIO_RELOGIO_SERVIDOR_MS)("17/08/2026");
-  assert.equal(alvoSemDesvio.getTime(), Date.parse("2026-08-17T08:00:00-03:00"));
+  // Mesmos 20s de adiantamento: o limiar de 90s zera o desvio conservador, mas
+  // o contador segue a referencia bruta.
+  assert.equal(relogioCorreto.estado().DESVIO_RELOGIO_SERVIDOR_MS, 0);
+  assert.equal(
+    relogioCorreto.alvoContadorNovasVagas("17/08/2026").getTime(),
+    Date.parse("2026-08-17T08:00:20-03:00")
+  );
 
   const relogioAdiantado = montarRelogio();
   relogioAdiantado.sincronizarRelogioServidor(
@@ -297,11 +330,7 @@ test("resposta fresca corrige celular dez minutos adiantado e ignora ruido de qu
   );
 
   relogio.sincronizarRelogioServidor(hora, Date.parse("2026-08-17T08:10:00-03:00"));
-  const alvoCodigo = extrairFuncao(sitePublico, "alvoContadorNovasVagas");
-  const alvo = new Function(
-    "DESVIO_RELOGIO_SERVIDOR_MS",
-    `${alvoCodigo}; return alvoContadorNovasVagas;`
-  )(relogio.estado().DESVIO_RELOGIO_SERVIDOR_MS)("17/08/2026");
+  const alvo = relogio.alvoContadorNovasVagas("17/08/2026");
   assert.equal(alvo.getTime(), Date.parse("2026-08-17T08:10:00-03:00"));
 });
 

@@ -92,7 +92,9 @@ test("selecao usa callable sem CDN e nunca avanca quando a verificacao falha", (
   const verificar = extrairFuncao(sitePublico, "verificarDisponibilidadeSlotAtual");
   const renderHoras = extrairFuncao(sitePublico, "renderHoras");
 
-  assert.match(verificar, /httpsCallable\(["']verificarDisponibilidadeSlotCidadao["']\)/);
+  // A selecao continua indo por callable (sem CDN). A chamada passou a sair por
+  // chamarFuncao, que garante o App Check antes de qualquer callable.
+  assert.match(verificar, /chamarFuncao\(["']verificarDisponibilidadeSlotCidadao["']/);
   assert.match(renderHoras, /await\s+verificarDisponibilidadeSlotAtual\(data,\s*h\)/);
   assert.match(renderHoras, /marcarSlotIndisponivelLocalmente\(data,\s*h\)/);
   assert.doesNotMatch(renderHoras, /carregarConfig\(\{\s*ignorarCache:\s*true\s*\}\)/);
