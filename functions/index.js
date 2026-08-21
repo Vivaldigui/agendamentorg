@@ -26,6 +26,10 @@ const {
   hashPayloadAgendamento,
   resolverOperacaoExistente
 } = require("./agendamento-idempotencia");
+const {
+  CACHE_SEM_ARMAZENAMENTO,
+  cacheControlAgendaPublica
+} = require("./agenda-cache-publica");
 
 initializeApp();
 
@@ -87,7 +91,13 @@ const publicCallableOptions = {
 // Pre-aquecimento configuravel via env var no momento do deploy (sem editar codigo no dia).
 // Repouso: escala a zero. O script economico usa somente uma instancia da criacao.
 const PICO_MIN_INSTANCES = Number(process.env.PICO_MIN_INSTANCES) || 0;
-const PICO_MIN_INSTANCES_LEITURA = PICO_MIN_INSTANCES > 1 ? Math.ceil(PICO_MIN_INSTANCES / 2) : 0;
+// Qualquer pre-aquecimento tem de alcancar a LEITURA tambem. Nos minutos
+// anteriores a abertura a resposta publica sai como no-store, entao o CDN
+// deixa de absorver a espera e cada visitante invoca a funcao: um cold start
+// de ~2s ali cai justamente em cima da virada.
+const PICO_MIN_INSTANCES_LEITURA = PICO_MIN_INSTANCES > 0
+  ? Math.max(1, Math.ceil(PICO_MIN_INSTANCES / 2))
+  : 0;
 
 const agendamentoPicoOptions = {
   ...publicCallableOptions,
@@ -295,11 +305,11 @@ async function atualizarContagemAcessosAtivos(ativosAgora) {
   });
 }
 
-function avisoNovasVagasAtivo(agenda) {
+function avisoNovasVagasAtivo(agenda, agora = agoraSaoPauloInput()) {
   const avisoProgramado = agenda && agenda.avisoNovasVagasProgramado && typeof agenda.avisoNovasVagasProgramado === "object"
     ? agenda.avisoNovasVagasProgramado
     : null;
-  if (avisoProgramado && avisoProgramado.publicarEm && avisoProgramado.publicarEm <= agoraSaoPauloInput() && avisoProgramado.dataNovasVagas) {
+  if (avisoProgramado && avisoProgramado.publicarEm && avisoProgramado.publicarEm <= agora && avisoProgramado.dataNovasVagas) {
     return avisoProgramado.dataNovasVagas;
   }
   return (agenda && agenda.dataNovasVagas) || DATA_NOVAS_VAGAS_PADRAO;
@@ -678,26 +688,32 @@ async function anonimizarDadosAntigosLGPD() {
   return { corte, totalLidos, totalAnonimizados, totalCpfMapsRemovidos };
 }
 
-function processarAgenda(dadosBrutos) {
+// `agora` e `hoje` sao parametros para que a leitura publica use um unico
+// instante em todo o pedido: corpo, filtro de publicacao e Cache-Control
+// precisam cair do mesmo lado da virada das 08:00.
+function processarAgenda(dadosBrutos, agora = agoraSaoPauloInput(), hoje = hojeSaoPauloISO()) {
   const agenda = dadosBrutos || {};
-  const hoje = hojeSaoPauloISO();
   const dias = Array.isArray(agenda.dias) && agenda.dias.length ? agenda.dias : DIAS_INICIAIS;
   const publicacaoDatas = normalizarPublicacaoDatas(agenda.publicacaoDatas);
-  const agora = agoraSaoPauloInput();
   return {
     dias: dias.filter((dia) => typeof dia === "string" && dia >= hoje && (!publicacaoDatas[dia] || publicacaoDatas[dia] <= agora)).sort(),
     // Campo mantido por compatibilidade. A grade efetiva e sempre resolvida por data.
     horarios: [...HORARIOS_NOVOS],
     horariosPorDiaSemana: normalizarHorariosPorDiaSemana(agenda.horariosPorDiaSemana),
-    dataNovasVagas: avisoNovasVagasAtivo(agenda)
+    dataNovasVagas: avisoNovasVagasAtivo(agenda, agora),
+    // Necessarios para decidir se a resposta publica pode ser armazenada. A
+    // automacao entra porque a janela de abertura nao pode depender de
+    // publicacaoDatas ja ter sido gravada pelas execucoes de 07:50/07:55.
+    publicacaoDatas,
+    automacaoSemanal: normalizarAutomacaoSemanal(agenda.automacaoSemanal)
   };
 }
 
 const AGENDA_REF = () => db.collection("configuracoes").doc("agenda");
 
-async function carregarAgenda() {
+async function carregarAgenda(agora = agoraSaoPauloInput(), hoje = hojeSaoPauloISO()) {
   const agendaDoc = await comRetry(() => AGENDA_REF().get());
-  return processarAgenda(agendaDoc.exists ? agendaDoc.data() : {});
+  return processarAgenda(agendaDoc.exists ? agendaDoc.data() : {}, agora, hoje);
 }
 
 function checarDisponibilidade(agenda, dataISO, hora) {
@@ -752,11 +768,14 @@ function vagaContaNoSite(vaga) {
 }
 
 async function carregarDisponibilidadePublica() {
-  const agenda = await carregarAgenda();
+  // Instante unico do pedido. Capturado antes das leituras de proposito: se o
+  // relogio virar durante a consulta, o cabecalho fica conservador (janela sem
+  // cache um pouco maior) em vez de liberar o armazenamento cedo demais.
+  const agora = agoraSaoPauloInput();
   const hoje = hojeSaoPauloISO();
+  const agenda = await carregarAgenda(agora, hoje);
   const vagasSnap = await db.collection("vagas_ocupadas").where("dataISO", ">=", hoje).get();
   const ocupados = new Set();
-  const agora = agoraSaoPauloInput();
 
   vagasSnap.docs.forEach((doc) => {
     const vaga = doc.data();
@@ -784,30 +803,22 @@ async function carregarDisponibilidadePublica() {
   });
 
   return {
-    dias,
-    horarios: agenda.horarios,
-    dataNovasVagas: agenda.dataNovasVagas,
-    servidorEm: agora,
-    totalVagasRestantes: dias.reduce((total, dia) => total + dia.vagas, 0)
+    payload: {
+      dias,
+      horarios: agenda.horarios,
+      dataNovasVagas: agenda.dataNovasVagas,
+      servidorEm: agora,
+      totalVagasRestantes: dias.reduce((total, dia) => total + dia.vagas, 0)
+    },
+    // O prazo e contado da emissao (agora, depois das leituras), mas a
+    // publicacao a evitar e a que o corpo ainda esconde (agora, antes delas).
+    cacheControl: cacheControlAgendaPublica(
+      agora,
+      agoraSaoPauloInput(),
+      agenda.publicacaoDatas,
+      agenda.automacaoSemanal
+    )
   };
-}
-
-// Segunda-feira de manhã é a janela semanal de abertura de vagas: cache curto para a
-// disponibilidade refletir quase em tempo real. No resto da semana o CDN pode segurar
-// a resposta por mais tempo, cortando invocações. A seleção revalida um único slot
-// por callable sem CDN, e a transação continua sendo a autoridade final da reserva.
-function cacheControlAgendaPublica() {
-  const partes = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Sao_Paulo",
-    weekday: "short",
-    hour: "numeric",
-    hourCycle: "h23"
-  }).formatToParts(new Date());
-  const valores = Object.fromEntries(partes.map((p) => [p.type, p.value]));
-  const janelaAbertura = valores.weekday === "Mon" && Number(valores.hour) < 14;
-  return janelaAbertura
-    ? "public, max-age=60, s-maxage=60, stale-while-revalidate=120"
-    : "public, max-age=120, s-maxage=300, stale-while-revalidate=600";
 }
 
 exports.carregarAgendaPublicaHttp = onRequest({
@@ -821,12 +832,20 @@ exports.carregarAgendaPublicaHttp = onRequest({
   }
 
   try {
-    await aplicarRateLimit({ rawRequest: req }, "carregar_agenda_publica_http", 240, 10 * 60 * 1000);
-    const dados = await carregarDisponibilidadePublica();
-    res.set("Cache-Control", cacheControlAgendaPublica());
-    res.status(200).json(dados);
+    // 600 e nao 240: com dois URLs ativos (com e sem a chave do minuto) e TTL
+    // de 5s na janela de virada, o envelope teorico de buscas na origem chega a
+    // ~240 por 10 min, encostando no limite antigo. A leitura e idempotente e
+    // fica atras do CDN, entao a folga custa pouco e evita 429 no pico.
+    await aplicarRateLimit({ rawRequest: req }, "carregar_agenda_publica_http", 600, 10 * 60 * 1000);
+    const { payload, cacheControl } = await carregarDisponibilidadePublica();
+    // Cabecalho derivado do mesmo instante que montou o corpo.
+    res.set("Cache-Control", cacheControl);
+    res.status(200).json(payload);
   } catch (err) {
     const status = err && err.code === "resource-exhausted" ? 429 : 500;
+    // Um erro gravado no CDN sob a chave do minuto da abertura seria tao
+    // danoso quanto uma agenda fechada armazenada.
+    res.set("Cache-Control", CACHE_SEM_ARMAZENAMENTO);
     res.status(status).json({ erro: err && err.message ? err.message : "Erro ao carregar agenda publica." });
   }
 });

@@ -174,7 +174,9 @@ npx.cmd --yes firebase-tools@15.26.0 login
 .\scripts\preaquecer-desligar.ps1
 ```
 
-O Firebase CLI global é usado quando estiver instalado; caso contrário, os scripts usam automaticamente a versão `15.26.0` via `npx`. O modo econômico mantém somente **uma** instância de `criarAgendamentoCidadao` quente. A leitura permanece com `minInstances = 0`, recebe uma chamada leve da automação às 07:59 e depois é absorvida pelo cache compartilhado do Firebase Hosting/CDN. Esse aquecimento de leitura reduz a chance de cold start, mas não é uma reserva garantida de instância. Os scripts fazem deploy apenas da função de criação. **Não execute outros `firebase deploy` entre ligar e desligar**, pois o pré-aquecimento seria desfeito.
+O Firebase CLI global é usado quando estiver instalado; caso contrário, os scripts usam automaticamente a versão `15.26.0` via `npx`. O modo econômico mantém **uma** instância quente de `criarAgendamentoCidadao` e **uma** de `carregarAgendaPublicaHttp`, e os scripts fazem deploy das duas funções.
+
+A leitura não pode mais ficar em `minInstances = 0`: nos minutos ao redor das 08:00 a resposta pública sai com validade de segundos, então o CDN deixa de absorver a espera e um cold start de ~2 s cairia em cima da virada. A chamada leve da automação às 07:59 continua existindo, mas é complemento — não substitui a instância reservada. **Não execute outros `firebase deploy` entre ligar e desligar**, pois o pré-aquecimento seria desfeito.
 
 As tarefas agendadas estão consolidadas em três jobs: manutenção diária, abertura semanal e anonimização mensal. Isso permanece dentro dos três jobs gratuitos do Cloud Scheduler quando a conta de faturamento não possui outros jobs. No primeiro deploy desta consolidação, confirme a exclusão das funções antigas `limparDatasPassadasAgenda`, `limparAuxiliaresExpirados` e `limparSessoesAcessoPublico`; caso contrário, seus jobs antigos continuarão existentes.
 
@@ -225,6 +227,8 @@ firebase functions:log --only criarAgendamentoCidadao --project agendamento-cin-
 ```
 
 A telemetria pública de presença está **desativada temporariamente** para não competir com o agendamento durante o pico. Por isso, o painel **Recepção → Lista de hoje** mostra “Medição desativada” nos cartões de acessos simultâneos, pico e entradas do dia. O código dos gatilhos e a estrutura `presenca_publica` foram preservados. A telemetria só deve ser religada depois que o processamento tiver deduplicação idempotente, contadores distribuídos em shards e validação de carga em homologação.
+
+Como a medição é o único uso do Realtime Database no site do cidadão, [`public/index.html`](public/index.html) **não carrega** `firebase-database.js` (183 KB, 51 KB comprimido). Religar a telemetria exige **duas** mudanças juntas: ligar `METRICAS_ACESSO_PUBLICO_ATIVAS` e recolocar a tag do SDK. Só a flag não basta — `realtimeDb` fica nulo e a medição some em silêncio. Há teste automatizado cobrindo essa combinação. O painel da recepção continua carregando o SDK normalmente.
 
 A atualização pública das 08:00 usa uma chave de cache comum por minuto. Assim, os navegadores recebem a agenda atualizada sem criar uma URL única por visitante e o CDN consegue compartilhar a mesma resposta durante o pico.
 

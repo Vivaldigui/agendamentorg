@@ -62,9 +62,9 @@
         .banner-vagas.erro-agenda .status-vagas-card { background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%); border-color: #fbbf24; }
         .banner-vagas.erro-agenda .status-vagas-icone { background: white; color: #b45309; }
         .banner-vagas.erro-agenda .status-vagas-titulo { color: #92400e; }
-        .acao-atualizar-agenda { display: inline-flex; align-items: center; gap: 7px; margin-top: 12px; padding: 10px 14px; border: 1px solid #d97706; border-radius: 999px; background: white; color: #92400e; font-weight: 900; cursor: pointer; }
+        .acao-atualizar-agenda { display: inline-flex; align-items: center; justify-content: center; gap: 7px; margin-top: 12px; padding: 10px 16px; min-height: 44px; border: 1px solid #d97706; border-radius: 999px; background: white; color: #92400e; font-weight: 900; cursor: pointer; touch-action: manipulation; }
         .abas { display: flex; background: var(--gray-50); padding: 8px; gap: 8px; border-bottom: 1px solid var(--gray-200); margin: 0; }
-        .aba { flex: 1; padding: 12px 5px; cursor: pointer; border: none; background: transparent; border-radius: 10px; font-weight: 700; color: var(--gray-600); transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.85rem; touch-action: manipulation; }
+        .aba { flex: 1; padding: 12px 5px; min-height: 44px; cursor: pointer; border: none; background: transparent; border-radius: 10px; font-weight: 700; color: var(--gray-600); transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.85rem; touch-action: manipulation; }
         .aba.ativa { background: white; color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         .aba:hover:not(.ativa) { background: var(--gray-100); color: var(--gray-800); }
         .corpo-sistema { padding: 32px 30px 28px; }
@@ -79,8 +79,12 @@
         .step-linha.ativa { background: var(--primary); opacity: 0.5; }
         .step-linha.concluida { background: var(--success); }
         .loading-container { width: 100%; background: var(--gray-100); border-radius: 20px; margin: 20px 0; overflow: hidden; height: 6px; position: relative; }
-        .loading-bar { width: 35%; height: 100%; background: var(--primary); border-radius: 20px; position: absolute; animation: loading-anim 1.2s infinite; }
-        @keyframes loading-anim { 0% { left: -35%; } 100% { left: 110%; } }
+        /* Anima transform, nao left: animar left forcava layout a cada quadro, e
+           esta barra fica girando durante toda a janela de "Liberando vagas".
+           35% da largura do container = 1 largura do proprio elemento, entao
+           -35% vira translateX(-100%) e 110% vira translateX(314.3%). */
+        .loading-bar { width: 35%; height: 100%; background: var(--primary); border-radius: 20px; position: absolute; left: 0; animation: loading-anim 1.2s infinite; }
+        @keyframes loading-anim { 0% { transform: translateX(-100%); } 100% { transform: translateX(314.3%); } }
         .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; margin: 20px 0; }
         .grade-horas { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
         .btn-data, .btn-hora { padding: 16px 10px; border: 2px solid var(--gray-200); background: white; cursor: pointer; border-radius: var(--radius); text-align: center; font-weight: 700; color: var(--gray-800); font-size: 0.95rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: 0.2s; touch-action: manipulation; }
@@ -113,7 +117,7 @@
         .aviso-horario { display: block; margin-top: 5px; color: #92400e; font-size: 0.78rem; font-weight: 800; }
         .toast-agenda { position: fixed; left: 50%; bottom: calc(82px + env(safe-area-inset-bottom, 0px)); z-index: 9999; max-width: calc(100vw - 28px); padding: 10px 16px; border-radius: 999px; background: #1e293b; color: white; box-shadow: 0 10px 26px rgba(15,23,42,0.2); font-size: 0.84rem; font-weight: 800; text-align: center; transform: translateX(-50%); animation: toast-agenda-entrada 0.22s ease-out; }
         @keyframes toast-agenda-entrada { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
-        .btn-alterar { background: white; border: 1px solid var(--primary); color: var(--primary); font-weight: 700; cursor: pointer; border-radius: 8px; padding: 8px 14px; font-size: 0.85rem; }
+        .btn-alterar { background: white; border: 1px solid var(--primary); color: var(--primary); font-weight: 700; cursor: pointer; border-radius: 8px; padding: 10px 16px; min-height: 44px; font-size: 0.85rem; touch-action: manipulation; }
         .tarja-alerta { background: var(--danger-light); color: var(--danger-dark); padding: 14px 18px; border-radius: 10px; margin-bottom: 24px; font-weight: 600; font-size: 0.88rem; display: flex; align-items: center; gap: 12px; border-left: 5px solid var(--danger); }
         .btn-principal { width: 100%; padding: 18px; border: none; border-radius: 12px; font-size: 1.05rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.3s; touch-action: manipulation; }
         .btn-principal.verde { background: var(--success); color: white; }
@@ -136,15 +140,18 @@
         .checklist-docs i { color: var(--primary); margin-top: 4px; }
         .endereco-box { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 12px; padding: 16px; margin-top: 18px; color: var(--gray-800); font-size: 0.92rem; line-height: 1.5; }
         .acoes-sucesso { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+        /* Marcas em SVG inline: evita baixar a familia "brands" do Font Awesome
+           (102 KB) so por causa de dois icones. */
+        .icone-marca { width: 1.15em; height: 1.15em; flex-shrink: 0; }
         .btn-acao-sucesso { border: none; border-radius: 12px; padding: 14px 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; font-size: 0.92rem; }
         .btn-acao-sucesso.whatsapp { background: var(--success); color: white; }
         .btn-acao-sucesso.azul { background: var(--primary); color: white; }
         .btn-acao-sucesso.vermelho { background: var(--danger); color: white; }
         .btn-acao-sucesso.cinza { background: white; color: var(--gray-800); border: 2px solid var(--gray-200); }
         .atalho-cancelamento { margin: 0; padding: 12px 20px; background: #fff7ed; border-bottom: 1px solid #fed7aa; color: #9a3412; font-size: 0.86rem; font-weight: 700; display: flex; gap: 10px; align-items: center; justify-content: center; text-align: center; flex-wrap: wrap; }
-        .atalho-cancelamento button { border: 1px solid #fb923c; background: white; color: #9a3412; border-radius: 999px; padding: 7px 12px; font-weight: 900; cursor: pointer; }
+        .atalho-cancelamento button { border: 1px solid #fb923c; background: white; color: #9a3412; border-radius: 999px; padding: 10px 16px; min-height: 44px; font-weight: 900; cursor: pointer; touch-action: manipulation; }
         .atalho-documentos { margin: 0; padding: 12px 20px; background: #eff6ff; border-bottom: 1px solid #bfdbfe; color: var(--primary-dark); font-size: 0.86rem; font-weight: 700; display: flex; gap: 10px; align-items: center; justify-content: center; text-align: center; flex-wrap: wrap; }
-        .atalho-documentos button { border: 1px solid #93c5fd; background: white; color: var(--primary); border-radius: 999px; padding: 7px 12px; font-weight: 900; cursor: pointer; }
+        .atalho-documentos button { border: 1px solid #93c5fd; background: white; color: var(--primary); border-radius: 999px; padding: 10px 16px; min-height: 44px; font-weight: 900; cursor: pointer; touch-action: manipulation; }
         .atalho-cancelamento.oculto-atalho, .atalho-documentos.oculto-atalho { display: none; }
         .ticket-consulta { background: var(--gray-50); border: 1px solid var(--gray-200); border-left: 5px solid var(--primary); border-radius: 12px; padding: 22px; margin-top: 20px; }
         .ticket-consulta .data-ag { font-size: 1.6rem; font-weight: 900; color: var(--primary); display: block; margin: 10px 0 8px; }
@@ -161,8 +168,11 @@
         .modal-caixa { background: white; border-radius: 24px; padding: 36px 32px calc(36px + env(safe-area-inset-bottom, 0px)); max-width: 440px; width: 100%; text-align: center; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto; }
         .modal-icone { font-size: 3.5rem; margin-bottom: 16px; }
         #modal-mensagem { white-space: pre-line; }
-        .modal-botoes { display: flex; gap: 12px; justify-content: center; margin-top:20px; }
-        .modal-btn { padding: 14px 26px; border: none; border-radius: 12px; font-weight: 800; cursor: pointer; font-size: 0.95rem; }
+        /* Dois botoes de rotulo longo estouravam a caixa em telas de ate 320px.
+           A folga vem do padding menor no media query de 520px; a quebra de
+           linha e a rede de seguranca para rotulos maiores. */
+        .modal-botoes { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top:20px; }
+        .modal-btn { padding: 14px 26px; border: none; border-radius: 12px; font-weight: 800; cursor: pointer; font-size: 0.95rem; min-height: 44px; touch-action: manipulation; }
         .modal-btn.primario { background: var(--primary); color: white; }
         .modal-btn.sucesso { background: var(--success); color: white; }
         .modal-btn.perigo { background: var(--danger); color: white; }
@@ -194,6 +204,26 @@
             .grade { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); }
             .instagram-suporte { margin: 24px 10px 78px; padding: 22px 18px; }
             .btn-instagram { width: 100%; padding: 14px 16px; }
+            .modal-caixa { padding: 28px 20px calc(28px + env(safe-area-inset-bottom, 0px)); }
+            /* Empilhado de proposito: no celular a largura util nao cabe dois
+               rotulos longos lado a lado, e depender da quebra deixava o
+               resultado no limite do estouro. */
+            .modal-botoes { flex-direction: column; }
+            .modal-btn { padding: 14px 18px; flex: 1 1 auto; }
+        }
+
+        /* Quem pede menos movimento no sistema nao precisa de barra correndo,
+           brilho de skeleton, confete nem ripple. */
+        @media (prefers-reduced-motion: reduce) {
+            .loading-bar, .skeleton-card, .skeleton-hora, .confetti-piece,
+            .ripple-wave, .msg-sucesso-topo i.animar, .toast-agenda {
+                animation: none !important;
+            }
+            .skeleton-card, .skeleton-hora { background: var(--gray-100); }
+            .btn-data, .btn-hora, .btn-principal, .aba, .vaga-progress-fill {
+                transition: none !important;
+            }
+            .btn-data:hover:not(:disabled), .btn-hora:hover:not(:disabled) { transform: none; }
         }
 
 
@@ -261,8 +291,8 @@
 <body>
 
 <div id="modal-global" class="modal-overlay oculto">
-    <div class="modal-caixa">
-        <div id="modal-icone" class="modal-icone"></div>
+    <div class="modal-caixa" role="dialog" aria-modal="true" aria-labelledby="modal-titulo" aria-describedby="modal-mensagem" tabindex="-1">
+        <div id="modal-icone" class="modal-icone" aria-hidden="true"></div>
         <div id="modal-titulo" style="font-size: 1.3rem; font-weight: 900; margin-bottom: 12px;"></div>
         <div id="modal-mensagem" style="color: var(--gray-600); line-height: 1.6;"></div>
         <div id="modal-botoes" class="modal-botoes"></div>
@@ -277,10 +307,13 @@
 
     <div id="banner-vagas" class="banner-vagas"></div>
 
+    <!-- Abaixo de 400px o rotulo .aba-texto some e sobra so o icone. O aria-label
+         mantem o nome acessivel em qualquer largura, e o aria-pressed diz qual
+         esta ativa sem prometer a navegacao por setas do padrao de abas ARIA. -->
     <div class="abas">
-        <button class="aba ativa" id="aba-novo" title="Novo agendamento" onclick="mudarAba('novo', this)"><i class="fa-solid fa-calendar-plus"></i><span class="aba-texto">Novo</span></button>
-        <button class="aba" id="aba-consultar" title="Consultar agendamento" onclick="mudarAba('consultar', this)"><i class="fa-solid fa-magnifying-glass"></i><span class="aba-texto">Consultar</span></button>
-        <button class="aba" id="aba-cancelar" title="Cancelar agendamento" onclick="mudarAba('cancelar', this)"><i class="fa-solid fa-calendar-xmark"></i><span class="aba-texto">Cancelar</span></button>
+        <button class="aba ativa" id="aba-novo" type="button" aria-label="Novo agendamento" aria-pressed="true" title="Novo agendamento" onclick="mudarAba('novo', this)"><i class="fa-solid fa-calendar-plus" aria-hidden="true"></i><span class="aba-texto">Novo</span></button>
+        <button class="aba" id="aba-consultar" type="button" aria-label="Consultar agendamento" aria-pressed="false" title="Consultar agendamento" onclick="mudarAba('consultar', this)"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><span class="aba-texto">Consultar</span></button>
+        <button class="aba" id="aba-cancelar" type="button" aria-label="Cancelar agendamento" aria-pressed="false" title="Cancelar agendamento" onclick="mudarAba('cancelar', this)"><i class="fa-solid fa-calendar-xmark" aria-hidden="true"></i><span class="aba-texto">Cancelar</span></button>
     </div>
     <div class="atalho-cancelamento">
         <span><i class="fa-solid fa-circle-exclamation"></i> Se não puder comparecer, cancele seu horário para liberar a vaga para outra pessoa.</span>
@@ -370,7 +403,7 @@
                     <p style="margin:8px 0 0; font-size:0.95rem; color:var(--gray-800);"><i class="fa-solid fa-location-dot" style="color:var(--primary);"></i> <strong>Câmara Municipal de Itanhandu</strong></p>
                 </div>
                 <div class="acoes-sucesso">
-                    <button class="btn-acao-sucesso whatsapp" onclick="enviarConfirmacaoWhatsApp()"><i class="fa-brands fa-whatsapp"></i> Enviar no WhatsApp</button>
+                    <button class="btn-acao-sucesso whatsapp" onclick="enviarConfirmacaoWhatsApp()">Enviar no WhatsApp</button>
                     <button class="btn-acao-sucesso azul" onclick="baixarComprovante()"><i class="fa-solid fa-file-pdf"></i> Gerar comprovante PDF</button>
                     <button class="btn-acao-sucesso vermelho" onclick="abrirAbaCancelar()"><i class="fa-solid fa-calendar-xmark"></i> Cancelar horário</button>
                     <button class="btn-acao-sucesso cinza" onclick="baixarAgenda()"><i class="fa-regular fa-calendar-plus"></i> Adicionar à Agenda</button>
@@ -421,14 +454,18 @@
 <div class="instagram-suporte">
     <span class="titulo-instagram">Pra ficar por dentro de mais informações sobre o RG e a Câmara, nos siga no Instagram:</span>
     <a class="btn-instagram" href="https://www.instagram.com/camaraitanhandu/" target="_blank" rel="noopener noreferrer">
-        <i class="fa-brands fa-instagram"></i> @camaraitanhandu
+        <svg class="icone-marca" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><rect x="2.5" y="2.5" width="19" height="19" rx="5.5"/><circle cx="12" cy="12" r="4.6"/><circle cx="17.4" cy="6.6" r="1.2" fill="currentColor" stroke="none"/></svg> @camaraitanhandu
     </a>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app-check.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<!-- firebase-database.js (183 KB, 51 KB comprimido) NAO e carregado aqui: o unico
+     uso no site publico e a telemetria de presenca, hoje desligada por
+     METRICAS_ACESSO_PUBLICO_ATIVAS. Ao religar a telemetria e obrigatorio
+     recolocar esta tag, senao realtimeDb fica nulo e a medicao nao acontece.
+     O painel da recepcao continua carregando o SDK normalmente. -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
 
 <script>
@@ -444,6 +481,16 @@
     const LIMIAR_DESVIO_RELOGIO_SERVIDOR_MS = 90 * 1000;
     let DESVIO_RELOGIO_SERVIDOR_MS = 0;
     let RELOGIO_SERVIDOR_SINCRONIZADO = false;
+    // Referencia BRUTA do relogio do servidor, sem limiar. O contador regressivo
+    // continua usando o desvio conservador acima para nao tremer com ruido, mas
+    // a chave do minuto e o corte de horarios ja passados precisam do instante
+    // real: um desvio de 40 segundos e justamente o que joga o aparelho no balde
+    // errado do CDN e esconde vagas que ainda valem.
+    // So aceita fonte com precisao de segundo (cabecalho Date). O campo
+    // servidorEm e truncado no minuto e viraria ruido de ate 60 segundos.
+    const PRECISAO_MAXIMA_RELOGIO_BRUTO_MS = 1000;
+    let DESVIO_RELOGIO_SERVIDOR_BRUTO_MS = 0;
+    let RELOGIO_SERVIDOR_BRUTO_SINCRONIZADO = false;
     let atualizacaoAberturaEmCurso = null;
 
     var firebaseConfig = {
@@ -458,17 +505,97 @@
     };
 
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    if (
-        firebase.appCheck &&
-        APP_CHECK_RECAPTCHA_SITE_KEY &&
-        !APP_CHECK_RECAPTCHA_SITE_KEY.includes("COLE_AQUI")
-    ) {
-        firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
-    } else {
-        console.warn("Firebase App Check ainda nao foi ativado: informe a chave publica do reCAPTCHA v3 no index.html.");
-    }
     try { if (firebase.analytics) firebase.analytics(); } catch (e) { console.warn("Analytics indisponivel:", e); }
     var functions = firebase.functions();
+
+    // O App Check NAO e ativado no carregamento da pagina. activate() puxa o
+    // reCAPTCHA (313 KB transferidos, 763 KB de JS para interpretar), de longe
+    // o maior recurso do site, e a primeira tela nao precisa dele:
+    // /api/agenda-publica e onRequest, sem App Check. Em celular fraco esse
+    // download disputava banda e CPU justamente com a primeira pintura.
+    //
+    // Em compensacao, TODAS as callables publicas exigem App Check no backend
+    // (publicCallableOptions usa enforceAppCheck: true). Nenhuma pode sair
+    // antes de garantirAppCheckPronto() resolver, e chamarFuncao() e o unico
+    // caminho para chamar uma callable no site publico.
+    let appCheckAtivado = false;
+    let promessaAppCheckPronto = null;
+
+    function appCheckConfigurado() {
+        return Boolean(
+            firebase.appCheck &&
+            APP_CHECK_RECAPTCHA_SITE_KEY &&
+            !APP_CHECK_RECAPTCHA_SITE_KEY.includes("COLE_AQUI")
+        );
+    }
+
+    async function prepararAppCheck() {
+        if (!appCheckConfigurado()) {
+            console.warn("Firebase App Check ainda nao foi ativado: informe a chave publica do reCAPTCHA v3 no index.html.");
+            return false;
+        }
+        if (!appCheckAtivado) {
+            firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
+            appCheckAtivado = true;
+        }
+        // Espera a emissao do token: a partir daqui as callables ja saem com o
+        // cabecalho de App Check. Uma segunda tentativa cobre a falha de rede
+        // isolada, comum em celular trocando de torre.
+        try {
+            await firebase.appCheck().getToken();
+        } catch (erro) {
+            console.warn("Primeira emissao de token do App Check falhou; tentando de novo.", erro);
+            await firebase.appCheck().getToken();
+        }
+        return true;
+    }
+
+    // Ponto unico de preparacao do App Check. Idempotente: a primeira chamada
+    // dispara o carregamento do reCAPTCHA e as demais esperam a mesma promessa.
+    //
+    // ATENCAO: isto e "melhor esforco", nao uma garantia. Quando a preparacao
+    // falha a funcao resolve com false e a chamada segue mesmo assim, porque a
+    // autoridade e o backend: as callables publicas usam enforceAppCheck: true
+    // e recusam sozinhas o pedido sem token. Bloquear localmente so trocaria
+    // uma recusa do servidor por um erro nosso, sem ganho de seguranca.
+    function garantirAppCheckPronto() {
+        if (!promessaAppCheckPronto) {
+            promessaAppCheckPronto = prepararAppCheck().catch(erro => {
+                console.warn("Nao foi possivel preparar o App Check:", erro);
+                // Libera nova tentativa na proxima acao do usuario. activate()
+                // nao se repete: quem falhou foi apenas a emissao do token.
+                promessaAppCheckPronto = null;
+                return false;
+            });
+        }
+        return promessaAppCheckPronto;
+    }
+
+    // Unico caminho para chamar uma callable no site publico: a preparacao vem
+    // antes de httpsCallable para que nenhuma chamada saia sem ter esperado o
+    // token. O resultado nao bloqueia a chamada (ver comentario acima).
+    async function chamarFuncao(nome, dados) {
+        await garantirAppCheckPronto();
+        return functions.httpsCallable(nome)(dados);
+    }
+
+    // Trabalho de segundo plano: sai do caminho critico da primeira pintura.
+    function agendarQuandoOcioso(tarefa, atrasoMs = 1200) {
+        if (typeof window.requestIdleCallback === "function") {
+            window.requestIdleCallback(tarefa, { timeout: 3000 });
+        } else {
+            setTimeout(tarefa, atrasoMs);
+        }
+    }
+
+    // Depois da primeira pintura, prepara o App Check sem bloquear nada: quando
+    // o cidadao escolher um horario, o token normalmente ja esta pronto e a
+    // espera nao custa nada.
+    function aquecerAppCheckEmSegundoPlano() {
+        agendarQuandoOcioso(() => { garantirAppCheckPronto(); });
+    }
+    // Fica nulo enquanto a tag do firebase-database.js nao estiver na pagina.
+    // registrarPresencaPublica ja trata esse caso e simplesmente nao mede nada.
     var realtimeDb = firebase.database ? firebase.database() : null;
 
     const DATA_CORTE_GRADE_NOVA = "2026-08-18";
@@ -503,13 +630,24 @@
         }, erro => console.warn("Nao foi possivel observar a conexao publica.", erro));
     }
 
-    function hojeISO() {
+    // Instante do servidor estimado a partir do relogio local. Toda decisao de
+    // "que horas sao" no site publico passa por aqui.
+    function agoraServidorMs() {
+        return Date.now() + DESVIO_RELOGIO_SERVIDOR_BRUTO_MS;
+    }
+
+    // Balde de cache compartilhado da agenda publica, em minutos do servidor.
+    function minutoCompartilhadoAgenda(instanteMs = agoraServidorMs()) {
+        return Math.floor(instanteMs / 60000);
+    }
+
+    function hojeISO(instanteMs = agoraServidorMs()) {
         const partes = new Intl.DateTimeFormat("en", {
             timeZone: "America/Sao_Paulo",
             year: "numeric",
             month: "2-digit",
             day: "2-digit"
-        }).formatToParts(new Date());
+        }).formatToParts(new Date(instanteMs));
         const valores = Object.fromEntries(partes.map(parte => [parte.type, parte.value]));
         return `${valores.year}-${valores.month}-${valores.day}`;
     }
@@ -529,7 +667,7 @@
     }
 
     function agoraSaoPauloInput() {
-        return dataHoraSaoPauloInputEm(Date.now());
+        return dataHoraSaoPauloInputEm(agoraServidorMs());
     }
 
     function servidorEmSaoPauloParaMs(servidorEm) {
@@ -546,12 +684,15 @@
             && Number.isFinite(idadeNumero) && idadeNumero >= 0;
         const idadeCacheMs = idadeValida ? idadeNumero * 1000 : 0;
         const dataCabecalhoMs = Date.parse(String(dataCabecalho || ""));
-        const baseServidorMs = Number.isFinite(dataCabecalhoMs)
+        const veioDoCabecalhoDate = Number.isFinite(dataCabecalhoMs);
+        const baseServidorMs = veioDoCabecalhoDate
             ? dataCabecalhoMs
             : servidorEmSaoPauloParaMs(servidorEmFallback);
         return {
             servidorMs: Number.isFinite(baseServidorMs) ? baseServidorMs + idadeCacheMs : null,
-            respostaFresca: idadeCabecalho === null || idadeCabecalho === "" || (idadeValida && idadeNumero === 0)
+            respostaFresca: idadeCabecalho === null || idadeCabecalho === "" || (idadeValida && idadeNumero === 0),
+            // Date tem precisao de segundo; servidorEm e truncado no minuto.
+            precisaoMs: veioDoCabecalhoDate ? 1000 : 60000
         };
     }
 
@@ -561,7 +702,21 @@
         return Math.abs(desvio) > LIMIAR_DESVIO_RELOGIO_SERVIDOR_MS ? desvio : 0;
     }
 
+    // A referencia bruta usa a mesma politica de atualizacao do desvio
+    // conservador (a primeira resposta vale, depois so respostas frescas
+    // refinam), mas sem limiar e so com fonte precisa o bastante.
+    function sincronizarRelogioServidorBruto(relogioServidor, referenciaLocalMs = Date.now()) {
+        if (!relogioServidor || !Number.isFinite(relogioServidor.servidorMs)) return false;
+        if (!Number.isFinite(referenciaLocalMs)) return false;
+        if (Number(relogioServidor.precisaoMs) > PRECISAO_MAXIMA_RELOGIO_BRUTO_MS) return false;
+        if (RELOGIO_SERVIDOR_BRUTO_SINCRONIZADO && !relogioServidor.respostaFresca) return false;
+        DESVIO_RELOGIO_SERVIDOR_BRUTO_MS = relogioServidor.servidorMs - referenciaLocalMs;
+        RELOGIO_SERVIDOR_BRUTO_SINCRONIZADO = true;
+        return true;
+    }
+
     function sincronizarRelogioServidor(relogioServidor, referenciaLocalMs = Date.now()) {
+        sincronizarRelogioServidorBruto(relogioServidor, referenciaLocalMs);
         if (!relogioServidor || !Number.isFinite(relogioServidor.servidorMs)) return false;
         if (RELOGIO_SERVIDOR_SINCRONIZADO && !relogioServidor.respostaFresca) return false;
         const desvio = calcularDesvioRelogioServidor(relogioServidor.servidorMs, referenciaLocalMs);
@@ -586,6 +741,18 @@
         return Boolean(dataISO && hojeISO() >= dataISO);
     }
 
+    // Desvio usado para traduzir a hora do servidor em relogio do aparelho.
+    // Com a referencia bruta sincronizada (cabecalho Date, precisao de segundo)
+    // ela e melhor que o desvio conservador. O limiar de 90s existia para o
+    // contador nao tremer com fonte truncada no minuto, mas ignorar 70s de
+    // adiantamento faz o contador zerar cedo e a janela de 60s de retentativas
+    // terminar ANTES da abertura, deixando a recuperacao para o polling de 3min.
+    function desvioParaContador() {
+        return RELOGIO_SERVIDOR_BRUTO_SINCRONIZADO
+            ? DESVIO_RELOGIO_SERVIDOR_BRUTO_MS
+            : DESVIO_RELOGIO_SERVIDOR_MS;
+    }
+
     function alvoContadorNovasVagas(dataTexto) {
         const texto = String(dataTexto || "");
         const partesBr = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
@@ -594,7 +761,7 @@
             ? new Date(`${partesBr[3]}-${partesBr[2]}-${partesBr[1]}T08:00:00-03:00`)
             : (dataISO ? new Date(`${texto}T08:00:00-03:00`) : null);
         return alvoSaoPaulo
-            ? new Date(alvoSaoPaulo.getTime() - DESVIO_RELOGIO_SERVIDOR_MS)
+            ? new Date(alvoSaoPaulo.getTime() - desvioParaContador())
             : null;
     }
 
@@ -804,7 +971,10 @@
             // Todos os navegadores usam a mesma chave durante o mesmo minuto. Assim,
             // o primeiro acesso atualiza o CDN e os demais compartilham a resposta,
             // em vez de criarem milhares de URLs exclusivas no segundo da abertura.
-            const minutoCompartilhado = Math.floor(Date.now() / 60000);
+            // A chave vem do minuto do SERVIDOR: com o relogio local cru, cada
+            // aparelho dessincronizado cai num balde proprio e o compartilhamento
+            // do CDN se desfaz justamente no pico das 08:00.
+            const minutoCompartilhado = minutoCompartilhadoAgenda();
             const sufixo = ignorarCache ? `?atualizar-minuto=${minutoCompartilhado}` : "";
             const resposta = await fetch(`/api/agenda-publica${sufixo}`, {
                 method: "GET",
@@ -853,8 +1023,14 @@
                 renderDatas();
                 atualizarBannerVagas();
             }
-            revalidarSlotsOcupadosConfirmados(cfg)
-                .catch(e => console.warn("Nao foi possivel reconciliar slots ocupados:", e));
+            // Adiada para o tempo ocioso: a reconciliacao chama uma callable e
+            // acabaria ativando o reCAPTCHA durante a primeira pintura, que e
+            // exatamente o que o adiamento do App Check quer evitar. Nada aqui
+            // e urgente: corrige slots escondidos localmente.
+            agendarQuandoOcioso(() => {
+                revalidarSlotsOcupadosConfirmados(cfg)
+                    .catch(e => console.warn("Nao foi possivel reconciliar slots ocupados:", e));
+            });
             // Salvar no cache com expiração de 3 minutos
             try {
                 localStorage.setItem("cin_agenda_cache", JSON.stringify({
@@ -884,12 +1060,30 @@
 
     let modalOnDismiss = null;
 
-    function fecharModalGlobal() {
+    // Guarda quem tinha o foco antes do modal abrir, para devolver na saida.
+    // Isto nao e um focus trap completo: o Tab ainda alcanca o resto da pagina.
+    let focoAntesDoModal = null;
+
+    function modalEstaAberto() {
+        return !document.getElementById("modal-global").classList.contains("oculto");
+    }
+
+    function esconderModalGlobal() {
         document.getElementById("modal-global").classList.add("oculto");
+        const anterior = focoAntesDoModal;
+        focoAntesDoModal = null;
+        if (anterior && typeof anterior.focus === "function" && document.contains(anterior)) {
+            try { anterior.focus(); } catch (e) {}
+        }
+    }
+
+    function fecharModalGlobal() {
+        esconderModalGlobal();
         const aoDispensar = modalOnDismiss;
         modalOnDismiss = null;
         if (aoDispensar) aoDispensar();
     }
+
 
     function modal({ icone, titulo, mensagem, botoes, onDismiss }) {
         document.getElementById("modal-icone").innerHTML = icone || "";
@@ -898,19 +1092,27 @@
         const cont = document.getElementById("modal-botoes");
         cont.innerHTML = "";
         modalOnDismiss = onDismiss || null;
+        if (!modalEstaAberto()) focoAntesDoModal = document.activeElement;
 
         botoes.forEach(b => {
             const btn = document.createElement("button");
             btn.className = "modal-btn " + (b.classe || "primario");
+            btn.type = "button";
             btn.textContent = b.texto;
             btn.onclick = () => {
                 modalOnDismiss = null;
-                document.getElementById("modal-global").classList.add("oculto");
+                esconderModalGlobal();
                 if (b.acao) b.acao();
             };
             cont.appendChild(btn);
         });
         document.getElementById("modal-global").classList.remove("oculto");
+        // Leva o foco para dentro do dialogo: sem isto o leitor de tela continua
+        // lendo a pagina de tras e o teclado nunca alcanca os botoes.
+        const primeiro = cont.querySelector(".modal-btn") || document.querySelector(".modal-caixa");
+        if (primeiro && typeof primeiro.focus === "function") {
+            try { primeiro.focus(); } catch (e) {}
+        }
     }
 
     document.getElementById("modal-global").addEventListener("click", e => {
@@ -1052,7 +1254,7 @@
             const data = new Date(texto);
             if (!Number.isNaN(data.getTime())) {
                 return {
-                    ativo: data.getTime() > Date.now(),
+                    ativo: data.getTime() > agoraServidorMs(),
                     dataLiberacao: data.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }),
                     bloqueadoAte: data
                 };
@@ -1061,14 +1263,14 @@
         if (valor && typeof valor.toDate === "function") {
             const data = valor.toDate();
             return {
-                ativo: data.getTime() > Date.now(),
+                ativo: data.getTime() > agoraServidorMs(),
                 dataLiberacao: data.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }),
                 bloqueadoAte: data
             };
         }
         if (valor instanceof Date && !Number.isNaN(valor.getTime())) {
             return {
-                ativo: valor.getTime() > Date.now(),
+                ativo: valor.getTime() > agoraServidorMs(),
                 dataLiberacao: valor.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }),
                 bloqueadoAte: valor
             };
@@ -1086,8 +1288,7 @@
         for (let tentativa = 0; tentativa < MAX_TENTATIVAS; tentativa++) {
             try {
                 if (tentativa > 0) await new Promise(r => setTimeout(r, 1500 * tentativa));
-                const verificar = firebase.functions().httpsCallable("verificarBloqueioCpf");
-                const resposta = await verificar({ cpf: cpfLimpo });
+                const resposta = await chamarFuncao("verificarBloqueioCpf", { cpf: cpfLimpo });
                 const dados = resposta.data || {};
                 if (!dados.bloqueado) return { bloqueado: false };
                 return {
@@ -1341,7 +1542,7 @@
             <h2>Documentos necessarios</h2>
             ${documentosComprovanteHTML()}
         </div>
-        <div class="rodape">Comprovante emitido em ${new Date().toLocaleString("pt-BR")} pelo sistema de agendamento da Camara Municipal de Itanhandu.</div>
+        <div class="rodape">Comprovante emitido em ${new Date(agoraServidorMs()).toLocaleString("pt-BR")} pelo sistema de agendamento da Camara Municipal de Itanhandu.</div>
     </div>
     <div class="acoes">
         <button class="imprimir" onclick="window.print()">Imprimir / Salvar em PDF</button>
@@ -1376,7 +1577,7 @@
             "PRODID:-//Camara Itanhandu//Agendamento CIN//PT-BR",
             "BEGIN:VEVENT",
             `UID:${agendaId}@agendamento-cin-itanhandu`,
-            `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").split(".")[0]}Z`,
+            `DTSTAMP:${new Date(agoraServidorMs()).toISOString().replace(/[-:]/g, "").split(".")[0]}Z`,
             `DTSTART:${dataHoraICS(ag.dataISO, ag.hora)}`,
             `DTEND:${dataHoraICS(ag.dataISO, fim)}`,
             "SUMMARY:Atendimento RG/CIN",
@@ -1424,11 +1625,15 @@
             .forEach(atalho => atalho.classList.toggle("oculto-atalho", !mostrar));
     }
     
-    function mudarAba(aba, btn) { 
-        document.querySelectorAll('.secao').forEach(s => s.classList.remove('ativa')); 
-        document.querySelectorAll('.aba').forEach(a => a.classList.remove('ativa')); 
-        document.getElementById('secao-' + aba).classList.add('ativa'); 
+    function mudarAba(aba, btn) {
+        document.querySelectorAll('.secao').forEach(s => s.classList.remove('ativa'));
+        document.querySelectorAll('.aba').forEach(a => {
+            a.classList.remove('ativa');
+            a.setAttribute('aria-pressed', 'false');
+        });
+        document.getElementById('secao-' + aba).classList.add('ativa');
         btn.classList.add('ativa');
+        btn.setAttribute('aria-pressed', 'true');
         atualizarVisibilidadeAtalhos();
     }
 
@@ -1575,9 +1780,8 @@
 
     async function verificarDisponibilidadeSlotAtual(data, hora) {
         if (!horarioAgendamentoFuturo(data, hora)) return false;
-        const verificarSlot = firebase.functions().httpsCallable("verificarDisponibilidadeSlotCidadao");
         const sessaoId = obterSessaoVerificacaoSlot();
-        const resposta = await verificarSlot({ data, hora, sessaoId });
+        const resposta = await chamarFuncao("verificarDisponibilidadeSlotCidadao", { data, hora, sessaoId });
         const resultado = resposta && resposta.data;
         return Boolean(
             resultado
@@ -1721,7 +1925,9 @@
 
     async function tentarRefreshAppCheck() {
         try {
-            if (!firebase.appCheck || !APP_CHECK_RECAPTCHA_SITE_KEY || APP_CHECK_RECAPTCHA_SITE_KEY.includes("COLE_AQUI")) return;
+            if (!appCheckConfigurado()) return;
+            // Sem ativacao previa nao existe token para renovar; a barreira ativa.
+            await garantirAppCheckPronto();
             const ac = firebase.appCheck();
             if (typeof ac.getToken === "function") {
                 await ac.getToken(/* forceRefresh */ true);
@@ -1833,8 +2039,7 @@
                     await new Promise(r => setTimeout(r, 2000 * tentativa));
                 }
 
-                const criarAgendamento = firebase.functions().httpsCallable("criarAgendamentoCidadao");
-                const resposta = await criarAgendamento({
+                const resposta = await chamarFuncao("criarAgendamentoCidadao", {
                     nome,
                     cpf,
                     telefone: tel,
@@ -2017,8 +2222,7 @@
                     await new Promise(r => setTimeout(r, 1500 * tentativa));
                     await tentarRefreshAppCheck();
                 }
-                const consulta = firebase.functions().httpsCallable("consultarAgendamentoCidadao");
-                const resposta = await consulta({ cpf, nascimento: nascISO });
+                const resposta = await chamarFuncao("consultarAgendamentoCidadao", { cpf, nascimento: nascISO });
                 const ag = resposta.data.agendamento;
                 ultimaConsultaAgendamento = { dataISO: ag.dataISO || "", hora: ag.hora || "" };
                 res.innerHTML = `
@@ -2081,8 +2285,7 @@
                     await new Promise(r => setTimeout(r, 1500 * tentativa));
                     await tentarRefreshAppCheck();
                 }
-                const preparar = firebase.functions().httpsCallable("prepararCancelamentoCidadao");
-                respostaCancelamento = await preparar({ cpf, nascimento: nascISO });
+                respostaCancelamento = await chamarFuncao("prepararCancelamentoCidadao", { cpf, nascimento: nascISO });
                 ultimoErroCancelamento = null;
                 break;
             } catch(e) {
@@ -2127,7 +2330,9 @@
             let cancelTimerInterval = null;
             if (expiraEm) {
                 function atualizarTimerCancelamento() {
-                    const restante = Math.max(0, Math.floor((expiraEm - Date.now()) / 1000));
+                    // expiraEm vem do servidor: comparar com o relogio cru do
+                    // aparelho mostraria "tempo expirado" para quem esta adiantado.
+                    const restante = Math.max(0, Math.floor((expiraEm - agoraServidorMs()) / 1000));
                     if (restante <= 0) {
                         clearInterval(cancelTimerInterval);
                         timerEl.innerHTML = '<strong style="color:var(--danger);">⚠️ Tempo expirado. Localize o agendamento novamente.</strong>';
@@ -2152,8 +2357,7 @@
                     btn.disabled = true;
                     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CANCELANDO...';
                     try {
-                        const cancelar = firebase.functions().httpsCallable("cancelarAgendamentoCidadao");
-                        await cancelar({ token });
+                        await chamarFuncao("cancelarAgendamentoCidadao", { token });
                         desmarcarSlotIndisponivelLocalmente(ag.dataISO, ag.hora);
                         if (cancelTimerInterval) clearInterval(cancelTimerInterval);
                         modal({ icone: '<i class="fa-solid fa-circle-check" style="color:var(--success);"></i>', titulo: "Cancelado", mensagem: "Agendamento removido com sucesso.", botoes: [{ texto: "Ok", classe: "sucesso", acao: () => location.reload() }] });
@@ -2194,7 +2398,16 @@
     }
 
 
+    // Elementos decorativos sao removidos no evento animationend. Com
+    // animation: none esse evento nunca dispara e eles ficariam para sempre no
+    // DOM, entao aqui nem chegam a ser criados.
+    function movimentoReduzido() {
+        return typeof window.matchMedia === "function"
+            && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    }
+
     function dispararConfete() {
+        if (movimentoReduzido()) return;
         const cores = ['#0056b3','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#fbbf24','#f97316'];
         for (let i = 0; i < 90; i++) {
             const el = document.createElement('div');
@@ -2305,10 +2518,34 @@
         return false;
     }
 
+    // Um pedido feito enquanto a janela de 60s ainda roda nao pode simplesmente
+    // ser absorvido pela promessa em curso: e o caso do aparelho adiantado, que
+    // comeca cedo e termina a janela antes do servidor virar. Sem isto a
+    // recuperacao so viria no polling de 3 minutos.
+    let reexecutarAberturaAoTerminar = false;
+    let reexecucoesAberturaRestantes = 0;
+    const MAX_REEXECUCOES_ABERTURA = 3;
+
     function tentarAtualizarAbertura() {
-        if (atualizacaoAberturaEmCurso) return atualizacaoAberturaEmCurso;
+        if (atualizacaoAberturaEmCurso) {
+            reexecutarAberturaAoTerminar = true;
+            return atualizacaoAberturaEmCurso;
+        }
+        reexecucoesAberturaRestantes = MAX_REEXECUCOES_ABERTURA;
+        return executarCicloAbertura();
+    }
+
+    function executarCicloAbertura() {
         atualizacaoAberturaEmCurso = executarAtualizacaoAbertura().finally(() => {
             atualizacaoAberturaEmCurso = null;
+            const pedido = reexecutarAberturaAoTerminar;
+            reexecutarAberturaAoTerminar = false;
+            // So insiste enquanto nao chegou vaga nenhuma, e por um numero
+            // limitado de ciclos: depois disso o polling normal assume.
+            if (pedido && !DIAS_DISPONIVEIS.length && reexecucoesAberturaRestantes > 0) {
+                reexecucoesAberturaRestantes -= 1;
+                executarCicloAbertura();
+            }
         });
         return atualizacaoAberturaEmCurso;
     }
@@ -2333,9 +2570,34 @@
             if (!DIAS_DISPONIVEIS.length) tentarAtualizarAbertura();
             return;
         }
+        // Estrutura montada uma vez; o intervalo troca so os numeros. Recriar o
+        // innerHTML a cada segundo forcava layout do bloco inteiro sem parar,
+        // e essa tela fica aberta por horas esperando a abertura.
+        let campos = null;
+        let mostrandoDias = null;
+
+        function montarBlocos(el, comDias) {
+            const unidades = comDias ? ['dias', 'horas', 'min', 'seg'] : ['horas', 'min', 'seg'];
+            el.innerHTML = `<div class="countdown-wrap">${unidades.map(u =>
+                `<div class="countdown-bloco"><span class="countdown-num" data-unidade="${u}">00</span><span class="countdown-label">${u}</span></div>`
+            ).join('')}</div>`;
+            campos = {};
+            el.querySelectorAll('.countdown-num').forEach(span => { campos[span.dataset.unidade] = span; });
+            mostrandoDias = comDias;
+        }
+
+        function escreverUnidade(unidade, valor) {
+            const campo = campos[unidade];
+            if (!campo) return;
+            const texto = String(valor).padStart(2, '0');
+            // Horas e dias ficam parados quase o tempo todo: so escreve no DOM
+            // quando o valor realmente muda.
+            if (campo.textContent !== texto) campo.textContent = texto;
+        }
+
         function atualizar() {
             const el = document.getElementById('countdown-container');
-            if (!el) { clearInterval(window._contadorInterval); return; }
+            if (!el) { clearInterval(window._contadorInterval); window._contadorInterval = null; campos = null; return; }
             const diff = alvo - new Date();
             if (diff <= 0) {
                 clearInterval(window._contadorInterval);
@@ -2345,8 +2607,16 @@
             }
             const d = Math.floor(diff / 86400000), h = Math.floor((diff % 86400000) / 3600000);
             const m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
-            const bloco = (n, l) => `<div class="countdown-bloco"><span class="countdown-num">${String(n).padStart(2,'0')}</span><span class="countdown-label">${l}</span></div>`;
-            el.innerHTML = `<div class="countdown-wrap">${d ? bloco(d,'dias') : ''}${bloco(h,'horas')}${bloco(m,'min')}${bloco(s,'seg')}</div>`;
+            const comDias = d > 0;
+            // Remonta so quando o bloco de dias entra ou sai, ou quando outra
+            // parte da tela redesenhou o container por baixo.
+            if (mostrandoDias !== comDias || !campos || !campos.seg || !el.contains(campos.seg)) {
+                montarBlocos(el, comDias);
+            }
+            if (comDias) escreverUnidade('dias', d);
+            escreverUnidade('horas', h);
+            escreverUnidade('min', m);
+            escreverUnidade('seg', s);
         }
         atualizar();
         window._contadorInterval = setInterval(atualizar, 1000);
@@ -2358,6 +2628,8 @@
     });
 
     function inicializarRipple() {
+        // Mesmo motivo do confete: sem animationend o .ripple-wave nunca sai.
+        if (movimentoReduzido()) return;
         document.querySelectorAll('.btn-principal').forEach(btn => btn.addEventListener('click', function(e) {
             if (this.disabled) return;
             const r = document.createElement('span'); r.className = 'ripple-wave';
@@ -2383,6 +2655,7 @@
         iniciarAtualizacaoAutomatica();
         inicializarRipple();
         atualizarVisibilidadeAtalhos();
+        aquecerAppCheckEmSegundoPlano();
     })();
 </script>
 <script>

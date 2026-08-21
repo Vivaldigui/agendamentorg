@@ -187,7 +187,7 @@ test("callables publicas novas possuem limite e replay nao e ilimitado", () => {
     /aplicarRateLimitOrigem\(\s*request,\s*["']verificar_disponibilidade_slot_origem["'],\s*125,\s*10\s*\*\s*60\s*\*\s*1000,\s*`fragmento_\$\{fragmento\}`\s*\)/
   );
   assert.doesNotMatch(verificacao, /`\$\{sessaoId\}\|\$\{dataISO\}_\$\{hora\}`/);
-  assert.match(sitePublico, /verificarSlot\(\{\s*data,\s*hora,\s*sessaoId\s*\}\)/);
+  assert.match(sitePublico, /chamarFuncao\("verificarDisponibilidadeSlotCidadao",\s*\{\s*data,\s*hora,\s*sessaoId\s*\}\)/);
 
   const fingerprintInicio = backend.indexOf("function fingerprintOrigemRequisicao");
   const fingerprintFim = backend.indexOf("function fragmentoRateLimitVerificacao", fingerprintInicio);
