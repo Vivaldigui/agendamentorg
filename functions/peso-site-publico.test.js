@@ -33,25 +33,25 @@ test("nenhum icone depende da familia brands do Font Awesome", () => {
   assert.equal(/class="[^"]*\bfab\b/.test(sitePublico), false);
 });
 
-test("o Instagram usa SVG inline; o botao do WhatsApp e so texto", () => {
+test("WhatsApp e Instagram usam marca em SVG inline", () => {
   const svgs = sitePublico.match(/<svg class="icone-marca"[\s\S]*?<\/svg>/g) || [];
-  assert.equal(svgs.length, 1, "so o Instagram usa marca em SVG.");
+  assert.equal(svgs.length, 2, "esperado um SVG de marca para WhatsApp e outro para Instagram.");
 
-  const instagram = svgs[0];
-  assert.match(instagram, /viewBox="0 0 24 24"/);
-  // Decorativo: o rotulo textual do link ja diz do que se trata.
-  assert.match(instagram, /aria-hidden="true"/);
-  assert.match(instagram, /focusable="false"/);
-  // Herdar a cor evita CSS extra e funciona sobre o gradiente.
-  assert.match(instagram, /currentColor/);
+  for (const svg of svgs) {
+    assert.match(svg, /viewBox="0 0 24 24"/);
+    // Decorativo: o rotulo textual do botao ja diz do que se trata.
+    assert.match(svg, /aria-hidden="true"/);
+    assert.match(svg, /focusable="false"/);
+    // Herdar a cor evita CSS extra e funciona no fundo verde e no gradiente.
+    assert.match(svg, /currentColor/);
+    // Sem fill solido: as duas marcas sao tracadas.
+    assert.match(svg, /stroke="currentColor"/);
+  }
+
+  // Os dois destinos seguem corretos.
+  assert.match(sitePublico, /<button class="btn-acao-sucesso whatsapp"[^>]*>\s*<svg class="icone-marca"/);
   assert.match(sitePublico, /<a class="btn-instagram"[^>]*href="https:\/\/www\.instagram\.com\/camaraitanhandu\/"/);
 
-  // O botao do WhatsApp ficou sem icone por decisao de design: o rotulo basta.
-  assert.match(
-    sitePublico,
-    /<button class="btn-acao-sucesso whatsapp" onclick="enviarConfirmacaoWhatsApp\(\)">Enviar no WhatsApp<\/button>/
-  );
-
-  // Dimensionamento acompanha o texto.
+  // Dimensionamento acompanha o texto do botao.
   assert.match(sitePublico, /\.icone-marca \{[^}]*width: 1\.15em;[^}]*height: 1\.15em;/);
 });
