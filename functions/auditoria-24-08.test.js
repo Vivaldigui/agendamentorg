@@ -172,3 +172,54 @@ test("a tolerancia do nono digito nao aproxima numeros diferentes", () => {
   assert.equal(telefonesConferem("", "35999991234"), false);
   assert.equal(telefonesConferem("123", "35999991234"), false);
 });
+
+// --- Achado P2: User-Agent separava baldes de rate limit ---
+
+test("consulta e cancelamento tem teto que a rotacao de User-Agent nao contorna", () => {
+  // O limite por SHA256(ip|user-agent|cpf) continua, porque e o User-Agent que
+  // espalha a carga no pico: atras de um CGNAT, celulares do mesmo modelo
+  // cairiam no mesmo documento e disputariam a transacao. O que faltava era um
+  // teto que a rotacao do cabecalho nao reiniciasse.
+  for (const acao of ["consultar_agendamento", "preparar_cancelamento"]) {
+    const i = backend.indexOf(`"${acao}_origem"`);
+    assert.notEqual(i, -1, `${acao} precisa de teto por origem.`);
+    const chamada = backend.slice(backend.lastIndexOf("await", i), backend.indexOf(";", i));
+    assert.match(chamada, /aplicarRateLimitOrigem/, `${acao}_origem deve usar o fingerprint sem User-Agent.`);
+    assert.match(chamada, /digitosCpf\(/, "O teto por origem tambem agrupa pelo CPF normalizado.");
+  }
+});
+
+test("o fingerprint de origem realmente ignora o User-Agent", () => {
+  const corpo = backend.slice(
+    backend.indexOf("function fingerprintOrigemRequisicao("),
+    backend.indexOf("\n}", backend.indexOf("function fingerprintOrigemRequisicao(")) + 2
+  );
+  assert.doesNotMatch(corpo, /user-agent|userAgent/i, "Se o User-Agent entrar aqui, o teto some.");
+  assert.match(corpo, /ipOrigemConfiavel\(request\)/, "O IP tem de vir da fonte que ignora prefixos do cliente.");
+});
+
+test("o caminho quente do pico mantem o User-Agent, de proposito", () => {
+  // criar_agendamento e verificar_bloqueio_cpf sao caminho quente de verdade.
+  // Tirar o User-Agent deles concentraria a contencao no pico -- e o problema
+  // que o proprio projeto documenta em agenda-cache-publica.js.
+  for (const acao of ["criar_agendamento", "verificar_bloqueio_cpf"]) {
+    const i = backend.indexOf(`"${acao}"`);
+    const chamada = backend.slice(backend.lastIndexOf("await", i), backend.indexOf(";", i));
+    assert.match(chamada, /aplicarRateLimit\(/, `${acao} deve seguir no limite com User-Agent.`);
+    assert.doesNotMatch(chamada, /aplicarRateLimitOrigem/, `${acao} nao deve trocar de mecanismo perto da abertura.`);
+  }
+});
+
+// --- Aviso obsoleto quando a automacao e desligada ---
+
+test("o painel avisa que desativar a automacao nao limpa o aviso programado", () => {
+  // A automacao nao distingue aviso automatico obsoleto de aviso programado a
+  // mao -- os dois gravam o mesmo campo. Ate existir marcador de origem, a
+  // protecao e o alerta ao lado do proprio controle.
+  const painel = fs.readFileSync(path.join(raiz, "public", "recepcao.html"), "utf8");
+  const i = painel.indexOf('id="cfg-auto-ativa"');
+  assert.notEqual(i, -1, "Controle da automacao nao encontrado.");
+  const bloco = painel.slice(i, i + 1200);
+  assert.match(bloco, /desativar a automação/i, "O alerta precisa estar junto do controle que desliga.");
+  assert.match(bloco, /aviso de novas vagas/i);
+});

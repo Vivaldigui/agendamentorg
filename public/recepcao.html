@@ -1374,6 +1374,17 @@
                         <input type="checkbox" id="cfg-auto-ativa" checked>
                         Ativar abertura semanal automática
                     </label>
+                    <!-- A automacao nao consegue distinguir um aviso automatico
+                         obsoleto de um que a recepcao programou a mao: os dois
+                         gravam o mesmo campo. Por isso o alerta em vez de
+                         limpeza automatica. -->
+                    <p style="grid-column:1/-1; margin:0; padding:10px 12px; background:var(--warning-light, #fef3c7); border-left:4px solid var(--warning, #f59e0b); border-radius:6px; font-size:0.85rem; color:#92400e; line-height:1.45;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <strong>Ao desativar a automação, confira também o aviso de novas vagas.</strong>
+                        O aviso programado pela última abertura continua valendo e o site pode
+                        seguir anunciando uma data que não vai mais acontecer. Ajuste em
+                        <em>Aviso de novas vagas</em>, no modo <em>Agora</em>.
+                    </p>
                     <div class="input-group">
                         <label for="cfg-auto-hora">Horário de abertura na segunda</label>
                         <input type="time" id="cfg-auto-hora" value="08:00">

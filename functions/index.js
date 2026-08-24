@@ -1047,6 +1047,14 @@ async function localizarAgendamento(cpfInformado, nascimentoInformado, opcoes = 
 
 exports.consultarAgendamentoCidadao = onCall(publicCallableOptions, async (request) => {
   await aplicarRateLimit(request, "consultar_agendamento", 8, 10 * 60 * 1000, digitosCpf(request.data && request.data.cpf));
+  // Teto por ORIGEM, sem User-Agent na chave. O limite acima usa
+  // SHA256(ip|user-agent|cpf): o cabecalho vem do cliente, entao rotaciona-lo
+  // reinicia a contagem num documento novo. O User-Agent fica onde esta porque
+  // e ele que espalha a carga no pico -- atras de um CGNAT, celulares do mesmo
+  // modelo cairiam todos no mesmo documento e disputariam a transacao. Este
+  // segundo teto e o que a rotacao nao contorna, e vale mais alto para nao
+  // punir quem legitimamente usa celular e computador.
+  await aplicarRateLimitOrigem(request, "consultar_agendamento_origem", 20, 10 * 60 * 1000, digitosCpf(request.data && request.data.cpf));
   const encontrado = await localizarAgendamento(request.data.cpf, request.data.nascimento);
   // Campo unico no site: a pessoa digita telefone OU protocolo e as duas
   // comparacoes sao tentadas. Um telefone exige 10+ digitos e um protocolo
@@ -1325,6 +1333,14 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
 
 exports.prepararCancelamentoCidadao = onCall(publicCallableOptions, async (request) => {
   await aplicarRateLimit(request, "preparar_cancelamento", 6, 10 * 60 * 1000, digitosCpf(request.data && request.data.cpf));
+  // Teto por ORIGEM, sem User-Agent na chave. O limite acima usa
+  // SHA256(ip|user-agent|cpf): o cabecalho vem do cliente, entao rotaciona-lo
+  // reinicia a contagem num documento novo. O User-Agent fica onde esta porque
+  // e ele que espalha a carga no pico -- atras de um CGNAT, celulares do mesmo
+  // modelo cairiam todos no mesmo documento e disputariam a transacao. Este
+  // segundo teto e o que a rotacao nao contorna, e vale mais alto para nao
+  // punir quem legitimamente usa celular e computador.
+  await aplicarRateLimitOrigem(request, "preparar_cancelamento_origem", 15, 10 * 60 * 1000, digitosCpf(request.data && request.data.cpf));
   const cpfNum = normalizarCpf(request.data.cpf);
   const encontrado = await localizarAgendamento(request.data.cpf, request.data.nascimento);
   validarFatorExtra(encontrado.dados, request.data.fatorExtra, request.data.fatorExtra);
