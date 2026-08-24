@@ -437,7 +437,7 @@
             <p style="color:var(--gray-600); font-size:0.9rem; margin:0 0 20px;">Informe CPF, data de nascimento e a confirmação de segurança para ver seu agendamento.</p>
             <div class="form-grupo"><label for="cons-cpf">CPF:</label><input id="cons-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" /></div>
             <div class="form-grupo"><label for="cons-nasc">Data de Nascimento:</label><input id="cons-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" /></div>
-            <div class="form-grupo"><label for="cons-fator">Telefone ou protocolo: <span class="ajuda-campo">(telefone do agendamento ou o código CIN- do comprovante)</span></label><input id="cons-fator" maxlength="40" autocomplete="off" type="text" placeholder="(00) 00000-0000 ou CIN-XXXXXXXX" /></div>
+            <div class="form-grupo"><label for="cons-fator">Telefone ou protocolo <span style="color:var(--danger)">*</span>: <span class="ajuda-campo">(o telefone que você informou ao agendar, ou o código CIN- do comprovante)</span></label><input id="cons-fator" maxlength="40" autocomplete="off" type="text" placeholder="(00) 00000-0000 ou CIN-XXXXXXXX" /></div>
             <button class="btn-principal azul" id="btnConsultar" onclick="consultarAgendamento()">Buscar Meu Horário <i class="fa-solid fa-search"></i></button>
             <div id="resultado-consulta" style="margin-top:24px;"></div>
         </div>
@@ -447,7 +447,7 @@
             <p style="color:var(--gray-600); font-size:0.9rem; margin:0 0 20px;">Informe CPF, data de nascimento e a confirmação de segurança para localizar seu horário. Confira os dados antes de confirmar o cancelamento.</p>
             <div class="form-grupo"><label for="cancelar-cpf">CPF:</label><input id="cancelar-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" /></div>
             <div class="form-grupo"><label for="cancelar-nasc">Data de Nascimento:</label><input id="cancelar-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" /></div>
-            <div class="form-grupo"><label for="cancelar-fator">Telefone ou protocolo: <span class="ajuda-campo">(telefone do agendamento ou o código CIN- do comprovante)</span></label><input id="cancelar-fator" maxlength="40" autocomplete="off" type="text" placeholder="(00) 00000-0000 ou CIN-XXXXXXXX" /></div>
+            <div class="form-grupo"><label for="cancelar-fator">Telefone ou protocolo <span style="color:var(--danger)">*</span>: <span class="ajuda-campo">(o telefone que você informou ao agendar, ou o código CIN- do comprovante)</span></label><input id="cancelar-fator" maxlength="40" autocomplete="off" type="text" placeholder="(00) 00000-0000 ou CIN-XXXXXXXX" /></div>
             <button class="btn-principal vermelho" id="btnBuscarCancelamento" onclick="buscarParaCancelar()">Localizar Agendamento <i class="fa-solid fa-search"></i></button>
             <div id="resultado-cancelamento" style="margin-top:24px;"></div>
         </div>
@@ -2285,6 +2285,9 @@
               res=document.getElementById("resultado-consulta"),
               btn=document.getElementById("btnConsultar");
         if(cpf.length<14 || !nascISO) { aviso("Preencha o CPF e a data de nascimento corretamente."); return; }
+        // Sem isto a pessoa gastaria uma ida ao servidor para receber a mensagem
+        // generica de "nao encontrado", que nao pode dizer qual campo faltou.
+        if(!fatorExtra) { aviso("Informe o telefone do agendamento ou o código do comprovante (CIN-...)."); return; }
 
         const htmlOriginal = btn.innerHTML;
         btn.disabled = true;
@@ -2349,6 +2352,7 @@
               res=document.getElementById("resultado-cancelamento"),
               btnBusca=document.getElementById("btnBuscarCancelamento");
         if(cpf.length<14 || !nascISO) { aviso("Preencha o CPF e a data de nascimento corretamente."); return; }
+        if(!fatorExtra) { aviso("Informe o telefone do agendamento ou o código do comprovante (CIN-...)."); return; }
 
         const htmlOriginal = btnBusca.innerHTML;
         btnBusca.disabled = true;
