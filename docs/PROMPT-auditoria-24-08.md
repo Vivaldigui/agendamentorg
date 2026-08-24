@@ -61,7 +61,7 @@ Nova função pura `aberturaVigenteDaSemana` em `functions/agenda-automation.js`
 
 ### 4. App Check na retomada da aba
 
-Na abertura de hoje, **47 recusas de App Check entre 08:00 e 08:05**, todas em `verificarDisponibilidadeSlotCidadao`, zero fora dessa janela. Backend respondia `app-check/invalid-argument` ("Decoding App Check token failed") — token malformado, não expirado: quando a atestação falha, o SDK web anexa um placeholder de erro no lugar do JWT.
+Na abertura de hoje, **48 recusas de App Check**: 47 em `verificarDisponibilidadeSlotCidadao` entre 08:00 e 08:05, mais uma em `consultarAgendamentoCidadao` as 08:07. As 47 vieram de apenas **dois aparelhos** (25 e 22 tentativas), nao de 47 cidadaos. Backend respondia `app-check/invalid-argument` ("Decoding App Check token failed") — token malformado, não expirado: quando a atestação falha, o SDK web anexa um placeholder de erro no lugar do JWT.
 
 Duas causas: `erroTransiente` não classifica `unauthenticated`/`permission-denied` como transiente, então nenhum laço de retentativa existente se recuperava disso; e o navegador suspende timers de aba oculta, então o auto-refresh do token não roda enquanto a pessoa espera com o celular bloqueado.
 
@@ -82,7 +82,7 @@ Medição citada, com cache furado de propósito e `time_connect` de ~12 ms nos 
 | | Latência |
 |---|---|
 | Antes — `us-central1`, instância **quente** (`min=1`) | 0,96 / 0,90 / 0,92 / 0,88 / 0,87 s |
-| Depois — `southamerica-east1`, instância **fria** (`min=0`) | 0,79 / 0,53 / 0,44 / 0,46 / 0,46 / 0,48 s |
+| Depois — `southamerica-east1`, sem pré-aquecimento (só a 1ª amostra é candidata a fria) | 0,79 / 0,53 / 0,44 / 0,46 / 0,46 / 0,48 s |
 
 **Verifique:** a medição sustenta a conclusão, ou há variável confundida (horário, aquecimento residual, rota de rede, tamanho da resposta)? A divisão de regiões deixa algum caminho quebrado? O roteamento por nome no cliente é frágil? Faltou alguma callable na lista? Qual o efeito de as funções ficarem longe do reCAPTCHA/App Check e do CDN? Alguma implicação de LGPD ou custo em ter dados trafegando entre regiões?
 

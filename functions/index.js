@@ -209,11 +209,30 @@ function digitosTelefone(valor) {
   return String(valor || "").replace(/\D/g, "");
 }
 
+// Canonicaliza para que o MESMO numero escrito de formas diferentes confira.
+// - Tira o codigo do pais quando veio junto.
+// - Celular cadastrado com 10 digitos vira 11 com o nono digito. Desde que o
+//   telefone virou fator de acesso, essa diferenca tranca o titular: ha em
+//   producao um agendamento ativo gravado com 10 digitos, e a pessoa
+//   naturalmente digita a forma atual, de 11.
+// - Fixo (assinante comecando em 2-5) nunca ganhou nono digito e fica intacto.
+function telefoneCanonico(valor) {
+  let digitos = digitosTelefone(valor);
+  if (digitos.length > 11 && digitos.startsWith("55")) digitos = digitos.slice(2);
+  if (digitos.length === 10 && /^[6-9]/.test(digitos.slice(2))) {
+    digitos = `${digitos.slice(0, 2)}9${digitos.slice(2)}`;
+  }
+  return digitos;
+}
+
 function telefonesConferem(informado, salvo) {
-  const a = digitosTelefone(informado);
-  const b = digitosTelefone(salvo);
+  const a = telefoneCanonico(informado);
+  const b = telefoneCanonico(salvo);
   if (a.length < 10 || b.length < 10) return false;
-  return a === b || a.slice(-11) === b.slice(-11);
+  // O sufixo de 11 continua como rede para grafias que a canonicalizacao nao
+  // cobre (DDD com zero na frente, por exemplo). Nao afrouxa nada: exige os
+  // onze digitos finais iguais dos dois lados.
+  return a === b || (a.length >= 11 && b.length >= 11 && a.slice(-11) === b.slice(-11));
 }
 
 // Chave de rate limit tem de ser a MESMA para todas as grafias do mesmo CPF.

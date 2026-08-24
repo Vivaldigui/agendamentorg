@@ -27,8 +27,21 @@ test("a URL de pre-aquecimento deriva da regiao, nunca de literal", () => {
   assert.doesNotMatch(linha, /us-central1|southamerica-east1/, "Regiao fixa no texto volta a divergir na proxima migracao.");
 });
 
+// Remove comentario de linha SEM engolir o "//" de "https://". A versao
+// anterior usava backend.replace(/\/\/[^\n]*/g, "") e apagava a linha da URL
+// inteira: a trava ficava VAZIA e passava mesmo com us-central1 fixo no codigo.
+// Apontado por auditoria e verificado -- injetar uma URL literal nao reprovava.
+function semComentariosDeLinha(codigo) {
+  return codigo.split("\n").map((linha) => {
+    const i = linha.indexOf("//");
+    if (i === -1) return linha;
+    if (i > 0 && linha[i - 1] === ":") return linha; // "https://", "http://"
+    return linha.slice(0, i);
+  }).join("\n");
+}
+
 test("nenhuma URL de funcao fica com regiao fixa no backend", () => {
-  const semComentarios = backend.replace(/\/\/[^\n]*/g, "");
+  const semComentarios = semComentariosDeLinha(backend);
   assert.doesNotMatch(
     semComentarios,
     /https:\/\/[a-z0-9-]+-\$\{projectId\}\.cloudfunctions\.net/,
@@ -75,7 +88,7 @@ test("chamarFuncao marca o erro quando ja gastou a propria repeticao", () => {
 
 test("o laco de criacao respeita a marca em vez de repetir de novo", () => {
   // chamarFuncao ja faz 2 POSTs. Sem esta guarda o laco externo renovava o
-  // token e chamava outra vez: ate 4 POSTs e 3 renovacoes por acao do cidadao,
+  // token e chamava outra vez: ate 4 POSTs e 4 renovacoes por acao do cidadao
   // justamente quando o App Check ja esta sofrendo.
   const i = sitePublico.indexOf('if (codigo === "unauthenticated" || codigo === "permission-denied") {');
   assert.notEqual(i, -1, "Ramo de App Check do laco de criacao nao encontrado.");
@@ -111,4 +124,51 @@ test("nenhum documento manda chamar as funcoes do pico em us-central1", () => {
       `${doc} ainda aponta o caminho critico para us-central1.`
     );
   }
+});
+
+// --- Rodada 2 da auditoria ---
+
+test("a trava de URL literal nao e vazia: uma URL fixa injetada reprova", () => {
+  // A versao anterior desta trava passava com us-central1 fixo no codigo,
+  // porque a remocao de comentarios engolia o "//" de "https://". Aqui a
+  // propria trava e exercitada contra um defeito plantado.
+  const comDefeito = backend + "\nconst x = `https://us-central1-${projectId}.cloudfunctions.net/qualquer`;\n";
+  assert.match(
+    semComentariosDeLinha(comDefeito),
+    /https:\/\/[a-z0-9-]+-\$\{projectId\}\.cloudfunctions\.net/,
+    "A trava precisa enxergar uma URL literal; se nao enxerga, nao protege nada."
+  );
+  // E continua ignorando o que esta de fato em comentario.
+  const soComentario = 'const a = 1; // https://us-central1-${projectId}.cloudfunctions.net/x';
+  assert.doesNotMatch(
+    semComentariosDeLinha(soComentario),
+    /https:\/\/[a-z0-9-]+-\$\{projectId\}\.cloudfunctions\.net/
+  );
+});
+
+const telefonesConferem = new Function(
+  [
+    backend.slice(backend.indexOf("function digitosTelefone("), backend.indexOf("}", backend.indexOf("function digitosTelefone(")) + 1),
+    backend.slice(backend.indexOf("function telefoneCanonico("), backend.indexOf("\n}", backend.indexOf("function telefoneCanonico(")) + 2),
+    backend.slice(backend.indexOf("function telefonesConferem("), backend.indexOf("\n}", backend.indexOf("function telefonesConferem(")) + 2),
+    "return telefonesConferem;"
+  ].join("\n")
+)();
+
+test("o mesmo celular com e sem o nono digito confere", () => {
+  // Desde que o telefone virou fator de acesso, essa diferenca tranca o
+  // titular. Producao tem hoje 1 agendamento ativo gravado com 10 digitos e
+  // 39 com 11: a pessoa dos 10 digita naturalmente a forma atual.
+  assert.equal(telefonesConferem("(35) 99999-1234", "(35) 9999-1234"), true, "11 informado, 10 gravado");
+  assert.equal(telefonesConferem("(35) 9999-1234", "(35) 99999-1234"), true, "10 informado, 11 gravado");
+  assert.equal(telefonesConferem("+55 35 99999-1234", "35999991234"), true, "com codigo do pais");
+  assert.equal(telefonesConferem("035 99999-1234", "35999991234"), true, "DDD com zero na frente");
+});
+
+test("a tolerancia do nono digito nao aproxima numeros diferentes", () => {
+  assert.equal(telefonesConferem("(35) 99999-1234", "(35) 99999-4321"), false, "assinante diferente");
+  assert.equal(telefonesConferem("(35) 99999-1234", "(31) 99999-1234"), false, "DDD diferente");
+  assert.equal(telefonesConferem("(35) 3361-1234", "(35) 93361-1234"), false, "fixo nao ganha nono digito");
+  assert.equal(telefonesConferem("", "35999991234"), false);
+  assert.equal(telefonesConferem("123", "35999991234"), false);
 });

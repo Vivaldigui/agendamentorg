@@ -69,6 +69,7 @@ const validarFatorExtra = new Function(
   "ERRO_SEM_AGENDAMENTO",
   [
     extrairFuncao(backend, "digitosTelefone"),
+    extrairFuncao(backend, "telefoneCanonico"),
     extrairFuncao(backend, "telefonesConferem"),
     extrairFuncao(backend, "normalizarProtocolo"),
     extrairFuncao(backend, "validarFatorExtra"),
