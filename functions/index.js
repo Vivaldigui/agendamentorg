@@ -101,8 +101,21 @@ const PICO_MIN_INSTANCES_LEITURA = PICO_MIN_INSTANCES > 0
   ? Math.max(1, Math.ceil(PICO_MIN_INSTANCES / 2))
   : 0;
 
+// O Firestore deste projeto fica em southamerica-east1 e as Functions nasceram
+// em us-central1, entao toda leitura e escrita cruzava o continente. Medido em
+// 24/08/2026 com instancia quente e cache furado de proposito: ~880ms de
+// origem, com apenas 12ms ate a borda do CDN -- ou seja, quase tudo era ida e
+// volta ate o banco.
+//
+// So o caminho critico do pico muda de regiao. As agendadas rodam as 02:00 e
+// 07:50, onde latencia nao importa, e duplicar regiao duplicaria os jobs do
+// Cloud Scheduler, saindo da franquia de tres. Os gatilhos de RTDB nao podem
+// mudar: o banco e uma instancia firebaseio.com, presa a us-central1.
+const REGIAO_PICO = "southamerica-east1";
+
 const agendamentoPicoOptions = {
   ...publicCallableOptions,
+  region: REGIAO_PICO,
   maxInstances: 80,
   minInstances: PICO_MIN_INSTANCES,
   timeoutSeconds: 300
@@ -110,6 +123,7 @@ const agendamentoPicoOptions = {
 
 const verificacaoSlotOptions = {
   ...publicCallableOptions,
+  region: REGIAO_PICO,
   maxInstances: 50,
   minInstances: PICO_MIN_INSTANCES_LEITURA,
   timeoutSeconds: 30
@@ -831,6 +845,7 @@ async function carregarDisponibilidadePublica() {
 
 exports.carregarAgendaPublicaHttp = onRequest({
   cors: callableOptions.cors,
+  region: REGIAO_PICO,
   maxInstances: 50,
   minInstances: PICO_MIN_INSTANCES_LEITURA
 }, async (req, res) => {

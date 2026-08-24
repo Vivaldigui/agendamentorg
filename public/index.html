@@ -511,6 +511,19 @@
     try { if (firebase.analytics) firebase.analytics(); } catch (e) { console.warn("Analytics indisponivel:", e); }
     var functions = firebase.functions();
 
+    // Só o caminho crítico do pico foi para southamerica-east1, junto do
+    // Firestore: criação, verificação de vaga e a leitura pública em HTTP. As
+    // demais callables continuam em us-central1, então o site mantém os dois
+    // clientes e escolhe por nome. Chamar na região errada devolve
+    // "not-found", e é um erro que só apareceria no dia do pico.
+    var REGIAO_PICO = "southamerica-east1";
+    var CALLABLES_REGIAO_PICO = ["criarAgendamentoCidadao", "verificarDisponibilidadeSlotCidadao"];
+    var functionsPico = firebase.app().functions(REGIAO_PICO);
+
+    function clienteFunctions(nome) {
+        return CALLABLES_REGIAO_PICO.indexOf(nome) !== -1 ? functionsPico : functions;
+    }
+
     // O App Check NAO e ativado no carregamento da pagina. activate() puxa o
     // reCAPTCHA (313 KB transferidos, 763 KB de JS para interpretar), de longe
     // o maior recurso do site, e a primeira tela nao precisa dele:
@@ -592,7 +605,7 @@
     async function chamarFuncao(nome, dados) {
         await garantirAppCheckPronto();
         try {
-            return await functions.httpsCallable(nome)(dados);
+            return await clienteFunctions(nome).httpsCallable(nome)(dados);
         } catch (erro) {
             if (!erroDeAppCheck(erro)) throw erro;
             // Quando a atestacao falha, o SDK anexa um placeholder de erro no
@@ -602,7 +615,7 @@
             // primeira callable disparada por quem voltava a uma aba suspensa.
             console.warn(`App Check recusado em ${nome}; renovando o token e repetindo.`, erro);
             await tentarRefreshAppCheck();
-            return functions.httpsCallable(nome)(dados);
+            return clienteFunctions(nome).httpsCallable(nome)(dados);
         }
     }
 

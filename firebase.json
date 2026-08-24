@@ -28,7 +28,7 @@
         "source": "/api/agenda-publica",
         "function": {
           "functionId": "carregarAgendaPublicaHttp",
-          "region": "us-central1"
+          "region": "southamerica-east1"
         }
       }
     ],

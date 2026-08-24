@@ -32,7 +32,7 @@ function extrairFuncao(codigo, nome) {
 }
 
 function montarBarreira({ chave = "chave-de-teste", getTokenFalha = false, falharPrimeiroToken = false } = {}) {
-  const corpo = ["appCheckConfigurado", "prepararAppCheck", "garantirAppCheckPronto", "chamarFuncao"]
+  const corpo = ["appCheckConfigurado", "prepararAppCheck", "garantirAppCheckPronto", "clienteFunctions", "chamarFuncao"]
     .map((nome) => extrairFuncao(sitePublico, nome))
     .join("\n");
 
@@ -47,19 +47,31 @@ function montarBarreira({ chave = "chave-de-teste", getTokenFalha = false, falha
       }
     })
   };
-  const functions = {
+  // Dois clientes, como no site: o caminho critico mudou para
+  // southamerica-east1 e o resto ficou em us-central1. Registrar qual saiu e o
+  // que prova o roteamento -- chamar na regiao errada devolve not-found, e so
+  // apareceria no dia do pico.
+  const clienteFalso = (regiao) => ({
     httpsCallable: (nome) => (dados) => {
       // Registra quantos tokens ja haviam sido emitidos quando a chamada saiu.
-      registro.chamadas.push({ nome, dados, tokensQuandoSaiu: registro.getToken });
+      registro.chamadas.push({ nome, dados, regiao, tokensQuandoSaiu: registro.getToken });
       return Promise.resolve({ data: { ok: true } });
     }
-  };
+  });
+  const functions = clienteFalso("us-central1");
+  const functionsPico = clienteFalso("southamerica-east1");
+  const listaPico = JSON.parse(
+    (sitePublico.match(/var CALLABLES_REGIAO_PICO = (\[[^\]]*\])/) || [])[1]
+    || assert.fail("CALLABLES_REGIAO_PICO nao encontrada no site.")
+  );
   const consoleFalso = { warn: (...args) => registro.avisos.push(args.join(" ")) };
 
   const fabrica = new Function(
     "APP_CHECK_RECAPTCHA_SITE_KEY",
     "firebase",
     "functions",
+    "functionsPico",
+    "CALLABLES_REGIAO_PICO",
     "console",
     `
       let appCheckAtivado = false;
@@ -72,7 +84,7 @@ function montarBarreira({ chave = "chave-de-teste", getTokenFalha = false, falha
       };
     `
   );
-  return { api: fabrica(chave, firebase, functions, consoleFalso), registro };
+  return { api: fabrica(chave, firebase, functions, functionsPico, listaPico, consoleFalso), registro };
 }
 
 // ---------------------------------------------------------------------------
@@ -169,7 +181,9 @@ test("chave nao configurada avisa mas nao trava o agendamento", async () => {
 test("httpsCallable so aparece dentro de chamarFuncao", () => {
   const chamar = extrairFuncao(sitePublico, "chamarFuncao");
   assert.match(chamar, /await garantirAppCheckPronto\(\)/);
-  assert.match(chamar, /functions\.httpsCallable\(nome\)\(dados\)/);
+  // clienteFunctions escolhe a regiao pelo nome da callable: o caminho
+  // critico foi para southamerica-east1 e o resto ficou em us-central1.
+  assert.match(chamar, /clienteFunctions\(nome\)\.httpsCallable\(nome\)\(dados\)/);
   // A barreira precisa vir antes da chamada dentro da propria funcao.
   assert.ok(
     chamar.indexOf("garantirAppCheckPronto") < chamar.indexOf("httpsCallable"),

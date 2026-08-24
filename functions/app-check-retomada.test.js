@@ -69,19 +69,26 @@ const erroTransiente = new Function(
 function montarChamarFuncao({ respostas }) {
   const chamadas = [];
   let refreshes = 0;
-  const functionsFake = {
+  const clienteFake = (regiao) => ({
     httpsCallable: (nome) => (dados) => {
-      chamadas.push({ nome, dados });
+      chamadas.push({ nome, dados, regiao });
       const proxima = respostas.shift();
       if (proxima instanceof Error) return Promise.reject(proxima);
       return Promise.resolve(proxima);
     }
-  };
+  });
   const fn = new Function(
-    "functions", "garantirAppCheckPronto", "tentarRefreshAppCheck", "erroDeAppCheck", "console",
-    `${extrairFuncao(sitePublico, "chamarFuncao")}; return chamarFuncao;`
+    "functions", "functionsPico", "CALLABLES_REGIAO_PICO",
+    "garantirAppCheckPronto", "tentarRefreshAppCheck", "erroDeAppCheck", "console",
+    [
+      extrairFuncao(sitePublico, "clienteFunctions"),
+      extrairFuncao(sitePublico, "chamarFuncao"),
+      "return chamarFuncao;"
+    ].join(";\n")
   )(
-    functionsFake,
+    clienteFake("us-central1"),
+    clienteFake("southamerica-east1"),
+    LISTA_REGIAO_PICO,
     async () => true,
     async () => { refreshes += 1; },
     erroDeAppCheck,
@@ -89,6 +96,13 @@ function montarChamarFuncao({ respostas }) {
   );
   return { chamarFuncao: fn, chamadas, contarRefreshes: () => refreshes };
 }
+
+// Lista real do site: se alguem tirar uma callable dali, o teste de roteamento
+// abaixo passa a cobrir a nova realidade em vez de uma copia congelada.
+const LISTA_REGIAO_PICO = JSON.parse(
+  (sitePublico.match(/var CALLABLES_REGIAO_PICO = (\[[^\]]*\])/) || [])[1]
+  || assert.fail("CALLABLES_REGIAO_PICO nao encontrada no site.")
+);
 
 function erro(codigo) {
   const e = new Error(`falha ${codigo}`);
@@ -180,7 +194,7 @@ test("nenhuma callable publica escapa de chamarFuncao", () => {
     .replace(extrairFuncao(sitePublico, "chamarFuncao"), "");
   assert.doesNotMatch(
     foraDeChamarFuncao,
-    /functions\.httpsCallable\(/,
+    /httpsCallable\(/,
     "httpsCallable so pode aparecer dentro de chamarFuncao."
   );
 });
@@ -203,4 +217,75 @@ test("a renovacao na retomada tem guarda de tempo", () => {
   const ms = Number(match[1]);
   assert.ok(ms >= 10000, `guarda de ${ms}ms e curta demais: alternar abas geraria reCAPTCHA a toa.`);
   assert.ok(ms <= 120000, `guarda de ${ms}ms e longa demais: perderia a espera tipica pela abertura.`);
+});
+
+// ---------------------------------------------------------------------------
+// Roteamento por regiao
+//
+// O Firestore fica em southamerica-east1 e as Functions nasceram em
+// us-central1: toda leitura e escrita cruzava o continente. Medido em
+// 24/08/2026 com instancia quente e cache furado de proposito, ~880ms de
+// origem, sendo so 12ms ate a borda do CDN.
+//
+// So o caminho critico do pico mudou. Chamar uma callable na regiao errada
+// devolve not-found -- erro que so apareceria as 08:00 de uma segunda-feira.
+// ---------------------------------------------------------------------------
+
+test("as callables do pico saem por southamerica-east1", async () => {
+  for (const nome of LISTA_REGIAO_PICO) {
+    const { chamarFuncao, chamadas } = montarChamarFuncao({ respostas: [{ data: {} }] });
+    await chamarFuncao(nome, {});
+    assert.equal(chamadas[0].regiao, "southamerica-east1", `${nome} precisa sair pela regiao do Firestore.`);
+  }
+});
+
+test("as demais callables continuam em us-central1", async () => {
+  // Estas nao migraram: mudar a regiao delas exigiria tocar tambem o painel da
+  // recepcao, que nao passou por nenhuma verificacao desta mudanca.
+  for (const nome of ["consultarAgendamentoCidadao", "prepararCancelamentoCidadao",
+                      "cancelarAgendamentoCidadao", "verificarBloqueioCpf"]) {
+    const { chamarFuncao, chamadas } = montarChamarFuncao({ respostas: [{ data: {} }] });
+    await chamarFuncao(nome, {});
+    assert.equal(chamadas[0].regiao, "us-central1", `${nome} nao migrou e nao pode sair pela regiao nova.`);
+  }
+});
+
+test("a lista do site bate exatamente com o que o backend moveu", () => {
+  const backendJs = fs.readFileSync(path.join(__dirname, "index.js"), "utf8");
+  // As que ganharam region no backend, por meio das opcoes do caminho critico.
+  const opcoesComRegiao = ["agendamentoPicoOptions", "verificacaoSlotOptions"];
+  for (const opcao of opcoesComRegiao) {
+    // Recorte por indice em vez de regex: escapar chave e classe de caractere
+    // dentro de template literal e faceil de errar, e o erro seria silencioso
+    // (a trava passaria a nao verificar nada).
+    const inicio = backendJs.indexOf(`const ${opcao} = {`);
+    assert.notEqual(inicio, -1, `${opcao} nao encontrada no backend.`);
+    const bloco = backendJs.slice(inicio, backendJs.indexOf("};", inicio));
+    assert.ok(
+      bloco.includes("region: REGIAO_PICO"),
+      `${opcao} deveria declarar a regiao do pico.`
+    );
+  }
+  const declaradas = [...backendJs.matchAll(/exports\.(\w+) = onCall\((\w+)/g)]
+    .filter(([, , opcao]) => opcoesComRegiao.includes(opcao))
+    .map(([, nome]) => nome)
+    .sort();
+  assert.deepEqual(
+    [...LISTA_REGIAO_PICO].sort(),
+    declaradas,
+    "A lista do site e as callables movidas no backend divergiram: uma delas sairia na regiao errada."
+  );
+});
+
+test("a regiao do pico e a mesma do Firestore, nos dois lados", () => {
+  const backendJs = fs.readFileSync(path.join(__dirname, "index.js"), "utf8");
+  assert.match(backendJs, /const REGIAO_PICO = "southamerica-east1"/);
+  assert.match(sitePublico, /var REGIAO_PICO = "southamerica-east1"/);
+  // O rewrite do Hosting aponta a regiao da funcao HTTP: errar aqui derruba
+  // /api/agenda-publica inteiro, nao uma callable so.
+  const hosting = fs.readFileSync(path.resolve(__dirname, "..", "firebase.json"), "utf8");
+  const rewrite = JSON.parse(hosting).hosting.rewrites
+    .find((r) => r.function && r.function.functionId === "carregarAgendaPublicaHttp");
+  assert.ok(rewrite, "rewrite de /api/agenda-publica nao encontrado.");
+  assert.equal(rewrite.function.region, "southamerica-east1");
 });
