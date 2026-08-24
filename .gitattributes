@@ -1,0 +1,22 @@
+# Normalizacao de quebras de linha.
+#
+# Sem este arquivo, o mesmo conteudo chega com LF ou CRLF conforme a maquina e o
+# checkout (core.autocrlf). Isso ja reprovou trava de teste sem nada ter mudado
+# no codigo: em 24/08/2026, duas assercoes de functions/segundo-fator.test.js
+# exigiam "\n" logo apos a virgula e quebraram ao trocar de branch, porque o \r
+# ficava no caminho. Varios testes deste projeto comparam texto do proprio
+# codigo-fonte, entao a quebra de linha e assunto de correcao, nao de estilo.
+#
+# LF no repositorio para tudo que e texto; o checkout passa a ser identico em
+# qualquer plataforma.
+* text=auto eol=lf
+
+# Excecao: scripts executados pelo PowerShell no Windows ficam em CRLF, que e a
+# convencao da plataforma. Sao os scripts de pre-aquecimento, usados sob pressao
+# na manha da abertura -- nao e onde vale economizar margem de seguranca.
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+
+# Binarios: nenhuma conversao. Tratar como texto corromperia o arquivo.
+*.png binary
+*.woff2 binary
