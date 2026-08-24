@@ -400,7 +400,7 @@
                 <div class="ticket-sucesso">
                     <p style="margin:0; font-size:0.9rem; color:var(--success-dark); font-weight:600;">Seu horário confirmado:</p>
                     <span class="data-grande" id="ticket-info"></span>
-                    <p id="ticket-protocolo" style="display:none; margin:8px 0 0; font-size:0.9rem; color:var(--gray-800);"><i class="fa-solid fa-hashtag" style="color:var(--primary);"></i> Protocolo: <strong id="ticket-protocolo-valor"></strong><br><span style="font-size:0.82rem; color:var(--gray-600);">Guarde este código: ele confirma que o agendamento é seu na hora de consultar ou cancelar.</span></p>
+                    <p id="ticket-protocolo" style="display:none; margin:8px 0 0; font-size:0.9rem; color:var(--gray-800);"><i class="fa-solid fa-hashtag" style="color:var(--primary);"></i> Protocolo: <strong id="ticket-protocolo-valor"></strong><br><span style="font-size:0.82rem; color:var(--gray-600);">Guarde este código: ele é necessário para consultar ou cancelar seu agendamento.</span></p>
                     <p style="margin:8px 0 0; font-size:0.95rem; color:var(--gray-800);"><i class="fa-solid fa-location-dot" style="color:var(--primary);"></i> <strong>Câmara Municipal de Itanhandu</strong></p>
                 </div>
                 <div class="acoes-sucesso">
@@ -437,7 +437,7 @@
             <p style="color:var(--gray-600); font-size:0.9rem; margin:0 0 20px;">Informe CPF, data de nascimento e a confirmação de segurança para ver seu agendamento.</p>
             <div class="form-grupo"><label for="cons-cpf">CPF:</label><input id="cons-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" /></div>
             <div class="form-grupo"><label for="cons-nasc">Data de Nascimento:</label><input id="cons-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" /></div>
-            <div class="form-grupo"><label for="cons-fator">Telefone ou protocolo <span style="color:var(--danger)">*</span>: <span class="ajuda-campo">(o telefone que você informou ao agendar, ou o código CIN- do comprovante)</span></label><input id="cons-fator" maxlength="40" autocomplete="off" type="text" placeholder="(00) 00000-0000 ou CIN-XXXXXXXX" /></div>
+            <div class="form-grupo"><label for="cons-fator">Código do comprovante <span style="color:var(--danger)">*</span>: <span class="ajuda-campo">(o código CIN- que você recebeu ao agendar. Agendamentos feitos até 24/08/2026 não têm código: nesses, informe o telefone.)</span></label><input id="cons-fator" maxlength="40" autocomplete="off" type="text" placeholder="CIN-XXXXXXXX" /></div>
             <button class="btn-principal azul" id="btnConsultar" onclick="consultarAgendamento()">Buscar Meu Horário <i class="fa-solid fa-search"></i></button>
             <div id="resultado-consulta" style="margin-top:24px;"></div>
         </div>
@@ -447,7 +447,7 @@
             <p style="color:var(--gray-600); font-size:0.9rem; margin:0 0 20px;">Informe CPF, data de nascimento e a confirmação de segurança para localizar seu horário. Confira os dados antes de confirmar o cancelamento.</p>
             <div class="form-grupo"><label for="cancelar-cpf">CPF:</label><input id="cancelar-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" /></div>
             <div class="form-grupo"><label for="cancelar-nasc">Data de Nascimento:</label><input id="cancelar-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" /></div>
-            <div class="form-grupo"><label for="cancelar-fator">Telefone ou protocolo <span style="color:var(--danger)">*</span>: <span class="ajuda-campo">(o telefone que você informou ao agendar, ou o código CIN- do comprovante)</span></label><input id="cancelar-fator" maxlength="40" autocomplete="off" type="text" placeholder="(00) 00000-0000 ou CIN-XXXXXXXX" /></div>
+            <div class="form-grupo"><label for="cancelar-fator">Código do comprovante <span style="color:var(--danger)">*</span>: <span class="ajuda-campo">(o código CIN- que você recebeu ao agendar. Agendamentos feitos até 24/08/2026 não têm código: nesses, informe o telefone.)</span></label><input id="cancelar-fator" maxlength="40" autocomplete="off" type="text" placeholder="CIN-XXXXXXXX" /></div>
             <button class="btn-principal vermelho" id="btnBuscarCancelamento" onclick="buscarParaCancelar()">Localizar Agendamento <i class="fa-solid fa-search"></i></button>
             <div id="resultado-cancelamento" style="margin-top:24px;"></div>
         </div>
@@ -1533,7 +1533,7 @@
     function mensagemConfirmacao() {
         const ag = ultimoAgendamentoConfirmado;
         if (!ag) return "";
-        return `Ola, ${ag.nome}!\n\nSeu atendimento para emissao do RG/CIN foi agendado para ${ag.dataBR} as ${ag.hora} na Camara Municipal de Itanhandu.${ag.protocolo ? `\n\nProtocolo: ${ag.protocolo} (guarde este codigo: ele confirma que o agendamento e seu na hora de consultar ou cancelar)` : ""}\n\nSe nao puder comparecer, cancele seu horario para liberar a vaga para outra pessoa e evitar bloqueio futuro.\n\n${documentosTexto()}\n\nLocal: Camara Municipal de Itanhandu\nMapa: ${MAPS_CAMARA}`;
+        return `Ola, ${ag.nome}!\n\nSeu atendimento para emissao do RG/CIN foi agendado para ${ag.dataBR} as ${ag.hora} na Camara Municipal de Itanhandu.${ag.protocolo ? `\n\nProtocolo: ${ag.protocolo} (guarde este codigo: ele e necessario para consultar ou cancelar seu agendamento)` : ""}\n\nSe nao puder comparecer, cancele seu horario para liberar a vaga para outra pessoa e evitar bloqueio futuro.\n\n${documentosTexto()}\n\nLocal: Camara Municipal de Itanhandu\nMapa: ${MAPS_CAMARA}`;
     }
 
     // Envia para o numero do proprio cidadao, informado no agendamento.
@@ -2287,7 +2287,7 @@
         if(cpf.length<14 || !nascISO) { aviso("Preencha o CPF e a data de nascimento corretamente."); return; }
         // Sem isto a pessoa gastaria uma ida ao servidor para receber a mensagem
         // generica de "nao encontrado", que nao pode dizer qual campo faltou.
-        if(!fatorExtra) { aviso("Informe o telefone do agendamento ou o código do comprovante (CIN-...)."); return; }
+        if(!fatorExtra) { aviso("Informe o código do comprovante (CIN-...). Se o agendamento é anterior a 24/08/2026 e não tem código, informe o telefone."); return; }
 
         const htmlOriginal = btn.innerHTML;
         btn.disabled = true;
@@ -2352,7 +2352,7 @@
               res=document.getElementById("resultado-cancelamento"),
               btnBusca=document.getElementById("btnBuscarCancelamento");
         if(cpf.length<14 || !nascISO) { aviso("Preencha o CPF e a data de nascimento corretamente."); return; }
-        if(!fatorExtra) { aviso("Informe o telefone do agendamento ou o código do comprovante (CIN-...)."); return; }
+        if(!fatorExtra) { aviso("Informe o código do comprovante (CIN-...). Se o agendamento é anterior a 24/08/2026 e não tem código, informe o telefone."); return; }
 
         const htmlOriginal = btnBusca.innerHTML;
         btnBusca.disabled = true;

@@ -971,25 +971,36 @@ function validarFatorExtra(dados, telefoneInformado, protocoloInformado) {
   // inteiro seguia aberto. Em 24/08/2026 isso valia para os 40 agendamentos
   // ativos, que eram todos anteriores a gravacao de protocolo.
   //
-  // Agora o criterio e o fator que o documento de fato tem:
-  //   protocolo + telefone -> qualquer um dos dois serve
-  //   so protocolo         -> protocolo (telefonesConferem exige 10+ digitos dos dois lados)
-  //   so telefone          -> telefone
-  //   nenhum dos dois      -> recusa; o cidadao resolve pela recepcao
+  // O criterio e o fator que o documento tem, e o protocolo TEM PRECEDENCIA:
+  //   tem protocolo -> so o protocolo abre
+  //   so telefone   -> telefone (legados que nunca tiveram protocolo)
+  //   nenhum        -> recusa; o cidadao resolve pela recepcao
   //
-  // A ultima linha e a unica que tranca alguem. Conferido em producao antes de
-  // implantar: zero agendamentos ativos futuros sem protocolo e sem telefone.
+  // Por que o protocolo exclui o telefone quando ambos existem: CPF, nascimento
+  // e telefone sao TRES dados estaticos. Quem os obtiver num unico vazamento
+  // consulta e cancela sem possuir nada da vitima. O protocolo e segredo
+  // aleatorio, entregue no comprovante, no PDF e na mensagem de WhatsApp.
+  // Aceitar telefone como alternativa deixava o agendamento protegido apenas
+  // pelo elo mais fraco.
+  //
+  // Impacto medido em producao no momento da mudanca: 3 agendamentos ativos so
+  // com protocolo, 40 so com telefone, ZERO com os dois. Ou seja, ninguem com
+  // agendamento marcado perde acesso hoje -- a regra passa a valer para os
+  // agendamentos criados a partir de agora, que nascem com protocolo.
+  //
+  // Rede de seguranca de quem perder o protocolo: a recepcao localiza por CPF
+  // no painel e o protocolo aparece na propria tabela.
   const protocoloSalvo = normalizarProtocolo(dados && dados.protocolo);
   const temTelefoneSalvo = digitosTelefone(dados && dados.telefone).length >= 10;
   if (!protocoloSalvo && !temTelefoneSalvo) {
     throw new HttpsError("not-found", ERRO_SEM_AGENDAMENTO);
   }
 
-  const protocolo = normalizarProtocolo(protocoloInformado);
-  const temProtocoloValido = Boolean(protocoloSalvo) && protocolo === protocoloSalvo;
-  const temTelefoneValido = telefonesConferem(telefoneInformado, dados && dados.telefone);
+  const conferiu = protocoloSalvo
+    ? normalizarProtocolo(protocoloInformado) === protocoloSalvo
+    : telefonesConferem(telefoneInformado, dados && dados.telefone);
 
-  if (!temProtocoloValido && !temTelefoneValido) {
+  if (!conferiu) {
     throw new HttpsError("not-found", ERRO_SEM_AGENDAMENTO);
   }
 }

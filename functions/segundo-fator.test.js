@@ -16,11 +16,14 @@
 // os 40 agendamentos ativos de 24/08. Pior, um teste deste arquivo consagrava
 // esse comportamento como se fosse a intencao.
 //
-// O criterio agora e o fator que o documento de fato tem:
-//   protocolo + telefone -> qualquer um dos dois
-//   so protocolo         -> protocolo
-//   so telefone          -> telefone
-//   nenhum dos dois      -> recusa; a recepcao resolve
+// O criterio e o fator que o documento tem, com PRECEDENCIA do protocolo:
+//   tem protocolo -> so o protocolo abre
+//   so telefone   -> telefone (legados que nunca tiveram protocolo)
+//   nenhum        -> recusa; a recepcao resolve
+//
+// O telefone deixou de valer como alternativa quando existe protocolo: CPF,
+// nascimento e telefone sao tres dados estaticos, e aceitar o telefone deixava
+// o agendamento protegido pelo elo mais fraco.
 //
 // Conferido em producao antes de implantar: 3 registros so com protocolo,
 // 40 so com telefone, e ZERO sem nenhum dos dois.
@@ -119,19 +122,32 @@ test("sem protocolo e sem telefone: recusa, e a recepcao resolve", () => {
   assert.throws(() => validarFatorExtra({ telefone: "123" }, "123", "123"), /Nenhum agendamento encontrado/);
 });
 
-test("agendamento com protocolo exige telefone ou protocolo corretos", () => {
-  assert.throws(() => validarFatorExtra(NOVO, "", ""), /Nenhum agendamento encontrado/);
-  assert.throws(() => validarFatorExtra(NOVO, "(35) 98888-0000", "(35) 98888-0000"), /Nenhum agendamento encontrado/);
-  assert.throws(() => validarFatorExtra(NOVO, "CIN-ZZZ00000", "CIN-ZZZ00000"), /Nenhum agendamento encontrado/);
+test("agendamento com protocolo exige o protocolo, nao aceita fator errado", () => {
+  assert.throws(() => validarFatorExtra(AMBOS, "", ""), /Nenhum agendamento encontrado/);
+  assert.throws(() => validarFatorExtra(AMBOS, "(35) 98888-0000", "(35) 98888-0000"), /Nenhum agendamento encontrado/);
+  assert.throws(() => validarFatorExtra(AMBOS, "CIN-ZZZ00000", "CIN-ZZZ00000"), /Nenhum agendamento encontrado/);
 });
 
-test("o campo unico do site aceita tanto o telefone quanto o protocolo", () => {
+test("PRECEDENCIA: com protocolo gravado, o telefone certo NAO abre", () => {
+  // Decisao de 24/08/2026, sobre achado P1 da auditoria. Telefone e dado
+  // estatico: quem souber CPF, nascimento e telefone nao prova posse de nada.
+  // Zero agendamentos ativos tinham os dois fatores no momento da mudanca,
+  // entao ninguem com horario marcado perdeu acesso.
+  assert.throws(
+    () => validarFatorExtra(AMBOS, "(35) 99999-1234", "(35) 99999-1234"),
+    /Nenhum agendamento encontrado/,
+    "Aceitar o telefone quando ha protocolo protege pelo elo mais fraco."
+  );
+  assert.doesNotThrow(() => validarFatorExtra(AMBOS, "CIN-ABC12345", "CIN-ABC12345"));
+});
+
+test("o campo unico do site serve aos dois formatos, conforme o caso", () => {
   // O site manda o MESMO valor nas duas posicoes; cada comparacao so casa com
-  // o formato que lhe cabe.
-  assert.doesNotThrow(() => validarFatorExtra(NOVO, "(35) 99999-1234", "(35) 99999-1234"));
-  assert.doesNotThrow(() => validarFatorExtra(NOVO, "CIN-ABC12345", "CIN-ABC12345"));
-  assert.doesNotThrow(() => validarFatorExtra(NOVO, "35999991234", "35999991234"));
-  assert.doesNotThrow(() => validarFatorExtra(NOVO, "cin-abc12345", "cin-abc12345"));
+  // o formato que lhe cabe, e o caso do documento decide qual vale.
+  assert.doesNotThrow(() => validarFatorExtra(AMBOS, "CIN-ABC12345", "CIN-ABC12345"));
+  assert.doesNotThrow(() => validarFatorExtra(AMBOS, "cin-abc12345", "cin-abc12345"), "protocolo e caixa-insensivel");
+  assert.doesNotThrow(() => validarFatorExtra(SO_TEL, "(35) 99999-1234", "(35) 99999-1234"));
+  assert.doesNotThrow(() => validarFatorExtra(SO_TEL, "35999991234", "35999991234"));
 });
 
 test("o erro nao distingue fator errado de agendamento inexistente", () => {
