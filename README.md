@@ -123,7 +123,7 @@ Definidas em [`functions/index.js`](functions/index.js).
 - **Substituição por CPF**: ao agendar com um CPF que já tem agendamento ativo, o anterior é cancelado e o novo criado na mesma transação, mediante confirmação do cidadão.
 - **Retry com backoff exponencial** no backend (leituras auxiliares) e no frontend (envio do agendamento).
 - **LGPD**: anonimização automática de dados após 6 meses.
-- **Pré-aquecimento configurável** via `PICO_MIN_INSTANCES` para eventos de alta demanda.
+- **Pré-aquecimento** por mínimo de serviço do Cloud Run, ligado e desligado pelos scripts em `scripts/`, sem deploy.
 
 ---
 
@@ -161,24 +161,35 @@ Após um deploy de Hosting, force a atualização do service worker incrementand
 
 ## Preparação para picos de acesso
 
-Aberturas de agenda com hora marcada geram pico simultâneo (efeito manada). Os scripts em `scripts/` ajustam o número de instâncias "quentes" sem editar código:
+Aberturas de agenda com hora marcada geram pico simultâneo (efeito manada). Os scripts em `scripts/` mantêm **uma** instância quente em cada função do caminho crítico — `criarAgendamentoCidadao`, `carregarAgendaPublicaHttp` e `verificarDisponibilidadeSlotCidadao`.
 
 ```powershell
-# Apenas uma vez nesta máquina, antes do primeiro uso dos scripts
-npx.cmd --yes firebase-tools@15.26.0 login
-
-# ~30-45 min antes do pico — sobe minInstances
+# ~1h antes do pico
 .\scripts\preaquecer-ligar.ps1
 
-# ~1h depois — volta ao repouso
+# ~1h depois da abertura — esquecer disto é o único jeito de sair caro
 .\scripts\preaquecer-desligar.ps1
 ```
 
-O modo econômico mantém **uma** instância quente em cada função do caminho crítico — `criarAgendamentoCidadao`, `carregarAgendaPublicaHttp` e `verificarDisponibilidadeSlotCidadao` —, e os scripts fazem deploy das três.
+Os scripts usam o **mínimo de serviço do Cloud Run** (`gcloud run services update --min`), que é aplicado sem build e **sem criar revisão nova**, em segundos. Exigem `gcloud` autenticado no projeto; ao final, conferem o estado real de cada serviço com `describe` e falham alto se algum não bater.
 
-A leitura não pode mais ficar em `minInstances = 0`. Nos minutos ao redor das 08:00 a resposta pública vale 5 segundos em vez de 60, então o CDN continua absorvendo a rajada, mas passa a buscar na origem doze vezes mais. Um cold start de ~2 s numa dessas buscas cairia bem em cima da virada. A chamada leve da automação às 07:59 continua existindo, mas é complemento — não substitui a instância reservada. **Não execute outros `firebase deploy` entre ligar e desligar**, pois o pré-aquecimento seria desfeito.
+> **Não use `firebase deploy` para pré-aquecer.** Era o que os scripts faziam até 24/08/2026, e naquela abertura o deploy abortou por falta de `functions/node_modules`. Além de exigir as dependências instaladas, ele reconstrói contêineres e cria revisão nova — caro e arriscado minutos antes de uma abertura. A variável `PICO_MIN_INSTANCES` em `functions/index.js` só tem efeito num deploy completo e **não é mais o caminho em uso**.
 
-Sobre a versão do CLI: os scripts usam o Firebase CLI **global** quando ele existe no `PATH` e só caem no fallback `15.26.0` via `npx` quando não existe. Ou seja, um global desatualizado é usado silenciosamente. Confira com `firebase --version` antes do deploy e, se não for a versão homologada, atualize o global ou chame explicitamente `npx --yes firebase-tools@15.26.0 deploy ...`.
+O painel *Functions* do console do Firebase mostrará `0 / 80` mesmo com o pré-aquecimento ligado: ele lê a configuração da função, que só muda num deploy. A fonte da verdade é o Cloud Run — é o que os scripts conferem, e é onde o valor aparece.
+
+A leitura não pode ficar em escala zero. Nos minutos ao redor das 08:00 a resposta pública vale 5 segundos em vez de 60, então o CDN continua absorvendo a rajada, mas passa a buscar na origem doze vezes mais. Um cold start numa dessas buscas cairia bem em cima da virada. A chamada leve da automação às 07:59 é complemento, não substituto. **Não faça deploy entre ligar e desligar**: revisão nova desfaz o aquecimento.
+
+### Regiões
+
+Desde 24/08/2026 o caminho crítico do pico roda em **`southamerica-east1`**, junto do Firestore. As demais funções seguem em `us-central1`.
+
+| Função | Região | Por quê |
+|---|---|---|
+| `criarAgendamentoCidadao`, `verificarDisponibilidadeSlotCidadao`, `carregarAgendaPublicaHttp` | `southamerica-east1` | Ficam junto do Firestore. Medido antes e depois com cache furado de propósito: de ~0,89 s (instância quente) para ~0,46 s (instância fria) |
+| `registrarMetricasAcessoPublico`, `atualizarMetricasSaidaAcessoPublico` | `us-central1` | Gatilhos de RTDB. O banco é uma instância `firebaseio.com`, presa a `us-central1` |
+| Agendadas e administrativas | `us-central1` | Rodam às 02:00 e 07:50, onde latência de rede é irrelevante. Duplicar região duplicaria os jobs do Cloud Scheduler, saindo da franquia de três |
+
+O site mantém **dois clientes de Functions** e roteia por nome (`clienteFunctions` em `public/index.html`). Chamar uma callable na região errada devolve `not-found` — erro que só apareceria às 08:00 de uma segunda-feira. Há trava automatizada comparando a lista do site com as funções que o backend de fato moveu.
 
 As tarefas agendadas estão consolidadas em três jobs: manutenção diária, abertura semanal e anonimização mensal. Isso permanece dentro dos três jobs gratuitos do Cloud Scheduler quando a conta de faturamento não possui outros jobs. No primeiro deploy desta consolidação, confirme a exclusão das funções antigas `limparDatasPassadasAgenda`, `limparAuxiliaresExpirados` e `limparSessoesAcessoPublico`; caso contrário, seus jobs antigos continuarão existentes.
 

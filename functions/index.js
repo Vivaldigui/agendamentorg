@@ -88,9 +88,15 @@ const publicCallableOptions = {
   enforceAppCheck: true
 };
 
-// Pre-aquecimento configuravel via env var no momento do deploy (sem editar codigo no dia).
-// Repouso: escala a zero. O script economico mantem uma instancia em cada
-// funcao do caminho critico: criacao, leitura publica e verificacao de vaga.
+// ATENCAO: esta env var NAO e mais o caminho do pre-aquecimento. Ela so tem
+// efeito num `firebase deploy`, que reconstroi conteineres e cria revisao nova
+// -- caro e arriscado minutos antes de uma abertura, e que em 24/08/2026 falhou
+// por falta de functions/node_modules.
+//
+// O caminho em uso e o minimo de SERVICO do Cloud Run, aplicado sem build e sem
+// revisao nova, pelos scripts em scripts/preaquecer-*.ps1. O valor daqui fica
+// como padrao de repouso (zero) e como alternativa caso um dia o pre-aquecimento
+// precise viajar junto do deploy.
 const PICO_MIN_INSTANCES = Number(process.env.PICO_MIN_INSTANCES) || 0;
 // Qualquer pre-aquecimento tem de alcancar a LEITURA tambem. Nos minutos ao
 // redor da abertura a resposta publica vale 5s em vez de 60s: o CDN segue
