@@ -577,9 +577,33 @@
     // Unico caminho para chamar uma callable no site publico: a preparacao vem
     // antes de httpsCallable para que nenhuma chamada saia sem ter esperado o
     // token. O resultado nao bloqueia a chamada (ver comentario acima).
+    // Recusa de App Check significa que a funcao NAO executou: o pedido morreu
+    // na barreira, antes do corpo. Por isso repetir e seguro ate nas callables
+    // que gravam -- nao ha efeito colateral para duplicar.
+    //
+    // erroTransiente nao cobre estes codigos de proposito: um unauthenticated
+    // qualquer nao deve virar laco. Aqui a repeticao e unica e so acontece
+    // depois de forcar a emissao de um token novo.
+    function erroDeAppCheck(e) {
+        const codigo = codigoErroFunctions(e);
+        return codigo === "unauthenticated" || codigo === "permission-denied";
+    }
+
     async function chamarFuncao(nome, dados) {
         await garantirAppCheckPronto();
-        return functions.httpsCallable(nome)(dados);
+        try {
+            return await functions.httpsCallable(nome)(dados);
+        } catch (erro) {
+            if (!erroDeAppCheck(erro)) throw erro;
+            // Quando a atestacao falha, o SDK anexa um placeholder de erro no
+            // lugar do JWT e o backend responde "Decoding App Check token
+            // failed". Na abertura de 24/08 isso rendeu 47 recusas entre 08:00
+            // e 08:05 -- todas em verificarDisponibilidadeSlotCidadao, a
+            // primeira callable disparada por quem voltava a uma aba suspensa.
+            console.warn(`App Check recusado em ${nome}; renovando o token e repetindo.`, erro);
+            await tentarRefreshAppCheck();
+            return functions.httpsCallable(nome)(dados);
+        }
     }
 
     // Trabalho de segundo plano: sai do caminho critico da primeira pintura.
@@ -2652,9 +2676,35 @@
         window._contadorInterval = setInterval(atualizar, 1000);
     }
 
+    // O navegador suspende os timers de aba oculta, entao o auto-refresh do App
+    // Check nao roda enquanto a pessoa espera a abertura com o celular
+    // bloqueado. Ao voltar, o token em cache pode estar vencido e a renovacao
+    // correria junto com o primeiro toque no horario -- exatamente o que
+    // produziu as recusas das 08:00 de 24/08. Renovar aqui deixa o token pronto
+    // ANTES da escolha, em vez de reagir a falha depois.
+    //
+    // A guarda de tempo existe para nao gerar uma chamada ao reCAPTCHA a cada
+    // alternancia rapida de aba. So renova quando a ausencia foi longa o
+    // bastante para o token ter envelhecido sem refresh.
+    const MS_OCULTA_PARA_RENOVAR_APP_CHECK = 30000;
+    let abaOcultaDesde = 0;
+
     window.addEventListener("online", retomarAtualizacaoAbertura);
     document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible") retomarAtualizacaoAbertura();
+        if (document.visibilityState === "hidden") {
+            abaOcultaDesde = Date.now();
+            return;
+        }
+        // Checagem explicita em vez de "tudo que nao e hidden": visibilityState
+        // ainda admite prerender, e retomar a abertura ali seria trabalho fora
+        // de hora, com a pagina invisivel.
+        if (document.visibilityState === "visible") {
+            retomarAtualizacaoAbertura();
+            const ausencia = abaOcultaDesde ? Date.now() - abaOcultaDesde : 0;
+            abaOcultaDesde = 0;
+            // Melhor esforco: nao bloqueia a retomada nem a interacao seguinte.
+            if (ausencia >= MS_OCULTA_PARA_RENOVAR_APP_CHECK) tentarRefreshAppCheck();
+        }
     });
 
     function inicializarRipple() {
