@@ -117,12 +117,15 @@ test("validarFatorExtra deixou de ser codigo morto", () => {
 test("o agendamento do cidadao passa a nascer com protocolo", () => {
   const criar = extrairBlocoExport(backend, "criarAgendamentoCidadao");
   assert.match(criar, /const protocolo = gerarProtocolo\(agendamentoRef\.id\)/);
+  // \s em vez de \n literal: o repo nao tem .gitattributes, entao o mesmo
+  // arquivo chega com LF ou CRLF conforme o checkout. Exigir "\n" logo apos a
+  // virgula reprovava por causa do \r, com o codigo intacto.
   assert.match(
     criar,
-    /slotId,\n\s*protocolo,\n\s*status: "agendado"/,
+    /slotId,\s*protocolo,\s*status: "agendado"/,
     "Sem gravar o protocolo no documento, validarFatorExtra devolve cedo e nada e exigido."
   );
-  assert.match(criar, /hora,\n\s*protocolo\n\s*\},\n\s*substituiu: agendamentoSubstituido/);
+  assert.match(criar, /hora,\s*protocolo\s*\},\s*substituiu: agendamentoSubstituido/);
   assert.match(
     criar,
     /protocolo: agSlotDoc\.data\(\)\.protocolo \|\| ""/,
