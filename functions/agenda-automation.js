@@ -110,6 +110,30 @@ function proximaSemanaComAtendimento(config, depoisDeSegundaISO, limiteSemanas =
   return null;
 }
 
+// Abertura que o aviso publico deve anunciar ENQUANTO a semana ainda nao virou.
+//
+// O campo de topo `dataNovasVagas` e o fallback usado por avisoNovasVagasAtivo
+// enquanto `avisoNovasVagasProgramado.publicarEm` ainda e futuro -- ou seja,
+// exatamente entre a execucao das 07:50 e a virada das 08:00. Se ninguem o
+// atualiza, ele guarda a abertura da semana ANTERIOR, e o alvo do contador
+// regressivo nasce no passado: iniciarContadorRegressivo cai no ramo
+// `alvo <= new Date()`, nao desenha contador nenhum e ainda chama
+// tentarAtualizarAbertura() as 07:50 -- dez minutos antes de haver publicacao.
+// O texto do banner nao denuncia nada: na manha da propria abertura ele diz
+// "Novas vagas em breve" com data certa ou errada.
+//
+// Semana normal: a propria segunda. Semana pausada ou toda bloqueada: a
+// proxima que tenha atendimento. Automacao desligada: string vazia, porque o
+// aviso volta a ser controle manual da recepcao.
+function aberturaVigenteDaSemana(config, segundaISO) {
+  const cfg = normalizarAutomacaoSemanal(config);
+  if (!cfg.ativa) return "";
+  const plano = planoSemana(cfg, segundaISO);
+  if (plano.datas.length) return plano.segunda;
+  const proxima = proximaSemanaComAtendimento(cfg, segundaISO);
+  return proxima ? proxima.segunda : "";
+}
+
 module.exports = {
   DIAS_ATENDIMENTO_PADRAO,
   HORA_ABERTURA_PADRAO,
@@ -120,5 +144,6 @@ module.exports = {
   normalizarAutomacaoSemanal,
   dataBloqueada,
   planoSemana,
-  proximaSemanaComAtendimento
+  proximaSemanaComAtendimento,
+  aberturaVigenteDaSemana
 };

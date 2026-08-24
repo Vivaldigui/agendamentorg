@@ -11,7 +11,8 @@ const {
   segundaDaSemanaISO,
   normalizarAutomacaoSemanal,
   planoSemana,
-  proximaSemanaComAtendimento
+  proximaSemanaComAtendimento,
+  aberturaVigenteDaSemana
 } = require("./agenda-automation");
 const {
   HORARIOS_NOVOS,
@@ -46,7 +47,6 @@ function obterRealtimeDb() {
   return _realtimeDb;
 }
 const CANCELAMENTO_TTL_MS = 30 * 60 * 1000;
-const DIAS_INICIAIS = ["2026-06-02", "2026-06-03", "2026-06-09", "2026-06-10", "2026-06-11", "2026-06-12", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-19", "2026-06-30", "2026-07-01", "2026-07-02", "2026-07-03", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24", "2026-07-28", "2026-07-29", "2026-07-30"];
 const DATA_NOVAS_VAGAS_PADRAO = "01/06/2026";
 const STATUS_VALIDOS = [
   "agendado",
@@ -394,6 +394,7 @@ function respostaPublica(dados) {
     dataISO: dados.dataISO || "",
     dataBR: dataBr(dados.dataISO),
     hora: dados.hora || "",
+    protocolo: dados.protocolo || "",
     status: STATUS_VALIDOS.includes(dados.status) ? dados.status : "agendado"
   };
 }
@@ -695,7 +696,12 @@ async function anonimizarDadosAntigosLGPD() {
 // precisam cair do mesmo lado da virada das 08:00.
 function processarAgenda(dadosBrutos, agora = agoraSaoPauloInput(), hoje = hojeSaoPauloISO()) {
   const agenda = dadosBrutos || {};
-  const dias = Array.isArray(agenda.dias) && agenda.dias.length ? agenda.dias : DIAS_INICIAIS;
+  // Agenda vazia significa agenda fechada, nunca "use uma lista embutida". O
+  // fallback anterior (DIAS_INICIAIS) so era inofensivo porque todas as suas
+  // datas ja tinham passado: bastava alguem colar uma data futura ali para o
+  // site publicar vagas que a recepcao nunca cadastrou. E `dias` fica vazio
+  // todo fim de semana, entao esse caminho e percorrido o tempo todo.
+  const dias = Array.isArray(agenda.dias) ? agenda.dias : [];
   const publicacaoDatas = normalizarPublicacaoDatas(agenda.publicacaoDatas);
   return {
     dias: dias.filter((dia) => typeof dia === "string" && dia >= hoje && (!publicacaoDatas[dia] || publicacaoDatas[dia] <= agora)).sort(),
@@ -959,6 +965,10 @@ async function localizarAgendamento(cpfInformado, nascimentoInformado, opcoes = 
 exports.consultarAgendamentoCidadao = onCall(publicCallableOptions, async (request) => {
   await aplicarRateLimit(request, "consultar_agendamento", 8, 10 * 60 * 1000, String(request.data && request.data.cpf || ""));
   const encontrado = await localizarAgendamento(request.data.cpf, request.data.nascimento);
+  // Campo unico no site: a pessoa digita telefone OU protocolo e as duas
+  // comparacoes sao tentadas. Um telefone exige 10+ digitos e um protocolo
+  // comeca por CIN-, entao nao ha como um valor casar pelo criterio errado.
+  validarFatorExtra(encontrado.dados, request.data.fatorExtra, request.data.fatorExtra);
   validarAgendamentoPublicoFuturo(encontrado.dados, "Este agendamento ja passou do horario e nao pode mais ser consultado pelo site.");
   return {
     encontrado: true,
@@ -1058,6 +1068,10 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
 
   const criado = new Date().toISOString();
   const agendamentoRef = db.collection("dados_cidadaos").doc();
+  // Segundo fator do agendamento do cidadao. Sem protocolo gravado,
+  // validarFatorExtra devolve cedo e CPF + nascimento continuam bastando para
+  // consultar e cancelar o agendamento de qualquer pessoa.
+  const protocolo = gerarProtocolo(agendamentoRef.id);
   const slotRef = db.collection("vagas_ocupadas").doc(slotId);
   const cpfRef = db.collection("cpfs_agendados").doc(cpfHashId);
   const cpfLegadoRef = db.collection("cpfs_agendados").doc(cpfNum);
@@ -1112,7 +1126,8 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
             id: agSlotDoc.id,
             dataISO,
             dataBR: dataBr(dataISO),
-            hora
+            hora,
+            protocolo: agSlotDoc.data().protocolo || ""
           },
           substituiu: null
         };
@@ -1187,7 +1202,8 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
         id: agendamentoRef.id,
         dataISO,
         dataBR: dataBr(dataISO),
-        hora
+        hora,
+        protocolo
       },
       substituiu: agendamentoSubstituido
     };
@@ -1203,6 +1219,7 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
       dataISO,
       hora,
       slotId,
+      protocolo,
       status: "agendado",
       criado,
       statusAtualizadoEm: criado
@@ -1227,6 +1244,7 @@ exports.prepararCancelamentoCidadao = onCall(publicCallableOptions, async (reque
   await aplicarRateLimit(request, "preparar_cancelamento", 6, 10 * 60 * 1000, String(request.data && request.data.cpf || ""));
   const cpfNum = normalizarCpf(request.data.cpf);
   const encontrado = await localizarAgendamento(request.data.cpf, request.data.nascimento);
+  validarFatorExtra(encontrado.dados, request.data.fatorExtra, request.data.fatorExtra);
   validarAgendamentoPublicoFuturo(encontrado.dados, "Este agendamento ja passou do horario e nao pode mais ser cancelado pelo site.");
   const token = crypto.randomBytes(32).toString("hex");
   const expiraEm = Timestamp.fromMillis(Date.now() + CANCELAMENTO_TTL_MS);
@@ -1708,6 +1726,16 @@ exports.prepararAgendaSemanalAutomatica = onSchedule({
         publicarEm: plano.publicarEm
       };
     }
+
+    // O aviso programado acima so passa a valer as 08:00. Entre esta execucao e
+    // a virada, avisoNovasVagasAtivo cai no campo de topo -- que ninguem
+    // atualizava e por isso guardava a abertura da semana anterior. Resultado
+    // observado das 07:50 as 07:59: alvo do contador no passado, contador
+    // sumido da tela e tentarAtualizarAbertura() disparando dez minutos cedo,
+    // nos minutos de maior audiencia da semana. Escrever a abertura vigente
+    // fecha a janela.
+    const aberturaVigente = aberturaVigenteDaSemana(automacao, segunda);
+    if (aberturaVigente) atualizacao.dataNovasVagas = dataBr(aberturaVigente);
 
     t.set(agendaRef, atualizacao, { merge: true });
     resultado = {

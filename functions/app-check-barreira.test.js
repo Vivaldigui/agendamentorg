@@ -133,7 +133,12 @@ test("a preparacao e melhor esforco: falhar nao bloqueia, mas tenta o token duas
   // token e o backend, com enforceAppCheck: true.
   const chamar = extrairFuncao(sitePublico, "chamarFuncao");
   assert.equal(/if\s*\(\s*await garantirAppCheckPronto\(\)/.test(chamar), false);
-  assert.equal(/throw/.test(chamar), false);
+  // O unico throw admitido e o repasse do erro da propria callable, de que
+  // quem chamou depende para distinguir vaga tomada de falha tecnica. O que
+  // segue proibido e derrubar a chamada por causa da PREPARACAO do App Check:
+  // essa decisao e do backend, com enforceAppCheck: true.
+  const lancamentos = chamar.match(/throw\s+[^;]+;/g) || [];
+  assert.deepEqual(lancamentos, ["throw erro;"], "chamarFuncao so pode repassar o erro da callable.");
 
   const preparar = extrairFuncao(sitePublico, "prepararAppCheck");
   assert.equal((preparar.match(/getToken\(\)/g) || []).length, 2, "uma segunda tentativa de token.");
@@ -171,11 +176,14 @@ test("httpsCallable so aparece dentro de chamarFuncao", () => {
     "garantirAppCheckPronto deve ser aguardado antes de httpsCallable."
   );
 
-  // Fora de chamarFuncao (e do comentario que a explica) nao pode haver
-  // nenhuma outra invocacao: e isso que impede um call site futuro de esquecer
-  // a barreira.
-  const ocorrencias = sitePublico.split("\n").filter((linha) => /httpsCallable\(/.test(linha));
-  assert.equal(ocorrencias.length, 1, `httpsCallable deveria aparecer so em chamarFuncao: ${ocorrencias.join(" | ")}`);
+  // Fora de chamarFuncao nao pode haver nenhuma invocacao: e isso que impede um
+  // call site futuro de esquecer a barreira. Dentro dela o numero de chamadas
+  // e livre -- a recuperacao de recusa de App Check repete a callable uma vez
+  // depois de forcar token novo, e contar linhas globalmente reprovava isso
+  // sem que nada da barreira tivesse afrouxado.
+  const fora = sitePublico.replace(chamar, "");
+  const ocorrenciasFora = fora.split("\n").filter((linha) => /httpsCallable\(/.test(linha));
+  assert.equal(ocorrenciasFora.length, 0, `httpsCallable fora de chamarFuncao: ${ocorrenciasFora.join(" | ")}`);
 });
 
 test("App Check nao e ativado no carregamento da pagina", () => {
