@@ -216,6 +216,14 @@ function telefonesConferem(informado, salvo) {
   return a === b || a.slice(-11) === b.slice(-11);
 }
 
+// Chave de rate limit tem de ser a MESMA para todas as grafias do mesmo CPF.
+// Passar o texto cru deixava "529...", "a529..." e "529.xxx.xxx-xx" em baldes
+// diferentes, e o limite de consulta/cancelamento era contornavel so mudando a
+// pontuacao. Nao valida nem lanca: aqui so interessa agrupar.
+function digitosCpf(valor) {
+  return String(valor || "").replace(/\D/g, "");
+}
+
 function normalizarProtocolo(valor) {
   return String(valor || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "");
 }
@@ -984,7 +992,7 @@ async function localizarAgendamento(cpfInformado, nascimentoInformado, opcoes = 
 }
 
 exports.consultarAgendamentoCidadao = onCall(publicCallableOptions, async (request) => {
-  await aplicarRateLimit(request, "consultar_agendamento", 8, 10 * 60 * 1000, String(request.data && request.data.cpf || ""));
+  await aplicarRateLimit(request, "consultar_agendamento", 8, 10 * 60 * 1000, digitosCpf(request.data && request.data.cpf));
   const encontrado = await localizarAgendamento(request.data.cpf, request.data.nascimento);
   // Campo unico no site: a pessoa digita telefone OU protocolo e as duas
   // comparacoes sao tentadas. Um telefone exige 10+ digitos e um protocolo
@@ -1262,7 +1270,7 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
 });
 
 exports.prepararCancelamentoCidadao = onCall(publicCallableOptions, async (request) => {
-  await aplicarRateLimit(request, "preparar_cancelamento", 6, 10 * 60 * 1000, String(request.data && request.data.cpf || ""));
+  await aplicarRateLimit(request, "preparar_cancelamento", 6, 10 * 60 * 1000, digitosCpf(request.data && request.data.cpf));
   const cpfNum = normalizarCpf(request.data.cpf);
   const encontrado = await localizarAgendamento(request.data.cpf, request.data.nascimento);
   validarFatorExtra(encontrado.dados, request.data.fatorExtra, request.data.fatorExtra);
@@ -1775,7 +1783,12 @@ exports.prepararAgendaSemanalAutomatica = onSchedule({
   // paga o cold start. Falha aqui nao impede a abertura da agenda.
   try {
     const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || "agendamento-cin-itanhandu";
-    const url = `https://us-central1-${projectId}.cloudfunctions.net/carregarAgendaPublicaHttp?preaquecer=${encodeURIComponent(agora)}`;
+    // A regiao vem de REGIAO_PICO, nao de literal: carregarAgendaPublicaHttp
+    // mudou para southamerica-east1 em 24/08/2026 e esta URL ficou apontando
+    // para us-central1, que responde 404. O aquecimento das 07:50/07:55/07:59
+    // nao aquecia nada, e como a falha so gravava leituraPreaquecida=false a
+    // funcao terminava normal -- saudavel no Scheduler, inutil na pratica.
+    const url = `https://${REGIAO_PICO}-${projectId}.cloudfunctions.net/carregarAgendaPublicaHttp?preaquecer=${encodeURIComponent(agora)}`;
     const resposta = await fetch(url, {
       headers: { "User-Agent": "agenda-automacao-preaquecimento" },
       signal: AbortSignal.timeout(10000)

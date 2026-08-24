@@ -94,7 +94,7 @@ Use a data e o horário exclusivos criados pelo script de carga inicial.
 
 ```powershell
 $env:CONFIRM_HOMOLOGATION = "SIM"
-$env:FUNCTION_URL = "https://us-central1-cin-itanhandu-homolog.cloudfunctions.net/criarAgendamentoCidadao"
+$env:FUNCTION_URL = "https://southamerica-east1-cin-itanhandu-homolog.cloudfunctions.net/criarAgendamentoCidadao"
 $env:PROJECT_NUMBER = "..."
 $env:APP_ID = "..."
 $env:API_KEY = "..."

@@ -615,7 +615,17 @@
             // primeira callable disparada por quem voltava a uma aba suspensa.
             console.warn(`App Check recusado em ${nome}; renovando o token e repetindo.`, erro);
             await tentarRefreshAppCheck();
-            return clienteFunctions(nome).httpsCallable(nome)(dados);
+            try {
+                return await clienteFunctions(nome).httpsCallable(nome)(dados);
+            } catch (segundo) {
+                // Marca que a repeticao de App Check ja foi gasta aqui dentro.
+                // Sem isso o laco externo de confirmarAgendamento renovava o
+                // token e chamava de novo, somando ate QUATRO POSTs e tres
+                // renovacoes por acao do cidadao -- justamente quando o App
+                // Check ja esta sofrendo. O erro sobe intacto no resto.
+                if (erroDeAppCheck(segundo)) segundo.appCheckJaRepetido = true;
+                throw segundo;
+            }
         }
     }
 
@@ -2177,6 +2187,9 @@
                 if (["already-exists", "invalid-argument", "failed-precondition", "resource-exhausted"].includes(codigo)) break;
                 // Erro de App Check: tentar refresh e retentar
                 if (codigo === "unauthenticated" || codigo === "permission-denied") {
+                    // chamarFuncao ja renovou o token e repetiu uma vez. Insistir
+                    // aqui so multiplica POSTs sem mudar o resultado.
+                    if (e && e.appCheckJaRepetido) break;
                     await tentarRefreshAppCheck();
                     if (tentativa >= 1) break; // só retenta 1x para App Check
                     continue;

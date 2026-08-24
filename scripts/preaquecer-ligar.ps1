@@ -77,7 +77,16 @@ Write-Host ""
 Write-Host "==> Conferindo o estado real de cada servico:" -ForegroundColor Cyan
 $problemas = 0
 foreach ($servico in $servicos) {
-    $min = (Invoke-Gcloud @("run","services","describe",$servico,"--project",$projeto,"--region",$regiao,"--format=value(metadata.annotations['run.googleapis.com/minScale'])")).Saida
+    # Checar o codigo de saida importa mais aqui do que parece: no desligar, o
+    # valor esperado e string VAZIA. Um describe que falha tambem devolve vazio,
+    # e sem esta guarda o script imprimiria "PRONTO" sem ter conferido nada.
+    $consulta = Invoke-Gcloud @("run","services","describe",$servico,"--project",$projeto,"--region",$regiao,"--format=value(metadata.annotations['run.googleapis.com/minScale'])")
+    if ($consulta.Codigo -ne 0) {
+        Write-Host "    $servico -> FALHA ao consultar o estado" -ForegroundColor Red
+        $problemas++
+        continue
+    }
+    $min = $consulta.Saida
     if ($min -eq "1") {
         Write-Host "    $servico -> min=1" -ForegroundColor Green
     } else {

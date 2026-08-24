@@ -149,8 +149,15 @@ test("a preparacao e melhor esforco: falhar nao bloqueia, mas tenta o token duas
   // quem chamou depende para distinguir vaga tomada de falha tecnica. O que
   // segue proibido e derrubar a chamada por causa da PREPARACAO do App Check:
   // essa decisao e do backend, com enforceAppCheck: true.
+  // Os dois lancamentos repassam o erro da propria callable: `erro` na primeira
+  // recusa que nao e de App Check, `segundo` quando a repeticao tambem falha.
+  // O que segue proibido e lancar por causa da PREPARACAO do App Check.
   const lancamentos = chamar.match(/throw\s+[^;]+;/g) || [];
-  assert.deepEqual(lancamentos, ["throw erro;"], "chamarFuncao so pode repassar o erro da callable.");
+  assert.deepEqual(
+    lancamentos,
+    ["throw erro;", "throw segundo;"],
+    "chamarFuncao so pode repassar erros vindos da callable."
+  );
 
   const preparar = extrairFuncao(sitePublico, "prepararAppCheck");
   assert.equal((preparar.match(/getToken\(\)/g) || []).length, 2, "uma segunda tentativa de token.");

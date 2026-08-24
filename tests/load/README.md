@@ -41,7 +41,7 @@ Cadastre no painel de homologação uma data futura e um horário exclusivos par
 
 ```powershell
 $env:CONFIRM_HOMOLOGATION = "SIM"
-$env:FUNCTION_URL = "https://us-central1-SEU-PROJETO.cloudfunctions.net/criarAgendamentoCidadao"
+$env:FUNCTION_URL = "https://southamerica-east1-SEU-PROJETO.cloudfunctions.net/criarAgendamentoCidadao"
 $env:PROJECT_NUMBER = "NUMERO_DO_PROJETO"
 $env:APP_ID = "ID_DO_APP_WEB"
 $env:API_KEY = "CHAVE_PUBLICA_DO_APP_WEB"

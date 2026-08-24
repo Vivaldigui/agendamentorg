@@ -1,0 +1,114 @@
+"use strict";
+
+// Travas dos achados da auditoria independente de 24/08/2026, feita depois de
+// as mudancas do dia ja estarem em producao. Cada teste aqui corresponde a um
+// defeito confirmado por leitura de codigo e por consulta a producao.
+
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+
+const raiz = path.resolve(__dirname, "..");
+const backend = fs.readFileSync(path.join(__dirname, "index.js"), "utf8");
+const sitePublico = fs.readFileSync(path.join(raiz, "public", "index.html"), "utf8");
+const desligar = fs.readFileSync(path.join(raiz, "scripts", "preaquecer-desligar.ps1"), "utf8");
+
+// --- Achado 4: pre-aquecimento da automacao apontava para a regiao removida ---
+
+test("a URL de pre-aquecimento deriva da regiao, nunca de literal", () => {
+  // Apos mover carregarAgendaPublicaHttp para southamerica-east1, esta URL
+  // continuou em us-central1 e passou a responder 404. A falha era silenciosa:
+  // so gravava leituraPreaquecida=false e a funcao terminava normal, entao os
+  // aquecimentos de 07:50/07:55/07:59 pareciam saudaveis no Scheduler.
+  const linha = backend.split("\n").find((l) => l.includes("cloudfunctions.net"));
+  assert.ok(linha, "URL de pre-aquecimento nao encontrada.");
+  assert.match(linha, /\$\{REGIAO_PICO\}-\$\{projectId\}/, "A regiao precisa vir de REGIAO_PICO.");
+  assert.doesNotMatch(linha, /us-central1|southamerica-east1/, "Regiao fixa no texto volta a divergir na proxima migracao.");
+});
+
+test("nenhuma URL de funcao fica com regiao fixa no backend", () => {
+  const semComentarios = backend.replace(/\/\/[^\n]*/g, "");
+  assert.doesNotMatch(
+    semComentarios,
+    /https:\/\/[a-z0-9-]+-\$\{projectId\}\.cloudfunctions\.net/,
+    "Regiao literal em URL de funcao: e exatamente o que quebrou o pre-aquecimento."
+  );
+});
+
+// --- Achado 7: chave de rate limit aceitava grafias diferentes do mesmo CPF ---
+
+const digitosCpf = new Function(`${backend.slice(
+  backend.indexOf("function digitosCpf("),
+  backend.indexOf("}", backend.indexOf("function digitosCpf(")) + 1
+)}; return digitosCpf;`)();
+
+test("grafias diferentes do mesmo CPF caem no mesmo balde", () => {
+  const esperado = "52998224725";
+  for (const grafia of ["52998224725", "529.982.247-25", "a52998224725", " 529 982 247 25 ", "529982247-25"]) {
+    assert.equal(digitosCpf(grafia), esperado, `"${grafia}" deveria normalizar para o mesmo balde.`);
+  }
+  assert.equal(digitosCpf(null), "");
+  assert.equal(digitosCpf(undefined), "");
+});
+
+test("consulta e cancelamento usam a chave normalizada", () => {
+  // Com o texto cru, o limite de 6 preparacoes de cancelamento por 10 min era
+  // contornavel so mudando a pontuacao -- e cada tentativa cai no bypass de
+  // agendamento legado sem protocolo.
+  for (const acao of ["consultar_agendamento", "preparar_cancelamento"]) {
+    const i = backend.indexOf(`"${acao}"`);
+    assert.notEqual(i, -1, `${acao} nao encontrada.`);
+    const chamada = backend.slice(i, backend.indexOf(";", i));
+    assert.match(chamada, /digitosCpf\(/, `${acao} deve agrupar pelo CPF normalizado.`);
+    assert.doesNotMatch(chamada, /String\(request\.data && request\.data\.cpf/, `${acao} voltou ao texto cru.`);
+  }
+});
+
+// --- Achado 6: a repeticao de App Check compunha ate quatro POSTs ---
+
+test("chamarFuncao marca o erro quando ja gastou a propria repeticao", () => {
+  const i = sitePublico.indexOf("async function chamarFuncao(");
+  const corpo = sitePublico.slice(i, sitePublico.indexOf("\n    }", i));
+  assert.match(corpo, /appCheckJaRepetido = true/, "Sem a marca, quem chama nao sabe que a repeticao ja aconteceu.");
+});
+
+test("o laco de criacao respeita a marca em vez de repetir de novo", () => {
+  // chamarFuncao ja faz 2 POSTs. Sem esta guarda o laco externo renovava o
+  // token e chamava outra vez: ate 4 POSTs e 3 renovacoes por acao do cidadao,
+  // justamente quando o App Check ja esta sofrendo.
+  const i = sitePublico.indexOf('if (codigo === "unauthenticated" || codigo === "permission-denied") {');
+  assert.notEqual(i, -1, "Ramo de App Check do laco de criacao nao encontrado.");
+  const ramo = sitePublico.slice(i, sitePublico.indexOf("}", sitePublico.indexOf("continue;", i)));
+  assert.match(ramo, /appCheckJaRepetido\) break/, "O laco precisa parar quando a repeticao ja foi gasta.");
+  assert.ok(
+    ramo.indexOf("appCheckJaRepetido") < ramo.indexOf("tentarRefreshAppCheck"),
+    "A guarda tem de vir ANTES de renovar o token, senao a renovacao extra acontece do mesmo jeito."
+  );
+});
+
+// --- Achado 8: o desligar podia declarar sucesso sem ter conferido ---
+
+test("a conferencia checa o codigo de saida, nao so o texto", () => {
+  // No desligar o valor esperado e string VAZIA. Um describe que falha tambem
+  // devolve vazio, entao sem checar o codigo o script imprimia "PRONTO" sem
+  // ter conferido nada.
+  const i = desligar.indexOf('"run","services","describe"');
+  assert.notEqual(i, -1, "Consulta de estado nao encontrada.");
+  const trecho = desligar.slice(Math.max(0, i - 400), i + 400);
+  assert.match(trecho, /\$consulta\.Codigo -ne 0/, "Falha na consulta precisa contar como problema.");
+  assert.match(trecho, /\$problemas\+\+/, "Falha na consulta precisa incrementar o contador de problemas.");
+});
+
+// --- Documentacao nao pode reensinar a regiao antiga ---
+
+test("nenhum documento manda chamar as funcoes do pico em us-central1", () => {
+  for (const doc of ["tests/load/README.md", "docs/RUNBOOK-homologacao.md"]) {
+    const texto = fs.readFileSync(path.join(raiz, doc), "utf8");
+    assert.doesNotMatch(
+      texto,
+      /us-central1-[\w-]*\.cloudfunctions\.net\/(criarAgendamentoCidadao|carregarAgendaPublicaHttp|verificarDisponibilidadeSlotCidadao)/,
+      `${doc} ainda aponta o caminho critico para us-central1.`
+    );
+  }
+});
