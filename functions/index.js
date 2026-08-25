@@ -988,8 +988,12 @@ function validarFatorExtra(dados, telefoneInformado, protocoloInformado) {
   // agendamento marcado perde acesso hoje -- a regra passa a valer para os
   // agendamentos criados a partir de agora, que nascem com protocolo.
   //
-  // Rede de seguranca de quem perder o protocolo: a recepcao localiza por CPF
-  // no painel e o protocolo aparece na propria tabela.
+  // Rede de seguranca de quem perder o protocolo: a recepcao localiza no painel
+  // e o protocolo aparece na tabela. ATENCAO: por CPF so funciona para quem tem
+  // CPF gravado. Encaixes manuais podem nascer sem CPF, sem nascimento e sem
+  // telefone -- verificado em 24/08/2026, os tres encaixes ativos estavam
+  // assim. Esses registros nao alcancam o autoatendimento por nenhum fator, e a
+  // busca no painel tem de ser por nome ou data.
   const protocoloSalvo = normalizarProtocolo(dados && dados.protocolo);
   const temTelefoneSalvo = digitosTelefone(dados && dados.telefone).length >= 10;
   if (!protocoloSalvo && !temTelefoneSalvo) {

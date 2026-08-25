@@ -221,16 +221,55 @@ test("o site publico mostra o protocolo para a pessoa poder guarda-lo", () => {
   assert.match(sitePublico, /protocolo: ag\.protocolo \|\| ""/);
 });
 
-test("quem acabou de agendar nao precisa redigitar o fator para cancelar", () => {
-  const preencher = extrairFuncao(sitePublico, "preencherFatorDoUltimoAgendamento");
-  assert.match(preencher, /ag\.protocolo \|\| ag\.telefone/);
+// Executa a funcao real com um DOM minimo, em vez de olhar o texto dela. A
+// versao por regex deste teste exigia justamente a guarda defeituosa e passava
+// verde enquanto o atalho conduzia ao fator errado.
+function rodarPreencherFator({ campoAtual, ultimo }) {
+  const campo = { value: campoAtual };
+  const fn = new Function(
+    "document", "ultimoAgendamentoConfirmado",
+    `${extrairFuncao(sitePublico, "preencherFatorDoUltimoAgendamento")}; return preencherFatorDoUltimoAgendamento;`
+  )({ getElementById: (id) => (id === "cancelar-fator" ? campo : null) }, ultimo);
+  fn();
+  return campo.value;
+}
+
+test("o atalho de cancelar leva o fator do agendamento ATUAL", () => {
+  assert.equal(
+    rodarPreencherFator({ campoAtual: "", ultimo: { protocolo: "CIN-NOVO0001", telefone: "(35) 99999-1234" } }),
+    "CIN-NOVO0001",
+    "Com protocolo, e o protocolo que abre."
+  );
+  assert.equal(
+    rodarPreencherFator({ campoAtual: "", ultimo: { telefone: "(35) 99999-1234" } }),
+    "(35) 99999-1234",
+    "Legado sem protocolo continua no telefone."
+  );
+});
+
+test("REGRESSAO: o atalho nao conserva o fator de um agendamento anterior", () => {
+  // Cenario real: a pessoa cancela um agendamento legado usando telefone,
+  // agenda de novo sem recarregar e clica em "Cancelar horario" na tela de
+  // sucesso. O campo trazia o telefone antigo, mas o agendamento novo so aceita
+  // protocolo -- e o proprio atalho levava a "nao encontrado".
+  assert.equal(
+    rodarPreencherFator({ campoAtual: "(35) 98888-7777", ultimo: { protocolo: "CIN-NOVO0001" } }),
+    "CIN-NOVO0001",
+    "O fator do agendamento anterior tem de ser substituido."
+  );
+});
+
+test("sem agendamento em memoria, o atalho nao mexe no que a pessoa digitou", () => {
+  assert.equal(rodarPreencherFator({ campoAtual: "digitado a mao", ultimo: null }), "digitado a mao");
+  assert.equal(rodarPreencherFator({ campoAtual: "digitado a mao", ultimo: {} }), "digitado a mao");
+});
+
+test("o atalho e chamado ao abrir a aba de cancelamento", () => {
   assert.match(
     extrairFuncao(sitePublico, "abrirAbaCancelar"),
     /preencherFatorDoUltimoAgendamento\(\)/,
-    "Sem isso, quem clica em 'Cancelar horario' na tela de sucesso trava no proprio segundo fator."
+    "Sem isso, quem clica em 'Cancelar horario' na tela de sucesso trava no proprio fator."
   );
-  // Nao pode sobrescrever o que a pessoa ja digitou a mao.
-  assert.match(preencher, /if \(!campo \|\| campo\.value\.trim\(\) \|\| !ag\) return;/);
 });
 
 test("o protocolo acompanha o comprovante em PDF e a mensagem de WhatsApp", () => {

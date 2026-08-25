@@ -364,7 +364,7 @@
                     <div class="form-grupo"><label for="inp-cpf">CPF: <span style="color:var(--danger)">*</span></label><input id="inp-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" onblur="validarCpfAgendamento()" type="text" placeholder="000.000.000-00" /><div class="msg-campo-erro" id="erro-cpf">CPF inválido.</div></div>
                     <div class="form-grupo"><label for="inp-nasc">Nascimento: <span style="color:var(--danger)">*</span></label><input id="inp-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this); validarNascimentoAgendamento()" type="text" placeholder="DD/MM/AAAA" /><div class="msg-campo-erro" id="erro-nasc">Data inválida.</div><div class="msg-campo-alerta" id="erro-menor-3"><i class="fa-solid fa-circle-info"></i> <strong>Atenção:</strong> Por ser menor de 3 anos, além dos demais documentos necessários listados abaixo, é <strong>obrigatório levar 1 foto 3x4 recente</strong>.</div></div>
                 </div>
-                <div class="form-grupo"><label for="inp-tel">Celular / WhatsApp: <span class="ajuda-campo">(para receber o comprovante)</span> <span style="color:var(--danger)">*</span></label><input id="inp-tel" maxlength="15" inputmode="tel" autocomplete="tel" oninput="mascaraTel(this)" type="tel" placeholder="(00) 00000-0000" /><div class="msg-campo-erro" id="erro-tel">Informe um telefone válido.</div></div>
+                <div class="form-grupo"><label for="inp-tel">Celular / WhatsApp: <span class="ajuda-campo">(para a Câmara entrar em contato, se precisar)</span> <span style="color:var(--danger)">*</span></label><input id="inp-tel" maxlength="15" inputmode="tel" autocomplete="tel" oninput="mascaraTel(this)" type="tel" placeholder="(00) 00000-0000" /><div class="msg-campo-erro" id="erro-tel">Informe um telefone válido.</div></div>
                 <div class="form-grupo"><label for="inp-email">E-mail (Opcional)</label><input id="inp-email" type="email" placeholder="seu.email@exemplo.com" /><div class="msg-campo-erro" id="erro-email">E-mail inválido.</div></div>
                 <div class="docs-container compacto">
                     <h4><i class="fa-regular fa-folder-open"></i> Confira os documentos antes de finalizar</h4>
@@ -400,7 +400,22 @@
                 <div class="ticket-sucesso">
                     <p style="margin:0; font-size:0.9rem; color:var(--success-dark); font-weight:600;">Seu horário confirmado:</p>
                     <span class="data-grande" id="ticket-info"></span>
-                    <p id="ticket-protocolo" style="display:none; margin:8px 0 0; font-size:0.9rem; color:var(--gray-800);"><i class="fa-solid fa-hashtag" style="color:var(--primary);"></i> Protocolo: <strong id="ticket-protocolo-valor"></strong><br><span style="font-size:0.82rem; color:var(--gray-600);">Guarde este código: ele é necessário para consultar ou cancelar seu agendamento.</span></p>
+                    <div id="ticket-protocolo" style="display:none; margin:14px 0 0; padding:14px; background:#fff; border:2px dashed var(--primary); border-radius:12px;">
+                        <p style="margin:0 0 6px; font-size:0.8rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--gray-600);">Código do comprovante</p>
+                        <div style="display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap;">
+                            <strong id="ticket-protocolo-valor" style="font-size:1.5rem; letter-spacing:0.08em; color:var(--primary); font-family:monospace;"></strong>
+                            <button type="button" id="btn-copiar-protocolo" class="btn-acao-sucesso cinza" style="margin:0; padding:8px 14px; min-height:44px;" onclick="copiarProtocolo()"><i class="fa-regular fa-copy"></i> Copiar</button>
+                        </div>
+                        <p style="margin:10px 0 0; font-size:0.85rem; color:#92400e; background:var(--warning-light); border-radius:8px; padding:8px 10px; line-height:1.45;">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <strong>Anote este código antes de sair.</strong> Ele é a única forma de consultar ou cancelar seu agendamento pelo site.
+                            <strong>Nada é enviado automaticamente</strong> — use os botões abaixo para salvar no WhatsApp ou em PDF.
+                        </p>
+                        <label class="filtro-check" style="display:flex; align-items:flex-start; gap:8px; margin:10px 0 0; padding:0; text-align:left; cursor:pointer;">
+                            <input type="checkbox" id="aceite-protocolo" onchange="confirmarGuardaProtocolo()" style="margin-top:3px; min-width:20px; min-height:20px;">
+                            <span style="font-size:0.86rem; color:var(--gray-800); line-height:1.4;">Guardei meu código em local seguro.</span>
+                        </label>
+                    </div>
                     <p style="margin:8px 0 0; font-size:0.95rem; color:var(--gray-800);"><i class="fa-solid fa-location-dot" style="color:var(--primary);"></i> <strong>Câmara Municipal de Itanhandu</strong></p>
                 </div>
                 <div class="acoes-sucesso">
@@ -435,9 +450,10 @@
         <div class="secao" id="secao-consultar">
             <h3 style="color:var(--gray-800); font-size:1.1rem; margin:0 0 20px; font-weight:800;"><i class="fa-solid fa-magnifying-glass" style="color:var(--primary);"></i> Consultar Agendamento</h3>
             <p style="color:var(--gray-600); font-size:0.9rem; margin:0 0 20px;">Informe CPF, data de nascimento e a confirmação de segurança para ver seu agendamento.</p>
+            <p id="lembrete-protocolo" style="display:none; margin:0 0 16px; padding:10px 12px; background:var(--gray-100); border-left:4px solid var(--primary); border-radius:6px; font-size:0.86rem; color:var(--gray-800); line-height:1.45;"></p>
             <div class="form-grupo"><label for="cons-cpf">CPF:</label><input id="cons-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" /></div>
             <div class="form-grupo"><label for="cons-nasc">Data de Nascimento:</label><input id="cons-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" /></div>
-            <div class="form-grupo"><label for="cons-fator">Código do comprovante <span style="color:var(--danger)">*</span>: <span class="ajuda-campo">(o código CIN- que você recebeu ao agendar. Agendamentos feitos até 24/08/2026 não têm código: nesses, informe o telefone.)</span></label><input id="cons-fator" maxlength="40" autocomplete="off" type="text" placeholder="CIN-XXXXXXXX" /></div>
+            <div class="form-grupo"><label for="cons-fator">Código do comprovante <span style="color:var(--danger)">*</span>: <span class="ajuda-campo">(o código CIN- do seu comprovante. Se o seu comprovante não tem código, informe o telefone do agendamento.)</span></label><input id="cons-fator" maxlength="40" autocomplete="off" type="text" placeholder="CIN-XXXXXXXX" /></div>
             <button class="btn-principal azul" id="btnConsultar" onclick="consultarAgendamento()">Buscar Meu Horário <i class="fa-solid fa-search"></i></button>
             <div id="resultado-consulta" style="margin-top:24px;"></div>
         </div>
@@ -447,7 +463,7 @@
             <p style="color:var(--gray-600); font-size:0.9rem; margin:0 0 20px;">Informe CPF, data de nascimento e a confirmação de segurança para localizar seu horário. Confira os dados antes de confirmar o cancelamento.</p>
             <div class="form-grupo"><label for="cancelar-cpf">CPF:</label><input id="cancelar-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" /></div>
             <div class="form-grupo"><label for="cancelar-nasc">Data de Nascimento:</label><input id="cancelar-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" /></div>
-            <div class="form-grupo"><label for="cancelar-fator">Código do comprovante <span style="color:var(--danger)">*</span>: <span class="ajuda-campo">(o código CIN- que você recebeu ao agendar. Agendamentos feitos até 24/08/2026 não têm código: nesses, informe o telefone.)</span></label><input id="cancelar-fator" maxlength="40" autocomplete="off" type="text" placeholder="CIN-XXXXXXXX" /></div>
+            <div class="form-grupo"><label for="cancelar-fator">Código do comprovante <span style="color:var(--danger)">*</span>: <span class="ajuda-campo">(o código CIN- do seu comprovante. Se o seu comprovante não tem código, informe o telefone do agendamento.)</span></label><input id="cancelar-fator" maxlength="40" autocomplete="off" type="text" placeholder="CIN-XXXXXXXX" /></div>
             <button class="btn-principal vermelho" id="btnBuscarCancelamento" onclick="buscarParaCancelar()">Localizar Agendamento <i class="fa-solid fa-search"></i></button>
             <div id="resultado-cancelamento" style="margin-top:24px;"></div>
         </div>
@@ -782,6 +798,37 @@
             `${dataISO}T${hora}` > agoraSaoPauloInput();
     }
 
+    // O protocolo virou a UNICA credencial de consulta e cancelamento, e o
+    // sistema nao envia nada automaticamente: nao ha e-mail nem SMS neste
+    // projeto. Ate 24/08/2026 o campo de telefone ainda dizia "para receber o
+    // comprovante", o que era promessa falsa -- quem fechasse a aba confiando
+    // nela perdia o acesso ao proprio agendamento, inclusive para cancelar e
+    // devolver a vaga. Daqui em diante o codigo e guardado localmente e a tela
+    // pede reconhecimento explicito.
+    const CHAVE_ULTIMO_AGENDAMENTO = "cin_ultimo_agendamento";
+
+    function guardarAgendamentoLocalmente(ag) {
+        if (!ag || !ag.protocolo) return;
+        try {
+            localStorage.setItem(CHAVE_ULTIMO_AGENDAMENTO, JSON.stringify({
+                protocolo: ag.protocolo,
+                dataBR: ag.dataBR || "",
+                hora: ag.hora || "",
+                nome: ag.nome || "",
+                guardadoEm: Date.now()
+            }));
+        } catch (e) { /* modo privativo ou armazenamento cheio: segue sem cache */ }
+    }
+
+    function lerAgendamentoLocal() {
+        try {
+            const bruto = localStorage.getItem(CHAVE_ULTIMO_AGENDAMENTO);
+            if (!bruto) return null;
+            const dados = JSON.parse(bruto);
+            return dados && dados.protocolo ? dados : null;
+        } catch (e) { return null; }
+    }
+
     function mostrarProtocoloConfirmado(protocolo) {
         const bloco = document.getElementById("ticket-protocolo");
         const valor = document.getElementById("ticket-protocolo-valor");
@@ -789,6 +836,35 @@
         const texto = String(protocolo || "").trim();
         valor.textContent = texto;
         bloco.style.display = texto ? "block" : "none";
+        const aceite = document.getElementById("aceite-protocolo");
+        if (aceite) aceite.checked = false;
+    }
+
+    async function copiarProtocolo() {
+        const texto = (document.getElementById("ticket-protocolo-valor") || {}).textContent || "";
+        if (!texto.trim()) return;
+        try {
+            await navigator.clipboard.writeText(texto.trim());
+            aviso("Código copiado. Cole onde puder guardar.");
+        } catch (e) {
+            // clipboard exige contexto seguro e permissao; sem ela o codigo
+            // continua visivel na tela para anotar a mao.
+            aviso("Não foi possível copiar automaticamente. Anote o código: " + texto.trim());
+        }
+    }
+
+    function confirmarGuardaProtocolo() {
+        const aceite = document.getElementById("aceite-protocolo");
+        if (aceite && aceite.checked) aviso("Combinado. Sem esse código só a recepção consegue localizar seu agendamento.");
+    }
+
+    // Quem volta ao site depois de fechar a aba reencontra o proprio codigo.
+    function mostrarLembreteProtocoloSalvo() {
+        const dados = lerAgendamentoLocal();
+        const alvo = document.getElementById("lembrete-protocolo");
+        if (!dados || !alvo) return;
+        alvo.innerHTML = `<i class="fa-solid fa-circle-info"></i> Seu último agendamento neste aparelho: <strong>${textoSeguro(dados.dataBR)} às ${textoSeguro(dados.hora)}</strong> — código <strong style="font-family:monospace; letter-spacing:0.06em;">${textoSeguro(dados.protocolo)}</strong>`;
+        alvo.style.display = "block";
     }
 
     function avisoNovasVagasEmBreve() {
@@ -1700,8 +1776,16 @@
     function preencherFatorDoUltimoAgendamento() {
         const campo = document.getElementById("cancelar-fator");
         const ag = ultimoAgendamentoConfirmado;
-        if (!campo || campo.value.trim() || !ag) return;
-        campo.value = ag.protocolo || ag.telefone || "";
+        if (!campo || !ag) return;
+        const fator = ag.protocolo || ag.telefone || "";
+        if (!fator) return;
+        // SOBRESCREVE de proposito. A versao anterior preservava o que ja
+        // estivesse no campo, e isso conduzia ao fator errado: quem cancelava um
+        // agendamento legado por telefone e agendava de novo sem recarregar
+        // chegava aqui com o telefone antigo no campo, enquanto o agendamento
+        // novo so aceita protocolo. O resultado era "nao encontrado" no proprio
+        // atalho da tela de sucesso.
+        campo.value = fator;
     }
 
     function abrirAbaCancelar() {
@@ -2141,6 +2225,7 @@
                 // Agendamentos anteriores a esta versao nao tem protocolo; nesses
                 // casos o bloco continua oculto e CPF + nascimento seguem bastando.
                 mostrarProtocoloConfirmado(ultimoAgendamentoConfirmado.protocolo);
+                guardarAgendamentoLocalmente(ultimoAgendamentoConfirmado);
                 document.getElementById("dados-pessoais").style.display = "none"; 
                 document.getElementById("sucesso-docs").style.display = "block"; 
                 atualizarVisibilidadeAtalhos();
@@ -2287,7 +2372,7 @@
         if(cpf.length<14 || !nascISO) { aviso("Preencha o CPF e a data de nascimento corretamente."); return; }
         // Sem isto a pessoa gastaria uma ida ao servidor para receber a mensagem
         // generica de "nao encontrado", que nao pode dizer qual campo faltou.
-        if(!fatorExtra) { aviso("Informe o código do comprovante (CIN-...). Se o agendamento é anterior a 24/08/2026 e não tem código, informe o telefone."); return; }
+        if(!fatorExtra) { aviso("Informe o código do comprovante (CIN-...). Se o seu comprovante não tem código, informe o telefone do agendamento."); return; }
 
         const htmlOriginal = btn.innerHTML;
         btn.disabled = true;
@@ -2352,7 +2437,7 @@
               res=document.getElementById("resultado-cancelamento"),
               btnBusca=document.getElementById("btnBuscarCancelamento");
         if(cpf.length<14 || !nascISO) { aviso("Preencha o CPF e a data de nascimento corretamente."); return; }
-        if(!fatorExtra) { aviso("Informe o código do comprovante (CIN-...). Se o agendamento é anterior a 24/08/2026 e não tem código, informe o telefone."); return; }
+        if(!fatorExtra) { aviso("Informe o código do comprovante (CIN-...). Se o seu comprovante não tem código, informe o telefone do agendamento."); return; }
 
         const htmlOriginal = btnBusca.innerHTML;
         btnBusca.disabled = true;
@@ -2766,6 +2851,7 @@
         inicializarRipple();
         atualizarVisibilidadeAtalhos();
         aquecerAppCheckEmSegundoPlano();
+        mostrarLembreteProtocoloSalvo();
     })();
 </script>
 <script>
