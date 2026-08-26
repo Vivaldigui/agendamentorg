@@ -216,7 +216,7 @@ test("o painel avisa que desativar a automacao nao limpa o aviso programado", ()
   // A automacao nao distingue aviso automatico obsoleto de aviso programado a
   // mao -- os dois gravam o mesmo campo. Ate existir marcador de origem, a
   // protecao e o alerta ao lado do proprio controle.
-  const painel = fs.readFileSync(path.join(raiz, "public", "recepcao.html"), "utf8");
+  const { painel } = require("./painel-fonte");
   const i = painel.indexOf('id="cfg-auto-ativa"');
   assert.notEqual(i, -1, "Controle da automacao nao encontrado.");
   const bloco = painel.slice(i, i + 1200);

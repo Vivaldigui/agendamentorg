@@ -85,6 +85,18 @@
         ]
       },
       {
+        "source": "/recepcao.css",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+        ]
+      },
+      {
+        "source": "/recepcao.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+        ]
+      },
+      {
         "source": "/",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
