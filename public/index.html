@@ -670,6 +670,18 @@
     const DATA_NOVAS_VAGAS_PADRAO = "data a definir";
     const DURACAO_SLOT_OCUPADO_CONFIRMADO_MS = 16 * 60 * 1000;
     let DIAS_DISPONIVEIS = [], HORARIOS = [], DATA_NOVAS_VAGAS = DATA_NOVAS_VAGAS_PADRAO;
+    // Aviso em pop-up escrito pela recepcao. Espelha functions/aviso-popup.js.
+    const LIMITE_TITULO_AVISO_POPUP = 80;
+    const LIMITE_MENSAGEM_AVISO_POPUP = 600;
+    const TIPOS_AVISO_POPUP = ["informacao", "atencao", "urgente"];
+    const TIPO_AVISO_POPUP_PADRAO = "informacao";
+    const REPETICOES_AVISO_POPUP = ["uma-vez", "sempre"];
+    const REPETICAO_AVISO_POPUP_PADRAO = "uma-vez";
+    const FORMATO_INSTANTE_POPUP = /^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/;
+    const FORMATO_ID_POPUP = /^[a-z0-9]{1,24}$/;
+    const CHAVE_AVISO_POPUP_DISPENSADO = "cin_aviso_popup_dispensado";
+    let AVISO_POPUP = null;
+    let avisoPopupExibidoNestaVisita = false;
     let DISPONIBILIDADE_PUBLICA = { porData: {}, totalVagasRestantes: 0 };
     let ESTADO_AGENDA_PUBLICA = "desconhecido";
     const SLOTS_OCUPADOS_CONFIRMADOS = new Map();
@@ -874,6 +886,127 @@
             ? `${partesBr[3]}-${partesBr[2]}-${partesBr[1]}`
             : (/^\d{4}-\d{2}-\d{2}$/.test(texto) ? texto : "");
         return Boolean(dataISO && hojeISO() >= dataISO);
+    }
+
+    // --- Aviso em pop-up configurado pela recepcao ------------------------
+    // As quatro funcoes abaixo espelham functions/aviso-popup.js. A resposta
+    // publica ja chega normalizada, mas o cache local guarda o corpo por 3
+    // minutos e pode ter sido escrito por uma versao anterior do site: revalidar
+    // aqui custa nada e evita exibir um aviso quebrado.
+    //
+    // A JANELA e decidida no navegador, com o relogio do servidor. O corpo pode
+    // vir do CDN com ate ~15 minutos de idade; se o corte fosse so no backend, o
+    // aviso entraria atrasado e sairia depois da hora marcada.
+    function limparTextoAvisoPopup(valor, limite) {
+        return String(valor === null || valor === undefined ? "" : valor)
+            .replace(/\r\n?/g, "\n")
+            .replace(/\p{Cc}/gu, (caractere) => (caractere === "\n" ? caractere : ""))
+            .replace(/\n{3,}/g, "\n\n")
+            .trim()
+            .slice(0, limite);
+    }
+
+    function instantePopupValido(valor) {
+        return FORMATO_INSTANTE_POPUP.test(String(valor || ""));
+    }
+
+    function normalizarAvisoPopup(valor) {
+        if (!valor || typeof valor !== "object" || Array.isArray(valor)) return null;
+        // Diferenca proposital em relacao ao backend, que exige ativo === true:
+        // o aviso ja chega aqui filtrado e SEM o campo `ativo`. Exigir o campo
+        // descartaria todo aviso valido; recusar so o `false` explicito mantem a
+        // guarda para um corpo montado a mao.
+        if (valor.ativo === false) return null;
+        const mensagem = limparTextoAvisoPopup(valor.mensagem, LIMITE_MENSAGEM_AVISO_POPUP);
+        if (!mensagem) return null;
+        const inicioEm = instantePopupValido(valor.inicioEm) ? String(valor.inicioEm) : null;
+        const fimEm = instantePopupValido(valor.fimEm) ? String(valor.fimEm) : null;
+        if (!inicioEm || !fimEm) return null;
+        if (fimEm <= inicioEm) return null;
+        const tipo = TIPOS_AVISO_POPUP.includes(String(valor.tipo))
+            ? String(valor.tipo)
+            : TIPO_AVISO_POPUP_PADRAO;
+        const repetir = REPETICOES_AVISO_POPUP.includes(String(valor.repetir))
+            ? String(valor.repetir)
+            : REPETICAO_AVISO_POPUP_PADRAO;
+        const id = FORMATO_ID_POPUP.test(String(valor.id || ""))
+            ? String(valor.id)
+            : `w${inicioEm.replace(/\D/g, "")}`;
+        return {
+            id,
+            titulo: limparTextoAvisoPopup(valor.titulo, LIMITE_TITULO_AVISO_POPUP),
+            mensagem,
+            tipo,
+            inicioEm,
+            fimEm,
+            repetir
+        };
+    }
+
+    function avisoPopupVisivel(aviso, agora) {
+        if (!aviso || !instantePopupValido(agora)) return false;
+        if (!instantePopupValido(aviso.inicioEm) || !instantePopupValido(aviso.fimEm)) return false;
+        return String(agora) >= aviso.inicioEm && String(agora) <= aviso.fimEm;
+    }
+
+    // O id muda a cada gravacao no painel, entao editar a mensagem reapresenta o
+    // pop-up para quem ja tinha fechado a versao anterior.
+    function avisoPopupJaDispensado(aviso) {
+        if (!aviso || aviso.repetir === "sempre") return false;
+        try {
+            return localStorage.getItem(CHAVE_AVISO_POPUP_DISPENSADO) === aviso.id;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function marcarAvisoPopupDispensado(aviso) {
+        if (!aviso || aviso.repetir === "sempre") return;
+        try {
+            localStorage.setItem(CHAVE_AVISO_POPUP_DISPENSADO, aviso.id);
+        } catch (e) {}
+    }
+
+    function aparenciaAvisoPopup(tipo) {
+        if (tipo === "urgente") {
+            return {
+                icone: '<i class="fa-solid fa-circle-exclamation" style="color:var(--danger);"></i>',
+                tituloPadrao: "Aviso importante"
+            };
+        }
+        if (tipo === "atencao") {
+            return {
+                icone: '<i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);"></i>',
+                tituloPadrao: "Atenção"
+            };
+        }
+        return {
+            icone: '<i class="fa-solid fa-circle-info" style="color:var(--primary);"></i>',
+            tituloPadrao: "Aviso"
+        };
+    }
+
+    // Chamada depois de cada carga da agenda. Nunca interrompe quem ja esta
+    // escolhendo horario nem rouba um modal aberto: se nao for a hora, o pop-up
+    // simplesmente espera a proxima atualizacao da agenda.
+    function mostrarAvisoPopupSePreciso() {
+        if (avisoPopupExibidoNestaVisita) return false;
+        const aviso = AVISO_POPUP;
+        if (!aviso) return false;
+        if (!avisoPopupVisivel(aviso, agoraSaoPauloInput())) return false;
+        if (avisoPopupJaDispensado(aviso)) return false;
+        if (typeof modalEstaAberto === "function" && modalEstaAberto()) return false;
+        if (dataSel || horaSel) return false;
+        const aparencia = aparenciaAvisoPopup(aviso.tipo);
+        avisoPopupExibidoNestaVisita = true;
+        marcarAvisoPopupDispensado(aviso);
+        modal({
+            icone: aparencia.icone,
+            titulo: aviso.titulo || aparencia.tituloPadrao,
+            mensagem: aviso.mensagem,
+            botoes: [{ texto: "Entendi", classe: "primario" }]
+        });
+        return true;
     }
 
     // Desvio usado para traduzir a hora do servidor em relogio do aparelho.
@@ -1086,6 +1219,7 @@
         DISPONIBILIDADE_PUBLICA = normalizarDisponibilidadePublica(cfg.dias);
         DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
         DATA_NOVAS_VAGAS = cfg.dataNovasVagas || DATA_NOVAS_VAGAS_PADRAO;
+        AVISO_POPUP = normalizarAvisoPopup(cfg.avisoPopup);
         ESTADO_AGENDA_PUBLICA = "valido";
         return cfg;
     }
@@ -1141,6 +1275,10 @@
                             // O cache nao sincroniza o relogio. Aguarde a resposta ao vivo
                             // antes de decidir que a virada das 08:00 ja aconteceu.
                             atualizarBannerVagas({ iniciarAbertura: false });
+                            // O pop-up nao depende do relogio no minuto: a janela
+                            // e de horas, entao vale a pena aparecer ja na
+                            // primeira pintura, antes da resposta da rede.
+                            mostrarAvisoPopupSePreciso();
                         }
                     }
                 }
@@ -1157,6 +1295,7 @@
             if (atualizarInterface) {
                 renderDatas();
                 atualizarBannerVagas();
+                mostrarAvisoPopupSePreciso();
             }
             // Adiada para o tempo ocioso: a reconciliacao chama uma callable e
             // acabaria ativando o reCAPTCHA durante a primeira pintura, que e

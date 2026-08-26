@@ -31,6 +31,7 @@ const {
   CACHE_SEM_ARMAZENAMENTO,
   cacheControlAgendaPublica
 } = require("./agenda-cache-publica");
+const { avisoPopupPublico } = require("./aviso-popup");
 
 initializeApp();
 
@@ -756,6 +757,10 @@ function processarAgenda(dadosBrutos, agora = agoraSaoPauloInput(), hoje = hojeS
     horarios: [...HORARIOS_NOVOS],
     horariosPorDiaSemana: normalizarHorariosPorDiaSemana(agenda.horariosPorDiaSemana),
     dataNovasVagas: avisoNovasVagasAtivo(agenda, agora),
+    // Aviso em pop-up da recepcao. Vai normalizado, com a janela de exibicao
+    // junto: quem decide mostrar e o site, com o relogio do servidor, para que
+    // o cache do CDN nao atrase a entrada nem prolongue a saida.
+    avisoPopup: avisoPopupPublico(agenda.avisoPopup, agora),
     // Necessarios para decidir se a resposta publica pode ser armazenada. A
     // automacao entra porque a janela de abertura nao pode depender de
     // publicacaoDatas ja ter sido gravada pelas execucoes de 07:50/07:55.
@@ -862,6 +867,7 @@ async function carregarDisponibilidadePublica() {
       dias,
       horarios: agenda.horarios,
       dataNovasVagas: agenda.dataNovasVagas,
+      avisoPopup: agenda.avisoPopup,
       servidorEm: agora,
       totalVagasRestantes: dias.reduce((total, dia) => total + dia.vagas, 0)
     },

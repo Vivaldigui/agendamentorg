@@ -43,6 +43,7 @@ agendamentorg/
 ├── database.rules.json      # Regras do Realtime Database
 ├── functions/
 │   ├── index.js             # Todas as Cloud Functions e regras de negócio
+│   ├── aviso-popup.js       # Regra canônica do pop-up de aviso do site
 │   └── package.json         # Runtime Node 22
 ├── public/
 │   ├── index.html           # App público (cidadão)
@@ -105,7 +106,7 @@ Definidas em [`functions/index.js`](functions/index.js).
 | `bloqueios_agendamento` | CPFs bloqueados temporariamente (ex.: ausência em atendimento anterior) |
 | `cancelamentos_pendentes` | Tokens de cancelamento com expiração |
 | `rate_limits` | Contadores de limitação por ação/fingerprint |
-| `configuracoes/agenda` | Dias, horários e avisos configurados pela recepção |
+| `configuracoes/agenda` | Dias, horários, avisos e pop-up configurados pela recepção |
 | `admins` | E-mails autorizados a acessar o painel |
 | `logs_admin` | Trilha de auditoria das ações administrativas |
 
@@ -213,6 +214,20 @@ As exceções sempre prevalecem sobre a regra automática. Datas cadastradas man
 Na abertura das 08:00, o aviso público de novas vagas também passa automaticamente para a próxima segunda-feira que tenha algum dia de atendimento, pulando semanas suspensas, datas bloqueadas e períodos de férias. Com a automação desligada, o aviso continua sob controle manual.
 
 Para garantir que a exceção entre na primeira execução, salve-a antes de segunda-feira às 07:50. Se uma data automática for removida manualmente, ela também é adicionada à lista de dias bloqueados, evitando que seja recriada na execução redundante das 07:55.
+
+### Pop-up de aviso no site
+
+Em **Pop-up de aviso no site**, no painel da recepção, é possível publicar um recado que aparece em uma janela no site do cidadão assim que a página abre. O formulário pede a mensagem (até 600 caracteres), um título opcional, a aparência (informação, atenção ou urgente), o início e o fim da exibição e a frequência (uma vez por aparelho ou em toda visita). O botão **Desativar agora** desliga o aviso preservando o texto para reutilização, e a prévia mostra exatamente como o cidadão verá o recado.
+
+A configuração fica em `configuracoes/agenda.avisoPopup` e a regra canônica está em `functions/aviso-popup.js`, espelhada no site e no painel — `functions/aviso-popup.test.js` executa as três cópias e falha se divergirem. A leitura pública envia o aviso já normalizado **junto com a janela de exibição**; quem decide a hora de mostrar é o site, usando o relógio do servidor. Isso mantém a entrada e a saída pontuais mesmo quando a resposta vem do CDN, que pode servir uma cópia com até quinze minutos de idade.
+
+Consequências práticas para a recepção:
+
+- um aviso programado com pelo menos quinze minutos de antecedência entra no ar no minuto marcado;
+- um aviso criado para valer **agora** pode levar até quinze minutos para alcançar todos os visitantes;
+- o encerramento é sempre pontual, porque o site conhece a hora final;
+- cada gravação gera um identificador novo, então quem já tinha fechado o aviso volta a vê-lo;
+- avisos programados viajam na resposta pública antes da hora de aparecer: o texto não é secreto, apenas ainda não exibido.
 
 ---
 

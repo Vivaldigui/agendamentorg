@@ -172,9 +172,10 @@ test("agenda vazia significa agenda fechada, sem lista de datas embutida", () =>
     "HORARIOS_NOVOS",
     "normalizarHorariosPorDiaSemana",
     "avisoNovasVagasAtivo",
+    "avisoPopupPublico",
     "normalizarAutomacaoSemanal",
     `${extrairFuncao(backend, "processarAgenda")}; return processarAgenda;`
-  )(() => ({}), [], () => ({}), () => "", () => ({}));
+  )(() => ({}), [], () => ({}), () => "", () => null, () => ({}));
 
   assert.deepEqual(processarAgenda({ dias: [] }, "2026-08-22T23:00", "2026-08-22").dias, []);
   assert.deepEqual(processarAgenda({}, "2026-08-22T23:00", "2026-08-22").dias, []);

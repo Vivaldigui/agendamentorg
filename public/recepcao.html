@@ -1090,6 +1090,18 @@
         .horario-dia input { width:100%; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); }
         .config-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px; }
         .config-grid .input-group { margin:0; }
+        .popup-status { padding:10px 12px; border-radius:8px; font-size:0.87rem; font-weight:600; line-height:1.45; margin-bottom:12px; background:#f1f5f9; color:#334155; border-left:4px solid #94a3b8; }
+        .popup-status.no-ar { background:#dcfce7; color:#166534; border-left-color:#22c55e; }
+        .popup-status.programado { background:#dbeafe; color:#1e40af; border-left-color:#3b82f6; }
+        .popup-status.encerrado { background:#fef3c7; color:#92400e; border-left-color:#f59e0b; }
+        .popup-previa { margin-top:8px; padding:16px; border:1px dashed #cbd5e1; border-radius:12px; background:#f8fafc; text-align:center; }
+        .popup-previa .previa-icone { font-size:1.8rem; margin-bottom:8px; }
+        .popup-previa .previa-titulo { font-weight:800; font-size:1rem; margin-bottom:6px; color:#0f172a; }
+        .popup-previa .previa-mensagem { color:#475569; font-size:0.9rem; line-height:1.55; white-space:pre-line; word-break:break-word; }
+        .popup-previa .previa-vazia { color:#94a3b8; font-size:0.88rem; }
+        body.modo-escuro .popup-previa { background:#0f172a; border-color:#334155; }
+        body.modo-escuro .popup-previa .previa-titulo { color:#e2e8f0; }
+        body.modo-escuro .popup-previa .previa-mensagem { color:#cbd5e1; }
         .automacao-dias { display:flex; flex-wrap:wrap; gap:9px; margin:12px 0; }
         .automacao-dias .filtro-check { padding:8px 10px; margin:0; border:1px solid var(--line); border-radius:9px; background:var(--surface-soft); }
         .automacao-excecao { display:grid; grid-template-columns:minmax(150px,1fr) minmax(150px,1fr) minmax(140px,1fr) auto; gap:10px; align-items:end; margin-top:12px; }
@@ -1363,6 +1375,70 @@
                     <input type="datetime-local" id="cfg-publicar-em-aviso">
                 </div>
                 <button class="btn btn-config" onclick="salvarAvisoNovasVagas()"><i class="fa-solid fa-floppy-disk"></i> Salvar Aviso</button>
+            </div>
+        </div>
+        <div class="painel-config">
+            <h3><i class="fa-solid fa-bullhorn"></i> Pop-up de aviso no site</h3>
+            <p style="margin:0 0 12px; font-size:0.85rem; color:#475569; line-height:1.5;">
+                A mensagem aparece em uma janela no site do cidadão assim que a página abre,
+                dentro do período configurado. Serve para recados como mudança de local,
+                feriado ou suspensão do atendimento.
+            </p>
+            <div id="popup-status" class="popup-status"></div>
+            <label class="filtro-check" style="margin-bottom:12px;">
+                <input type="checkbox" id="popup-ativo" onchange="atualizarPreviaAvisoPopup()">
+                Exibir este pop-up no site
+            </label>
+            <div class="config-grid">
+                <div class="input-group">
+                    <label for="popup-inicio">Começa a aparecer em</label>
+                    <input type="datetime-local" id="popup-inicio" onchange="atualizarPreviaAvisoPopup()">
+                </div>
+                <div class="input-group">
+                    <label for="popup-fim">Para de aparecer em</label>
+                    <input type="datetime-local" id="popup-fim" onchange="atualizarPreviaAvisoPopup()">
+                </div>
+                <div class="input-group">
+                    <label for="popup-tipo">Aparência</label>
+                    <select id="popup-tipo" onchange="atualizarPreviaAvisoPopup()">
+                        <option value="informacao">Informação (azul)</option>
+                        <option value="atencao">Atenção (amarelo)</option>
+                        <option value="urgente">Urgente (vermelho)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="popup-repetir">Frequência</label>
+                    <select id="popup-repetir">
+                        <option value="uma-vez">Mostrar uma vez por aparelho</option>
+                        <option value="sempre">Mostrar em toda visita</option>
+                    </select>
+                </div>
+                <div class="input-group" style="grid-column:1/-1;">
+                    <label for="popup-titulo">Título (opcional)</label>
+                    <input type="text" id="popup-titulo" maxlength="80" placeholder="Ex.: Atendimento suspenso na quinta" oninput="atualizarPreviaAvisoPopup()">
+                </div>
+                <div class="input-group" style="grid-column:1/-1;">
+                    <label for="popup-mensagem">Mensagem</label>
+                    <textarea id="popup-mensagem" rows="5" maxlength="600" placeholder="Escreva o recado como o cidadão deve ler." oninput="atualizarPreviaAvisoPopup()"></textarea>
+                    <small id="popup-contador">0/600 caracteres</small>
+                </div>
+            </div>
+            <strong style="display:block; margin-top:14px; color:var(--ink);">Prévia</strong>
+            <div class="popup-previa" id="popup-previa"></div>
+            <!-- A resposta publica fica ate ~15 minutos no CDN e 3 minutos no
+                 cache do navegador. Programar com antecedencia e a unica forma
+                 de o aviso entrar no ar no minuto exato. -->
+            <p style="margin:12px 0 0; padding:10px 12px; background:var(--warning-light, #fef3c7); border-left:4px solid var(--warning, #f59e0b); border-radius:6px; font-size:0.85rem; color:#92400e; line-height:1.45;">
+                <i class="fa-solid fa-clock"></i>
+                <strong>Um aviso criado para começar agora leva até 15 minutos para chegar a todos os visitantes</strong>,
+                por causa do cache do site. Se a hora precisa ser exata, programe o início com pelo menos
+                15 minutos de antecedência. A hora de encerrar é sempre exata.
+                Cada vez que você salva, quem já fechou o aviso volta a vê-lo.
+            </p>
+            <div class="config-form" style="margin-top:14px;">
+                <button type="button" class="btn btn-config" onclick="salvarAvisoPopup()"><i class="fa-solid fa-floppy-disk"></i> Salvar pop-up</button>
+                <button type="button" class="btn btn-sair" onclick="desativarAvisoPopup()"><i class="fa-solid fa-eye-slash"></i> Desativar agora</button>
+                <button type="button" class="btn btn-atualizar" onclick="carregarAgendaGestao()"><i class="fa-solid fa-rotate"></i> Recarregar</button>
             </div>
         </div>
         <div class="painel-config">
@@ -1683,6 +1759,18 @@ Até logo!`;
         let agendaPublicacaoDatas = {};
         let agendaAutomacaoSemanal = { ativa: true, horaAbertura: "08:00", diasSemana: [2, 3, 4, 5], semanasPausadas: [], datasBloqueadas: [], periodosBloqueados: [] };
         let agendaDatasAutomaticas = [];
+        // Aviso em pop-up do site. Espelha functions/aviso-popup.js.
+        const LIMITE_TITULO_AVISO_POPUP = 80;
+        const LIMITE_MENSAGEM_AVISO_POPUP = 600;
+        const TIPOS_AVISO_POPUP = ["informacao", "atencao", "urgente"];
+        const TIPO_AVISO_POPUP_PADRAO = "informacao";
+        const REPETICOES_AVISO_POPUP = ["uma-vez", "sempre"];
+        const REPETICAO_AVISO_POPUP_PADRAO = "uma-vez";
+        const FORMATO_INSTANTE_POPUP = /^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/;
+        const FORMATO_ID_POPUP = /^[a-z0-9]{1,24}$/;
+        // Ultimo aviso lido do banco, com o campo `ativo`. O formulario edita uma
+        // copia; so o que foi gravado entra aqui.
+        let agendaAvisoPopup = null;
         let responsavelPosto = RESPONSAVEL_POSTO_PADRAO;
         let templateLembrete = TEMPLATE_LEMBRETE_PADRAO;
         let agendamentosCache = [];
@@ -1855,6 +1943,230 @@ Até logo!`;
         function alternarProgramacaoAviso() {
             const programar = document.getElementById("cfg-disponibilidade-aviso").value === "programar";
             document.getElementById("box-cfg-publicar-em-aviso").style.display = programar ? "block" : "none";
+        }
+
+        // --- Pop-up de aviso no site -------------------------------------
+        // limparTextoAvisoPopup, normalizarAvisoPopup e avisoPopupVisivel sao
+        // copias fieis de functions/aviso-popup.js: o painel precisa prever
+        // exatamente o que o backend vai publicar, senao a recepcao salva um
+        // aviso que o site descarta em silencio.
+        function limparTextoAvisoPopup(valor, limite) {
+            return String(valor === null || valor === undefined ? "" : valor)
+                .replace(/\r\n?/g, "\n")
+                .replace(/\p{Cc}/gu, (caractere) => (caractere === "\n" ? caractere : ""))
+                .replace(/\n{3,}/g, "\n\n")
+                .trim()
+                .slice(0, limite);
+        }
+
+        function instantePopupValido(valor) {
+            return FORMATO_INSTANTE_POPUP.test(String(valor || ""));
+        }
+
+        function normalizarAvisoPopup(valor) {
+            if (!valor || typeof valor !== "object" || Array.isArray(valor)) return null;
+            if (valor.ativo !== true) return null;
+            const mensagem = limparTextoAvisoPopup(valor.mensagem, LIMITE_MENSAGEM_AVISO_POPUP);
+            if (!mensagem) return null;
+            const inicioEm = instantePopupValido(valor.inicioEm) ? String(valor.inicioEm) : null;
+            const fimEm = instantePopupValido(valor.fimEm) ? String(valor.fimEm) : null;
+            if (!inicioEm || !fimEm) return null;
+            if (fimEm <= inicioEm) return null;
+            const tipo = TIPOS_AVISO_POPUP.includes(String(valor.tipo))
+                ? String(valor.tipo)
+                : TIPO_AVISO_POPUP_PADRAO;
+            const repetir = REPETICOES_AVISO_POPUP.includes(String(valor.repetir))
+                ? String(valor.repetir)
+                : REPETICAO_AVISO_POPUP_PADRAO;
+            const id = FORMATO_ID_POPUP.test(String(valor.id || ""))
+                ? String(valor.id)
+                : `w${inicioEm.replace(/\D/g, "")}`;
+            return {
+                id,
+                titulo: limparTextoAvisoPopup(valor.titulo, LIMITE_TITULO_AVISO_POPUP),
+                mensagem,
+                tipo,
+                inicioEm,
+                fimEm,
+                repetir
+            };
+        }
+
+        function avisoPopupVisivel(aviso, agora) {
+            if (!aviso || !instantePopupValido(agora)) return false;
+            if (!instantePopupValido(aviso.inicioEm) || !instantePopupValido(aviso.fimEm)) return false;
+            return String(agora) >= aviso.inicioEm && String(agora) <= aviso.fimEm;
+        }
+
+        // Leitura tolerante, so para preencher o formulario: preserva o texto de
+        // um aviso desligado ou expirado para a recepcao reaproveitar.
+        function lerAvisoPopupPainel(valor) {
+            const bruto = valor && typeof valor === "object" && !Array.isArray(valor) ? valor : {};
+            return {
+                ativo: bruto.ativo === true,
+                titulo: limparTextoAvisoPopup(bruto.titulo, LIMITE_TITULO_AVISO_POPUP),
+                mensagem: limparTextoAvisoPopup(bruto.mensagem, LIMITE_MENSAGEM_AVISO_POPUP),
+                tipo: TIPOS_AVISO_POPUP.includes(String(bruto.tipo)) ? String(bruto.tipo) : TIPO_AVISO_POPUP_PADRAO,
+                repetir: REPETICOES_AVISO_POPUP.includes(String(bruto.repetir)) ? String(bruto.repetir) : REPETICAO_AVISO_POPUP_PADRAO,
+                inicioEm: instantePopupValido(bruto.inicioEm) ? String(bruto.inicioEm) : "",
+                fimEm: instantePopupValido(bruto.fimEm) ? String(bruto.fimEm) : "",
+                id: FORMATO_ID_POPUP.test(String(bruto.id || "")) ? String(bruto.id) : ""
+            };
+        }
+
+        // Id novo a cada gravacao: e ele que faz o site reapresentar o aviso para
+        // quem ja tinha fechado a versao anterior.
+        function gerarIdAvisoPopup() {
+            return `p${Date.now().toString(36)}`.slice(0, 24);
+        }
+
+        // Estado do que ESTA GRAVADO, nao do formulario: e o que o cidadao ve.
+        function descreverStatusAvisoPopup(bruto, agora) {
+            const aviso = normalizarAvisoPopup(bruto);
+            if (!aviso) {
+                const guardado = bruto && typeof bruto === "object" && limparTextoAvisoPopup(bruto.mensagem, LIMITE_MENSAGEM_AVISO_POPUP);
+                return {
+                    classe: "",
+                    texto: guardado
+                        ? "Pop-up desligado. O site não mostra nenhum aviso; o texto abaixo fica guardado para quando você quiser ligar de novo."
+                        : "Nenhum pop-up configurado. O site não mostra nenhum aviso."
+                };
+            }
+            if (String(agora) < aviso.inicioEm) {
+                return {
+                    classe: "programado",
+                    texto: `Programado: aparece em ${dataHoraBr(aviso.inicioEm)} e sai do ar em ${dataHoraBr(aviso.fimEm)}.`
+                };
+            }
+            if (String(agora) > aviso.fimEm) {
+                return {
+                    classe: "encerrado",
+                    texto: `Encerrado em ${dataHoraBr(aviso.fimEm)}. O site não mostra mais este aviso.`
+                };
+            }
+            return {
+                classe: "no-ar",
+                texto: `No ar agora. Sai do ar em ${dataHoraBr(aviso.fimEm)}.`
+            };
+        }
+
+        function preencherFormularioAvisoPopup(bruto) {
+            const dados = lerAvisoPopupPainel(bruto);
+            document.getElementById("popup-ativo").checked = dados.ativo;
+            document.getElementById("popup-titulo").value = dados.titulo;
+            document.getElementById("popup-mensagem").value = dados.mensagem;
+            document.getElementById("popup-tipo").value = dados.tipo;
+            document.getElementById("popup-repetir").value = dados.repetir;
+            document.getElementById("popup-inicio").value = dados.inicioEm;
+            document.getElementById("popup-fim").value = dados.fimEm;
+            atualizarPreviaAvisoPopup();
+        }
+
+        function avisoPopupDoFormulario() {
+            return {
+                ativo: document.getElementById("popup-ativo").checked,
+                titulo: limparTextoAvisoPopup(document.getElementById("popup-titulo").value, LIMITE_TITULO_AVISO_POPUP),
+                mensagem: limparTextoAvisoPopup(document.getElementById("popup-mensagem").value, LIMITE_MENSAGEM_AVISO_POPUP),
+                tipo: document.getElementById("popup-tipo").value,
+                repetir: document.getElementById("popup-repetir").value,
+                inicioEm: document.getElementById("popup-inicio").value,
+                fimEm: document.getElementById("popup-fim").value
+            };
+        }
+
+        function aparenciaAvisoPopup(tipo) {
+            if (tipo === "urgente") return { icone: "fa-circle-exclamation", cor: "#dc2626", tituloPadrao: "Aviso importante" };
+            if (tipo === "atencao") return { icone: "fa-triangle-exclamation", cor: "#d97706", tituloPadrao: "Atenção" };
+            return { icone: "fa-circle-info", cor: "#2563eb", tituloPadrao: "Aviso" };
+        }
+
+        function atualizarPreviaAvisoPopup() {
+            const dados = avisoPopupDoFormulario();
+            const contador = document.getElementById("popup-contador");
+            if (contador) contador.textContent = `${dados.mensagem.length}/${LIMITE_MENSAGEM_AVISO_POPUP} caracteres`;
+            const previa = document.getElementById("popup-previa");
+            if (previa) {
+                const aparencia = aparenciaAvisoPopup(dados.tipo);
+                previa.innerHTML = dados.mensagem
+                    ? `<div class="previa-icone"><i class="fa-solid ${aparencia.icone}" style="color:${aparencia.cor};"></i></div>
+                       <div class="previa-titulo">${textoSeguro(dados.titulo || aparencia.tituloPadrao)}</div>
+                       <div class="previa-mensagem">${textoSeguro(dados.mensagem)}</div>`
+                    : '<span class="previa-vazia">Escreva a mensagem para ver como ela vai aparecer.</span>';
+            }
+            const status = document.getElementById("popup-status");
+            if (status) {
+                const descricao = descreverStatusAvisoPopup(agendaAvisoPopup, agoraSaoPauloInput());
+                status.className = `popup-status ${descricao.classe}`.trim();
+                status.textContent = descricao.texto;
+            }
+        }
+
+        async function salvarAvisoPopup() {
+            const dados = avisoPopupDoFormulario();
+            if (!dados.mensagem) return avisoPainel("Escreva a mensagem do pop-up.");
+            // Com a exibicao desligada o texto e so um rascunho guardado: exigir
+            // a janela ai impediria escrever o recado antes de decidir a data.
+            if (dados.ativo) {
+                if (!instantePopupValido(dados.inicioEm)) return avisoPainel("Informe a data e a hora em que o aviso começa a aparecer.");
+                if (!instantePopupValido(dados.fimEm)) return avisoPainel("Informe a data e a hora em que o aviso para de aparecer.");
+                if (dados.fimEm <= dados.inicioEm) return avisoPainel("O fim do aviso precisa ser depois do início.");
+            }
+            const agora = agoraSaoPauloInput();
+            if (dados.ativo && dados.fimEm <= agora) return avisoPainel("Esse período já terminou. Escolha um fim no futuro.");
+            if (dados.ativo && dados.inicioEm <= agora) {
+                const confirmou = await confirmarPainel(
+                    "O aviso entra no ar imediatamente e pode levar até 15 minutos para chegar a todos os visitantes. Continuar?",
+                    { titulo: "Publicar agora", textoConfirmar: "Publicar" }
+                );
+                if (!confirmou) return;
+            }
+            const avisoPopup = {
+                ativo: dados.ativo,
+                titulo: dados.titulo,
+                mensagem: dados.mensagem,
+                tipo: TIPOS_AVISO_POPUP.includes(dados.tipo) ? dados.tipo : TIPO_AVISO_POPUP_PADRAO,
+                repetir: REPETICOES_AVISO_POPUP.includes(dados.repetir) ? dados.repetir : REPETICAO_AVISO_POPUP_PADRAO,
+                inicioEm: dados.inicioEm,
+                fimEm: dados.fimEm,
+                id: gerarIdAvisoPopup(),
+                atualizadoEm: new Date().toISOString()
+            };
+            try {
+                await gravarAgendaConfig({ avisoPopup, atualizado: new Date().toISOString() });
+                agendaAvisoPopup = avisoPopup;
+                preencherFormularioAvisoPopup(avisoPopup);
+                avisoPainel(dados.ativo ? "Pop-up salvo." : "Pop-up salvo e desligado.");
+                registrarLog("agenda_salvar_aviso_popup", {
+                    ativo: avisoPopup.ativo,
+                    tipo: avisoPopup.tipo,
+                    inicioEm: avisoPopup.inicioEm,
+                    fimEm: avisoPopup.fimEm,
+                    repetir: avisoPopup.repetir
+                });
+            } catch (e) {
+                avisoPainel("Erro ao salvar o pop-up.");
+            }
+        }
+
+        // Desligar preserva o texto: e comum o mesmo recado voltar semanas depois.
+        async function desativarAvisoPopup() {
+            const atual = lerAvisoPopupPainel(agendaAvisoPopup);
+            if (!agendaAvisoPopup || !atual.ativo) {
+                document.getElementById("popup-ativo").checked = false;
+                atualizarPreviaAvisoPopup();
+                return avisoPainel("O pop-up já está desligado.");
+            }
+            if (!(await confirmarPainel("Desligar o pop-up de aviso do site agora?", { titulo: "Desativar pop-up", perigo: true, textoConfirmar: "Desativar" }))) return;
+            const avisoPopup = { ...agendaAvisoPopup, ativo: false, atualizadoEm: new Date().toISOString() };
+            try {
+                await gravarAgendaConfig({ avisoPopup, atualizado: new Date().toISOString() });
+                agendaAvisoPopup = avisoPopup;
+                preencherFormularioAvisoPopup(avisoPopup);
+                avisoPainel("Pop-up desativado.");
+                registrarLog("agenda_desativar_aviso_popup", { inicioEm: avisoPopup.inicioEm || "", fimEm: avisoPopup.fimEm || "" });
+            } catch (e) {
+                avisoPainel("Erro ao desativar o pop-up.");
+            }
         }
 
         function dataConfigParaInput(valor) {
@@ -2694,6 +3006,8 @@ Até logo!`;
                 agenda_salvar_automacao_semanal: "Automação semanal salva",
                 agenda_salvar_horarios_semana: "Horários salvos",
                 agenda_salvar_preferencias: "Preferências salvas",
+                agenda_salvar_aviso_popup: "Pop-up de aviso salvo",
+                agenda_desativar_aviso_popup: "Pop-up de aviso desativado",
                 credencial_cadastrar: "Credencial cadastrada",
                 credencial_pronta: "Credencial pronta",
                 credencial_aviso_whatsapp: "Aviso WhatsApp credencial",
@@ -2788,6 +3102,10 @@ Até logo!`;
                 document.getElementById('remarcar-data').min = hojeISO();
                 document.getElementById('cfg-publicar-em-data').min = agoraSaoPauloInput();
                 document.getElementById('cfg-publicar-em-aviso').min = agoraSaoPauloInput();
+                // popup-inicio e popup-fim ficam sem `min` de proposito: a
+                // recepcao precisa poder reabrir um aviso antigo para
+                // reaproveitar o texto, e a validacao de fim futuro esta em
+                // salvarAvisoPopup.
                 ["cfg-auto-semana-pausada", "cfg-auto-data-bloqueada", "cfg-auto-ferias-inicio", "cfg-auto-ferias-fim"].forEach(id => {
                     document.getElementById(id).min = hojeISO();
                 });
@@ -2962,6 +3280,10 @@ Até logo!`;
                 templateLembrete = String(cfg.mensagemLembreteTemplate || TEMPLATE_LEMBRETE_PADRAO);
                 document.getElementById("cfg-responsavel-posto").value = responsavelPosto;
                 document.getElementById("cfg-template-lembrete").value = templateLembrete;
+                agendaAvisoPopup = cfg.avisoPopup && typeof cfg.avisoPopup === "object" && !Array.isArray(cfg.avisoPopup)
+                    ? cfg.avisoPopup
+                    : null;
+                preencherFormularioAvisoPopup(agendaAvisoPopup);
                 const avisoProgramado = cfg.avisoNovasVagasProgramado && typeof cfg.avisoNovasVagasProgramado === "object" ? cfg.avisoNovasVagasProgramado : null;
                 const agora = agoraSaoPauloInput();
                 document.getElementById("cfg-data-novas-vagas").value = dataConfigParaInput(
