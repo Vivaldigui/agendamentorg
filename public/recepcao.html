@@ -1199,6 +1199,246 @@
             .abas-operacao { position: static; }
             .fila-topo { top: 4px; }
         }
+
+        /* ==================================================================
+           Estrutura nova do painel: barra institucional, navegacao por area,
+           faixa de estado, cabecalho da fila e hub de configuracao.
+           Tudo usa os tokens ja definidos em :root / body.modo-escuro, entao
+           o modo escuro acompanha sem regra duplicada.
+           ================================================================== */
+
+        .sr-only {
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+        }
+
+        /* ---- barra institucional ---------------------------------------- */
+        .topbar {
+            position: sticky;
+            top: 6px;
+            z-index: 30;
+            margin-bottom: 14px;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+        .ident { display: flex; align-items: center; gap: 14px; padding: 12px 18px; }
+        .ident-brasao { width: 40px; height: 40px; object-fit: contain; flex: none; }
+        .ident-txt { display: flex; flex-direction: column; line-height: 1.25; margin-right: auto; min-width: 0; }
+        .ident-txt strong { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
+        .ident-txt span { font-size: 0.8rem; color: var(--muted); }
+        .quem {
+            display: flex; flex-direction: column; align-items: flex-end; line-height: 1.3;
+            padding-right: 14px; border-right: 1px solid var(--line);
+        }
+        .quem b { font-size: 0.85rem; font-weight: 600; color: var(--ink); }
+        .quem span { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+
+        /* ---- navegacao por area ------------------------------------------ */
+        .nav { border-top: 1px solid var(--line); background: var(--surface-soft); }
+        .nav-in { display: flex; align-items: stretch; gap: 2px; padding: 0 12px; overflow-x: auto; }
+        .nav-sep { width: 1px; background: var(--line); margin: 10px 10px; flex: none; }
+        .nav-in .btn-vista {
+            background: none;
+            border: 0;
+            border-bottom: 3px solid transparent;
+            border-radius: 0;
+            color: var(--muted);
+            font-weight: 600;
+            font-size: 0.88rem;
+            padding: 13px 14px;
+            box-shadow: none;
+            white-space: nowrap;
+            transition: none;
+        }
+        .nav-in .btn-vista:hover { color: var(--ink); background: none; transform: none; box-shadow: none; }
+        .nav-in .btn-vista.ativo {
+            background: none;
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            box-shadow: none;
+        }
+        .nav-in .btn-vista i { color: inherit; }
+
+        /* As regras antigas de .btn-vista (pilulas) continuam valendo para os
+           filtros de credenciais; aqui na navegacao por area elas precisam ser
+           desfeitas tambem no modo escuro, que tem especificidade maior. */
+        body.modo-escuro .nav-in .btn-vista {
+            background: none;
+            color: var(--muted);
+            border: 0;
+            border-bottom: 3px solid transparent;
+            border-radius: 0;
+        }
+        body.modo-escuro .nav-in .btn-vista:hover { background: none; color: var(--ink); }
+        body.modo-escuro .nav-in .btn-vista.ativo {
+            background: none;
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        /* ---- faixa de estado --------------------------------------------- */
+        .faixa { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+        .faixa:empty { display: none; }
+        .sinal {
+            display: inline-flex; align-items: center; gap: 9px;
+            padding: 7px 13px; border-radius: 999px;
+            font-size: 0.82rem; border: 1px solid;
+        }
+        .sinal .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+        .sinal b { font-weight: 700; }
+        .sinal.ok { color: var(--success); background: rgba(23, 130, 76, 0.10); border-color: rgba(23, 130, 76, 0.30); }
+        .sinal.warn { color: var(--warning); background: rgba(217, 119, 6, 0.12); border-color: rgba(217, 119, 6, 0.32); }
+        .sinal.info { color: var(--primary); background: rgba(0, 86, 179, 0.10); border-color: rgba(0, 86, 179, 0.26); }
+        .sinal-link {
+            background: none; border: 0; padding: 0 0 0 2px; cursor: pointer;
+            color: inherit; font: inherit; font-weight: 700; text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        /* ---- cabecalho da fila de hoje ----------------------------------- */
+        .fila-cabecalho {
+            display: flex; flex-wrap: wrap; align-items: center; gap: 22px;
+            background: var(--surface); border: 1px solid var(--line);
+            border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+            padding: 18px 20px; margin-bottom: 12px;
+        }
+        .fila-dia h2 { margin: 0; font-size: 1.35rem; letter-spacing: -0.02em; color: var(--ink); }
+        .fila-dia p { margin: 3px 0 0; font-size: 0.86rem; color: var(--muted); }
+        .fila-progresso { margin-left: auto; flex: 1; min-width: 260px; max-width: 420px; }
+        .fila-progresso-topo {
+            display: flex; align-items: baseline; justify-content: space-between;
+            gap: 12px; margin-bottom: 8px; flex-wrap: wrap;
+        }
+        .fila-progresso-topo strong { font-size: 0.95rem; color: var(--ink); }
+        .fila-barra {
+            display: flex; height: 9px; border-radius: 999px;
+            background: var(--line); overflow: hidden;
+        }
+        .fila-barra i { display: block; height: 100%; transition: width 0.3s ease; }
+        .fila-barra-ok { background: var(--success); }
+        .fila-barra-falta { background: var(--danger); opacity: 0.7; }
+
+        .fila-busca {
+            display: flex; align-items: center; gap: 10px;
+            background: var(--surface); border: 1px solid var(--line);
+            border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
+            padding: 10px 15px; margin-bottom: 14px;
+        }
+        .fila-busca i { color: var(--muted); }
+        .fila-busca input {
+            flex: 1; border: 0; background: none; padding: 4px 0;
+            font-family: inherit; font-size: 0.95rem; color: var(--ink);
+        }
+        .fila-busca input:focus { outline: none; }
+        .atalho-busca {
+            font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+            font-size: 0.72rem; color: var(--muted);
+            border: 1px solid var(--line); border-radius: 5px;
+            padding: 2px 7px; background: var(--surface-soft);
+        }
+
+        /* ---- menu de acoes da lista -------------------------------------- */
+        .menu-acoes { position: relative; }
+        .btn-secundario { background: var(--surface-soft); color: var(--ink); border: 1px solid var(--line); }
+        .btn-secundario:hover { background: var(--surface); }
+        .menu-acoes-lista {
+            position: absolute; top: calc(100% + 6px); left: 0; z-index: 25;
+            min-width: 250px; padding: 6px;
+            background: var(--surface); border: 1px solid var(--line);
+            border-radius: var(--radius-md); box-shadow: var(--shadow-md);
+            display: flex; flex-direction: column;
+        }
+        .menu-acoes-lista[hidden] { display: none; }
+        .menu-acoes-lista button {
+            display: flex; align-items: center; gap: 10px;
+            background: none; border: 0; border-radius: 8px;
+            padding: 9px 11px; text-align: left; cursor: pointer;
+            font-family: inherit; font-size: 0.87rem; color: var(--ink);
+        }
+        .menu-acoes-lista button:hover { background: var(--surface-soft); }
+        .menu-acoes-lista button i { width: 16px; color: var(--muted); }
+
+        /* ---- barra de filtros unificada ---------------------------------- */
+        .filtros-linha { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+        .filtros-linha .input-group { margin-bottom: 0; }
+        .filtro-busca-campo {
+            position: relative; flex: 1; min-width: 240px;
+            display: flex; align-items: center; gap: 9px;
+        }
+        .filtro-busca-campo i { position: absolute; left: 12px; color: var(--muted); pointer-events: none; }
+        .filtro-busca-campo input { padding-left: 34px; }
+        .filtros-avancados {
+            display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+            margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line);
+        }
+        .filtros-avancados[hidden] { display: none; }
+        .filtros-avancados .input-group { margin-bottom: 0; }
+        .painel-filtros .filtros-rapidos { margin-top: 14px; }
+
+        /* ---- hub de configuracao ----------------------------------------- */
+        .config-intro { margin-bottom: 18px; }
+        .config-intro h2 { margin: 0; font-size: 1.25rem; letter-spacing: -0.02em; color: var(--ink); }
+        .config-intro h2 i { color: var(--primary); }
+        .config-intro p { margin: 5px 0 0; font-size: 0.9rem; color: var(--muted); max-width: 62ch; }
+        .config-hub-grid {
+            display: grid; gap: 14px;
+            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+        }
+        .cfg-tile {
+            display: flex; flex-direction: column; gap: 9px;
+            min-height: 156px; padding: 18px 17px; text-align: left; cursor: pointer;
+            background: var(--surface); border: 1px solid var(--line);
+            border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+            font-family: inherit; color: var(--ink);
+            transition: transform 0.16s ease, box-shadow 0.16s ease;
+        }
+        .cfg-tile:hover { transform: translateY(-2px); border-color: var(--primary); box-shadow: var(--shadow-md); }
+        .cfg-ico {
+            width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center;
+            background: rgba(0, 86, 179, 0.10); color: var(--primary); font-size: 1.1rem;
+        }
+        .cfg-tile b { font-size: 0.98rem; font-weight: 700; }
+        .cfg-estado { font-size: 0.76rem; font-weight: 600; color: var(--muted); }
+        .cfg-estado.e-on { color: var(--success); }
+        .cfg-estado.e-off { color: var(--danger); }
+        .cfg-tile small { margin-top: auto; font-size: 0.79rem; line-height: 1.45; color: var(--muted); }
+
+        .btn-voltar {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: none; border: 0; padding: 0; margin-bottom: 14px; cursor: pointer;
+            font-family: inherit; font-size: 0.88rem; font-weight: 600; color: var(--primary);
+        }
+        .btn-voltar:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+        /* Dentro de um painel dedicado o bloco ja e a tela inteira, entao os
+           antigos <details> viraram secoes sempre abertas. */
+        .config-pane .painel-config > h3:first-of-type { margin-top: 0; }
+        .config-pane .painel-automacao,
+        .config-pane .painel-horarios,
+        .config-pane .painel-preferencias,
+        .painel-logs { margin-top: 0; padding-top: 0; border-top: 0; }
+
+        /* ---- tabela: cabecalho fixo na rolagem --------------------------- */
+        .tabela-wrap { max-height: none; }
+        .tabela-wrap thead th { position: sticky; top: 0; z-index: 2; }
+
+        @media (max-width: 900px) {
+            .quem { display: none; }
+            .fila-progresso { margin-left: 0; max-width: none; }
+            .ident { flex-wrap: wrap; }
+        }
+        @media (max-width: 760px) {
+            .topbar { position: static; }
+            .ident-txt strong { font-size: 0.95rem; }
+            .nav-in { padding: 0 8px; }
+            .nav-in .btn-vista { padding: 11px 10px; font-size: 0.83rem; }
+            .filtro-busca-campo { min-width: 100%; }
+            .menu-acoes-lista { left: auto; right: 0; }
+            .tabela-wrap thead th { position: static; }
+        }
     </style>
 </head>
 <body class="modo-escuro">
@@ -1218,45 +1458,84 @@
     </div>
 
     <div id="painel-screen">
-        <div class="header">
-            <h2><i class="fa-solid fa-users-gear"></i> Painel da Recepção — CIN</h2>
-            <div class="header-actions">
+        <header class="topbar">
+            <div class="ident">
+                <img class="ident-brasao" src="/assets/header-logo.png" alt="">
+                <div class="ident-txt">
+                    <strong>Agendamento CIN &middot; Itanhandu</strong>
+                    <span>Câmara Municipal de Itanhandu &middot; Posto de atendimento</span>
+                </div>
+                <div class="quem">
+                    <b id="quem-nome">Recepção</b>
+                    <span>Operador</span>
+                </div>
                 <button class="btn btn-tema" id="btn-tema" onclick="alternarTema()"><i class="fa-solid fa-moon"></i> Modo escuro</button>
                 <button class="btn btn-sair" onclick="fazerLogout()">Sair</button>
             </div>
-        </div>
-        <div class="abas-operacao">
-            <button type="button" class="btn btn-vista ativo" id="btn-vista-hoje" onclick="mostrarVistaPainel('hoje')"><i class="fa-solid fa-calendar-day"></i> Fila de hoje</button>
-            <button type="button" class="btn btn-vista" id="btn-vista-lista" onclick="mostrarVistaPainel('lista')"><i class="fa-solid fa-table-list"></i> Lista e gestão</button>
-            <button type="button" class="btn btn-vista" id="btn-vista-credenciais" onclick="mostrarVistaPainel('credenciais')"><i class="fa-solid fa-square-parking"></i> Credenciais de estacionamento</button>
-        </div>
-        <section class="painel-fila ativo" id="vista-hoje">
-            <div class="fila-topo">
-                <div class="input-group">
-                    <label for="busca-fila-hoje"><i class="fa-solid fa-magnifying-glass"></i> Check-in rápido por nome ou CPF</label>
-                    <input id="busca-fila-hoje" type="search" placeholder="Digite o nome ou CPF do cidadão" oninput="renderFilaHoje()">
+            <nav class="nav">
+                <div class="nav-in" role="tablist" aria-label="Áreas do painel">
+                    <button type="button" class="btn btn-vista ativo" id="btn-vista-hoje" role="tab" aria-selected="true" onclick="mostrarVistaPainel('hoje')"><i class="fa-solid fa-calendar-day"></i> Fila de hoje</button>
+                    <button type="button" class="btn btn-vista" id="btn-vista-lista" role="tab" aria-selected="false" onclick="mostrarVistaPainel('lista')"><i class="fa-solid fa-table-list"></i> Agendamentos</button>
+                    <button type="button" class="btn btn-vista" id="btn-vista-credenciais" role="tab" aria-selected="false" onclick="mostrarVistaPainel('credenciais')"><i class="fa-solid fa-square-parking"></i> Credenciais</button>
+                    <span class="nav-sep" aria-hidden="true"></span>
+                    <button type="button" class="btn btn-vista" id="btn-vista-config" role="tab" aria-selected="false" onclick="mostrarVistaPainel('config')"><i class="fa-solid fa-gears"></i> Configuração</button>
+                    <button type="button" class="btn btn-vista" id="btn-vista-relatorios" role="tab" aria-selected="false" onclick="mostrarVistaPainel('relatorios')"><i class="fa-solid fa-chart-simple"></i> Relatórios</button>
                 </div>
-                <div class="fila-resumo">
-                    <strong id="fila-contagem">0 de 0 atendidos hoje</strong><br>
-                    <span class="atualizado-em" id="fila-atualizado"><i class="fa-solid fa-rotate"></i> Aguardando atualização</span>
+            </nav>
+        </header>
+
+        <!-- Faixa de estado: mostra a recepcao o que esta publicado no site
+             agora, sem precisar abrir a Configuracao. Preenchida por
+             atualizarFaixaEstado(), que so le controles ja carregados na tela
+             (nenhuma leitura extra no Firestore). -->
+        <div class="faixa" id="faixa-estado"></div>
+
+        <section class="painel-fila ativo" id="vista-hoje">
+            <div class="fila-cabecalho">
+                <div class="fila-dia">
+                    <h2 id="fila-data-titulo">Hoje</h2>
+                    <p id="fila-data-detalhe">Carregando a fila do dia...</p>
+                </div>
+                <div class="fila-progresso">
+                    <div class="fila-progresso-topo">
+                        <strong id="fila-contagem">0 de 0 atendidos hoje</strong>
+                        <span class="atualizado-em" id="fila-atualizado"><i class="fa-solid fa-rotate"></i> Aguardando atualização</span>
+                    </div>
+                    <div class="fila-barra" role="img" aria-label="Progresso do dia">
+                        <i class="fila-barra-ok" id="fila-barra-ok" style="width:0%"></i>
+                        <i class="fila-barra-falta" id="fila-barra-falta" style="width:0%"></i>
+                    </div>
                 </div>
             </div>
-            <div class="acessos-tempo-real" aria-label="Acessos ao agendamento público em tempo real">
+            <div class="fila-busca">
+                <label class="sr-only" for="busca-fila-hoje">Check-in por nome, CPF ou protocolo</label>
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                <input id="busca-fila-hoje" type="search" placeholder="Check-in por nome, CPF ou protocolo" oninput="renderFilaHoje()">
+                <kbd class="atalho-busca">/</kbd>
+            </div>
+            <!-- Os cards de acesso ficam ocultos enquanto a medicao esta
+                 desligada; antes ocupavam o topo escrito "Medicao desativada". -->
+            <div class="acessos-tempo-real" id="acessos-tempo-real" aria-label="Acessos ao agendamento público em tempo real">
                 <div class="acesso-card">Acessos agora<strong id="acessos-agora">Medição desativada</strong></div>
                 <div class="acesso-card">Pico de hoje<strong id="acessos-pico-hoje">Medição desativada</strong></div>
                 <div class="acesso-card">Entradas hoje<strong id="acessos-total-hoje">Medição desativada</strong></div>
             </div>
             <div class="fila-cards" id="fila-hoje-cards"></div>
         </section>
+
         <div id="vista-lista" style="display:none;">
         <div class="controles">
-            <button class="btn btn-atualizar" onclick="listarAgendamentos()"><i class="fa-solid fa-rotate"></i> Atualizar Lista</button>
-            <button class="btn btn-excel" onclick="exportarExcel()"><i class="fa-solid fa-file-excel"></i> Exportar para Excel</button>
-            <button class="btn btn-config" onclick="imprimirListaHoje()"><i class="fa-solid fa-print"></i> Imprimir lista do dia</button>
             <button class="btn btn-manual" onclick="abrirModal()"><i class="fa-solid fa-user-plus"></i> Inserir Encaixe Manual</button>
-            <button class="btn btn-lembrete-lote" onclick="enviarLembretesAmanha()">
-                <i class="fa-brands fa-whatsapp"></i> Lembretes de amanhã
-            </button>
+            <div class="menu-acoes">
+                <button type="button" class="btn btn-secundario" id="btn-acoes-lista" aria-haspopup="true" aria-expanded="false" onclick="alternarAcoesDaLista(event)">Ações <i class="fa-solid fa-chevron-down"></i></button>
+                <div class="menu-acoes-lista" id="acoes-lista-menu" hidden>
+                    <button type="button" onclick="listarAgendamentos()"><i class="fa-solid fa-rotate"></i> Atualizar lista</button>
+                    <button type="button" onclick="exportarExcel()"><i class="fa-solid fa-file-excel"></i> Exportar para Excel</button>
+                    <button type="button" onclick="imprimirListaHoje()"><i class="fa-solid fa-print"></i> Imprimir lista do dia</button>
+                    <button type="button" onclick="enviarLembretesAmanha()"><i class="fa-brands fa-whatsapp"></i> Lembretes de amanhã</button>
+                    <button type="button" onclick="buscarHistoricoAgendamento()"><i class="fa-solid fa-clock-rotate-left"></i> Buscar em todo o histórico</button>
+                </div>
+            </div>
             <span class="atualizado-em" id="lista-atualizado"><i class="fa-solid fa-rotate"></i> Aguardando atualização</span>
         </div>
         <div class="cards-resumo">
@@ -1266,31 +1545,28 @@
             <button type="button" class="card-kpi clicavel" onclick="irParaConfiguracaoAgenda()"><span>Datas Lotadas</span><strong id="kpi-lotadas">0</strong></button>
             <button type="button" class="card-kpi clicavel" onclick="filtroRapidoPainel('compareceram')"><span>Atendimentos realizados</span><strong id="kpi-atendidos">0</strong></button>
         </div>
-        <div class="painel-periodo">
-            <h3><i class="fa-solid fa-calendar-days"></i> Período carregado no painel</h3>
-            <div class="config-form">
-                <div class="input-group">
-                    <label>Carregar de:</label>
-                    <input type="date" id="consulta-inicio">
-                </div>
-                <div class="input-group">
-                    <label>Até:</label>
-                    <input type="date" id="consulta-fim">
-                </div>
-                <button class="btn btn-atualizar" onclick="listarAgendamentos()"><i class="fa-solid fa-magnifying-glass"></i> Carregar período</button>
-                <button class="btn btn-sair" onclick="buscarHistoricoAgendamento()"><i class="fa-solid fa-clock-rotate-left"></i> Buscar histórico por CPF/protocolo</button>
-            </div>
-            <span class="periodo-info" id="info-periodo-lista">Por padrão, o painel carrega apenas agendamentos de ontem em diante.</span>
-        </div>
         <div class="painel-filtros">
-            <h3 style="margin:0 0 14px; color:var(--primary-dark); font-size:1rem;"><i class="fa-solid fa-filter"></i> Filtros da Lista</h3>
-            <div class="filtros-grid">
-                <div class="input-group">
-                    <label>Buscar:</label>
+            <div class="filtros-linha">
+                <div class="input-group filtro-busca-campo">
+                    <label for="filtro-busca" class="sr-only">Buscar na lista</label>
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
                     <input id="filtro-busca" type="text" placeholder="Nome, CPF, telefone ou protocolo" oninput="renderTabelaAgendamentos()">
                 </div>
                 <div class="input-group">
-                    <label>Data:</label>
+                    <label for="consulta-inicio">Carregar de:</label>
+                    <input type="date" id="consulta-inicio">
+                </div>
+                <div class="input-group">
+                    <label for="consulta-fim">Até:</label>
+                    <input type="date" id="consulta-fim">
+                </div>
+                <button class="btn btn-atualizar" onclick="listarAgendamentos()"><i class="fa-solid fa-arrows-rotate"></i> Carregar período</button>
+                <button type="button" class="btn btn-secundario" id="btn-mais-filtros" aria-expanded="false" onclick="alternarMaisFiltros()">Mais filtros <i class="fa-solid fa-chevron-down"></i></button>
+                <button class="btn btn-sair" onclick="limparFiltros()"><i class="fa-solid fa-broom"></i> Limpar</button>
+            </div>
+            <div class="filtros-avancados" id="filtros-avancados" hidden>
+                <div class="input-group">
+                    <label for="filtro-data">Data exata:</label>
                     <input id="filtro-data" type="date" onchange="renderTabelaAgendamentos()">
                 </div>
                 <div class="input-group">
@@ -1306,7 +1582,6 @@
                     </select>
                 </div>
                 <label class="filtro-check"><input type="checkbox" id="filtro-futuros" checked onchange="renderTabelaAgendamentos()"> Ocultar passados</label>
-                <button class="btn btn-sair" onclick="limparFiltros()"><i class="fa-solid fa-broom"></i> Limpar</button>
             </div>
             <div class="filtros-rapidos">
                 <button type="button" onclick="filtroRapidoPainel('hoje')">Hoje</button>
@@ -1320,6 +1595,7 @@
                 <button type="button" onclick="filtroRapidoPainel('bloqueados')">Bloqueados</button>
                 <button type="button" onclick="filtroRapidoPainel('manuais')">Manuais</button>
             </div>
+            <span class="periodo-info" id="info-periodo-lista">Por padrão, o painel carrega apenas agendamentos de ontem em diante.</span>
         </div>
         <div class="tabela-wrap">
             <table>
@@ -1327,13 +1603,50 @@
                 <tbody id="corpo-tabela"></tbody>
             </table>
         </div>
-        <details class="painel-logs painel-recolhivel" open>
-            <summary><i class="fa-solid fa-clock-rotate-left"></i> Histórico de ações de hoje</summary>
-            <div style="margin-top:10px;">
-                <button type="button" class="btn btn-atualizar" onclick="carregarLogsAdmin()"><i class="fa-solid fa-rotate"></i> Atualizar histórico</button>
+        </div>
+
+        <div id="vista-config" style="display:none;">
+            <div id="config-hub">
+                <div class="config-intro">
+                    <h2><i class="fa-solid fa-gears"></i> Configuração do atendimento</h2>
+                    <p>Tudo que muda o que o cidadão vê no site fica aqui, fora da tela de operação do dia.</p>
+                </div>
+                <div class="config-hub-grid">
+                    <button type="button" class="cfg-tile" onclick="abrirConfig('datas')">
+                        <span class="cfg-ico"><i class="fa-solid fa-calendar-days"></i></span>
+                        <b>Datas de atendimento</b>
+                        <span class="cfg-estado" id="est-datas">&nbsp;</span>
+                        <small>Abrir, fechar ou programar a publicação de cada data e o aviso de novas vagas.</small>
+                    </button>
+                    <button type="button" class="cfg-tile" onclick="abrirConfig('popup')">
+                        <span class="cfg-ico"><i class="fa-solid fa-bullhorn"></i></span>
+                        <b>Pop-up de aviso</b>
+                        <span class="cfg-estado" id="est-popup">&nbsp;</span>
+                        <small>Recado exibido no site para quem for agendar.</small>
+                    </button>
+                    <button type="button" class="cfg-tile" onclick="abrirConfig('automacao')">
+                        <span class="cfg-ico"><i class="fa-solid fa-calendar-check"></i></span>
+                        <b>Automação semanal</b>
+                        <span class="cfg-estado" id="est-automacao">&nbsp;</span>
+                        <small>Abertura automática da agenda, semanas pausadas, dias bloqueados e férias.</small>
+                    </button>
+                    <button type="button" class="cfg-tile" onclick="abrirConfig('horarios')">
+                        <span class="cfg-ico"><i class="fa-solid fa-clock"></i></span>
+                        <b>Horários da semana</b>
+                        <span class="cfg-estado" id="est-horarios">&nbsp;</span>
+                        <small>Grade de horários de cada dia da semana.</small>
+                    </button>
+                    <button type="button" class="cfg-tile" onclick="abrirConfig('preferencias')">
+                        <span class="cfg-ico"><i class="fa-solid fa-sliders"></i></span>
+                        <b>Lembretes e responsável</b>
+                        <span class="cfg-estado" id="est-preferencias">&nbsp;</span>
+                        <small>Nome do responsável do posto e texto do lembrete de WhatsApp.</small>
+                    </button>
+                </div>
             </div>
-            <div class="logs-lista" id="logs-lista"></div>
-        </details>
+
+            <div class="config-pane" id="pane-datas" style="display:none;">
+                <button type="button" class="btn-voltar" onclick="voltarConfigHub()"><i class="fa-solid fa-arrow-left"></i> Configuração</button>
         <div class="painel-config">
             <h3><i class="fa-solid fa-calendar-days"></i> Datas de Atendimento</h3>
             <div class="config-form">
@@ -1377,6 +1690,10 @@
                 <button class="btn btn-config" onclick="salvarAvisoNovasVagas()"><i class="fa-solid fa-floppy-disk"></i> Salvar Aviso</button>
             </div>
         </div>
+            </div>
+
+            <div class="config-pane" id="pane-popup" style="display:none;">
+                <button type="button" class="btn-voltar" onclick="voltarConfigHub()"><i class="fa-solid fa-arrow-left"></i> Configuração</button>
         <div class="painel-config">
             <h3><i class="fa-solid fa-bullhorn"></i> Pop-up de aviso no site</h3>
             <p style="margin:0 0 12px; font-size:0.85rem; color:#475569; line-height:1.5;">
@@ -1441,10 +1758,12 @@
                 <button type="button" class="btn btn-atualizar" onclick="carregarAgendaGestao()"><i class="fa-solid fa-rotate"></i> Recarregar</button>
             </div>
         </div>
-        <div class="painel-config">
-            <h3><i class="fa-solid fa-gears"></i> Configurações operacionais</h3>
-            <details class="painel-automacao" open>
-                <summary><i class="fa-solid fa-calendar-check"></i> Abertura automática toda segunda-feira</summary>
+            </div>
+
+            <div class="config-pane" id="pane-automacao" style="display:none;">
+                <button type="button" class="btn-voltar" onclick="voltarConfigHub()"><i class="fa-solid fa-arrow-left"></i> Configuração</button>
+                <div class="painel-config">
+                    <h3><i class="fa-solid fa-calendar-check"></i> Abertura automática toda segunda-feira</h3>
                 <div class="config-grid">
                     <label class="filtro-check" style="padding:0; align-self:end;">
                         <input type="checkbox" id="cfg-auto-ativa" checked>
@@ -1511,9 +1830,13 @@
                 <div class="lista-excecoes" id="lista-periodos-bloqueados"></div>
                 <small class="automacao-ajuda">As exceções vencem a regra automática. Datas cadastradas manualmente continuam sob controle da recepção. Para a semana seguinte, salve mudanças preferencialmente antes de segunda às 07:50.</small>
                 <button type="button" class="btn btn-config" id="btn-salvar-automacao" style="margin-top:12px;" onclick="salvarAutomacaoSemanal()"><i class="fa-solid fa-floppy-disk"></i> Salvar automação e exceções</button>
-            </details>
-            <details class="painel-horarios">
-                <summary><i class="fa-solid fa-clock"></i> Horários disponíveis por dia da semana</summary>
+                </div>
+            </div>
+
+            <div class="config-pane" id="pane-horarios" style="display:none;">
+                <button type="button" class="btn-voltar" onclick="voltarConfigHub()"><i class="fa-solid fa-arrow-left"></i> Configuração</button>
+                <div class="painel-config">
+                    <h3><i class="fa-solid fa-clock"></i> Horários disponíveis por dia da semana</h3>
                 <p class="horarios-aviso-geral">
                     <i class="fa-solid fa-triangle-exclamation"></i>
                     Esta tela é por <strong>dia da semana</strong>, não por data. Um dia deixado em
@@ -1525,9 +1848,13 @@
                 </p>
                 <div class="horarios-semana" id="horarios-semana"></div>
                 <button type="button" class="btn btn-config" style="margin-top:12px;" onclick="salvarHorariosSemana()"><i class="fa-solid fa-floppy-disk"></i> Salvar horários</button>
-            </details>
-            <details class="painel-preferencias">
-                <summary><i class="fa-solid fa-sliders"></i> Preferências operacionais</summary>
+                </div>
+            </div>
+
+            <div class="config-pane" id="pane-preferencias" style="display:none;">
+                <button type="button" class="btn-voltar" onclick="voltarConfigHub()"><i class="fa-solid fa-arrow-left"></i> Configuração</button>
+                <div class="painel-config">
+                    <h3><i class="fa-solid fa-sliders"></i> Lembretes e responsável do posto</h3>
                 <div class="config-grid">
                     <div class="input-group">
                         <label for="cfg-responsavel-posto">Nome do responsável do posto</label>
@@ -1540,10 +1867,13 @@
                     </div>
                 </div>
                 <button type="button" class="btn btn-config" style="margin-top:12px;" onclick="salvarPreferenciasOperacionais()"><i class="fa-solid fa-floppy-disk"></i> Salvar preferências</button>
-            </details>
+                </div>
+            </div>
         </div>
-        <details class="painel-indicadores painel-recolhivel">
-            <summary><i class="fa-solid fa-chart-simple"></i> Indicadores históricos</summary>
+
+        <div id="vista-relatorios" style="display:none;">
+            <div class="painel-indicadores">
+                <h3><i class="fa-solid fa-chart-simple"></i> Indicadores históricos</h3>
             <div class="indicadores-grid">
                 <div class="indicador-card"><span>CIN feitas</span><strong id="ind-total-cin">...</strong><small id="ind-cin-mes-top">Carregando...</small></div>
                 <div class="indicador-card"><span>Faltantes</span><strong id="ind-total-faltas">...</strong><small id="ind-faltas-mes-top">Carregando...</small></div>
@@ -1561,8 +1891,16 @@
                     <div class="serie-mensal serie-faltas" id="ind-faltas-mes"></div>
                 </div>
             </div>
-        </details>
+            </div>
+            <div class="painel-config painel-logs">
+                <h3><i class="fa-solid fa-clock-rotate-left"></i> Histórico de ações de hoje</h3>
+                <div style="margin-bottom:10px;">
+                    <button type="button" class="btn btn-atualizar" onclick="carregarLogsAdmin()"><i class="fa-solid fa-rotate"></i> Atualizar histórico</button>
+                </div>
+                <div class="logs-lista" id="logs-lista"></div>
+            </div>
         </div>
+
         <div id="vista-credenciais" style="display:none;">
             <div class="painel-config">
                 <h3><i class="fa-solid fa-square-parking"></i> Nova credencial de estacionamento</h3>
@@ -3055,14 +3393,23 @@ Até logo!`;
             }
         }
 
+        function alternarCardsAcesso(visivel) {
+            const box = document.getElementById("acessos-tempo-real");
+            if (box) box.style.display = visivel ? "" : "none";
+        }
+
         function atualizarMetricasAcessoPainel(dados) {
             const metricas = dados && typeof dados === "object" ? dados : {};
+            alternarCardsAcesso(true);
             document.getElementById("acessos-agora").textContent = Number(metricas.ativosAgora) || 0;
             document.getElementById("acessos-pico-hoje").textContent = Number(metricas.picoHoje) || 0;
             document.getElementById("acessos-total-hoje").textContent = Number(metricas.acessosHoje) || 0;
         }
 
         function mostrarMetricasAcessoDesativadas() {
+            // Sem medicao os tres cards so repetiam "Medicao desativada" no topo
+            // da tela de operacao; melhor nao ocupar o espaco.
+            alternarCardsAcesso(false);
             ["acessos-agora", "acessos-pico-hoje", "acessos-total-hoje"].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.textContent = "Medição desativada";
@@ -3119,6 +3466,10 @@ Até logo!`;
                 await Promise.all([listarAgendamentos(), carregarTotalAtendimentosRealizados()]);
                 await carregarLogsAdmin();
                 iniciarMonitoramentoAcessos();
+                const apelido = String(user.email || "").split("@")[0];
+                const quem = document.getElementById("quem-nome");
+                if (quem && apelido) quem.textContent = apelido;
+                atualizarEstadoConfigHub();
                 mostrarVistaPainel("hoje");
                 agendarAtualizacaoAutomatica();
             }
@@ -3994,6 +4345,7 @@ Até logo!`;
             const aguardando = Math.max(0, listaHoje.length - atendidos - faltas - retornos);
             document.getElementById("fila-contagem").textContent =
                 `${atendidos} atendido${atendidos === 1 ? "" : "s"} · ${faltas} falta${faltas === 1 ? "" : "s"} · ${retornos} volta${retornos === 1 ? "" : "m"} depois · ${aguardando} aguardando`;
+            atualizarCabecalhoFila(listaHoje.length, atendidos, faltas);
             const proximo = horarioMaisProximoHoje(listaHoje);
             const filtrados = busca ? listaHoje.filter(ag => textoBusca(ag).includes(busca)) : listaHoje;
             if (!filtrados.length) {
@@ -4029,25 +4381,184 @@ Até logo!`;
             }).join("");
         }
 
+        // Cinco areas: tres de operacao diaria (hoje/lista/credenciais) e duas de
+        // uso eventual (config/relatorios). A configuracao saiu da lista para que
+        // a tela de operacao nao carregue mais dez blocos numa rolagem so.
+        const VISTAS_PAINEL = ["hoje", "lista", "credenciais", "config", "relatorios"];
+
         function mostrarVistaPainel(vista) {
-            const vistasValidas = ["hoje", "lista", "credenciais"];
-            vistaPainelAtual = vistasValidas.includes(vista) ? vista : "hoje";
+            vistaPainelAtual = VISTAS_PAINEL.includes(vista) ? vista : "hoje";
             document.getElementById("vista-hoje").classList.toggle("ativo", vistaPainelAtual === "hoje");
-            document.getElementById("vista-lista").style.display = vistaPainelAtual === "lista" ? "block" : "none";
-            document.getElementById("vista-credenciais").style.display = vistaPainelAtual === "credenciais" ? "block" : "none";
-            document.getElementById("btn-vista-hoje").classList.toggle("ativo", vistaPainelAtual === "hoje");
-            document.getElementById("btn-vista-lista").classList.toggle("ativo", vistaPainelAtual === "lista");
-            document.getElementById("btn-vista-credenciais").classList.toggle("ativo", vistaPainelAtual === "credenciais");
+            VISTAS_PAINEL.forEach(nome => {
+                if (nome === "hoje") return;
+                const alvo = document.getElementById("vista-" + nome);
+                if (alvo) alvo.style.display = vistaPainelAtual === nome ? "block" : "none";
+            });
+            VISTAS_PAINEL.forEach(nome => {
+                const btn = document.getElementById("btn-vista-" + nome);
+                if (!btn) return;
+                const ativa = vistaPainelAtual === nome;
+                btn.classList.toggle("ativo", ativa);
+                btn.setAttribute("aria-selected", ativa ? "true" : "false");
+            });
             if (vistaPainelAtual === "hoje") renderFilaHoje();
             if (vistaPainelAtual === "credenciais" && !credenciaisCarregadas) carregarCredenciais();
+            if (vistaPainelAtual === "config") atualizarEstadoConfigHub();
+            atualizarFaixaEstado();
+        }
+
+        // ---- Configuracao: hub de icones e paineis de detalhe -----------------
+        const PAINEIS_CONFIG = ["datas", "popup", "automacao", "horarios", "preferencias"];
+
+        function abrirConfig(painel) {
+            mostrarVistaPainel("config");
+            const alvo = PAINEIS_CONFIG.includes(painel) ? painel : "";
+            document.getElementById("config-hub").style.display = alvo ? "none" : "block";
+            PAINEIS_CONFIG.forEach(nome => {
+                const box = document.getElementById("pane-" + nome);
+                if (box) box.style.display = nome === alvo ? "block" : "none";
+            });
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        function voltarConfigHub() {
+            abrirConfig("");
+            atualizarEstadoConfigHub();
         }
 
         function irParaConfiguracaoAgenda() {
-            mostrarVistaPainel("lista");
-            document.querySelector(".painel-config").scrollIntoView({ behavior: "smooth", block: "start" });
+            abrirConfig("datas");
+        }
+
+        // Etiquetas de estado nos tiles: leem so o que ja esta carregado na tela,
+        // sem nenhuma leitura extra no Firestore.
+        function atualizarEstadoConfigHub() {
+            const marcarEstado = (id, texto, classe) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.textContent = texto;
+                el.className = "cfg-estado " + (classe || "");
+            };
+            const totalDatas = Array.isArray(agendaDias) ? agendaDias.length : 0;
+            marcarEstado("est-datas", totalDatas ? `${totalDatas} data${totalDatas === 1 ? "" : "s"} cadastrada${totalDatas === 1 ? "" : "s"}` : "Nenhuma data cadastrada", totalDatas ? "" : "e-off");
+
+            const autoAtiva = !!(document.getElementById("cfg-auto-ativa") || {}).checked;
+            const hora = (document.getElementById("cfg-auto-hora") || {}).value || "08:00";
+            marcarEstado("est-automacao", autoAtiva ? `Ativa · segunda ${hora}` : "Desligada", autoAtiva ? "e-on" : "e-off");
+
+            const popAtivo = !!(document.getElementById("popup-ativo") || {}).checked;
+            marcarEstado("est-popup", popAtivo ? "Publicado" : "Sem aviso no ar", popAtivo ? "e-on" : "");
+
+            const totalHorarios = Array.isArray(agendaHorarios) ? agendaHorarios.length : 0;
+            marcarEstado("est-horarios", totalHorarios ? `${totalHorarios} horários padrão` : "Grade automática", "");
+
+            const responsavel = String((document.getElementById("cfg-responsavel-posto") || {}).value || "").trim();
+            marcarEstado("est-preferencias", responsavel || "Sem responsável definido", responsavel ? "" : "e-off");
+        }
+
+        // ---- Faixa de estado no topo -----------------------------------------
+        // Responde a pergunta que antes exigia descer ate a configuracao:
+        // o que esta publicado no site agora?
+        function dataHoraCurta(valorInput) {
+            const bruto = String(valorInput || "");
+            const m = bruto.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+            return m ? `${m[3]}/${m[2]} ${m[4]}:${m[5]}` : "";
+        }
+
+        function atualizarFaixaEstado() {
+            const faixa = document.getElementById("faixa-estado");
+            if (!faixa) return;
+            const sinais = [];
+
+            const autoAtiva = !!(document.getElementById("cfg-auto-ativa") || {}).checked;
+            const hora = (document.getElementById("cfg-auto-hora") || {}).value || "08:00";
+            sinais.push(autoAtiva
+                ? `<span class="sinal ok"><i class="dot"></i> Automação semanal <b>ativa</b> · abre segunda às ${textoSeguro(hora)}</span>`
+                : `<span class="sinal warn"><i class="dot"></i> Automação semanal <b>desligada</b> · confira o aviso de novas vagas <button type="button" class="sinal-link" onclick="abrirConfig('automacao')">ajustar</button></span>`);
+
+            const popAtivo = !!(document.getElementById("popup-ativo") || {}).checked;
+            if (popAtivo) {
+                const fim = dataHoraCurta((document.getElementById("popup-fim") || {}).value);
+                sinais.push(`<span class="sinal warn"><i class="dot"></i> Pop-up publicado no site${fim ? " até <b>" + textoSeguro(fim) + "</b>" : ""} <button type="button" class="sinal-link" onclick="abrirConfig('popup')">ver</button></span>`);
+            }
+
+            const vagas = String((document.getElementById("kpi-vagas") || {}).textContent || "0");
+            const lotadas = String((document.getElementById("kpi-lotadas") || {}).textContent || "0");
+            sinais.push(`<span class="sinal info"><i class="dot"></i> Vagas abertas: <b>${textoSeguro(vagas)}</b>${Number(lotadas) > 0 ? " · " + textoSeguro(lotadas) + " data(s) lotada(s)" : ""}</span>`);
+
+            faixa.innerHTML = sinais.join("");
+        }
+
+        // ---- Controles da tela de agendamentos --------------------------------
+        function alternarMaisFiltros() {
+            const box = document.getElementById("filtros-avancados");
+            const btn = document.getElementById("btn-mais-filtros");
+            if (!box || !btn) return;
+            const abrindo = box.hasAttribute("hidden");
+            if (abrindo) box.removeAttribute("hidden"); else box.setAttribute("hidden", "");
+            btn.setAttribute("aria-expanded", abrindo ? "true" : "false");
+            btn.innerHTML = abrindo
+                ? 'Menos filtros <i class="fa-solid fa-chevron-up"></i>'
+                : 'Mais filtros <i class="fa-solid fa-chevron-down"></i>';
+        }
+
+        function alternarAcoesDaLista(evento) {
+            if (evento) evento.stopPropagation();
+            const lista = document.getElementById("acoes-lista-menu");
+            const btn = document.getElementById("btn-acoes-lista");
+            if (!lista || !btn) return;
+            const abrindo = lista.hasAttribute("hidden");
+            if (abrindo) lista.removeAttribute("hidden"); else lista.setAttribute("hidden", "");
+            btn.setAttribute("aria-expanded", abrindo ? "true" : "false");
+        }
+
+        function fecharAcoesDaLista() {
+            const lista = document.getElementById("acoes-lista-menu");
+            const btn = document.getElementById("btn-acoes-lista");
+            if (lista && !lista.hasAttribute("hidden")) {
+                lista.setAttribute("hidden", "");
+                if (btn) btn.setAttribute("aria-expanded", "false");
+            }
+        }
+
+        document.addEventListener("click", fecharAcoesDaLista);
+        document.addEventListener("keydown", evento => {
+            if (evento.key === "Escape") fecharAcoesDaLista();
+            if (evento.key !== "/" || evento.ctrlKey || evento.altKey || evento.metaKey) return;
+            const foco = document.activeElement;
+            if (foco && /^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName)) return;
+            const alvo = vistaPainelAtual === "hoje"
+                ? document.getElementById("busca-fila-hoje")
+                : document.getElementById("filtro-busca");
+            if (alvo && alvo.offsetParent !== null) {
+                evento.preventDefault();
+                alvo.focus();
+            }
+        });
+
+        // ---- Cabecalho da fila de hoje ---------------------------------------
+        function atualizarCabecalhoFila(total, atendidos, faltas) {
+            const titulo = document.getElementById("fila-data-titulo");
+            const detalhe = document.getElementById("fila-data-detalhe");
+            const barraOk = document.getElementById("fila-barra-ok");
+            const barraFalta = document.getElementById("fila-barra-falta");
+            const hoje = new Date();
+            if (titulo) {
+                const texto = hoje.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+                titulo.textContent = texto.charAt(0).toUpperCase() + texto.slice(1);
+            }
+            if (detalhe) {
+                detalhe.textContent = total
+                    ? `${total} agendamento${total === 1 ? "" : "s"} na agenda de hoje`
+                    : "Nenhum agendamento para hoje";
+            }
+            const base = total || 1;
+            if (barraOk) barraOk.style.width = `${Math.round((atendidos / base) * 100)}%`;
+            if (barraFalta) barraFalta.style.width = `${Math.round((faltas / base) * 100)}%`;
         }
 
         function marcarAtualizacaoLista() {
+            atualizarFaixaEstado();
             ultimaAtualizacaoLista = new Date();
             const hora = ultimaAtualizacaoLista.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
             ["fila-atualizado", "lista-atualizado"].forEach(id => {
