@@ -64,6 +64,21 @@ test("o painel nao tem nenhum manipulador de evento embutido", () => {
   assert.deepEqual(embutidos, [], `Handlers inline encontrados: ${embutidos.join(", ")}`);
 });
 
+test("nenhum codigo le o atributo de um manipulador embutido", () => {
+  // Foi assim que a lista parou de carregar depois do F2: marcarFiltroRapidoVisual
+  // descobria o filtro de cada botao lendo o texto do proprio onclick. Sem
+  // onclick, getAttribute devolvia null e a excecao subia por listarAgendamentos
+  // antes de a tabela renderizar. Quem precisa do argumento le o data-*.
+  const leituras = painelJs.match(/getAttribute\(\s*["'`]on[a-z]+["'`]\s*\)|\.\bon(click|input|change|submit)\b\s*[.[]/g) || [];
+  assert.deepEqual(leituras, [], `Leitura de handler embutido: ${leituras.join(", ")}`);
+});
+
+test("os filtros rapidos marcam o ativo pelo data-tipo", () => {
+  assert.match(painelJs, /btn\.dataset\.tipo === tipo/);
+  const botoes = painelHtml.match(/data-acao="filtro-rapido" data-tipo="[a-z]+"/g) || [];
+  assert.equal(botoes.length >= 10, true, "Os filtros rapidos precisam declarar data-tipo.");
+});
+
 test("o painel nao volta a embutir script nem estilo no HTML", () => {
   assert.equal(/<script>/.test(painelHtml), false, "O comportamento vive em /recepcao.js.");
   assert.equal(/<style>/.test(painelHtml), false, "O estilo vive em /recepcao.css.");

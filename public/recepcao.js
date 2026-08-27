@@ -2755,8 +2755,12 @@ function filtroRapidoPainel(tipo) {
 }
 
 function marcarFiltroRapidoVisual(tipo) {
+    // Lia o texto do onclick para descobrir o filtro de cada botao. Sem onclick,
+    // getAttribute devolvia null e a excecao derrubava listarAgendamentos antes
+    // de renderizar a tabela. O tipo agora vem do mesmo data-tipo que a
+    // delegacao usa para chamar filtroRapidoPainel.
     document.querySelectorAll(".filtros-rapidos button").forEach(btn => {
-        btn.classList.toggle("ativo", btn.getAttribute("onclick").includes(`'${tipo}'`));
+        btn.classList.toggle("ativo", !!tipo && btn.dataset.tipo === tipo);
     });
 }
 
