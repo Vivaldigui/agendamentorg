@@ -49,11 +49,12 @@ test("a politica do painel libera todos os scripts externos que ele carrega", ()
 });
 
 test("a politica do painel e a ultima da lista", () => {
-  // O Hosting nao documenta com clareza o que acontece quando duas entradas
-  // casam. Ficando por ultimo, o painel vence tanto se valer a ultima quanto se
-  // valerem as duas (o navegador aplica a interseccao, que e esta). Se valer a
-  // primeira, o painel apenas continua com a politica global de hoje -- perde o
-  // ganho, nao quebra.
+  // Medido em canal de pre-visualizacao (revisao-painel, 26/08/2026): quando
+  // duas entradas casam, o Hosting acumula as chaves diferentes e resolve a
+  // chave repetida pela ULTIMA. /recepcao.html recebeu um unico
+  // Content-Security-Policy, o restrito, e continuou recebendo X-Frame-Options,
+  // nosniff e os demais cabecalhos da entrada "**". Mover esta entrada para
+  // cima devolve a politica permissiva ao painel, em silencio.
   const ultima = hosting.headers[hosting.headers.length - 1];
   assert.equal(ultima.source, "/recepcao.html");
 });
