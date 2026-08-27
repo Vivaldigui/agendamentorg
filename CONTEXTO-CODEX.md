@@ -1,129 +1,262 @@
 # Contexto para continuar o AgendamentoRG em outro computador
 
-Última atualização: 13/08/2026.
+Última atualização: 27/08/2026.
 
 ## Como retomar
-
-No outro computador:
 
 ```powershell
 git clone https://github.com/Vivaldigui/agendamentorg.git
 cd agendamentorg
-git switch preparacao-abertura-17-08
+git switch reorganizacao-painel-recepcao
 npm install
 npm --prefix functions install
 npm --prefix functions test
 ```
 
-Depois, abra a pasta no Codex e envie:
+Devem passar **246 testes**. Se passar menos, o clone não está na branch certa.
 
-> Leia `CONTEXTO-CODEX.md`, `docs/HANDOFF.md` e `docs/PROMPT-correcoes-17-08.md`. Confira o Git e os testes e continue a partir do P0.3. Pare ao final de cada P0 para revisão. Não faça deploy, commit ou push sem autorização expressa.
+Depois, abra a pasta no assistente e envie:
+
+> Leia `CONTEXTO-CODEX.md`. Confira o Git e os testes. O painel da recepção foi
+> reorganizado, separado em três arquivos e ficou sem código embutido; falta
+> validar as três funções callable e decidir o deploy. Não faça deploy, commit
+> ou push sem autorização expressa.
 
 ## Estado do Git
 
 - Repositório: `https://github.com/Vivaldigui/agendamentorg.git`
-- Branch de trabalho: `preparacao-abertura-17-08`
-- Commit presente localmente e no remoto antes da criação deste arquivo: `77442e5`
-- Mensagem do commit: `Preparacao para a abertura de 17/08: grade por data e telemetria desligada`
-- Este arquivo foi solicitado separadamente; sua criação não autoriza commit, push ou deploy.
+- Branch de trabalho: `reorganizacao-painel-recepcao`, publicada no remoto
+- Último commit: `1320527` — `Corrige a lista vazia: filtro rapido lia o proprio onclick`
+- Seis commits à frente de `main`; `main` continua sendo o que está em produção
+
+Os seis, do mais antigo para o mais novo:
+
+```
+1428ecb  Painel da recepcao dividido em operacao, configuracao e relatorios
+c6feb70  Painel separado em tres arquivos e sem codigo embutido no HTML
+22c2803  CSP proprio para o painel, sem 'unsafe-inline' no script-src
+cb339b3  Registra o comportamento real de precedencia de headers do Hosting
+419621e  Libera no connect-src do painel a chamada que o reCAPTCHA faz de verdade
+1320527  Corrige a lista vazia: filtro rapido lia o proprio onclick
+```
+
+Cada mensagem de commit traz o raciocínio completo da mudança. Leia-as antes de
+mexer: elas registram o que foi medido e o que foi decidido, não só o que mudou.
 
 ## Contexto operacional
 
-O sistema agenda atendimentos de CIN da Câmara de Itanhandu usando Firebase Hosting, Cloud Functions v2, Firestore e Realtime Database.
+O sistema agenda atendimentos de CIN da Câmara de Itanhandu usando Firebase
+Hosting, Cloud Functions v2, Firestore e Realtime Database. O painel da recepção
+é operado por uma ou duas pessoas no balcão, durante o atendimento. Falha
+silenciosa custa fila.
 
-Na segunda-feira, 17/08/2026, às 08:00 (`America/Sao_Paulo`), deve abrir automaticamente a agenda de terça a sexta, 18 a 21/08, com 10 horários por dia e 40 vagas no total:
+## O que mudou nesta branch
 
-`14:30, 14:45, 15:00, 15:15, 15:30, 15:45, 16:00, 16:15, 16:30, 16:45`
+### Reorganização da interface
 
-O objetivo prioritário é impedir falso “sem vagas”, tela desatualizada na virada das 08:00, perda de dados preenchidos e sobrecarga causada por componentes que não são essenciais ao agendamento. Manter o custo o mais próximo possível da gratuidade.
+A aba "Lista e gestão" acumulava dez blocos numa rolagem só. Agora são cinco
+áreas: **Fila de hoje**, **Agendamentos** e **Credenciais** (operação diária),
+mais **Configuração** e **Relatórios** (uso eventual). A Configuração é um hub de
+ícones que abre cinco painéis: datas, pop-up, automação, horários, preferências.
 
-## Trabalho concluído
+Acrescentados: barra institucional com o operador logado; faixa de estado no topo
+mostrando o que está publicado no site agora (automação, pop-up, vagas), lida dos
+controles já carregados, sem consulta nova ao Firestore; cabeçalho da fila com
+data por extenso e barra de progresso. Os três cartões de acesso em tempo real
+passam a ficar ocultos enquanto `METRICAS_ACESSO_PUBLICO_ATIVAS` for `false`.
 
-### P0.1 — grade por data
+### Três arquivos
 
-Implementado e aprovado no código:
+`public/recepcao.html` tinha 5.474 linhas. Virou:
 
-- Corte em `2026-08-18`.
-- Datas anteriores usam a grade legada de 8 horários.
-- Datas a partir do corte usam a grade nova de 10 horários.
-- Configuração manual explícita em `horariosPorDiaSemana` continua prevalecendo, inclusive lista vazia.
-- Regra canônica extraída para `functions/agenda-grade.js` e espelhada no site público e no painel.
-- Removidas a migração implícita da grade legada e a união cega das duas grades.
-- Testes executam também as funções extraídas dos dois HTMLs para evitar divergência entre backend, site e recepção.
+| arquivo | linhas |
+| --- | --- |
+| `public/recepcao.html` | 625 |
+| `public/recepcao.css` | 1.430 |
+| `public/recepcao.js` | 3.547 |
 
-### P0.2 — telemetria pública
+Nenhuma linha de estilo ou script foi reescrita nesse passo. Os `<style>` e
+`<script>` que aparecem dentro do JS pertencem às janelas de comprovante,
+declaração e lista do dia — são template literals.
 
-Implementado e testado:
+Seis testes liam `public/recepcao.html` para verificar JS que morava lá dentro.
+`functions/painel-fonte.js` remonta a superfície (markup + estilo + script,
+markup primeiro) e as asserções continuam valendo sem reescrita.
 
-- `METRICAS_ACESSO_PUBLICO_ATIVAS = false` no site público.
-- Nenhuma presença pública é escrita no RTDB enquanto a flag estiver desligada.
-- O painel não inicia o monitoramento e mostra `Medição desativada` nos três cartões.
-- Gatilhos e regras foram preservados para uma futura telemetria idempotente e distribuída em shards.
-- O caminho de risco `visitante → conexões RTDB → gatilho com leitura O(N)` deixou de ser acionado.
-- Testes de regressão estão em `functions/telemetria-publica.test.js`.
+### Delegação de eventos
 
-Validação registrada após P0.2:
+133 manipuladores embutidos removidos: 114 `onclick`, 8 `oninput`, 11 `onchange`.
+Cada gatilho declara `data-acao` (ou `data-input` / `data-change`) e os argumentos
+em `data-*`; um ouvinte por tipo de evento resolve a chave contra `ACOES_CLIQUE`
+ou `ACOES_CAMPO`, no fim de `public/recepcao.js`. As funções de negócio mantiveram
+as assinaturas: quem converte `dataset` em argumento é o registro.
 
-- `npm --prefix functions test`: 18 de 18 testes aprovados.
-- JavaScript embutido de `public/index.html` e `public/recepcao.html`: sintaxe válida.
-- `git diff --check`: aprovado.
+Dois pontos exigiram mais que troca de atributo:
 
-## Próximos itens P0
+- Os menus dependiam de `event.stopPropagation()` no próprio `onclick` para não
+  serem fechados pelo ouvinte de documento que existia para fechá-los. Com um
+  ouvinte único isso não funciona. Fechar e abrir passaram a viver na mesma
+  função, em ordem explícita.
+- As janelas de impressão são documentos de mesma origem escritos por
+  `document.write` e herdam o CSP do painel, então não podiam manter `<script>`
+  nem `onclick`. `prepararJanelaImpressao` liga os botões pelo opener.
 
-Executar nesta ordem, parando ao final de cada item para revisão:
+### CSP próprio para o painel
 
-1. **P0.3 — atualização resiliente às 08:00:** retry automático por até 60 segundos, backoff, hora do servidor, retomada em `online`/`visibilitychange`, preservação da agenda válida em memória e diferenciação clara entre lotação e falha técnica. Manter a chave compartilhada `?atualizar-minuto=`.
-2. **P0.4 — inicialização segura do Firebase Admin:** remover o fallback hardcoded para o RTDB de produção e usar `initializeApp()` adaptado ao projeto.
-3. **P0.5 — segurança dos testes de carga:** denylist explícita para impedir que os testes k6 atinjam `agendamento-cin-itanhandu`, independentemente das variáveis de confirmação.
+`/recepcao.html` ganhou política própria em `firebase.json`, sem `'unsafe-inline'`
+em `script-src`. O cabeçalho global vale para `**` e **não pode** ser apertado
+junto: `public/index.html` ainda tem 3 scripts embutidos e 34 handlers inline.
 
-Os P1, itens 6 a 11, somente devem começar após confirmação dos P0. O detalhamento completo está em `docs/PROMPT-correcoes-17-08.md`.
+Precedência **medida** em canal de pré-visualização: quando duas entradas casam, o
+Hosting acumula as chaves diferentes e resolve a chave repetida pela **última**.
+A entrada do painel é a última da lista — mover para cima devolve a política
+permissiva a ele, em silêncio. Há trava para isso.
 
-## Pendência bloqueante de dados
+`style-src` continua com `'unsafe-inline'`: o markup usa `style="..."` em vários
+pontos e as janelas de impressão levam `<style>` próprio.
 
-Leitura direta da produção em 13/08/2026 corrigiu os números que circulavam antes. Ver a seção “Estado real da configuração de produção” em `docs/HANDOFF.md`, que é a fonte da verdade.
+## O defeito que escapou, e a lição
 
-Resumo: `horariosPorDiaSemana` tem **sete** chaves (0 a 6), todas com a grade legada de 8 horários; **`dias` não contém 2026-08-21**, embora `publicacaoDatas` já traga a data; e `automacaoSemanal` está ausente, valendo os padrões (ativa, terça a sexta, 08:00).
+Depois da delegação, o painel montava mas **todas as listas ficavam vazias, sem
+mensagem**. `marcarFiltroRapidoVisual` descobria a qual filtro cada botão
+pertencia lendo o texto do próprio `onclick`. Sem `onclick`, `getAttribute`
+devolve `null`; a exceção subia por `listarAgendamentos` antes de a tabela
+renderizar.
 
-Estado efetivo hoje: **3 dias × 8 horários = 24 vagas**. Para chegar a 40 são necessárias três ações — implantar o código novo, apagar `horariosPorDiaSemana` e colocar 2026-08-21 em `dias`. Não confiar na automação para o 21/08: 17/08 seria a primeira execução dela em produção.
+Passou pelos testes porque eles conferiam markup contra registro, e a verificação
+no navegador substituiu `filtroRapidoPainel` por um espião em vez de executá-la no
+fluxo de quem faz login. **Conferir markup não substitui rodar o fluxo.**
 
-A ação proposta é remover o campo inteiro antes da abertura, com backup e validação. Não substituir diretamente pela grade nova, pois o campo é indexado por dia da semana e poderia aplicar horários novos também a datas anteriores ao corte.
+Há trava para a classe do defeito — nenhum código pode voltar a ler atributo de
+manipulador embutido — e os cinco seletores literais do script foram conferidos.
+Mas assuma que pode haver irmãos em caminhos que ninguém percorreu.
 
-Há scripts de leitura e migração em:
+## Validação já feita
 
-- `scripts/ler-grade-agenda.js`
-- `scripts/migrar-grade-por-dia.js`
+- 246 testes (`npm --prefix functions test`).
+- Publicado em canal de pré-visualização, com login real: listas carregam,
+  navegação entre as cinco áreas, claro e escuro, sem rolagem lateral em 375x812.
+- Canal ativo até **02/09/2026**:
+  `https://agendamento-cin-itanhandu--revisao-painel-hmupkekk.web.app/recepcao.html`
 
-Não executar `--aplicar` nem alterar o Firebase sem autorização expressa e autenticação no projeto correto.
+## O que falta
 
-## Armadilha do painel
+### 1. As três funções callable, não exercitadas
 
-Depois de remover `horariosPorDiaSemana`, o editor semanal do painel pode exibir o fallback novo. Se a recepção salvar, poderá recriar as chaves por dia da semana e desfazer a correção de dados. Antes de orientar a recepção a usar esse editor, implementar ao menos um aviso claro de que a alteração vale para todas as datas daquele dia da semana, inclusive datas anteriores a 18/08. O ideal é separar visualmente as grades “até 17/08” e “a partir de 18/08”.
+`callableOptions.cors` em `functions/index.js` é uma lista explícita de quatro
+origens, e o domínio do canal não está nela. Então no canal falham:
 
-## Teste de carga e custos
+- `criarEncaixeManual` — Inserir Encaixe Manual
+- `atualizarObservacaoAdmin` — Observação interna
+- `listarLogsAdmin` — Histórico de ações
 
-- O ensaio local em `tests/load/results/2026-08-13-local.md` registrou zero falhas, p95 próximo de 4 segundos e máximo próximo de 15 segundos.
-- Esse ensaio não certifica produção: o emulador não reproduz CDN nem escala horizontal das Functions.
-- Depois dos P0, executar os cenários descritos em `tests/load/README.md` somente em um projeto Firebase real de homologação.
-- A leitura pública deve permanecer em escala zero por padrão para controlar custos; o CDN absorve a maior parte do pico.
-- Pré-aquecimento custa enquanto houver instâncias mínimas. Não executar scripts de pré-aquecimento nem deploy sem autorização.
+Nessas três o modal abre, as máscaras funcionam e a validação roda; só a chamada
+final falha, e isso é esperado no canal. Todo o resto do painel vai direto ao
+Firestore e funciona lá.
+
+Para exercitá-las seria preciso acrescentar a origem do canal a `callableOptions`
+e fazer deploy das functions — mudança em produção, decisão do responsável.
+
+### 2. Deploy em produção
+
+Não feito. Substitui o painel que a recepção usa. Vale escolher horário sem
+atendimento. Requer autorização expressa.
+
+### 3. Aberto, sem relação com esta branch
+
+- O reCAPTCHA do App Check tenta `https://www.google.com/recaptcha/api2/clr` e o
+  CSP **global** bloqueia — a produção de hoje registra o mesmo. Corrigido apenas
+  na política do painel. Mexer no global atinge o site público.
+- No Firefox aparece `default-src 'self'` bloqueando `recaptcha/api.js`, embora
+  `www.google.com` esteja em `script-src`. Não reproduzido em navegador baseado em
+  Chromium. Comparar com a produção no mesmo Firefox decide se é pré-existente.
+- App Check devolve 403 ao pedir token em navegador automatizado, nos dois
+  domínios. Com login real as listas carregam, então não é bloqueante.
 
 ## Regras obrigatórias para a continuação
 
 - Não executar `firebase deploy` sem autorização expressa.
 - Não fazer commit nem push sem autorização expressa.
 - Preservar alterações existentes e revisar o Git antes de editar.
-- Rodar `npm --prefix functions test` após cada alteração no backend.
-- Preservar a regra “data já publicada nunca é removida automaticamente”.
-- Preservar o retry transiente de `criarAgendamentoCidadao` e os dados digitados pelo cidadão quando uma vaga é perdida.
+- Rodar `npm --prefix functions test` após cada alteração.
+- Preservar a regra "data já publicada nunca é removida automaticamente".
+- Preservar o retry transiente de `criarAgendamentoCidadao` e os dados digitados
+  pelo cidadão quando uma vaga é perdida.
 - Preservar a chave de cache compartilhada por minuto na virada das 08:00.
-- Se uma correção se mostrar mais arriscada que o descrito, parar e comunicar antes de improvisar.
+- Ao mexer no painel: nenhum `onclick`/`oninput`/`onchange` embutido volta, e todo
+  `data-acao` novo precisa de entrada no registro. As travas cobrem os dois lados.
+- Se uma correção se mostrar mais arriscada que o descrito, parar e comunicar
+  antes de improvisar.
 
 ## Arquivos de referência
 
-- `docs/HANDOFF.md`: handoff técnico detalhado, incluindo a pendência de dados.
-- `docs/PROMPT-correcoes-17-08.md`: plano completo dos P0 e P1 e critérios de aceite.
+- `public/recepcao.js`: comportamento do painel; registros de ação no fim.
+- `functions/painel-delegacao.test.js`: travas da delegação.
+- `functions/csp-painel.test.js`: travas do CSP e do cache dos arquivos novos.
+- `functions/painel-fonte.js`: remonta a superfície do painel para os testes.
 - `README.md`: operação, automação semanal, monitoramento, custo e testes.
 - `functions/agenda-grade.js`: regra canônica da grade por data.
 - `functions/agenda-automation.js`: automação semanal.
+- `docs/HANDOFF.md`: handoff técnico da fase anterior.
 - `tests/load/README.md`: execução dos testes de carga.
 
+---
+
+# Fase anterior — abertura de 17/08/2026
+
+Conteúdo registrado em 13/08/2026. As datas citadas já passaram; **confirmar na
+produção antes de agir sobre qualquer item desta seção.**
+
+## Trabalho concluído naquela fase
+
+### P0.1 — grade por data
+
+- Corte em `2026-08-18`.
+- Datas anteriores usam a grade legada de 8 horários.
+- Datas a partir do corte usam a grade nova de 10 horários.
+- Configuração manual explícita em `horariosPorDiaSemana` continua prevalecendo,
+  inclusive lista vazia.
+- Regra canônica extraída para `functions/agenda-grade.js` e espelhada no site
+  público e no painel.
+- Removidas a migração implícita da grade legada e a união cega das duas grades.
+
+### P0.2 — telemetria pública
+
+- `METRICAS_ACESSO_PUBLICO_ATIVAS = false` no site público.
+- Nenhuma presença pública é escrita no RTDB enquanto a flag estiver desligada.
+- O painel não inicia o monitoramento. Nesta branch, os três cartões passaram a
+  ficar ocultos em vez de repetir "Medição desativada".
+- Gatilhos e regras preservados para uma futura telemetria idempotente em shards.
+- Testes em `functions/telemetria-publica.test.js`.
+
+## Pendência de dados — reverificar
+
+Leitura direta da produção em 13/08/2026: `horariosPorDiaSemana` tinha **sete**
+chaves (0 a 6), todas com a grade legada de 8 horários; `dias` não continha
+`2026-08-21`; `automacaoSemanal` estava ausente, valendo os padrões.
+
+A ação proposta era remover o campo inteiro, com backup e validação — não
+substituir pela grade nova, já que o campo é indexado por dia da semana e
+aplicaria horários novos também a datas anteriores ao corte.
+
+Scripts: `scripts/ler-grade-agenda.js` e `scripts/migrar-grade-por-dia.js`. Não
+executar `--aplicar` sem autorização expressa e autenticação no projeto correto.
+
+## Armadilha do painel
+
+Removido `horariosPorDiaSemana`, o editor semanal pode exibir o fallback novo. Se
+a recepção salvar, recria as chaves por dia da semana e desfaz a correção. O aviso
+que explica que a alteração vale para **todas as datas daquele dia da semana**,
+inclusive anteriores a 18/08, foi preservado na reorganização e hoje vive no
+painel **Configuração → Horários da semana**. A separação visual entre as grades
+"até 17/08" e "a partir de 18/08" continua não implementada.
+
+## Teste de carga e custos
+
+- O ensaio local em `tests/load/results/2026-08-13-local.md` registrou zero
+  falhas, p95 próximo de 4 segundos e máximo próximo de 15 segundos.
+- Esse ensaio não certifica produção: o emulador não reproduz CDN nem escala
+  horizontal das Functions.
+- A leitura pública deve permanecer em escala zero por padrão para controlar
+  custos; o CDN absorve a maior parte do pico.
+- Pré-aquecimento custa enquanto houver instâncias mínimas.
