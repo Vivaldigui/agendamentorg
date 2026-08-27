@@ -68,6 +68,7 @@ let agendaGestaoCarregada = false;
 let listaAgendamentosCarregada = false;
 let totalAtendimentosRealizados = null;
 let totalAtendimentosCarregado = false;
+let totalAtendimentosIndisponivel = false;
 let estatisticasHistoricas = { cin: [], faltas: [] };
 let credenciaisCache = [];
 let credenciaisCarregadas = false;
@@ -82,9 +83,70 @@ let carregamentoListaEmAndamento = false;
 let atualizacaoDiasEmAndamento = false;
 let geracaoConsultaAgendamentos = 0;
 let logsRecentes = [];
+const ACOES_MUTACAO_AGENDA = new Set([
+    "adicionarDataAgenda", "salvarLoteFlexivel", "salvarAvisoNovasVagas",
+    "salvarAvisoPopup", "desativarAvisoPopup", "salvarAutomacaoSemanal",
+    "salvarHorariosSemana", "salvarPreferenciasOperacionais",
+    "adicionarSemanaPausada", "removerSemanaPausada",
+    "adicionarDataBloqueada", "removerDataBloqueada",
+    "adicionarPeriodoBloqueado", "removerPeriodoBloqueado",
+    "personalizarDiaSemana", "voltarDiaSemanaAoAutomatico",
+    "adicionarHorarioSemana", "removerHorarioSemana", "removerDataAgenda"
+]);
 try {
     mostrarDatasPassadas = localStorage.getItem("cin_mostrar_datas_passadas") === "true";
 } catch (e) {}
+
+function erroDeAutorizacao(erro) {
+    const codigo = String(erro && erro.code || "").toLowerCase();
+    return codigo.includes("permission-denied") || codigo.includes("unauthenticated");
+}
+
+function mostrarErroLogin(mensagem) {
+    const erroEl = document.getElementById("login-erro");
+    if (!erroEl) return;
+    erroEl.textContent = mensagem;
+    erroEl.style.display = "block";
+}
+
+async function validarAdministradorAtivo(user) {
+    const email = String(user && user.email || "").trim().toLowerCase();
+    if (!email) {
+        const erro = new Error("Conta sem e-mail administrativo.");
+        erro.code = "unauthenticated";
+        throw erro;
+    }
+    const doc = await db.collection("admins").doc(email).get({ source: "server" });
+    if (!doc.exists || doc.data().ativo !== true) {
+        const erro = new Error("Administrador inativo.");
+        erro.code = "permission-denied";
+        throw erro;
+    }
+}
+
+async function encerrarSessaoPorAcessoRevogado(erro) {
+    if (!erroDeAutorizacao(erro)) return false;
+    clearInterval(timerAtualizacaoAutomatica);
+    pararMonitoramentoAcessos();
+    try { await auth.signOut(); } catch (e) { console.warn("Falha ao encerrar sessao revogada", e); }
+    mostrarErroLogin("Seu acesso administrativo foi revogado ou está inativo. Entre em contato com o responsável pelo sistema.");
+    return true;
+}
+
+function definirMutacoesAgendaHabilitadas(habilitadas) {
+    document.querySelectorAll("#vista-config input, #vista-config select, #vista-config textarea").forEach(campo => {
+        campo.disabled = !habilitadas;
+    });
+    document.querySelectorAll("[data-acao]").forEach(controle => {
+        if (ACOES_MUTACAO_AGENDA.has(controle.dataset.acao)) controle.disabled = !habilitadas;
+    });
+}
+
+function exigirAgendaGestaoCarregada() {
+    if (agendaGestaoCarregada) return true;
+    avisoPainel("A configuração ainda não foi carregada. Tente novamente antes de fazer alterações.");
+    return false;
+}
 
 function resetarTimerInatividade() {
     clearTimeout(timerAviso);
@@ -386,6 +448,7 @@ function atualizarPreviaAvisoPopup() {
 }
 
 async function salvarAvisoPopup() {
+    if (!exigirAgendaGestaoCarregada()) return;
     const dados = avisoPopupDoFormulario();
     if (!dados.mensagem) return avisoPainel("Escreva a mensagem do pop-up.");
     // Com a exibicao desligada o texto e so um rascunho guardado: exigir
@@ -434,6 +497,7 @@ async function salvarAvisoPopup() {
 
 // Desligar preserva o texto: e comum o mesmo recado voltar semanas depois.
 async function desativarAvisoPopup() {
+    if (!exigirAgendaGestaoCarregada()) return;
     const atual = lerAvisoPopupPainel(agendaAvisoPopup);
     if (!agendaAvisoPopup || !atual.ativo) {
         document.getElementById("popup-ativo").checked = false;
@@ -520,6 +584,7 @@ function renderAutomacaoSemanal() {
 }
 
 function adicionarSemanaPausada() {
+    if (!exigirAgendaGestaoCarregada()) return;
     const input = document.getElementById("cfg-auto-semana-pausada");
     const segunda = segundaDaSemanaPainel(input.value);
     if (!segunda) return avisoPainel("Escolha uma data válida da semana que não terá abertura.");
@@ -529,11 +594,13 @@ function adicionarSemanaPausada() {
 }
 
 function removerSemanaPausada(indice) {
+    if (!exigirAgendaGestaoCarregada()) return;
     agendaAutomacaoSemanal.semanasPausadas.splice(indice, 1);
     renderAutomacaoSemanal();
 }
 
 function adicionarDataBloqueada() {
+    if (!exigirAgendaGestaoCarregada()) return;
     const input = document.getElementById("cfg-auto-data-bloqueada");
     if (!dataISOValidaAutomacao(input.value)) return avisoPainel("Escolha um dia válido para bloquear.");
     agendaAutomacaoSemanal.datasBloqueadas = [...new Set([...(agendaAutomacaoSemanal.datasBloqueadas || []), input.value])].sort();
@@ -542,11 +609,13 @@ function adicionarDataBloqueada() {
 }
 
 function removerDataBloqueada(indice) {
+    if (!exigirAgendaGestaoCarregada()) return;
     agendaAutomacaoSemanal.datasBloqueadas.splice(indice, 1);
     renderAutomacaoSemanal();
 }
 
 function adicionarPeriodoBloqueado() {
+    if (!exigirAgendaGestaoCarregada()) return;
     const inicio = document.getElementById("cfg-auto-ferias-inicio").value;
     const fim = document.getElementById("cfg-auto-ferias-fim").value;
     const motivo = document.getElementById("cfg-auto-ferias-motivo").value.trim();
@@ -560,6 +629,7 @@ function adicionarPeriodoBloqueado() {
 }
 
 function removerPeriodoBloqueado(indice) {
+    if (!exigirAgendaGestaoCarregada()) return;
     agendaAutomacaoSemanal.periodosBloqueados.splice(indice, 1);
     renderAutomacaoSemanal();
 }
@@ -582,6 +652,7 @@ function dataPermitidaPelaAutomacao(cfg, dataISO) {
 }
 
 async function salvarAutomacaoSemanal() {
+    if (!exigirAgendaGestaoCarregada()) return;
     const cfg = automacaoDaTela();
     if (cfg.ativa && !cfg.diasSemana.length) return avisoPainel("Marque ao menos um dia normal de atendimento ou desative a automação.");
     const btn = document.getElementById("btn-salvar-automacao");
@@ -640,6 +711,9 @@ async function salvarAutomacaoSemanal() {
 // horariosPorDiaSemana sobreviveriam no banco, e a remocao nao teria efeito.
 // Foi assim que 2026-08-21 ficou com horario de publicacao sem estar em dias.
 async function gravarAgendaConfig(conteudo) {
+    if (!exigirAgendaGestaoCarregada()) {
+        throw new Error("Configuracao da agenda ainda nao carregada.");
+    }
     const ref = db.collection("configuracoes").doc("agenda");
     try {
         await ref.update(conteudo);
@@ -758,6 +832,7 @@ function renderHorariosSemana() {
 }
 
 async function personalizarDiaSemana(dia) {
+    if (!exigirAgendaGestaoCarregada()) return;
     const nome = DIAS_SEMANA[dia] || "este dia";
     const confirmou = await confirmarPainel(
         `Personalizar ${nome} faz a lista escolhida valer para TODAS as datas desse dia da semana, inclusive as anteriores a 18/08/2026 que já estejam publicadas.\n\nEm datas já publicadas isso pode criar atendimentos sobrepostos. Deseja continuar?`,
@@ -769,11 +844,13 @@ async function personalizarDiaSemana(dia) {
 }
 
 function voltarDiaSemanaAoAutomatico(dia) {
+    if (!exigirAgendaGestaoCarregada()) return;
     delete agendaHorariosPorDiaSemana[String(dia)];
     renderHorariosSemana();
 }
 
 function adicionarHorarioSemana(dia) {
+    if (!exigirAgendaGestaoCarregada()) return;
     const input = document.getElementById(`novo-horario-${dia}`);
     const hora = input ? input.value : "";
     if (!/^\d{2}:\d{2}$/.test(hora)) return avisoPainel("Informe um horário válido.");
@@ -783,12 +860,14 @@ function adicionarHorarioSemana(dia) {
 }
 
 function removerHorarioSemana(dia, hora) {
+    if (!exigirAgendaGestaoCarregada()) return;
     const chave = String(dia);
     agendaHorariosPorDiaSemana[chave] = (horariosEditaveisDiaSemana(dia) || []).filter(item => item !== hora);
     renderHorariosSemana();
 }
 
 async function salvarHorariosSemana() {
+    if (!exigirAgendaGestaoCarregada()) return;
     const personalizados = DIAS_SEMANA.filter((nome, dia) => diaSemanaPersonalizado(dia));
     const resumo = personalizados.length
         ? `Dias personalizados: ${personalizados.join(", ")}.\n\nEsses dias deixam de seguir a regra por data e passam a valer para todas as datas do respectivo dia da semana, inclusive antes de 18/08/2026.`
@@ -1028,6 +1107,7 @@ function mensagemLembrete(d) {
 }
 
 async function salvarPreferenciasOperacionais() {
+    if (!exigirAgendaGestaoCarregada()) return;
     const responsavel = document.getElementById("cfg-responsavel-posto").value.trim();
     const template = document.getElementById("cfg-template-lembrete").value.trim();
     if (responsavel.length < 3) return avisoPainel("Informe o nome do responsável do posto.");
@@ -1092,7 +1172,7 @@ function emitirComprovantePDF(dados) {
     const janela = window.open("", "_blank");
     if (!janela) {
         avisoPainel("O navegador bloqueou a janela do comprovante. Permita pop-ups para emitir o PDF.");
-        return;
+        return false;
     }
 
     janela.document.write(`<!DOCTYPE html>
@@ -1156,13 +1236,14 @@ ${linhaComprovante("Local", "Câmara Municipal de Itanhandu")}
 </body>
 </html>`);
     janela.document.close();
-    prepararJanelaImpressao(janela);
+    prepararJanelaImpressao(janela, { autoImprimir: true });
+    return true;
 }
 
 function emitirComprovanteDaLista(id) {
     const ag = buscarAgendamentoCache(id);
     if (!ag) return avisoPainel("Agendamento não encontrado na lista atual.");
-    emitirComprovantePDF(ag.dados);
+    if (!emitirComprovantePDF(ag.dados)) return;
     registrarLog("emitir_comprovante", { agendamentoId: id, protocolo: ag.dados.protocolo || "" });
 }
 
@@ -1174,7 +1255,7 @@ function emitirDeclaracaoComparecimentoPDF(dados) {
     const janela = window.open("", "_blank");
     if (!janela) {
         avisoPainel("O navegador bloqueou a janela da declaracao. Permita pop-ups para emitir o PDF.");
-        return;
+        return false;
     }
 
     janela.document.write(`<!DOCTYPE html>
@@ -1244,7 +1325,8 @@ button { border: none; border-radius: 8px; padding: 11px 18px; font-weight: 700;
 </body>
 </html>`);
     janela.document.close();
-    prepararJanelaImpressao(janela);
+    prepararJanelaImpressao(janela, { autoImprimir: true });
+    return true;
 }
 
 async function emitirDeclaracaoComparecimentoDaLista(id) {
@@ -1253,7 +1335,7 @@ async function emitirDeclaracaoComparecimentoDaLista(id) {
     if (statusValor(ag.dados) !== "compareceu" && !(await confirmarPainel("Este atendimento ainda não está marcado como Compareceu. Deseja emitir a declaração mesmo assim?", { titulo: "Declaração de comparecimento", textoConfirmar: "Emitir declaração" }))) {
         return;
     }
-    emitirDeclaracaoComparecimentoPDF(ag.dados);
+    if (!emitirDeclaracaoComparecimentoPDF(ag.dados)) return;
     registrarLog("emitir_declaracao_comparecimento", { agendamentoId: id, protocolo: ag.dados.protocolo || "" });
 }
 
@@ -1384,8 +1466,25 @@ function pararMonitoramentoAcessos() {
 
 auth.onAuthStateChanged(async user => {
     const splash = document.getElementById('boot-splash');
-    if (splash) splash.style.display = 'none';
     if (user) {
+        document.getElementById('login-screen').style.display='none';
+        document.getElementById('painel-screen').style.display='none';
+        if (splash) {
+            splash.style.display = 'flex';
+            const texto = splash.querySelector('span');
+            if (texto) texto.textContent = 'Validando acesso administrativo...';
+        }
+        try {
+            await validarAdministradorAtivo(user);
+        } catch (e) {
+            if (splash) splash.style.display = 'none';
+            if (await encerrarSessaoPorAcessoRevogado(e)) return;
+            try { await auth.signOut(); } catch (erroLogout) { console.warn("Falha ao reiniciar login", erroLogout); }
+            document.getElementById('login-screen').style.display='block';
+            mostrarErroLogin("Não foi possível validar seu acesso agora. Verifique a conexão e tente entrar novamente.");
+            return;
+        }
+        if (splash) splash.style.display = 'none';
         document.getElementById('login-screen').style.display='none';
         document.getElementById('painel-screen').style.display='block';
         resetarTimerInatividade();
@@ -1404,8 +1503,10 @@ auth.onAuthStateChanged(async user => {
         });
         configurarPeriodoPadraoLista();
         agendaGestaoCarregada = false;
+        definirMutacoesAgendaHabilitadas(false);
         listaAgendamentosCarregada = false;
         totalAtendimentosCarregado = false;
+        totalAtendimentosIndisponivel = false;
         document.getElementById("kpi-atendidos").textContent = "...";
         marcarIndicadoresHistoricosCarregando();
         await carregarAgendaGestao();
@@ -1420,11 +1521,14 @@ auth.onAuthStateChanged(async user => {
         agendarAtualizacaoAutomatica();
     }
     else {
+        if (splash) splash.style.display = 'none';
         geracaoConsultaAgendamentos++;
         carregamentoListaEmAndamento = false;
         atualizacaoDiasEmAndamento = false;
         clearInterval(timerAtualizacaoAutomatica);
         pararMonitoramentoAcessos();
+        agendaGestaoCarregada = false;
+        definirMutacoesAgendaHabilitadas(false);
         document.getElementById('login-screen').style.display='block';
         document.getElementById('painel-screen').style.display='none';
         document.title = "Recepção CIN — Câmara de Itanhandu";
@@ -1564,8 +1668,9 @@ async function carregarAgendaGestao() {
     const lista = document.getElementById("lista-datas-agenda");
     lista.innerHTML = '<span style="color:#64748b; font-size:0.9rem;">Carregando datas...</span>';
     agendaGestaoCarregada = false;
+    definirMutacoesAgendaHabilitadas(false);
     try {
-        const doc = await db.collection("configuracoes").doc("agenda").get();
+        const doc = await db.collection("configuracoes").doc("agenda").get({ source: "server" });
         const cfg = doc.exists ? doc.data() : {};
         agendaDias = ordenarDatas(Array.isArray(cfg.dias) ? cfg.dias : []);
         agendaHorarios = ordenarHorarios(cfg.horarios);
@@ -1601,13 +1706,17 @@ async function carregarAgendaGestao() {
         renderAutomacaoSemanal();
         renderHorariosSemana();
         agendaGestaoCarregada = true;
+        definirMutacoesAgendaHabilitadas(true);
         atualizarResumo();
     } catch (e) {
-        lista.innerHTML = '<span style="color:#dc2626; font-size:0.9rem;">Erro ao carregar datas.</span>';
+        definirMutacoesAgendaHabilitadas(false);
+        if (await encerrarSessaoPorAcessoRevogado(e)) return;
+        lista.innerHTML = '<span style="color:#dc2626; font-size:0.9rem;">Erro ao carregar a configuração.</span> <button type="button" class="btn btn-atualizar" data-acao="carregarAgendaGestao"><i class="fa-solid fa-rotate"></i> Tentar novamente</button>';
     }
 }
 
 async function salvarAgendaGestao(msg) {
+    if (!exigirAgendaGestaoCarregada()) throw new Error("Configuracao da agenda ainda nao carregada.");
     agendaPublicacaoDatas = normalizarPublicacaoDatas(agendaPublicacaoDatas);
     Object.keys(agendaPublicacaoDatas).forEach(data => {
         if (!agendaDias.includes(data)) delete agendaPublicacaoDatas[data];
@@ -1626,6 +1735,7 @@ async function salvarAgendaGestao(msg) {
 }
 
 async function adicionarDataAgenda() {
+    if (!exigirAgendaGestaoCarregada()) return;
     const input = document.getElementById("cfg-data");
     const data = input.value;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return avisoPainel("Escolha uma data valida.");
@@ -1653,6 +1763,7 @@ async function adicionarDataAgenda() {
 }
 
 async function removerDataAgenda(data) {
+    if (!exigirAgendaGestaoCarregada()) return;
     if (!(await confirmarPainel(`Remover a data ${dataBrISO(data)} da agenda?`, { titulo: "Remover data", perigo: true, textoConfirmar: "Remover" }))) return;
     agendaDias = agendaDias.filter(d => d !== data);
     delete agendaPublicacaoDatas[data];
@@ -1747,6 +1858,7 @@ function gerarPreviaLote() {
 }
 
 async function salvarLoteFlexivel() {
+    if (!exigirAgendaGestaoCarregada()) return;
     const checkboxes = document.querySelectorAll(".cb-data-previa:checked:not(:disabled)");
     const datasSelecionadas = Array.from(checkboxes).map(cb => cb.value);
 
@@ -1790,6 +1902,7 @@ async function salvarLoteFlexivel() {
 }
 
 async function salvarAvisoNovasVagas() {
+    if (!exigirAgendaGestaoCarregada()) return;
     const input = document.getElementById("cfg-data-novas-vagas");
     const data = input.value;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return avisoPainel("Escolha uma data valida para o aviso.");
@@ -1900,6 +2013,7 @@ async function listarAgendamentos(opcoes = {}) {
     } catch (e) {
         console.warn("Erro ao carregar lista", e);
         if (geracao !== geracaoConsultaAgendamentos) return;
+        if (await encerrarSessaoPorAcessoRevogado(e)) return;
         marcarFalhaAtualizacaoLista();
         if (tinhaDadosVisiveis) {
             listaAgendamentosCarregada = true;
@@ -1934,6 +2048,21 @@ function marcarIndicadoresHistoricosCarregando() {
     const faltasMes = document.getElementById("ind-faltas-mes");
     if (cinMes) cinMes.innerHTML = '<span class="indicador-vazio">Carregando...</span>';
     if (faltasMes) faltasMes.innerHTML = '<span class="indicador-vazio">Carregando...</span>';
+}
+
+function marcarIndicadoresHistoricosIndisponiveis() {
+    ["ind-total-cin", "ind-total-faltas", "ind-taxa-faltas", "ind-melhor-dia", "ind-media-dia"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = "Indisponível";
+    });
+    ["ind-cin-mes-top", "ind-faltas-mes-top", "ind-melhor-dia-data"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = "Histórico indisponível";
+    });
+    const cinMes = document.getElementById("ind-cin-mes");
+    const faltasMes = document.getElementById("ind-faltas-mes");
+    if (cinMes) cinMes.innerHTML = '<span class="indicador-vazio">Histórico indisponível. Tente recarregar o painel.</span>';
+    if (faltasMes) faltasMes.innerHTML = '<span class="indicador-vazio">Histórico indisponível. Tente recarregar o painel.</span>';
 }
 
 function mesLabel(mes) {
@@ -2035,7 +2164,9 @@ function lerStatsHistoricasCache() {
 }
 
 async function carregarTotalAtendimentosRealizados() {
+    const historicoAnteriorValido = totalAtendimentosCarregado && !totalAtendimentosIndisponivel;
     totalAtendimentosCarregado = false;
+    totalAtendimentosIndisponivel = false;
     document.getElementById("kpi-atendidos").textContent = "...";
     marcarIndicadoresHistoricosCarregando();
 
@@ -2044,6 +2175,7 @@ async function carregarTotalAtendimentosRealizados() {
         estatisticasHistoricas = cache;
         totalAtendimentosRealizados = estatisticasHistoricas.cin.length;
         totalAtendimentosCarregado = true;
+        totalAtendimentosIndisponivel = false;
         renderIndicadoresHistoricos();
         atualizarResumo();
         return;
@@ -2060,19 +2192,26 @@ async function carregarTotalAtendimentosRealizados() {
         };
         totalAtendimentosRealizados = estatisticasHistoricas.cin.length;
         totalAtendimentosCarregado = true;
+        totalAtendimentosIndisponivel = false;
         persistirStatsHistoricas();
         renderIndicadoresHistoricos();
         atualizarResumo();
     } catch (e) {
         console.warn("Erro ao carregar total historico de atendimentos realizados", e);
-        estatisticasHistoricas = {
-            cin: agendamentosCache.filter(ag => statusValor(ag.dados) === "compareceu"),
-            faltas: agendamentosCache.filter(ag => statusValor(ag.dados) === "nao_compareceu")
-        };
-        totalAtendimentosRealizados = estatisticasHistoricas.cin.length;
-        totalAtendimentosCarregado = true;
-        renderIndicadoresHistoricos();
+        if (await encerrarSessaoPorAcessoRevogado(e)) return;
+        if (historicoAnteriorValido) {
+            totalAtendimentosRealizados = estatisticasHistoricas.cin.length;
+            totalAtendimentosCarregado = true;
+            renderIndicadoresHistoricos();
+            atualizarResumo();
+            return;
+        }
+        totalAtendimentosRealizados = null;
+        totalAtendimentosCarregado = false;
+        totalAtendimentosIndisponivel = true;
         atualizarResumo();
+        document.getElementById("kpi-atendidos").textContent = "Indisponível";
+        marcarIndicadoresHistoricosIndisponiveis();
     }
 }
 
@@ -2208,7 +2347,7 @@ function atualizarResumo() {
     const totalAmanha = ativos.filter(ag => ag.dados.dataISO === amanha).length;
     const atendimentosRealizados = totalAtendimentosCarregado
         ? totalAtendimentosRealizados
-        : "...";
+        : (totalAtendimentosIndisponivel ? "Indisponível" : "...");
     // diasAtivos ja filtra apenas datas >= hojeISO(), entao o KPI de vagas restantes ignora datas encerradas.
     const diasAtivos = agendaDias.filter(d => d >= hoje);
     const vagasOcupadasAgenda = ativos.filter(ag => !ag.dados.insercaoManual && diasAtivos.includes(ag.dados.dataISO) && horariosDaData(ag.dados.dataISO).includes(ag.dados.hora)).length;
@@ -2636,13 +2775,26 @@ function menuAcoes(ag) {
 // As janelas de comprovante, declaracao e lista do dia sao documentos de
 // mesma origem escritos por document.write. Elas herdam o CSP do painel, entao
 // nao podem mais trazer <script> nem onclick embutidos: os ouvintes vao daqui.
-function prepararJanelaImpressao(janela) {
+function prepararJanelaImpressao(janela, opcoes = {}) {
     if (!janela || !janela.document) return;
+    const autoImprimir = opcoes.autoImprimir === true;
+    let timerAutoImpressao = null;
     const imprimir = janela.document.getElementById("acao-imprimir");
-    if (imprimir) imprimir.addEventListener("click", () => janela.print());
+    if (imprimir) imprimir.addEventListener("click", () => {
+        if (timerAutoImpressao !== null) {
+            janela.clearTimeout(timerAutoImpressao);
+            timerAutoImpressao = null;
+        }
+        janela.print();
+    });
     const fechar = janela.document.getElementById("acao-fechar");
     if (fechar) fechar.addEventListener("click", () => janela.close());
-    janela.setTimeout(() => janela.print(), 600);
+    if (autoImprimir) {
+        timerAutoImpressao = janela.setTimeout(() => {
+            timerAutoImpressao = null;
+            janela.print();
+        }, 600);
+    }
 }
 
 function fecharMenusAcoes() {
@@ -3030,20 +3182,21 @@ function renderCredenciais() {
     }
     corpo.innerHTML = lista.map(c => {
         const d = c.dados;
+        const id = textoSeguro(c.id);
         const status = d.status || "ativa";
         const telFmt = textoSeguro(d.telefone || "");
         const acoes = [];
         if (status === "ativa") {
-            acoes.push(`<button type="button" class="btn-pequeno btn-atualizar" data-acao="marcarCredencialPronta" data-id="${c.id}"><i class="fa-solid fa-check"></i> Marcar pronta</button>`);
+            acoes.push(`<button type="button" class="btn-pequeno btn-atualizar" data-acao="marcarCredencialPronta" data-id="${id}"><i class="fa-solid fa-check"></i> Marcar pronta</button>`);
         }
         if (status === "pronta") {
-            acoes.push(`<button type="button" class="btn-pequeno btn-lembrete" data-acao="abrirZapCredencial" data-id="${c.id}"><i class="fa-brands fa-whatsapp"></i> Avisar WhatsApp</button>`);
-            acoes.push(`<button type="button" class="btn-pequeno btn-atualizar" data-acao="marcarCredencialEntregue" data-id="${c.id}"><i class="fa-solid fa-handshake"></i> Entregue</button>`);
+            acoes.push(`<button type="button" class="btn-pequeno btn-lembrete" data-acao="abrirZapCredencial" data-id="${id}"><i class="fa-brands fa-whatsapp"></i> Avisar WhatsApp</button>`);
+            acoes.push(`<button type="button" class="btn-pequeno btn-atualizar" data-acao="marcarCredencialEntregue" data-id="${id}"><i class="fa-solid fa-handshake"></i> Entregue</button>`);
         }
         if (status === "entregue") {
-            acoes.push(`<button type="button" class="btn-pequeno btn-lembrete" data-acao="reabrirCredencial" data-id="${c.id}"><i class="fa-solid fa-rotate-left"></i> Reabrir</button>`);
+            acoes.push(`<button type="button" class="btn-pequeno btn-lembrete" data-acao="reabrirCredencial" data-id="${id}"><i class="fa-solid fa-rotate-left"></i> Reabrir</button>`);
         }
-        acoes.push(`<button type="button" class="btn-pequeno" style="background:#b91c1c;" data-acao="removerCredencial" data-id="${c.id}"><i class="fa-solid fa-trash"></i> Remover</button>`);
+        acoes.push(`<button type="button" class="btn-pequeno" style="background:#b91c1c;" data-acao="removerCredencial" data-id="${id}"><i class="fa-solid fa-trash"></i> Remover</button>`);
         return `
             <tr>
                 <td data-label="Nome" style="font-weight:700;">${textoSeguro(d.nome || "Sem nome")}</td>
@@ -3388,7 +3541,7 @@ function imprimirListaHoje() {
         body{font-family:Arial,sans-serif;color:#111827;margin:28px}h1{font-size:20px;margin:0 0 4px;color:#003d82}p{margin:0 0 18px;color:#475569}table{width:100%;border-collapse:collapse}th,td{border:1px solid #cbd5e1;padding:9px;text-align:left;font-size:12px}th{background:#eff6ff}td:last-child{width:180px;height:34px}.acoes{margin-top:18px}button{padding:10px 16px;border:0;border-radius:6px;background:#0056b3;color:white;font-weight:700;cursor:pointer}@media print{.acoes{display:none}}
     </style></head><body><h1>Lista de atendimentos CIN</h1><p>${textoSeguro(dataBrISO(hojeISO()))} · ${lista.length} agendamento(s)</p><table><thead><tr><th>Horário</th><th>Cidadão</th><th>CPF</th><th>Status</th><th>Assinatura</th></tr></thead><tbody>${linhas}</tbody></table><div class="acoes"><button id="acao-imprimir">Imprimir / Salvar em PDF</button></div></body></html>`);
     janela.document.close();
-    prepararJanelaImpressao(janela);
+    prepararJanelaImpressao(janela, { autoImprimir: false });
     registrarLog("imprimir_lista_dia", { dataISO: hojeISO(), quantidade: lista.length });
 }
 
@@ -3542,6 +3695,7 @@ document.addEventListener("click", evento => {
     if (acao !== "acoes-lista") fecharAcoesDaLista();
 
     if (!gatilho) return;
+    if (ACOES_MUTACAO_AGENDA.has(acao) && !exigirAgendaGestaoCarregada()) return;
     const executar = ACOES_CLIQUE[acao];
     if (typeof executar !== "function") {
         console.warn("Acao de clique desconhecida:", acao);

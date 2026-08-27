@@ -77,6 +77,9 @@ const callableOptions = {
   cors: [
     "https://agendamento-cin-itanhandu.web.app",
     "https://agendamento-cin-itanhandu.firebaseapp.com",
+    // Origem exata do canal temporario usado para validar as callables do painel;
+    // remover depois da validacao ou da expiracao do canal em 2026-09-02.
+    "https://agendamento-cin-itanhandu--revisao-painel-hmupkekk.web.app",
     "https://www.itanhandu.cam.mg.gov.br",
     "https://itanhandu.cam.mg.gov.br"
   ],

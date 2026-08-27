@@ -10,6 +10,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const vm = require("node:vm");
 const { painelHtml, painelJs } = require("./painel-fonte");
 
 const fonte = painelHtml + "\n" + painelJs;
@@ -55,6 +56,16 @@ function usadas(atributo) {
     encontradas.add(m[1]);
   }
   return encontradas;
+}
+
+function extrairFuncaoAte(nome, proxima) {
+  const marcadorInicio = new RegExp(`(?:async )?function ${nome}\\(`).exec(painelJs);
+  const inicio = marcadorInicio ? marcadorInicio.index : -1;
+  assert.notEqual(inicio, -1, `Funcao ${nome} nao encontrada.`);
+  const marcadorFim = new RegExp(`\\n(?:async )?function ${proxima}\\(`).exec(painelJs.slice(inicio));
+  const fim = marcadorFim ? inicio + marcadorFim.index : -1;
+  assert.notEqual(fim, -1, `Funcao seguinte ${proxima} nao encontrada.`);
+  return painelJs.slice(inicio, fim).trim();
 }
 
 test("o painel nao tem nenhum manipulador de evento embutido", () => {
@@ -115,10 +126,93 @@ test("as janelas de impressao nao levam script nem onclick embutidos", () => {
   // Sao documentos de mesma origem escritos por document.write e herdam o CSP
   // do painel; os ouvintes vao pelo opener, em prepararJanelaImpressao.
   assert.equal(/<script>setTimeout/.test(painelJs), false, "Script embutido na janela gerada.");
-  assert.match(painelJs, /function prepararJanelaImpressao\(janela\)/);
+  assert.match(painelJs, /function prepararJanelaImpressao\(janela, opcoes = \{\}\)/);
   assert.match(painelJs, /id="acao-imprimir"/);
-  const chamadas = painelJs.match(/prepararJanelaImpressao\(janela\);/g) || [];
-  assert.equal(chamadas.length, 3, "Cada janela gerada precisa ligar os proprios botoes.");
+  const automaticas = painelJs.match(/prepararJanelaImpressao\(janela, \{ autoImprimir: true \}\);/g) || [];
+  const somentePrevia = painelJs.match(/prepararJanelaImpressao\(janela, \{ autoImprimir: false \}\);/g) || [];
+  assert.equal(automaticas.length, 2, "Somente comprovante e declaracao autoimprimem.");
+  assert.equal(somentePrevia.length, 1, "A lista do dia precisa abrir somente a previa.");
+});
+
+test("impressao manual cancela o timer automatico antes de imprimir", () => {
+  const fonteHelper = extrairFuncaoAte("prepararJanelaImpressao", "fecharMenusAcoes");
+  const preparar = vm.runInNewContext(`(${fonteHelper})`);
+  const ouvintes = {};
+  const timers = [];
+  const cancelados = [];
+  let impressoes = 0;
+  const janela = {
+    document: {
+      getElementById(id) {
+        if (id === "acao-imprimir") return { addEventListener: (_, fn) => { ouvintes.imprimir = fn; } };
+        if (id === "acao-fechar") return { addEventListener: (_, fn) => { ouvintes.fechar = fn; } };
+        return null;
+      }
+    },
+    setTimeout(fn, ms) { timers.push({ fn, ms }); return 37; },
+    clearTimeout(id) { cancelados.push(id); },
+    print() { impressoes++; },
+    close() {}
+  };
+
+  preparar(janela, { autoImprimir: true });
+  assert.equal(timers.length, 1);
+  assert.equal(timers[0].ms, 600);
+  ouvintes.imprimir();
+  assert.deepEqual(cancelados, [37]);
+  assert.equal(impressoes, 1);
+});
+
+test("lista do dia nao agenda impressao automatica", () => {
+  const fonteHelper = extrairFuncaoAte("prepararJanelaImpressao", "fecharMenusAcoes");
+  const preparar = vm.runInNewContext(`(${fonteHelper})`);
+  let timerCriado = false;
+  let impressoes = 0;
+  let imprimirManual;
+  const janela = {
+    document: {
+      getElementById(id) {
+        if (id === "acao-imprimir") return { addEventListener: (_, fn) => { imprimirManual = fn; } };
+        return null;
+      }
+    },
+    setTimeout() { timerCriado = true; },
+    clearTimeout() {},
+    print() { impressoes++; }
+  };
+
+  preparar(janela, { autoImprimir: false });
+  assert.equal(timerCriado, false);
+  assert.equal(impressoes, 0);
+  imprimirManual();
+  assert.equal(impressoes, 1);
+});
+
+test("delegacao converte indices e dias para numero e confirmacao para booleano", () => {
+  for (const acao of ["removerSemanaPausada", "removerDataBloqueada", "removerPeriodoBloqueado"]) {
+    assert.match(painelJs, new RegExp(`${acao}: el => ${acao}\\(Number\\(el\\.dataset\\.indice\\)\\)`));
+  }
+  for (const acao of ["personalizarDiaSemana", "adicionarHorarioSemana", "voltarDiaSemanaAoAutomatico"]) {
+    assert.match(painelJs, new RegExp(`${acao}: el => ${acao}\\(Number\\(el\\.dataset\\.dia\\)\\)`));
+  }
+  assert.match(painelJs, /removerHorarioSemana: el => removerHorarioSemana\(Number\(el\.dataset\.dia\), el\.dataset\.hora\)/);
+  assert.match(painelJs, /confirmacao: el => resolverConfirmacao\(el\.dataset\.valor === "true"\)/);
+});
+
+test("id de credencial e escapado antes dos cinco atributos dinamicos", () => {
+  const inicio = painelJs.indexOf("function renderCredenciais()");
+  const fim = painelJs.indexOf("\nasync function salvarCredencial()", inicio);
+  const trecho = painelJs.slice(inicio, fim);
+  assert.match(trecho, /const id = textoSeguro\(c\.id\);/);
+  assert.equal((trecho.match(/data-id="\$\{id\}"/g) || []).length, 5);
+  assert.equal(/data-id="\$\{c\.id\}"/.test(trecho), false);
+});
+
+test("logs de emissao so ocorrem quando a janela foi criada", () => {
+  const comprovante = extrairFuncaoAte("emitirComprovanteDaLista", "emitirDeclaracaoComparecimentoPDF");
+  const declaracao = extrairFuncaoAte("emitirDeclaracaoComparecimentoDaLista", "registrarLog");
+  assert.match(comprovante, /if \(!emitirComprovantePDF\(ag\.dados\)\) return;[\s\S]*registrarLog\("emitir_comprovante"/);
+  assert.match(declaracao, /if \(!emitirDeclaracaoComparecimentoPDF\(ag\.dados\)\) return;[\s\S]*registrarLog\("emitir_declaracao_comparecimento"/);
 });
 
 test("os menus deixaram de depender de stopPropagation", () => {
