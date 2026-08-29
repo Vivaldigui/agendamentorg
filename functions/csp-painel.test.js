@@ -125,3 +125,50 @@ test("o site publico nao herdou a folga do painel em script-src", () => {
   assert.ok(diretiva(cspDe("**"), "script-src").includes("'unsafe-inline'"));
   assert.ok(!diretiva(cspDe("/recepcao.html"), "script-src").includes("'unsafe-inline'"));
 });
+
+// ---------------------------------------------------------------------------
+// A trava de precedencia acima olha CADA bloco isoladamente. Auditoria de 29/08
+// mostrou que isso nao prova o CSP EFETIVO: o Hosting aplica todos os blocos
+// cujo padrao casa e, para a mesma chave, vence o ULTIMO. Bastava um segundo
+// bloco "**" depois de /recepcao.html para o painel voltar a aceitar
+// 'unsafe-inline' com as duas guardas verdes.
+// ---------------------------------------------------------------------------
+
+// Reproduz o casamento de padrao do Hosting para os globs usados aqui.
+function casa(padrao, caminho) {
+  if (padrao === caminho) return true;
+  if (padrao === "**") return true;
+  if (padrao.startsWith("**/")) return caminho.endsWith(padrao.slice(2));
+  if (padrao.endsWith("/**")) return caminho.startsWith(padrao.slice(0, -2));
+  return false;
+}
+
+function cspEfetivo(caminho) {
+  let valor = null;
+  for (const bloco of hosting.headers) {
+    if (!casa(bloco.source, caminho)) continue;
+    const h = (bloco.headers || []).find(x => x.key === "Content-Security-Policy");
+    if (h) valor = h.value; // ultimo que casa vence
+  }
+  return valor;
+}
+
+test("o CSP EFETIVO do painel e o restrito, nao o global", () => {
+  const efetivo = cspEfetivo("/recepcao.html");
+  assert.ok(efetivo, "Nenhum CSP casaria com /recepcao.html.");
+  assert.equal(
+    diretiva(efetivo, "script-src").includes("'unsafe-inline'"),
+    false,
+    "Um bloco depois de /recepcao.html devolveu 'unsafe-inline' ao painel."
+  );
+  assert.equal(efetivo, cspDe("/recepcao.html"), "O bloco especifico tem de ser o vencedor.");
+});
+
+test("o CSP EFETIVO do site publico continua sendo o global", () => {
+  const efetivo = cspEfetivo("/index.html");
+  assert.equal(efetivo, cspDe("**"));
+  assert.ok(diretiva(efetivo, "script-src").includes("'unsafe-inline'"),
+    "O site publico ainda tem codigo embutido e depende disso.");
+  assert.ok(diretiva(efetivo, "connect-src").includes("https://www.google.com"),
+    "Sem isto o reCAPTCHA e bloqueado 4x por carga no site que recebe o pico.");
+});
