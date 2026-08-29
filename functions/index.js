@@ -1694,6 +1694,101 @@ exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
   return { agendamento: retorno };
 });
 
+// Cancelamento pela recepcao, em transacao.
+//
+// O painel fazia isto direto no Firestore: marcava o status e chamava
+// vagas_ocupadas.doc(slotId).delete() de forma INCONDICIONAL, engolindo o erro.
+// E a mesma falha B5 que foi fechada em cancelarAgendamentoCidadao e que aqui
+// continuava aberta:
+//
+//   1. a recepcao cancela A das 14:30 -> a vaga e liberada
+//   2. o cidadao B reserva as 14:30 -> nasce um novo documento de vaga
+//   3. a recepcao cancela de novo a linha velha de A, ainda no cache da tela
+//   4. a vaga de B desaparece, o agendamento de B sobrevive, e o horario volta
+//      a ser oferecido -- duas pessoas para as 14:30
+//
+// A regra e a mesma das outras transacoes: so remove o que AINDA aponta para
+// este agendamento, e todas as leituras vem antes de qualquer escrita.
+exports.cancelarAgendamentoAdmin = onCall(callableOptions, async (request) => {
+  const adminEmail = await assertAdmin(request);
+  const agendamentoId = String(request.data && request.data.agendamentoId || "").trim();
+  if (!agendamentoId) {
+    throw new HttpsError("invalid-argument", "Agendamento invalido.");
+  }
+
+  const agRef = db.collection("dados_cidadaos").doc(agendamentoId);
+  const agora = new Date().toISOString();
+  let retorno = null;
+
+  await db.runTransaction(async (t) => {
+    const agDoc = await t.get(agRef);
+    if (!agDoc.exists) {
+      throw new HttpsError("not-found", "Agendamento nao encontrado.");
+    }
+    const dados = agDoc.data();
+
+    // Idempotente: cancelar duas vezes nao e erro, e nao pode apagar de novo
+    // uma vaga que ja pertence a outra pessoa.
+    if (!agendamentoEstaAtivo(dados)) {
+      retorno = { cancelado: false, jaEstavaCancelado: true, vagaLiberada: false };
+      return;
+    }
+
+    const slotId = dados.slotId || (dados.dataISO && dados.hora ? `${dados.dataISO}_${dados.hora}` : "");
+    const slotRef = slotId && slotId !== "undefined_undefined"
+      ? db.collection("vagas_ocupadas").doc(slotId)
+      : null;
+    const cpfNum = String(dados.cpf || "").replace(/\D/g, "");
+    const cpfDocIds = [...new Set([cpfNum ? cpfDocId(cpfNum) : "", cpfNum].filter(Boolean))];
+
+    // TODAS as leituras antes de qualquer escrita.
+    const [slotDoc, cpfDocs] = await Promise.all([
+      slotRef ? t.get(slotRef) : Promise.resolve(null),
+      Promise.all(cpfDocIds.map((docId) => t.get(db.collection("cpfs_agendados").doc(docId))))
+    ]);
+
+    let vagaLiberada = false;
+    if (slotRef && slotDoc.exists && slotDoc.data().agendamentoId === agendamentoId) {
+      t.delete(slotRef);
+      vagaLiberada = true;
+    }
+
+    cpfDocs.forEach((doc, indice) => {
+      if (doc.exists && doc.data().agendamentoId === agendamentoId) {
+        t.delete(db.collection("cpfs_agendados").doc(cpfDocIds[indice]));
+      }
+    });
+
+    t.set(agRef, {
+      status: "cancelado",
+      canceladoEm: agora,
+      canceladoPor: adminEmail,
+      statusAtualizadoEm: agora,
+      statusAtualizadoPor: adminEmail,
+      alteradoPor: adminEmail,
+      ativo: false
+    }, { merge: true });
+
+    t.set(db.collection("logs_admin").doc(), {
+      acao: "cancelar_agendamento_painel",
+      agendamentoId,
+      dataISO: dados.dataISO || "",
+      hora: dados.hora || "",
+      // Registra quando a vaga NAO foi liberada: significa que ela ja pertencia
+      // a outra pessoa, e e exatamente o caso que o codigo antigo destruia.
+      vagaLiberada,
+      slotId,
+      adminEmail,
+      criadoEm: FieldValue.serverTimestamp(),
+      criado: agora
+    });
+
+    retorno = { cancelado: true, jaEstavaCancelado: false, vagaLiberada };
+  });
+
+  return retorno;
+});
+
 exports.listarLogsAdmin = onCall(callableOptions, async (request) => {
   await assertAdmin(request);
   const limite = Math.min(Math.max(Number(request.data && request.data.limite) || 80, 10), 200);

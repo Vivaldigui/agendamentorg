@@ -3088,28 +3088,46 @@ async function cancelarAgendamentoPainel(id) {
     }
     const d = ag.dados;
     try {
-        const slotId = d.slotId || (d.dataISO && d.hora ? `${d.dataISO}_${d.hora}` : "");
-        await db.collection("dados_cidadaos").doc(id).set({
-            status: "cancelado",
-            canceladoEm: new Date().toISOString(),
-            canceladoPor: auth.currentUser ? auth.currentUser.email : "gestaov6",
-            statusAtualizadoEm: new Date().toISOString(),
-            statusAtualizadoPor: auth.currentUser ? auth.currentUser.email : "",
-            alteradoPor: auth.currentUser ? auth.currentUser.email : ""
-        }, { merge: true });
-        if (slotId && !d.insercaoManual) await db.collection("vagas_ocupadas").doc(slotId).delete().catch(() => {});
-        const cpfId = await gerarCpfDocId(d.cpf);
-        const cpfLimpo = cpfNumeros(d.cpf);
-        if (cpfId) await db.collection("cpfs_agendados").doc(cpfId).delete().catch(() => {});
-        if (cpfLimpo && cpfLimpo !== cpfId) await db.collection("cpfs_agendados").doc(cpfLimpo).delete().catch(() => {});
+        // Passa pela callable transacional. A versao anterior escrevia direto no
+        // Firestore e chamava vagas_ocupadas.doc(slotId).delete() de forma
+        // INCONDICIONAL, engolindo o erro: cancelar uma linha desatualizada
+        // apagava a vaga de quem tivesse reservado aquele horario no intervalo.
+        // O backend agora so remove o que ainda aponta para este agendamento, e
+        // devolve se a vaga foi de fato liberada.
+        const cancelar = functions.httpsCallable("cancelarAgendamentoAdmin");
+        const resposta = await cancelar({ agendamentoId: id });
+        const r = (resposta && resposta.data) || {};
+
+        if (r.jaEstavaCancelado) {
+            // A lista estava velha. Recarregar e obrigatorio: seguir mostrando o
+            // estado antigo e o que leva a recepcao a cancelar de novo.
+            avisoPainel("Este agendamento já estava cancelado. A lista foi atualizada.");
+            listarAgendamentos();
+            return;
+        }
+
         ag.dados.status = "cancelado";
-        await registrarLog("cancelar_agendamento_painel", { agendamentoId: id, dataISO: d.dataISO, hora: d.hora });
+        ag.dados.ativo = false;
         atualizarEstatisticasLocalmente(id, "cancelado", ag.dados);
         renderTabelaAgendamentos();
         renderFilaHoje();
-        mostrarToast(`${d.nome} teve o agendamento cancelado.`);
+
+        if (r.vagaLiberada === false && d.dataISO && d.hora && !d.insercaoManual) {
+            // A vaga ja pertencia a outro agendamento. Antes isso apagava a vaga
+            // alheia em silencio; agora a recepcao fica sabendo.
+            mostrarToast(`${d.nome} teve o agendamento cancelado. A vaga de ${d.dataISO} ${d.hora} já pertence a outra pessoa e foi preservada.`);
+        } else {
+            mostrarToast(`${d.nome} teve o agendamento cancelado.`);
+        }
     } catch (e) {
-        avisoPainel("Erro ao cancelar agendamento.");
+        const codigo = String((e && e.code) || "").replace(/^functions\//, "");
+        if (codigo === "not-found") {
+            avisoPainel("Agendamento não encontrado. A lista foi atualizada.");
+        } else if (codigo === "permission-denied" || codigo === "unauthenticated") {
+            avisoPainel("Sessão sem permissão para cancelar. Entre novamente.");
+        } else {
+            avisoPainel("Erro ao cancelar agendamento.");
+        }
         listarAgendamentos();
     }
 }
