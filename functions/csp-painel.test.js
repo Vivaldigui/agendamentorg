@@ -88,3 +88,40 @@ test("recepcao.js e recepcao.css nao ficam em cache junto com HTML novo", () => 
       `Sem isso ${arquivo} cai no padrao do Hosting e o painel serve markup novo com comportamento velho.`);
   }
 });
+
+// ---------------------------------------------------------------------------
+// O reCAPTCHA do App Check faz um fetch do documento pai para
+// https://www.google.com/recaptcha/api2/clr. O painel liberou isso em 26/08,
+// mas a politica global ficou como estava e o SITE PUBLICO seguia bloqueando
+// quatro vezes por carregamento -- verificado no navegador contra producao em
+// 29/08, dois dias antes de uma abertura. `clr` e o canal por onde o reCAPTCHA
+// devolve sinal ao Google; bloqueado, o motor de risco decide com menos
+// informacao, e e explicacao plausivel para atestacoes que falham em aparelhos
+// especificos.
+// ---------------------------------------------------------------------------
+
+test("as DUAS politicas liberam o fetch que o reCAPTCHA faz de verdade", () => {
+  for (const origem of ["**", "/recepcao.html"]) {
+    assert.ok(
+      diretiva(cspDe(origem), "connect-src").includes("https://www.google.com"),
+      `${origem}: sem www.google.com em connect-src, o reCAPTCHA e bloqueado 4x por carga.`
+    );
+  }
+});
+
+test("o dominio liberado ja era confiavel nas outras diretivas", () => {
+  // Nao e ampliacao de superficie: www.google.com ja carregava script e iframe
+  // nas duas politicas. So faltava o canal de volta.
+  for (const origem of ["**", "/recepcao.html"]) {
+    assert.ok(diretiva(cspDe(origem), "script-src").includes("https://www.google.com"), `${origem}: script-src`);
+    assert.ok(diretiva(cspDe(origem), "frame-src").includes("https://www.google.com"), `${origem}: frame-src`);
+  }
+});
+
+test("o site publico nao herdou a folga do painel em script-src", () => {
+  // O painel perdeu 'unsafe-inline' porque nao tem mais codigo embutido. O site
+  // publico ainda tem, entao a politica global mantem. Liberar connect-src nao
+  // pode ser desculpa para afrouxar o resto.
+  assert.ok(diretiva(cspDe("**"), "script-src").includes("'unsafe-inline'"));
+  assert.ok(!diretiva(cspDe("/recepcao.html"), "script-src").includes("'unsafe-inline'"));
+});
