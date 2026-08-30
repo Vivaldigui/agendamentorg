@@ -260,3 +260,29 @@ painel **Configuração → Horários da semana**. A separação visual entre as
 - A leitura pública deve permanecer em escala zero por padrão para controlar
   custos; o CDN absorve a maior parte do pico.
 - Pré-aquecimento custa enquanto houver instâncias mínimas.
+
+## Planejado e ainda não implementado — site público
+
+Decidido em 30/08/2026, **nada disto está no código**. Três mudanças no site
+público, todas voltadas ao cidadão:
+
+1. **Aviso da taxa da 2ª via** nos oito pontos que listam documentos. A 1ª via da
+   CIN é gratuita mesmo para quem tem RG do modelo antigo; muita gente na cidade
+   lê "2ª via", conclui que é o seu caso e paga taxa que não volta.
+2. **Grade de seis blocos** na home, no lugar do box do Instagram e das duas
+   tarjas de atalho. O Instagram vira uma linha no rodapé.
+3. **`public/duvidas.html`** — 29 perguntas frequentes, acordeão `<details>` sem
+   JavaScript, JSON-LD `FAQPage`.
+
+Documentos, nesta ordem de leitura:
+
+- `docs/PLANO-servicos-duvidas-taxa.md` — decisões, textos, cores verificadas em
+  contraste, cronograma.
+- `docs/CONTEUDO-duvidas-frequentes.md` — fonte da verdade do texto do FAQ.
+- `docs/PROMPT-implementacao-servicos-duvidas-taxa.md` — prompt para codar.
+- `docs/PROMPT-auditoria-duvidas-e-servicos.md` — prompt de auditoria, para depois.
+
+Duas coisas que o plano registra e é fácil esquecer: o bloco "Taxa da 2ª via"
+**não pode abrir o DAE diretamente** — abre o aviso primeiro; e mudar
+`TEMPLATE_LEMBRETE_PADRAO` não altera o lembrete em produção se
+`configuracoes/agenda.mensagemLembreteTemplate` já existir no Firestore.
