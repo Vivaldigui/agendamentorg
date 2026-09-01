@@ -618,10 +618,36 @@
         return codigo === "unauthenticated" || codigo === "permission-denied";
     }
 
+    var recusasAppCheckSeguidas = 0;
+    var alertaAppCheckMostrado = false;
+    const LIMITE_RECUSAS_APP_CHECK = 3;
+
+    // reCAPTCHA se RECUSA a atestar certos ambientes (navegador embutido de
+    // Instagram/Facebook). Renovar o token so gera outro invalido -- o retry
+    // nao resolve. Em 31/08 um moto g05 ficou 6 minutos e 78 tentativas preso
+    // assim. Apos algumas recusas SEGUIDAS, orienta a abrir num navegador real.
+    function mostrarAlertaAppCheckPersistente() {
+        if (alertaAppCheckMostrado) return;
+        alertaAppCheckMostrado = true;
+        modal({
+            icone: '<i class="fa-solid fa-shield-halved" style="color:var(--danger);"></i>',
+            titulo: "Não foi possível validar seu navegador",
+            mensagem: "Seu navegador não passou na verificação de segurança e por isso não conseguimos concluir o agendamento.\n\nIsso costuma acontecer quando a página é aberta DENTRO de outro aplicativo (Instagram, Facebook, WhatsApp).\n\nComo resolver:\n1. Toque nos três pontos no canto da tela.\n2. Escolha \"Abrir no navegador\" ou \"Abrir no Chrome\".\n3. Refaça o agendamento por lá.\n\nSe o problema continuar, ligue para a Câmara Municipal de Itanhandu.",
+            botoes: [{ texto: "Entendi", classe: "primario" }]
+        });
+    }
+
+    function registrarRecusaAppCheck() {
+        recusasAppCheckSeguidas += 1;
+        if (recusasAppCheckSeguidas >= LIMITE_RECUSAS_APP_CHECK) mostrarAlertaAppCheckPersistente();
+    }
+
     async function chamarFuncao(nome, dados) {
         await garantirAppCheckPronto();
         try {
-            return await clienteFunctions(nome).httpsCallable(nome)(dados);
+            const r = await clienteFunctions(nome).httpsCallable(nome)(dados);
+            recusasAppCheckSeguidas = 0;
+            return r;
         } catch (erro) {
             if (!erroDeAppCheck(erro)) throw erro;
             // Quando a atestacao falha, o SDK anexa um placeholder de erro no
@@ -632,14 +658,19 @@
             console.warn(`App Check recusado em ${nome}; renovando o token e repetindo.`, erro);
             await tentarRefreshAppCheck();
             try {
-                return await clienteFunctions(nome).httpsCallable(nome)(dados);
+                const r = await clienteFunctions(nome).httpsCallable(nome)(dados);
+                recusasAppCheckSeguidas = 0;
+                return r;
             } catch (segundo) {
                 // Marca que a repeticao de App Check ja foi gasta aqui dentro.
                 // Sem isso o laco externo de confirmarAgendamento renovava o
                 // token e chamava de novo, somando ate QUATRO POSTs e tres
                 // renovacoes por acao do cidadao -- justamente quando o App
                 // Check ja esta sofrendo. O erro sobe intacto no resto.
-                if (erroDeAppCheck(segundo)) segundo.appCheckJaRepetido = true;
+                if (erroDeAppCheck(segundo)) {
+                    segundo.appCheckJaRepetido = true;
+                    registrarRecusaAppCheck();
+                }
                 throw segundo;
             }
         }
