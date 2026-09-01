@@ -11,6 +11,29 @@ const HORARIOS_PADRAO = ["14:30","14:45","15:00","15:15","15:30","15:45","16:00"
 const DATA_CORTE_GRADE_NOVA = "2026-08-18";
 const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const RESPONSAVEL_POSTO_PADRAO = "Guilherme Ribeiro Pinto";
+const URL_DAE_SEGUNDA_VIA = "https://daeonline1.fazenda.mg.gov.br/daeonline/executeEmissaoDocumentoArrecadacaoCarteiraIdentidade.action";
+
+function avisoTaxaTexto() {
+    return [
+        "Sobre a taxa:",
+        "- A 1ª via do novo RG (CIN) é gratuita, mesmo que você já tenha o RG antigo.",
+        "- Só paga quem já tem o novo RG (CIN) e precisa de 2ª via (perda, roubo ou dano).",
+        "- Como saber: no novo RG, o número principal é o seu CPF.",
+        `- Guia da 2ª via: ${URL_DAE_SEGUNDA_VIA}`,
+        "- Na dúvida, não pague antes: a recepção confere no atendimento."
+    ].join("\n");
+}
+
+function avisoTaxaHTML() {
+    return `
+        <p><strong>Vai tirar o novo RG (CIN) pela primeira vez? É de graça</strong> — mesmo que você já tenha o RG antigo.</p>
+        <p>Só paga quem <strong>já tem o novo RG</strong> e precisa de <strong>2ª via</strong> (perda, roubo ou dano).</p>
+        <p><strong>Como saber qual é o seu:</strong> no novo RG o número principal é o seu <strong>CPF</strong>. Se o seu documento tem um número de RG diferente do CPF, ele é o antigo — e a sua CIN será 1ª via, gratuita.</p>
+        <p>Guia de pagamento da 2ª via: <a href="${URL_DAE_SEGUNDA_VIA}" target="_blank" rel="noopener noreferrer">emitir guia (DAE)</a>.</p>
+        <p><strong>Na dúvida, não pague antes.</strong> Traga o documento que a recepção confere na hora.</p>
+    `;
+}
+
 const TEMPLATE_LEMBRETE_PADRAO = `Olá, {nome}!
 
 Passando para lembrar que seu atendimento para emissão do RG/CIN está agendado para *{data} às {hora}* na *Câmara Municipal de Itanhandu*.
@@ -19,11 +42,13 @@ Não se esqueça de levar os documentos necessários:
 
 1. A certidão deve ser ORIGINAL, sem rasgos, rasuras ou alterações.
 2. Certidão de nascimento original (se solteiro), certidão de casamento original (se casado). Se viúvo ou divorciado, a certidão de casamento deve estar averbada.
-3. CPF.
+3. Número do CPF. Basta informá-lo; não é necessário apresentar cartão ou comprovante de inscrição.
 4. Comprovante de residência.
 5. Se for menor de 3 anos, além dos documentos acima, levar 1 foto 3x4 recente.
 
-Menores de 16 anos devem estar acompanhados do responsável legal com documento (RG ou CNH).
+Menores de 16 anos devem estar acompanhados do responsável legal com documento (RG ou CNH). Quando o acompanhante não for o pai nem a mãe, é necessário também apresentar a documentação que comprove a representação ou a guarda.
+
+${avisoTaxaTexto()}
 
 Protocolo: {protocolo}.
 
@@ -1153,10 +1178,12 @@ function documentosComprovanteHTML(nascBR) {
             <li><strong>A certidão deve ser ORIGINAL, sem rasgos, rasuras ou alterações.</strong></li>
             <li>Certidão de nascimento original, se solteiro, ou certidão de casamento original, se casado.</li>
             <li>Se viúvo ou divorciado, a certidão de casamento deve estar averbada.</li>
-            <li>CPF e comprovante de residência.</li>
-            <li>Menores de 16 anos devem estar acompanhados do responsável legal com RG ou CNH.</li>
+            <li>Número do CPF: basta informá-lo; não é necessário apresentar cartão ou comprovante de inscrição.</li>
+            <li>Comprovante de residência.</li>
+            <li>Menores de 16 anos devem estar acompanhados do responsável legal com RG ou CNH. Quando o acompanhante não for o pai nem a mãe, é necessário também apresentar a documentação que comprove a representação ou a guarda.</li>
             ${fotoLI}
         </ul>
+        <div class="aviso-taxa">${avisoTaxaHTML()}</div>
     `;
 }
 
@@ -1196,6 +1223,10 @@ h1 { margin: 0; font-size: 22px; color: #003d82; text-transform: uppercase; }
 .box { margin-top: 24px; background: #fffbeb; border: 1px solid #fde68a; border-left: 5px solid #f59e0b; padding: 16px 18px; border-radius: 10px; }
 .box h2 { margin: 0 0 8px; font-size: 16px; color: #92400e; }
 .box ul { margin: 0; padding-left: 20px; line-height: 1.55; color: #78350f; }
+.aviso-taxa { margin-top: 14px; padding: 12px 14px; background: white; border: 1px solid #f59e0b; border-radius: 8px; color: #78350f; line-height: 1.45; }
+.aviso-taxa p { margin: 8px 0 0; }
+.aviso-taxa p:first-child { margin-top: 0; }
+.aviso-taxa a { color: #78350f; font-weight: bold; }
 .rodape { margin-top: 26px; color: #64748b; font-size: 12px; text-align: center; }
 .acoes { max-width: 760px; margin: 0 auto 24px; display: flex; justify-content: center; gap: 10px; }
 button { border: none; border-radius: 8px; padding: 11px 18px; font-weight: 700; cursor: pointer; }

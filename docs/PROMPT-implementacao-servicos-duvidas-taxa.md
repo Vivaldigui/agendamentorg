@@ -97,8 +97,9 @@ Substitui o box `.instagram-suporte` e as duas tarjas `.atalho-cancelamento` e
 As cores do plano **já são a versão escurecida e verificada** — `#0056b3`,
 `#0b7a52`, `#c0392b`, `#a06400`, `#4f5d75`, `#6d4aa8`, todas acima de 4,5:1
 contra branco. Não as clareie "para ficar mais bonito": o âmbar original
-(`#d18300`) dava 3,0:1 e reprovava em AA. A dica secundária usa
-`rgba(255,255,255,0.9)`, nunca menos.
+(`#d18300`) dava 3,0:1 e reprovava em AA. A dica secundária usa branco sólido:
+`rgba(255,255,255,0.9)` sobre o âmbar escurecido ainda fica em aproximadamente
+4,29:1 e reprova em AA.
 
 Requisitos:
 

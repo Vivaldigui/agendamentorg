@@ -1,7 +1,8 @@
 # Plano — grade de serviços, aviso da taxa e página de dúvidas
 
-Decidido em 30/08/2026. Ainda **não implementado**. Publicação prevista para
-depois da abertura de 31/08/2026 (ver "Cronograma").
+Decidido em 30/08/2026. Implementação preparada no worktree, ainda **não
+publicada**. Publicação prevista para depois da abertura de 31/08/2026 (ver
+"Cronograma").
 
 Três mudanças, todas no site público:
 
@@ -128,7 +129,8 @@ reprovavam em contraste com texto branco. Razões de contraste calculadas contra
 | `#6d4aa8` | 6,6:1 | passa |
 
 O âmbar era o caso crítico: `#d18300` dá 3,0:1 e reprova. A dica secundária usa
-`rgba(255,255,255,0.9)` — nunca menos, ou o âmbar volta a reprovar.
+branco sólido. A auditoria final mostrou que `rgba(255,255,255,0.9)` sobre o
+âmbar escurecido ainda fica em aproximadamente 4,29:1 e reprova em AA.
 
 ### Regras de layout
 
@@ -187,7 +189,7 @@ todos, **a regra do balcão prevalece e o FAQ foi corrigido**:
 
 | # | Assunto | Site dizia | FAQ dizia | Resolução |
 |---|---|---|---|---|
-| 1 | CPF | obrigatório | "caso já possua", emite na hora | **obrigatório** |
+| 1 | CPF | obrigatório | "caso já possua", emite na hora | **obrigatório; basta informar o número** |
 | 2 | Comprovante de residência | obrigatório | não mencionava | **obrigatório**, com o motivo (Correios) |
 | 3 | Foto 3x4, menor de 3 anos | obrigatório | "em regra, não" | **obrigatória** |
 | 4 | Representante legal | doc. com foto | + comprovação de guarda | **doc. com foto; guarda quando não for pai nem mãe** |

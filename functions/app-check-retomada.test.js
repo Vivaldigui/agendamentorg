@@ -79,8 +79,10 @@ function montarChamarFuncao({ respostas }) {
   });
   const fn = new Function(
     "functions", "functionsPico", "CALLABLES_REGIAO_PICO",
-    "garantirAppCheckPronto", "tentarRefreshAppCheck", "erroDeAppCheck", "console",
+    "garantirAppCheckPronto", "tentarRefreshAppCheck", "erroDeAppCheck",
+    "registrarRecusaAppCheck", "console",
     [
+      "let recusasAppCheckSeguidas = 0;",
       extrairFuncao(sitePublico, "clienteFunctions"),
       extrairFuncao(sitePublico, "chamarFuncao"),
       "return chamarFuncao;"
@@ -92,6 +94,7 @@ function montarChamarFuncao({ respostas }) {
     async () => true,
     async () => { refreshes += 1; },
     erroDeAppCheck,
+    () => {},
     { warn() {} }
   );
   return { chamarFuncao: fn, chamadas, contarRefreshes: () => refreshes };

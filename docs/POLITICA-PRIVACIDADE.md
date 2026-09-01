@@ -171,5 +171,11 @@ Quando a página for construída:
   declarar base errada cria obrigação que a lei não impõe à Câmara.
 - Uma linha curta acima dos campos do formulário, com link: "Seus dados são
   usados apenas para o agendamento e apagados após 6 meses."
+- **PENDÊNCIA de redação e revisão jurídica:** informar que, antes da escolha do
+  horário, nome, CPF, nascimento, telefone e e-mail ficam temporariamente no
+  `sessionStorage` da própria aba (`cin_dados_agendamento`) para preservar o
+  preenchimento durante a sessão. Definir o texto final da política e a forma de
+  explicar a duração desse armazenamento antes de publicar; esta nota não é
+  texto de política aprovado.
 - `firebase.json` não muda: a página herda os headers de `**` e o `Cache-Control`
   de `**/*.html`.

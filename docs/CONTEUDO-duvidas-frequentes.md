@@ -16,7 +16,7 @@ São 29 perguntas, em cinco grupos.
 
 ## Grupo 1 — Antes de agendar
 
-### O que é a Carteira de Identidade Nacional (CIN)?
+### O que é a CIN?
 
 A Carteira de Identidade Nacional, conhecida como CIN ou "novo RG", é o novo
 documento de identificação dos brasileiros. Ela possui padrão nacional e utiliza
@@ -28,13 +28,13 @@ Sim. A CIN é o novo modelo nacional de carteira de identidade. Diferentemente d
 antigo RG, que podia ter números diferentes em cada Estado, a CIN utiliza o
 número do CPF como identificação única em todo o Brasil.
 
-### Preciso trocar meu RG antigo imediatamente?
+### Preciso trocar meu RG agora?
 
 Não. O modelo antigo da carteira de identidade continua válido até fevereiro de
 2032, desde que esteja em boas condições e permita identificar corretamente o
 titular. Mesmo assim, quem desejar já pode solicitar a nova CIN.
 
-### A primeira via da CIN é gratuita?
+### A primeira via é gratuita?
 
 Sim. A primeira emissão da Carteira de Identidade Nacional é gratuita, **mesmo
 que a pessoa já tenha emitido uma ou mais carteiras de identidade do modelo
@@ -50,19 +50,19 @@ conforme as regras do Estado de Minas Gerais.
 >
 > [Emitir a guia da 2ª via (DAE)](https://daeonline1.fazenda.mg.gov.br/daeonline/executeEmissaoDocumentoArrecadacaoCarteiraIdentidade.action)
 
-### Preciso agendar para fazer a CIN?
+### Preciso agendar?
 
 Sim. O atendimento para emissão da Carteira de Identidade Nacional na Câmara
 Municipal de Itanhandu é realizado mediante agendamento prévio e disponibilidade
 de vagas. Faça seu agendamento pelo sistema disponibilizado pela Câmara.
 
-### Posso comparecer sem agendamento?
+### Posso ir sem agendamento?
 
-O atendimento da Câmara é organizado conforme as vagas e horários
-disponibilizados. Para evitar viagem ou espera desnecessária, faça o agendamento
-antes de comparecer.
+Faça o agendamento antes de comparecer. O atendimento da Câmara é organizado
+conforme as vagas e horários disponibilizados; assim você evita viagem ou espera
+desnecessária.
 
-### Meus dados do CPF estão diferentes da minha certidão. Posso fazer a CIN?
+### CPF e certidão estão diferentes. O que faço?
 
 Divergências de nome, data de nascimento ou outros dados cadastrais podem
 impedir ou atrasar a emissão. Se houver diferença entre os dados do CPF e os
@@ -73,7 +73,7 @@ da conclusão da CIN.
 
 ## Grupo 2 — No dia do atendimento
 
-### Quais documentos preciso levar?
+### Quais documentos levar?
 
 Para a emissão da CIN, apresente:
 
@@ -81,7 +81,8 @@ Para a emissão da CIN, apresente:
   conferência: certidão de nascimento para pessoas solteiras, ou certidão de
   casamento para casadas, viúvas ou divorciadas. Em caso de viuvez, divórcio ou
   alteração de nome, a certidão de casamento deve estar averbada.
-- **CPF.**
+- **Número do CPF.** Basta informá-lo; não é necessário apresentar cartão ou
+  comprovante de inscrição.
 - **Comprovante de residência atualizado.** Ele é necessário porque a CIN é
   enviada pelos Correios para o endereço informado no atendimento.
 - **Menores de 3 anos:** 1 foto 3x4 recente.
@@ -90,10 +91,11 @@ Para a emissão da CIN, apresente:
   acompanhante não for o pai nem a mãe, é necessário também apresentar a
   documentação que comprove a representação ou a guarda.
 
-### Preciso levar o CPF?
+### Preciso apresentar o CPF?
 
-Sim, o CPF é obrigatório. Apresente o cartão do CPF, o comprovante de inscrição
-ou outro documento em que o número conste.
+Sim, o CPF é obrigatório, mas basta informar o número. Não é necessário
+apresentar cartão, comprovante de inscrição ou outro documento em que ele
+conste.
 
 ### Preciso levar foto 3x4?
 
@@ -102,7 +104,7 @@ crianças dessa idade nem sempre conseguem permanecer sozinhas na posição
 adequada para a fotografia. Para as demais pessoas, a fotografia é feita no
 próprio local durante o atendimento.
 
-### Posso tirar a foto usando óculos, boné ou chapéu?
+### Posso usar óculos, boné ou chapéu na foto?
 
 Óculos de sol, bonés, chapéus e outras coberturas que prejudiquem a
 identificação normalmente não são permitidos. Existem exceções para coberturas
@@ -122,36 +124,36 @@ guarda.
 
 Menores de 3 anos devem levar 1 foto 3x4 recente.
 
-### O bebê precisa estar presente?
+### O bebê precisa ir?
 
 Sim. A emissão da CIN exige o comparecimento do titular, inclusive quando se
 trata de criança ou bebê, pois o atendimento envolve procedimentos de
 identificação.
 
-### Perdi meu horário de agendamento. Posso comparecer mesmo assim?
+### Perdi o horário. O que faço?
 
-O atendimento depende do horário e da vaga reservados. Caso você não possa
-comparecer, procure cancelar ou liberar seu agendamento sempre que possível.
-Dessa forma, outra pessoa poderá utilizar a vaga. Se perdeu o atendimento,
-poderá ser necessário realizar um novo agendamento.
+Se perdeu o atendimento, poderá ser necessário fazer um novo agendamento. O
+atendimento depende do horário e da vaga reservados. Caso não possa comparecer,
+cancele ou libere a vaga sempre que possível para que outra pessoa possa
+utilizá-la.
 
 ---
 
 ## Grupo 3 — Depois do atendimento
 
-### Quanto tempo demora para a CIN ficar pronta?
+### Quanto tempo leva para a CIN ficar pronta?
 
 Em Minas Gerais, o prazo informado pelo Estado é de aproximadamente 15 dias
 úteis, podendo ocorrer variações conforme o processamento e a entrega do
 documento.
 
-### Como vou receber minha nova identidade?
+### Como recebo a CIN?
 
 Sempre que disponível, a Carteira de Identidade Nacional física é encaminhada
 pelos Correios para o endereço informado durante o atendimento. Por isso,
 confira cuidadosamente seu endereço antes de finalizar o atendimento.
 
-### Minha identidade não foi entregue pelos Correios. O que faço?
+### A CIN não chegou. O que faço?
 
 Quando a entrega domiciliar não é possível ou o documento retorna ao remetente,
 ele poderá ser encaminhado para retirada na unidade responsável pelo
@@ -159,21 +161,21 @@ atendimento. Nos casos atendidos pela Câmara Municipal de Itanhandu, acompanhe
 os canais oficiais da Câmara ou entre em contato para verificar se o documento
 retornou e está disponível para retirada.
 
-### Moro na zona rural. Como receberei minha CIN?
+### Moro na zona rural. Como recebo a CIN?
 
 A entrega é realizada conforme a possibilidade de atendimento dos Correios ao
 endereço informado. Caso não seja possível efetuar a entrega e o documento
 retorne, o cidadão poderá ser orientado a fazer a retirada no local informado
 pelo serviço.
 
-### Outra pessoa pode retirar minha identidade?
+### Outra pessoa pode retirar a CIN?
 
 Existem situações em que a retirada por terceiro é permitida, mas será necessária
 autorização e documentação de identificação. Para evitar deslocamentos
 desnecessários, consulte previamente a Câmara caso seu documento tenha retornado
 dos Correios e outra pessoa precise buscá-lo.
 
-### Qual é a validade da nova CIN?
+### Qual é a validade da CIN?
 
 A validade depende da idade do titular no momento da emissão:
 
@@ -191,7 +193,7 @@ de taxa pelo Estado de Minas Gerais.
 
 ---
 
-## Grupo 4 — Sobre o documento e a versão digital
+## Grupo 4 — Sobre o documento
 
 ### Existe CIN digital?
 
@@ -199,19 +201,19 @@ Sim. Depois da emissão da carteira física, a versão digital poderá ser
 disponibilizada no aplicativo GOV.BR. A CIN digital possui validade jurídica e
 pode ser acessada pela carteira de documentos do aplicativo.
 
-### Como colocar a CIN no aplicativo GOV.BR?
+### Como adicionar a CIN ao GOV.BR?
 
 Após a emissão da CIN física, acesse o aplicativo GOV.BR com sua conta e procure
 a opção "Carteira de Documentos". Quando o documento estiver disponível, será
 possível adicioná-lo à sua carteira digital.
 
-### A CIN continua tendo número de RG?
+### A CIN ainda tem número de RG?
 
 A principal identificação da CIN passa a ser o CPF. Isso evita que uma mesma
 pessoa tenha números diferentes de identidade emitidos por Estados diferentes. O
 mesmo CPF passa a identificar o cidadão nacionalmente.
 
-### Posso incluir outros documentos ou informações na CIN?
+### Posso incluir outras informações?
 
 Algumas informações adicionais podem ser vinculadas à versão digital da CIN,
 mediante apresentação da documentação correspondente. Entre elas podem estar
@@ -234,12 +236,12 @@ atendimento.
 Não. A Carteira de Identidade Nacional emitida em papel de segurança não deve ser
 plastificada.
 
-### A CIN vale em todo o Brasil?
+### A CIN vale no Brasil todo?
 
 Sim. A Carteira de Identidade Nacional possui padrão nacional e validade em todo
 o território brasileiro.
 
-### O QR Code da CIN serve para quê?
+### Para que serve o QR Code?
 
 A nova identidade possui QR Code que permite verificar a autenticidade do
 documento e aumenta a segurança contra falsificações e fraudes.
@@ -248,7 +250,7 @@ documento e aumenta a segurança contra falsificações e fraudes.
 
 ## Grupo 5 — Ainda com dúvida?
 
-### Onde posso tirar outras dúvidas?
+### Onde tiro outras dúvidas?
 
 Em caso de dúvidas sobre agendamento, atendimento ou documentos, entre em contato
 com a Câmara Municipal de Itanhandu pelos canais oficiais. Para informações
@@ -263,10 +265,7 @@ orientações disponibilizadas pela Câmara.
 
 ---
 
-## Ponto em aberto
+## Decisão aplicada
 
-**"CPF obrigatório" exige o documento ou basta o número?** O texto acima pede o
-documento ("cartão do CPF, comprovante de inscrição ou outro documento em que o
-número conste"), que é a redação segura: ninguém volta para casa por excesso de
-zelo. Se a recepção aceitar apenas o número informado, trocar por "informe o
-número do CPF" nesta resposta e no checklist do site.
+**CPF obrigatório:** basta informar o número. Não é necessário apresentar o
+cartão do CPF, comprovante de inscrição ou outro documento em que ele conste.

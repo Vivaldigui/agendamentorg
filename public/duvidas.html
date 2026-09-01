@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0056b3">
+    <title>Dúvidas frequentes sobre RG e CIN | Câmara de Itanhandu</title>
+    <meta name="description" content="Tire dúvidas sobre agendamento, documentos, CPF, atendimento, entrega e versão digital da Carteira de Identidade Nacional (CIN) em Itanhandu.">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet">
+    <script>document.documentElement.classList.add("js");</script>
+    <style>
+        :root {
+            --primary: #0056b3;
+            --primary-dark: #003d82;
+            --primary-light: #eff6ff;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --gray-200: #e2e8f0;
+            --gray-600: #475569;
+            --gray-800: #1e293b;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            margin: 0;
+            padding: 0 0 calc(32px + env(safe-area-inset-bottom, 0px));
+            background: #eef4f8;
+            color: var(--gray-800);
+            font-family: "Inter", sans-serif;
+            line-height: 1.6;
+        }
+
+        a { color: var(--primary); }
+
+        a:focus-visible, summary:focus-visible, input:focus-visible {
+            outline: 3px solid #0f3d5e;
+            outline-offset: 3px;
+        }
+
+        .cabecalho-sistema a:focus-visible { outline-color: var(--warning); }
+
+        .pagina {
+            max-width: 780px;
+            margin: 0 auto;
+            background: #fff;
+        }
+
+        .cabecalho-sistema {
+            position: relative;
+            overflow: hidden;
+            padding: 16px 16px 22px;
+            background: linear-gradient(135deg, var(--primary) 0%, #00428a 100%);
+            color: #fff;
+            text-align: center;
+        }
+
+        .cabecalho-sistema::after {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--warning), #fbbf24);
+            content: "";
+            opacity: 0.95;
+        }
+
+        .voltar {
+            display: flex;
+            align-items: center;
+            width: fit-content;
+            min-height: 44px;
+            margin: 0 0 10px;
+            padding: 8px 13px;
+            border: 1px solid rgba(255, 255, 255, 0.55);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+            font-size: 0.86rem;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .voltar:hover { background: rgba(255, 255, 255, 0.2); }
+
+        .cabecalho-sistema img {
+            display: block;
+            width: 70%;
+            max-width: 185px;
+            height: auto;
+            margin: 0 auto;
+            filter: drop-shadow(0 5px 8px rgba(0, 0, 0, 0.18));
+        }
+
+        .cabecalho-subtitulo {
+            margin-top: 9px;
+            color: rgba(255, 255, 255, 0.82);
+            font-size: 0.74rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        main { padding: 30px 30px 40px; }
+
+        h1 {
+            margin: 0;
+            color: var(--primary-dark);
+            font-size: clamp(1.65rem, 5vw, 2.25rem);
+            line-height: 1.16;
+            letter-spacing: -0.025em;
+        }
+
+        .introducao {
+            margin: 8px 0 22px;
+            color: var(--gray-600);
+            font-size: 0.98rem;
+        }
+
+        .atalhos {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 0 -4px 24px;
+            padding: 4px;
+        }
+
+        .atalhos a {
+            display: inline-flex;
+            align-items: center;
+            flex: 0 0 auto;
+            min-height: 44px;
+            padding: 8px 14px;
+            border: 1px solid #bfdbfe;
+            border-radius: 999px;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            font-size: 0.88rem;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .atalhos a:hover { border-color: var(--primary); }
+
+        .busca { display: none; margin: 0 0 34px; }
+        .js .busca { display: block; }
+
+        .busca label {
+            display: block;
+            margin-bottom: 7px;
+            color: var(--gray-800);
+            font-size: 0.9rem;
+            font-weight: 800;
+        }
+
+        .busca input {
+            width: 100%;
+            min-height: 48px;
+            padding: 11px 14px;
+            border: 2px solid #64748b;
+            border-radius: 10px;
+            background: #fff;
+            color: var(--gray-800);
+            font: inherit;
+            font-size: 1rem;
+        }
+
+        .busca input::placeholder { color: #64748b; }
+        .busca input:focus { border-color: var(--primary); }
+
+        .resultado-busca {
+            min-height: 24px;
+            margin: 6px 0 0;
+            color: var(--gray-600);
+            font-size: 0.86rem;
+        }
+
+        .grupo { scroll-margin-top: 12px; }
+        .grupo + .grupo { margin-top: 42px; }
+
+        h2 {
+            margin: 0 0 8px;
+            color: var(--primary);
+            font-size: 0.78rem;
+            font-weight: 900;
+            letter-spacing: 0.09em;
+            line-height: 1.4;
+            text-transform: uppercase;
+        }
+
+        details {
+            border: 0;
+            border-bottom: 1px solid var(--gray-200);
+            background: #fff;
+        }
+
+        details:first-of-type { border-top: 1px solid var(--gray-200); }
+        details[hidden], .grupo[hidden] { display: none; }
+
+        summary {
+            min-height: 54px;
+            padding: 15px 6px;
+            color: var(--gray-800);
+            cursor: pointer;
+            font-weight: 700;
+            line-height: 1.35;
+            touch-action: manipulation;
+        }
+
+        summary::marker { color: var(--primary); }
+        details[open] summary { color: var(--primary-dark); }
+
+        .resposta {
+            padding: 0 6px 18px 24px;
+            color: var(--gray-600);
+            font-size: 0.95rem;
+        }
+
+        .resposta p { margin: 10px 0 0; }
+        .resposta ul { margin: 12px 0 0; padding-left: 22px; }
+        .resposta li + li { margin-top: 5px; }
+        .resposta strong { color: var(--gray-800); }
+
+        .resposta-direta {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--primary-dark);
+            font-size: 1rem;
+            font-weight: 800;
+            line-height: 1.45;
+        }
+
+        .aviso-taxa {
+            margin-top: 14px;
+            padding: 14px 16px;
+            border: 1px solid #fde68a;
+            border-left: 5px solid var(--warning);
+            border-radius: 10px;
+            background: var(--warning-light);
+            color: #78350f;
+        }
+
+        .link-dae {
+            display: inline-flex;
+            align-items: center;
+            min-height: 44px;
+            margin-top: 14px;
+            padding: 9px 14px;
+            border-radius: 9px;
+            background: var(--primary);
+            color: #fff;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .link-dae:hover { background: var(--primary-dark); }
+
+        .nota-final {
+            margin: 40px 0 0;
+            padding: 16px 0 0;
+            border-top: 2px solid var(--gray-200);
+            color: var(--gray-600);
+            font-size: 0.92rem;
+        }
+
+        @media (min-width: 700px) {
+            body { padding-top: 12px; }
+            .pagina { border-radius: 18px; }
+            .cabecalho-sistema img { width: 46%; max-width: 230px; }
+        }
+
+        @media (max-width: 520px) {
+            .cabecalho-sistema { padding: 14px 12px 20px; }
+            .cabecalho-sistema img { width: 72%; max-width: 175px; }
+            main { padding: 24px 16px 32px; }
+            summary { padding: 15px 4px; }
+            .resposta { padding: 0 4px 17px 20px; }
+            .link-dae { width: 100%; justify-content: center; text-align: center; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+        }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "O que é a CIN?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A Carteira de Identidade Nacional, conhecida como CIN ou \"novo RG\", é o novo documento de identificação dos brasileiros. Ela possui padrão nacional e utiliza o CPF como número único de identificação."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "A CIN é o novo RG?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sim. A CIN é o novo modelo nacional de carteira de identidade. Diferentemente do antigo RG, que podia ter números diferentes em cada Estado, a CIN utiliza o número do CPF como identificação única em todo o Brasil."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Preciso trocar meu RG agora?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Não. O modelo antigo da carteira de identidade continua válido até fevereiro de 2032, desde que esteja em boas condições e permita identificar corretamente o titular. Mesmo assim, quem desejar já pode solicitar a nova CIN."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "A primeira via é gratuita?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sim. A primeira emissão da Carteira de Identidade Nacional é gratuita, mesmo que a pessoa já tenha emitido uma ou mais carteiras de identidade do modelo antigo. Segundas vias ou novas emissões da CIN podem estar sujeitas à cobrança de taxa conforme as regras do Estado de Minas Gerais. Como saber qual é o seu documento: na CIN, o número principal é o seu CPF. Se o seu documento traz um número de RG diferente do CPF, ele é o modelo antigo — e a sua CIN será primeira via, gratuita. Na dúvida, não pague antes: traga o documento que a recepção confere no atendimento. Emitir a guia da 2ª via (DAE)"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Preciso agendar?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sim. O atendimento para emissão da Carteira de Identidade Nacional na Câmara Municipal de Itanhandu é realizado mediante agendamento prévio e disponibilidade de vagas. Faça seu agendamento pelo sistema disponibilizado pela Câmara."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Posso ir sem agendamento?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Faça o agendamento antes de comparecer. O atendimento da Câmara é organizado conforme as vagas e horários disponibilizados; assim você evita viagem ou espera desnecessária."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "CPF e certidão estão diferentes. O que faço?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Divergências de nome, data de nascimento ou outros dados cadastrais podem impedir ou atrasar a emissão. Se houver diferença entre os dados do CPF e os documentos apresentados, poderá ser necessário regularizar as informações antes da conclusão da CIN."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Quais documentos levar?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Para a emissão da CIN, apresente: Certidão original, sem rasgos, rasuras ou alterações que prejudiquem a conferência: certidão de nascimento para pessoas solteiras, ou certidão de casamento para casadas, viúvas ou divorciadas. Em caso de viuvez, divórcio ou alteração de nome, a certidão de casamento deve estar averbada. Número do CPF. Basta informá-lo; não é necessário apresentar cartão ou comprovante de inscrição. Comprovante de residência atualizado. Ele é necessário porque a CIN é enviada pelos Correios para o endereço informado no atendimento. Menores de 3 anos: 1 foto 3x4 recente. Menores de 16 anos: acompanhados do responsável legal, que apresenta documento de identificação original com foto, como RG ou CNH. Quando o acompanhante não for o pai nem a mãe, é necessário também apresentar a documentação que comprove a representação ou a guarda."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Preciso apresentar o CPF?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sim, o CPF é obrigatório, mas basta informar o número. Não é necessário apresentar cartão, comprovante de inscrição ou outro documento em que ele conste."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Preciso levar foto 3x4?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Depende da idade. Menores de 3 anos devem levar 1 foto 3x4 recente, porque crianças dessa idade nem sempre conseguem permanecer sozinhas na posição adequada para a fotografia. Para as demais pessoas, a fotografia é feita no próprio local durante o atendimento."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Posso usar óculos, boné ou chapéu na foto?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Óculos de sol, bonés, chapéus e outras coberturas que prejudiquem a identificação normalmente não são permitidos. Existem exceções para coberturas utilizadas por motivos religiosos ou de saúde, desde que não impeçam a identificação da pessoa."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Crianças podem fazer a CIN?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sim. A Carteira de Identidade Nacional pode ser emitida para crianças, inclusive bebês. Para menores de 16 anos, é necessário o acompanhamento do pai, da mãe ou do representante legal, que deverá apresentar documento oficial de identificação com foto. Quando o acompanhante for representante legal que não seja pai ou mãe, também deverá apresentar a documentação que comprove a representação ou a guarda. Menores de 3 anos devem levar 1 foto 3x4 recente."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "O bebê precisa ir?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sim. A emissão da CIN exige o comparecimento do titular, inclusive quando se trata de criança ou bebê, pois o atendimento envolve procedimentos de identificação."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Perdi o horário. O que faço?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Se perdeu o atendimento, poderá ser necessário fazer um novo agendamento. O atendimento depende do horário e da vaga reservados. Caso não possa comparecer, cancele ou libere a vaga sempre que possível para que outra pessoa possa utilizá-la."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Quanto tempo leva para a CIN ficar pronta?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Em Minas Gerais, o prazo informado pelo Estado é de aproximadamente 15 dias úteis, podendo ocorrer variações conforme o processamento e a entrega do documento."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Como recebo a CIN?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sempre que disponível, a Carteira de Identidade Nacional física é encaminhada pelos Correios para o endereço informado durante o atendimento. Por isso, confira cuidadosamente seu endereço antes de finalizar o atendimento."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "A CIN não chegou. O que faço?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Quando a entrega domiciliar não é possível ou o documento retorna ao remetente, ele poderá ser encaminhado para retirada na unidade responsável pelo atendimento. Nos casos atendidos pela Câmara Municipal de Itanhandu, acompanhe os canais oficiais da Câmara ou entre em contato para verificar se o documento retornou e está disponível para retirada."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Moro na zona rural. Como recebo a CIN?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A entrega é realizada conforme a possibilidade de atendimento dos Correios ao endereço informado. Caso não seja possível efetuar a entrega e o documento retorne, o cidadão poderá ser orientado a fazer a retirada no local informado pelo serviço."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Outra pessoa pode retirar a CIN?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Existem situações em que a retirada por terceiro é permitida, mas será necessária autorização e documentação de identificação. Para evitar deslocamentos desnecessários, consulte previamente a Câmara caso seu documento tenha retornado dos Correios e outra pessoa precise buscá-lo."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Qual é a validade da CIN?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A validade depende da idade do titular no momento da emissão: 0 a 11 anos: validade de 5 anos; 12 a 59 anos: validade de 10 anos; 60 anos ou mais: validade por prazo indeterminado."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Perdi minha CIN. Posso emitir outra?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sim. É possível solicitar uma nova via. Quando se tratar de perda, extravio ou outra emissão durante o período de validade do documento, poderá haver cobrança de taxa pelo Estado de Minas Gerais. Emitir a guia da 2ª via (DAE)"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Existe CIN digital?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sim. Depois da emissão da carteira física, a versão digital poderá ser disponibilizada no aplicativo GOV.BR. A CIN digital possui validade jurídica e pode ser acessada pela carteira de documentos do aplicativo."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Como adicionar a CIN ao GOV.BR?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Após a emissão da CIN física, acesse o aplicativo GOV.BR com sua conta e procure a opção \"Carteira de Documentos\". Quando o documento estiver disponível, será possível adicioná-lo à sua carteira digital."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "A CIN ainda tem número de RG?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A principal identificação da CIN passa a ser o CPF. Isso evita que uma mesma pessoa tenha números diferentes de identidade emitidos por Estados diferentes. O mesmo CPF passa a identificar o cidadão nacionalmente."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Posso incluir outras informações?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Algumas informações adicionais podem ser vinculadas à versão digital da CIN, mediante apresentação da documentação correspondente. Entre elas podem estar informações relacionadas a: Carteira Nacional de Habilitação (CNH); Título de Eleitor; Carteira de Trabalho; PIS/PASEP/NIS; Cartão Nacional de Saúde; Certificado Militar; Identidade profissional; Tipo sanguíneo, mediante documentação comprobatória. A inclusão depende da apresentação dos documentos necessários durante o atendimento."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Posso plastificar minha CIN?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Não. A Carteira de Identidade Nacional emitida em papel de segurança não deve ser plastificada."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "A CIN vale no Brasil todo?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sim. A Carteira de Identidade Nacional possui padrão nacional e validade em todo o território brasileiro."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Para que serve o QR Code?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A nova identidade possui QR Code que permite verificar a autenticidade do documento e aumenta a segurança contra falsificações e fraudes."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Onde tiro outras dúvidas?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Em caso de dúvidas sobre agendamento, atendimento ou documentos, entre em contato com a Câmara Municipal de Itanhandu pelos canais oficiais. Para informações gerais sobre a Carteira de Identidade Nacional, também podem ser consultados o Portal do Governo de Minas Gerais e o portal GOV.BR."
+          }
+        }
+      ]
+    }
+    </script>
+</head>
+<body>
+    <div class="pagina">
+        <header class="cabecalho-sistema">
+            <a class="voltar" href="/">← Voltar para o agendamento</a>
+            <img src="/assets/header-logo.png" alt="Câmara Municipal de Itanhandu">
+            <div class="cabecalho-subtitulo">Agendamento RG / CIN — Câmara de Itanhandu</div>
+        </header>
+
+        <main>
+            <h1>Dúvidas frequentes</h1>
+            <p class="introducao">Respostas rápidas sobre agendamento, documentos, atendimento e entrega da CIN.</p>
+
+            <nav class="atalhos" aria-label="Ir para um grupo de dúvidas">
+                <a href="#grupo-antes">Antes de agendar</a>
+                <a href="#grupo-dia">No dia</a>
+                <a href="#grupo-depois">Depois</a>
+                <a href="#grupo-digital">Sobre o documento</a>
+                <a href="#grupo-ainda">Ainda com dúvida</a>
+            </nav>
+
+            <div class="busca" role="search">
+                <label for="busca-duvidas">Buscar uma dúvida</label>
+                <input id="busca-duvidas" type="search" inputmode="search" autocomplete="off" placeholder="Ex.: CPF, foto, entrega ou taxa">
+                <p id="resultado-busca" class="resultado-busca" aria-live="polite">29 perguntas disponíveis</p>
+            </div>
+
+            <section class="grupo" aria-labelledby="grupo-antes">
+                <h2 id="grupo-antes">Antes de agendar</h2>
+
+                <details>
+                    <summary>O que é a CIN?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">A Carteira de Identidade Nacional, conhecida como CIN ou "novo RG", é o novo documento de identificação dos brasileiros.</span> Ela possui padrão nacional e utiliza o CPF como número único de identificação.</p></div>
+                </details>
+
+                <details>
+                    <summary>A CIN é o novo RG?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Sim.</span> A CIN é o novo modelo nacional de carteira de identidade. Diferentemente do antigo RG, que podia ter números diferentes em cada Estado, a CIN utiliza o número do CPF como identificação única em todo o Brasil.</p></div>
+                </details>
+
+                <details>
+                    <summary>Preciso trocar meu RG agora?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Não.</span> O modelo antigo da carteira de identidade continua válido até fevereiro de 2032, desde que esteja em boas condições e permita identificar corretamente o titular. Mesmo assim, quem desejar já pode solicitar a nova CIN.</p></div>
+                </details>
+
+                <details>
+                    <summary>A primeira via é gratuita?</summary>
+                    <div class="resposta">
+                        <p><span class="resposta-direta">Sim.</span> A primeira emissão da Carteira de Identidade Nacional é gratuita, <strong>mesmo que a pessoa já tenha emitido uma ou mais carteiras de identidade do modelo antigo</strong>.</p>
+                        <p>Segundas vias ou novas emissões da CIN podem estar sujeitas à cobrança de taxa conforme as regras do Estado de Minas Gerais.</p>
+                        <div class="aviso-taxa"><strong>Como saber qual é o seu documento:</strong> na CIN, o número principal é o seu CPF. Se o seu documento traz um número de RG diferente do CPF, ele é o modelo antigo — e a sua CIN será primeira via, gratuita. <strong>Na dúvida, não pague antes:</strong> traga o documento que a recepção confere no atendimento.</div>
+                        <a class="link-dae" href="https://daeonline1.fazenda.mg.gov.br/daeonline/executeEmissaoDocumentoArrecadacaoCarteiraIdentidade.action" target="_blank" rel="noopener noreferrer">Emitir a guia da 2ª via (DAE)</a>
+                    </div>
+                </details>
+
+                <details>
+                    <summary>Preciso agendar?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Sim.</span> O atendimento para emissão da Carteira de Identidade Nacional na Câmara Municipal de Itanhandu é realizado mediante agendamento prévio e disponibilidade de vagas. Faça seu agendamento pelo sistema disponibilizado pela Câmara.</p></div>
+                </details>
+
+                <details>
+                    <summary>Posso ir sem agendamento?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Faça o agendamento antes de comparecer.</span> O atendimento da Câmara é organizado conforme as vagas e horários disponibilizados; assim você evita viagem ou espera desnecessária.</p></div>
+                </details>
+
+                <details>
+                    <summary>CPF e certidão estão diferentes. O que faço?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Divergências de nome, data de nascimento ou outros dados cadastrais podem impedir ou atrasar a emissão.</span> Se houver diferença entre os dados do CPF e os documentos apresentados, poderá ser necessário regularizar as informações antes da conclusão da CIN.</p></div>
+                </details>
+            </section>
+
+            <section class="grupo" aria-labelledby="grupo-dia">
+                <h2 id="grupo-dia">No dia do atendimento</h2>
+
+                <details>
+                    <summary>Quais documentos levar?</summary>
+                    <div class="resposta">
+                        <p class="resposta-direta">Para a emissão da CIN, apresente:</p>
+                        <ul>
+                            <li><strong>Certidão original</strong>, sem rasgos, rasuras ou alterações que prejudiquem a conferência: certidão de nascimento para pessoas solteiras, ou certidão de casamento para casadas, viúvas ou divorciadas. Em caso de viuvez, divórcio ou alteração de nome, a certidão de casamento deve estar averbada.</li>
+                            <li><strong>Número do CPF.</strong> Basta informá-lo; não é necessário apresentar cartão ou comprovante de inscrição.</li>
+                            <li><strong>Comprovante de residência atualizado.</strong> Ele é necessário porque a CIN é enviada pelos Correios para o endereço informado no atendimento.</li>
+                            <li><strong>Menores de 3 anos:</strong> 1 foto 3x4 recente.</li>
+                            <li><strong>Menores de 16 anos:</strong> acompanhados do responsável legal, que apresenta documento de identificação original com foto, como RG ou CNH. Quando o acompanhante não for o pai nem a mãe, é necessário também apresentar a documentação que comprove a representação ou a guarda.</li>
+                        </ul>
+                    </div>
+                </details>
+
+                <details>
+                    <summary>Preciso apresentar o CPF?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Sim, o CPF é obrigatório, mas basta informar o número.</span> Não é necessário apresentar cartão, comprovante de inscrição ou outro documento em que ele conste.</p></div>
+                </details>
+
+                <details>
+                    <summary>Preciso levar foto 3x4?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Depende da idade.</span> <strong>Menores de 3 anos devem levar 1 foto 3x4 recente</strong>, porque crianças dessa idade nem sempre conseguem permanecer sozinhas na posição adequada para a fotografia. Para as demais pessoas, a fotografia é feita no próprio local durante o atendimento.</p></div>
+                </details>
+
+                <details>
+                    <summary>Posso usar óculos, boné ou chapéu na foto?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Óculos de sol, bonés, chapéus e outras coberturas que prejudiquem a identificação normalmente não são permitidos.</span> Existem exceções para coberturas utilizadas por motivos religiosos ou de saúde, desde que não impeçam a identificação da pessoa.</p></div>
+                </details>
+
+                <details>
+                    <summary>Crianças podem fazer a CIN?</summary>
+                    <div class="resposta">
+                        <p><span class="resposta-direta">Sim.</span> A Carteira de Identidade Nacional pode ser emitida para crianças, inclusive bebês.</p>
+                        <p>Para menores de 16 anos, é necessário o acompanhamento do pai, da mãe ou do representante legal, que deverá apresentar documento oficial de identificação com foto. Quando o acompanhante for representante legal que não seja pai ou mãe, também deverá apresentar a documentação que comprove a representação ou a guarda.</p>
+                        <p>Menores de 3 anos devem levar 1 foto 3x4 recente.</p>
+                    </div>
+                </details>
+
+                <details>
+                    <summary>O bebê precisa ir?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Sim.</span> A emissão da CIN exige o comparecimento do titular, inclusive quando se trata de criança ou bebê, pois o atendimento envolve procedimentos de identificação.</p></div>
+                </details>
+
+                <details>
+                    <summary>Perdi o horário. O que faço?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Se perdeu o atendimento, poderá ser necessário fazer um novo agendamento.</span> O atendimento depende do horário e da vaga reservados. Caso não possa comparecer, cancele ou libere a vaga sempre que possível para que outra pessoa possa utilizá-la.</p></div>
+                </details>
+            </section>
+
+            <section class="grupo" aria-labelledby="grupo-depois">
+                <h2 id="grupo-depois">Depois do atendimento</h2>
+
+                <details>
+                    <summary>Quanto tempo leva para a CIN ficar pronta?</summary>
+                    <div class="resposta"><p class="resposta-direta">Em Minas Gerais, o prazo informado pelo Estado é de aproximadamente 15 dias úteis, podendo ocorrer variações conforme o processamento e a entrega do documento.</p></div>
+                </details>
+
+                <details>
+                    <summary>Como recebo a CIN?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Sempre que disponível, a Carteira de Identidade Nacional física é encaminhada pelos Correios para o endereço informado durante o atendimento.</span> Por isso, confira cuidadosamente seu endereço antes de finalizar o atendimento.</p></div>
+                </details>
+
+                <details>
+                    <summary>A CIN não chegou. O que faço?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Quando a entrega domiciliar não é possível ou o documento retorna ao remetente, ele poderá ser encaminhado para retirada na unidade responsável pelo atendimento.</span> Nos casos atendidos pela Câmara Municipal de Itanhandu, acompanhe os canais oficiais da Câmara ou entre em contato para verificar se o documento retornou e está disponível para retirada.</p></div>
+                </details>
+
+                <details>
+                    <summary>Moro na zona rural. Como recebo a CIN?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">A entrega é realizada conforme a possibilidade de atendimento dos Correios ao endereço informado.</span> Caso não seja possível efetuar a entrega e o documento retorne, o cidadão poderá ser orientado a fazer a retirada no local informado pelo serviço.</p></div>
+                </details>
+
+                <details>
+                    <summary>Outra pessoa pode retirar a CIN?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Existem situações em que a retirada por terceiro é permitida, mas será necessária autorização e documentação de identificação.</span> Para evitar deslocamentos desnecessários, consulte previamente a Câmara caso seu documento tenha retornado dos Correios e outra pessoa precise buscá-lo.</p></div>
+                </details>
+
+                <details>
+                    <summary>Qual é a validade da CIN?</summary>
+                    <div class="resposta">
+                        <p class="resposta-direta">A validade depende da idade do titular no momento da emissão:</p>
+                        <ul>
+                            <li>0 a 11 anos: validade de 5 anos;</li>
+                            <li>12 a 59 anos: validade de 10 anos;</li>
+                            <li>60 anos ou mais: validade por prazo indeterminado.</li>
+                        </ul>
+                    </div>
+                </details>
+
+                <details>
+                    <summary>Perdi minha CIN. Posso emitir outra?</summary>
+                    <div class="resposta">
+                        <p><span class="resposta-direta">Sim.</span> É possível solicitar uma nova via. Quando se tratar de perda, extravio ou outra emissão durante o período de validade do documento, poderá haver cobrança de taxa pelo Estado de Minas Gerais.</p>
+                        <a class="link-dae" href="https://daeonline1.fazenda.mg.gov.br/daeonline/executeEmissaoDocumentoArrecadacaoCarteiraIdentidade.action" target="_blank" rel="noopener noreferrer">Emitir a guia da 2ª via (DAE)</a>
+                    </div>
+                </details>
+            </section>
+
+            <section class="grupo" aria-labelledby="grupo-digital">
+                <h2 id="grupo-digital">Sobre o documento</h2>
+
+                <details>
+                    <summary>Existe CIN digital?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Sim.</span> Depois da emissão da carteira física, a versão digital poderá ser disponibilizada no aplicativo GOV.BR. A CIN digital possui validade jurídica e pode ser acessada pela carteira de documentos do aplicativo.</p></div>
+                </details>
+
+                <details>
+                    <summary>Como adicionar a CIN ao GOV.BR?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Após a emissão da CIN física, acesse o aplicativo GOV.BR com sua conta e procure a opção "Carteira de Documentos".</span> Quando o documento estiver disponível, será possível adicioná-lo à sua carteira digital.</p></div>
+                </details>
+
+                <details>
+                    <summary>A CIN ainda tem número de RG?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">A principal identificação da CIN passa a ser o CPF.</span> Isso evita que uma mesma pessoa tenha números diferentes de identidade emitidos por Estados diferentes. O mesmo CPF passa a identificar o cidadão nacionalmente.</p></div>
+                </details>
+
+                <details>
+                    <summary>Posso incluir outras informações?</summary>
+                    <div class="resposta">
+                        <p><span class="resposta-direta">Algumas informações adicionais podem ser vinculadas à versão digital da CIN, mediante apresentação da documentação correspondente.</span> Entre elas podem estar informações relacionadas a:</p>
+                        <ul>
+                            <li>Carteira Nacional de Habilitação (CNH);</li>
+                            <li>Título de Eleitor;</li>
+                            <li>Carteira de Trabalho;</li>
+                            <li>PIS/PASEP/NIS;</li>
+                            <li>Cartão Nacional de Saúde;</li>
+                            <li>Certificado Militar;</li>
+                            <li>Identidade profissional;</li>
+                            <li>Tipo sanguíneo, mediante documentação comprobatória.</li>
+                        </ul>
+                        <p>A inclusão depende da apresentação dos documentos necessários durante o atendimento.</p>
+                    </div>
+                </details>
+
+                <details>
+                    <summary>Posso plastificar minha CIN?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Não.</span> A Carteira de Identidade Nacional emitida em papel de segurança não deve ser plastificada.</p></div>
+                </details>
+
+                <details>
+                    <summary>A CIN vale no Brasil todo?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Sim.</span> A Carteira de Identidade Nacional possui padrão nacional e validade em todo o território brasileiro.</p></div>
+                </details>
+
+                <details>
+                    <summary>Para que serve o QR Code?</summary>
+                    <div class="resposta"><p class="resposta-direta">A nova identidade possui QR Code que permite verificar a autenticidade do documento e aumenta a segurança contra falsificações e fraudes.</p></div>
+                </details>
+            </section>
+
+            <section class="grupo" aria-labelledby="grupo-ainda">
+                <h2 id="grupo-ainda">Ainda com dúvida?</h2>
+
+                <details>
+                    <summary>Onde tiro outras dúvidas?</summary>
+                    <div class="resposta"><p><span class="resposta-direta">Em caso de dúvidas sobre agendamento, atendimento ou documentos, entre em contato com a Câmara Municipal de Itanhandu pelos canais oficiais.</span> Para informações gerais sobre a Carteira de Identidade Nacional, também podem ser consultados o Portal do Governo de Minas Gerais e o portal GOV.BR.</p></div>
+                </details>
+            </section>
+
+            <p class="nota-final"><strong>Importante:</strong> as exigências e procedimentos podem ser atualizados pelos órgãos responsáveis pela identificação civil. Antes do atendimento, confira as orientações disponibilizadas pela Câmara.</p>
+        </main>
+    </div>
+    <script>
+        (() => {
+            const campo = document.getElementById("busca-duvidas");
+            const resultado = document.getElementById("resultado-busca");
+            const perguntas = Array.from(document.querySelectorAll(".grupo details"));
+            const grupos = Array.from(document.querySelectorAll(".grupo"));
+
+            const normalizar = (texto) => texto
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toLocaleLowerCase("pt-BR");
+
+            const filtrar = () => {
+                const termo = normalizar(campo.value.trim());
+                let visiveis = 0;
+
+                perguntas.forEach((pergunta) => {
+                    const corresponde = !termo || normalizar(pergunta.textContent).includes(termo);
+                    pergunta.hidden = !corresponde;
+                    if (corresponde) visiveis += 1;
+                });
+
+                grupos.forEach((grupo) => {
+                    grupo.hidden = !Array.from(grupo.querySelectorAll("details")).some((pergunta) => !pergunta.hidden);
+                });
+
+                if (!termo) {
+                    resultado.textContent = "29 perguntas disponíveis";
+                } else if (visiveis === 0) {
+                    resultado.textContent = "Nenhuma pergunta encontrada. Tente outra palavra.";
+                } else {
+                    resultado.textContent = `${visiveis} ${visiveis === 1 ? "pergunta encontrada" : "perguntas encontradas"}`;
+                }
+            };
+
+            campo.addEventListener("input", filtrar);
+            campo.addEventListener("keydown", (evento) => {
+                if (evento.key === "Escape" && campo.value) {
+                    campo.value = "";
+                    filtrar();
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
