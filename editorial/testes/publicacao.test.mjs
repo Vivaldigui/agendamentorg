@@ -31,5 +31,8 @@ test("lote aprovado tem metadados unicos, destinos existentes e nenhum marcador"
   await assert.rejects(() => fs.access(path.join(contexto.publicDir, "privacidade/index.html")));
   const sitemap = await fs.readFile(path.join(contexto.publicDir, "sitemap.xml"), "utf8");
   assert.equal((sitemap.match(/<loc>/g) ?? []).length, 12);
+  const datas = [...sitemap.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)].map((m) => m[1]);
+  assert.equal(datas.length, 11);
+  for (const data of datas) assert.match(data, /^\d{4}-\d{2}-\d{2}$/);
   assert.doesNotMatch(sitemap, /privacidade|avisos/);
 });

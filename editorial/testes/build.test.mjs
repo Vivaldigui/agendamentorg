@@ -119,6 +119,7 @@ test("sitemap e robots contêm somente home e aprovadas", async (t) => {
     "https://agendamento-cin-itanhandu.web.app/cin/documentos/"
   ]);
   assert.ok(!mapa.includes("changefreq"));
+  assert.deepEqual([...mapa.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)].map((m) => m[1]), ["2026-10-06", "2026-10-06"]);
   assert.ok(!mapa.includes("priority"));
   assert.equal(await ler(path.join(saida, "robots.txt")), "User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: https://agendamento-cin-itanhandu.web.app/sitemap.xml\n");
 });

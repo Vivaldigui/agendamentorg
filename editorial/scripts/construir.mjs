@@ -8,7 +8,7 @@ import MarkdownIt from "markdown-it";
 import { pluginContainers } from "./containers.mjs";
 import { extrairFaq } from "./faq.mjs";
 import { validarColecao, validarDocumento } from "./validar.mjs";
-import { caminhoDocumento, gravarTexto, listarMarkdown, slugifyHeading, urlAbsoluta, esc } from "./util.mjs";
+import { caminhoDocumento, gravarTexto, listarMarkdown, slugifyHeading, urlAbsoluta, esc, dataISO } from "./util.mjs";
 import { renderizarGuia } from "../modelos/guia.mjs";
 import { renderizarPilar } from "../modelos/pilar.mjs";
 import { renderizarAviso } from "../modelos/aviso.mjs";
@@ -95,14 +95,14 @@ function destinoDocumento(saida, documento) {
 function sitemap(config, documentos, temIndiceAvisos) {
   const entradas = [{ caminho: "/", atualizado: "" }];
   for (const documento of documentos) {
-    entradas.push({ caminho: caminhoDocumento(documento), atualizado: documento.dados.atualizado });
+    entradas.push({ caminho: caminhoDocumento(documento), atualizado: dataISO(documento.dados.atualizado) });
   }
   if (temIndiceAvisos) {
-    const maisRecente = documentos.filter((item) => item.dados.tipo === "aviso").map((item) => String(item.dados.atualizado)).sort().at(-1) ?? "";
+    const maisRecente = documentos.filter((item) => item.dados.tipo === "aviso").map((item) => dataISO(item.dados.atualizado)).sort().at(-1) ?? "";
     entradas.push({ caminho: "/avisos/", atualizado: maisRecente });
   }
   entradas.sort((a, b) => a.caminho === "/" ? -1 : b.caminho === "/" ? 1 : a.caminho.localeCompare(b.caminho, "pt-BR"));
-  const urls = entradas.map((entrada) => `  <url>\n    <loc>${urlAbsoluta(config.urlBase, entrada.caminho)}</loc>${entrada.atualizado ? `\n    <lastmod>${String(entrada.atualizado).slice(0, 10)}</lastmod>` : ""}\n  </url>`).join("\n");
+  const urls = entradas.map((entrada) => `  <url>\n    <loc>${urlAbsoluta(config.urlBase, entrada.caminho)}</loc>${entrada.atualizado ? `\n    <lastmod>${entrada.atualizado}</lastmod>` : ""}\n  </url>`).join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`;
 }
 
