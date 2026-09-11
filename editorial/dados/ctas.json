@@ -1,0 +1,27 @@
+{
+  "agendar-com-documentos": {
+    "rotulo": "Agendar atendimento",
+    "texto": "Já conferiu os documentos? Faça seu agendamento para o atendimento da CIN na Câmara Municipal de Itanhandu.",
+    "destino": "/"
+  },
+  "ver-datas": {
+    "texto": "Escolha um horário disponível para seu atendimento.",
+    "rotulo": "Ver datas disponíveis",
+    "destino": "/"
+  },
+  "cancelar": {
+    "rotulo": "Consultar ou cancelar",
+    "texto": "Não vai poder ir? Cancele e libere a vaga para outra pessoa.",
+    "destino": "/"
+  },
+  "conferir-documentos": {
+    "rotulo": "Conferir documentos",
+    "texto": "Antes de agendar, confira a lista de documentos.",
+    "destino": "/cin/documentos/"
+  },
+  "vizinhos": {
+    "rotulo": "Agendar em Itanhandu",
+    "texto": "Conferiu os documentos? Agende o atendimento na Câmara de Itanhandu.",
+    "destino": "/"
+  }
+}

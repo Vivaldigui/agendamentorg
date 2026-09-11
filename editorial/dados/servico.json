@@ -1,0 +1,380 @@
+{
+  "site": {
+    "nome": "Agendamento CIN — Câmara Municipal de Itanhandu"
+  },
+  "organizacoes": {
+    "camara": {
+      "nome": "Câmara Municipal de Itanhandu",
+      "url": "https://www.itanhandu.cam.mg.gov.br/",
+      "sameAs": [
+        "https://www.instagram.com/camaraitanhandu/",
+        "https://www.facebook.com/camaraitanhandu/"
+      ]
+    },
+    "pcmg": {
+      "nome": "Polícia Civil de Minas Gerais",
+      "url": "https://www.policiacivil.mg.gov.br/"
+    }
+  },
+  "fatos": {
+    "orgao_emissor": {
+      "valor": "Polícia Civil de Minas Gerais",
+      "status": "verificado",
+      "fonte": "mg.gov.br/servico/obter-carteira-de-identidade-nacional",
+      "conferido_em": "2026-09-11"
+    },
+    "operador_posto": {
+      "valor": "Câmara Municipal de Itanhandu",
+      "status": "verificado",
+      "fonte": "ficha da Câmara no Google Maps; site do agendamento",
+      "conferido_em": "2026-09-11"
+    },
+    "endereco": {
+      "valor": {
+        "rua": "Rua Eng. Paulo Franco da Rosa, 298",
+        "bairro": "Centro",
+        "cidade": "Itanhandu",
+        "uf": "MG",
+        "cep": "37464-000"
+      },
+      "status": "verificado",
+      "fonte": "ficha da Câmara no Google Maps; itanhandu.cam.mg.gov.br/atendimento",
+      "conferido_em": "2026-09-11"
+    },
+    "telefone_posto": {
+      "valor": "WhatsApp (35) 3504-0397",
+      "numero": "+553535040397",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "horario_atendimento_cin": {
+      "valor": "terça a sexta, das 14h às 17h, com hora marcada",
+      "dias": [
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday"
+      ],
+      "abre": "14:00",
+      "fecha": "17:00",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "canal_agendamento": {
+      "valor": "somente pelo site, sem agendamento presencial ou por telefone",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "abertura_vagas": {
+      "valor": "segundas-feiras às 8h, para terça a sexta da mesma semana",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "vagas_por_semana": {
+      "valor": "geralmente 40 vagas por semana; a quantidade pode aumentar, diminuir ou não haver atendimento",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "consulta_cancelamento_dados": {
+      "valor": "CPF, data de nascimento e código CIN- do comprovante (ou telefone, para agendamentos antigos sem código)",
+      "status": "verificado",
+      "fonte": "public/index.html",
+      "conferido_em": "2026-09-11"
+    },
+    "bloqueio_falta": {
+      "valor": "a falta sem cancelamento ou aviso prévio bloqueia novo agendamento por 6 meses; quem precisar de revisão deve procurar a Câmara pelo WhatsApp (35) 3504-0397",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "lista_espera": {
+      "valor": "não existe lista de espera; quando as vagas acabam, é necessário aguardar a próxima abertura",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "orientacao_perdeu_codigo": {
+      "valor": "solicitar ajuda pelo WhatsApp (35) 3504-0397",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "antecedencia_atendimento": {
+      "valor": "chegar 5 minutos antes do horário marcado",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "duracao_atendimento": {
+      "valor": "cerca de 15 minutos",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "atraso_atendimento": {
+      "valor": "quem chegar atrasado deve aguardar o atendimento em andamento; os atendimentos terminam às 17h",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "foto_atendimento": {
+      "valor": "não há orientação específica sobre roupa ou cabelo; a foto deve ser feita sem óculos ou acessórios que cubram o rosto; brincos e piercings são permitidos se não forem grandes e não atrapalharem a visualização do rosto As regras de MG admitem coberturas por motivo religioso cotidiano ou saúde, a informar ao atendente.",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "espera_atendimento": {
+      "valor": "aguardar sentado nas cadeiras até ser chamado",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "etapas_atendimento": {
+      "valor": "não há etapa prévia no balcão; a pessoa aguarda ser chamada para o atendimento",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "atendimento_prioritario": {
+      "valor": "Fluxo regular por hora marcada. A Portaria 02/2022 prevê emissão emergencial nas hipóteses comprovadas de internação ou alta hospitalar, viagem laboral não programada e aquisição de medicamento, com emissão e entrega na sede do Instituto de Identificação.",
+      "status": "verificado",
+      "fonte": "informação operacional; documento-2.pdf, Portaria 02/2022, arts. 1º e 2º",
+      "conferido_em": "2026-09-11"
+    },
+    "acessibilidade": {
+      "valor": "A recepção declarou não haver recurso específico; não foi feito levantamento de acessibilidade física. Necessidades individuais devem ser informadas ao posto. O fluxo agendado não afasta direitos legais.",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida nesta conversa",
+      "conferido_em": "2026-09-11"
+    },
+    "erros_comuns_documentacao": {
+      "valor": [
+        "certidão desatualizada",
+        "cópia simples da certidão",
+        "certidão com erros"
+      ],
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "lgpd_status": {
+      "valor": "implantação da LGPD em andamento, sem encarregado de dados nomeado",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "privacidade_dados_finalidade_retencao": {
+      "valor": "Nome, CPF, nascimento, telefone e e-mail opcional são armazenados para agendamento. Rotina mensal (dia 1 às 03h, São Paulo) remove identificadores de registros elegíveis com data de atendimento há pelo menos seis meses, limitada a 5000 leituras. Não alcança todo o banco; preserva CPF em registro separado de bloqueio por falta quando há bloqueadoAte.",
+      "status": "verificado",
+      "fonte": "public/index.html; functions/index.js:638-739 e 1749-1753",
+      "conferido_em": "2026-09-11"
+    },
+    "privacidade_canal_interino": {
+      "valor": "Secretaria da Câmara, pelo e-mail secretaria@itanhandu.cam.mg.gov.br",
+      "status": "verificado",
+      "fonte": "informação institucional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "privacidade_base_legal": {
+      "valor": "proposta editorial: tratamento necessário à execução do serviço público de agendamento, com enquadramento a ser validado pela Câmara nos arts. 7º, II ou III, e 23 da LGPD; direitos do titular pelos canais da Secretaria",
+      "status": "a_confirmar",
+      "nota": "A Câmara deve validar formalmente a hipótese legal aplicável a cada operação e a redação do aviso de privacidade.",
+      "pergunta": "A Câmara valida a hipótese legal de cada operação e o aviso de privacidade?",
+      "responsavel": "Câmara / decisão institucional"
+    },
+    "privacidade_compartilhamento": {
+      "valor": null,
+      "status": "a_confirmar",
+      "pergunta": "Quais outros destinatários, condições contratuais e prazos de retenção se aplicam além do Firebase/Google Cloud e reCAPTCHA identificados no código?",
+      "responsavel": "Câmara / decisão institucional"
+    },
+    "correcao_conteudo": {
+      "valor": "Correções pelo WhatsApp (35) 3504-0397 ou secretaria@itanhandu.cam.mg.gov.br.",
+      "status": "verificado",
+      "fonte": "canais confirmados pelo responsável nesta conversa",
+      "conferido_em": "2026-09-11"
+    },
+    "primeira_via": {
+      "valor": "gratuita",
+      "status": "verificado",
+      "fonte": "Decreto 10.977/2022; mg.gov.br; gov.br/gestao",
+      "conferido_em": "2026-09-11"
+    },
+    "renovacao_vencimento": {
+      "valor": "gratuita; considerada continuidade da primeira expedição",
+      "status": "verificado",
+      "fonte": "Decreto 10.977/2022, art. 9º",
+      "conferido_em": "2026-09-11"
+    },
+    "segunda_via_hipoteses": {
+      "valor": "perda, extravio, alteração de dados a pedido do titular, emissão em estado diferente do da primeira via",
+      "status": "verificado",
+      "fonte": "Decreto 10.977/2022, arts. 2º e 9º; mg.gov.br",
+      "conferido_em": "2026-09-11"
+    },
+    "segunda_via_taxa_mg": {
+      "valor": "R$ 115,80, pagamento via Pix",
+      "status": "verificado",
+      "fonte": "mg.gov.br (atualizado em 29/06/2026)",
+      "conferido_em": "2026-09-11"
+    },
+    "prazo_emissao": {
+      "valor": "Até 15 dias úteis para emissão e entrega; pode aumentar quando houver pendências de regularização.",
+      "status": "verificado",
+      "fonte": "mg.gov.br",
+      "conferido_em": "2026-09-11"
+    },
+    "entrega_mg": {
+      "valor": "pelos Correios, no endereço informado no atendimento; até 3 tentativas; depois 20 dias no centro de distribuição; depois volta à unidade emissora",
+      "status": "verificado",
+      "fonte": "mg.gov.br",
+      "conferido_em": "2026-09-11"
+    },
+    "entrega_itanhandu": {
+      "valor": "para endereço em zona rural, o documento chega à Câmara Municipal e deve ser procurado para retirada 15 dias após a emissão; se a entrega demorar ou o documento não chegar, enviar mensagem ou comparecer à Câmara",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "acompanhamento_entrega": {
+      "valor": "aplicativo MG App ou plataforma Cidadão MG",
+      "status": "verificado",
+      "fonte": "mg.gov.br",
+      "conferido_em": "2026-09-11"
+    },
+    "validade_cin": {
+      "valor": {
+        "0_a_11": "5 anos",
+        "12_a_59": "10 anos",
+        "60_ou_mais": "indeterminada"
+      },
+      "status": "verificado",
+      "fonte": "Decreto 10.977/2022, art. 15",
+      "conferido_em": "2026-09-11"
+    },
+    "validade_rg_antigo": {
+      "valor": "o RG no modelo antigo pode ser usado até 28 de fevereiro de 2032",
+      "status": "verificado",
+      "fonte": "gov.br/gestao; Decreto 10.977/2022",
+      "conferido_em": "2026-09-11"
+    },
+    "cin_digital": {
+      "valor": "No aplicativo gov.br, após receber a CIN impressa, com conta prata ou ouro; Carteira de documentos > adicionar CIN.",
+      "status": "verificado",
+      "fonte": "mg.gov.br",
+      "conferido_em": "2026-09-11"
+    },
+    "doc_certidao": {
+      "valor": "certidão de nascimento (solteiros) ou de casamento (casados, viúvos, divorciados), com averbação quando houver Em MG, casados sem alteração de nome podem apresentar nascimento com averbação de casamento; divorciados, nascimento com averbação do divórcio.",
+      "status": "verificado",
+      "fonte": "mg.gov.br; public/index.html",
+      "conferido_em": "2026-09-11",
+      "termos_espelho": [
+        "certidão"
+      ]
+    },
+    "doc_certidao_formato": {
+      "valor": "original em papel, certidão digital verificável ou cópia autenticada em cartório; cópia simples não é aceita",
+      "status": "verificado",
+      "fonte": "Portaria nº 07/IIMG/2022; mg.gov.br; informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "doc_cpf": {
+      "valor": "se já possui CPF, basta informar o número, sem apresentar cartão; se não possui, a inscrição é feita durante a emissão da CIN",
+      "status": "verificado",
+      "fonte": "Decreto 10.977/2022, art. 3º; mg.gov.br; informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11",
+      "termos_espelho": [
+        "CPF"
+      ]
+    },
+    "doc_comprovante_residencia": {
+      "valor": "qualquer comprovante de residência é aceito; o documento é obrigatório para cadastrar o endereço de entrega e não precisa estar no nome do requerente",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11",
+      "termos_espelho": [
+        "comprovante de residência"
+      ]
+    },
+    "doc_menores_16": {
+      "valor": "menores de 16 anos acompanhados do pai, da mãe ou do responsável legal; quando o acompanhante não é pai ou mãe, deve apresentar termo de guarda",
+      "status": "verificado",
+      "fonte": "mg.gov.br; informação operacional do responsável sobre acompanhamento e termo de guarda no atendimento. A Portaria 05/IIMG/2022 trata de retirada, não de atendimento.",
+      "conferido_em": "2026-09-11",
+      "termos_espelho": [
+        "menores de 16 anos"
+      ]
+    },
+    "doc_menores_3_foto": {
+      "valor": "recém-nascidos são atendidos; menores de 3 anos levam uma foto 3x4 recente, com fundo branco",
+      "status": "verificado",
+      "fonte": "mg.gov.br; informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11",
+      "termos_espelho": [
+        "menores de 3 anos",
+        "3x4"
+      ]
+    },
+    "doc_adolescentes_16_17": {
+      "valor": "adolescentes de 16 e 17 anos podem comparecer sem pai, mãe ou representante legal e não precisam apresentar documento adicional por esse motivo",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "aceita_outras_cidades": {
+      "cidades": [
+        "Itanhandu",
+        "Passa Quatro",
+        "Itamonte",
+        "Pouso Alto",
+        "Virgínia"
+      ],
+      "valor": "moradores de Itanhandu e de cidades vizinhas podem ser atendidos no posto da Câmara Municipal de Itanhandu; não há exigência de residência no município, mas o agendamento pelo site é obrigatório",
+      "status": "verificado",
+      "fonte": "informação operacional fornecida para revisão editorial",
+      "conferido_em": "2026-09-11"
+    },
+    "postos_vizinhos": {
+      "valor": {
+        "passa-quatro": null,
+        "itamonte": null,
+        "pouso-alto": null,
+        "virginia": null
+      },
+      "status": "a_confirmar",
+      "nota": "Pesquisa opcional futura, não é requisito para agendar em Itanhandu.",
+      "pergunta": "Há postos próprios em Passa Quatro, Itamonte, Pouso Alto e Virgínia? Quais os canais e as datas de conferência?",
+      "responsavel": "Prefeituras vizinhas"
+    },
+    "beneficios_prazos": {
+      "valor": "desde 1º de maio de 2026, concessão, manutenção e renovação de benefícios sociais dependem de cadastro biométrico; até 31 de dezembro de 2026, valem biometrias da CIN, CNH, título de eleitor ou passaporte; até 31 de dezembro de 2027, continuam válidas biometrias desses três documentos registradas até 31 de dezembro de 2026; a partir de 1º de janeiro de 2028, somente a biometria da CIN será aceita, com dispensas temporárias previstas pelo Governo Federal",
+      "status": "verificado",
+      "fonte": "gov.br/governodigital/pt-br/identidade/cin/faq_biometria; Lei 15.077/2024; Decreto 12.561/2025",
+      "conferido_em": "2026-09-11"
+    },
+    "correcao_prazo": {
+      "valor": null,
+      "status": "a_confirmar",
+      "pergunta": "Qual é o prazo institucional de análise dos pedidos de correção?",
+      "responsavel": "Câmara / decisão institucional"
+    },
+    "segunda_via_isencao": {
+      "valor": "Isenção em furto ou roubo com REDS e solicitação até 60 dias do fato; insuficiência de renda familiar mensal per capita de até meio salário mínimo mediante comprovação prevista nos arts. 3º e 4º.",
+      "status": "verificado",
+      "fonte": "documento-6.pdf, Portaria 04/IIMG/2022, arts. 1º, 3º e 4º",
+      "conferido_em": "2026-09-11"
+    },
+    "descarte_documento": {
+      "valor": "Emitidos e não retirados entram no procedimento de descarte a partir de 90 dias da emissão; extraviados e não procurados contam da chegada ao posto; lista disponível por mais 30 dias antes da destruição.",
+      "status": "verificado",
+      "fonte": "documento-4.pdf, Portaria 06/IIMG/2022, art. 2º",
+      "conferido_em": "2026-09-11"
+    }
+  }
+}
