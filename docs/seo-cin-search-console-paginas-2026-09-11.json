@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "siteUrl": "https://agendamento-cin-itanhandu.web.app/",
+  "startDate": "2026-06-08",
+  "endDate": "2026-09-08",
+  "dimensions": [
+    "page"
+  ],
+  "rowCount": 1,
+  "rows": [
+    {
+      "keys": [
+        "https://agendamento-cin-itanhandu.web.app/"
+      ],
+      "clicks": 171,
+      "impressions": 476,
+      "ctr": 0.3592436974789916,
+      "position": 4.105042016806722
+    }
+  ],
+  "hasMore": false,
+  "meta": {
+    "projectId": "6cbbba0c-c711-47e9-a6d1-a83c9a020cfc",
+    "url": "https://app.openseo.so/p/6cbbba0c-c711-47e9-a6d1-a83c9a020cfc/settings/integrations"
+  }
+}

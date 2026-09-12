@@ -1,0 +1,518 @@
+{
+  "consultado_em": "2026-09-11",
+  "mercado": "Brasil / português; volumes nacionais, não locais",
+  "openseo": [
+    {
+      "kind": "metrics",
+      "keywords": [
+        {
+          "keyword": "agendamento identidade",
+          "search_volume": 201000,
+          "keyword_difficulty": 80,
+          "main_intent": "navigational",
+          "cpc": 0.17,
+          "competition": 0.01,
+          "competition_level": "LOW"
+        },
+        {
+          "keyword": "carteira de identidade nacional",
+          "search_volume": 201000,
+          "keyword_difficulty": 28,
+          "main_intent": "informational",
+          "cpc": 0.14,
+          "competition": 0.07,
+          "competition_level": "LOW"
+        },
+        {
+          "keyword": "agendamento rg",
+          "search_volume": 135000,
+          "keyword_difficulty": 37,
+          "main_intent": "navigational",
+          "cpc": 0.21,
+          "competition": 0,
+          "competition_level": "LOW"
+        },
+        {
+          "keyword": "novo rg",
+          "search_volume": 74000,
+          "keyword_difficulty": 36,
+          "main_intent": "navigational",
+          "cpc": 0.13,
+          "competition": 0.02,
+          "competition_level": "LOW"
+        },
+        {
+          "keyword": "cin digital",
+          "search_volume": 33100,
+          "keyword_difficulty": 36,
+          "main_intent": "informational",
+          "cpc": 0.1,
+          "competition": 0.04,
+          "competition_level": "LOW"
+        },
+        {
+          "keyword": "agendamento cin",
+          "search_volume": 5400,
+          "keyword_difficulty": 4,
+          "main_intent": "navigational",
+          "cpc": null,
+          "competition": 0,
+          "competition_level": "LOW"
+        },
+        {
+          "keyword": "documentos para tirar identidade",
+          "search_volume": 4400,
+          "keyword_difficulty": 4,
+          "main_intent": "informational",
+          "cpc": 0.03,
+          "competition": 0.03,
+          "competition_level": "LOW"
+        },
+        {
+          "keyword": "documentos para tirar cin",
+          "search_volume": 3600,
+          "keyword_difficulty": 33,
+          "main_intent": "informational",
+          "cpc": 0.02,
+          "competition": 0.03,
+          "competition_level": "LOW"
+        },
+        {
+          "keyword": "segunda via identidade mg",
+          "search_volume": 1900,
+          "keyword_difficulty": 51,
+          "main_intent": "navigational",
+          "cpc": 0.2,
+          "competition": 0.01,
+          "competition_level": "LOW"
+        },
+        {
+          "keyword": "cancelar agendamento identidade",
+          "search_volume": 880,
+          "keyword_difficulty": 0,
+          "main_intent": "transactional",
+          "cpc": null,
+          "competition": 0,
+          "competition_level": "LOW"
+        },
+        {
+          "keyword": "identidade para criança",
+          "search_volume": 260,
+          "keyword_difficulty": 10,
+          "main_intent": "informational",
+          "cpc": 0.11,
+          "competition": 0.01,
+          "competition_level": "LOW"
+        },
+        {
+          "keyword": "cin gratuita",
+          "search_volume": 50,
+          "keyword_difficulty": null,
+          "main_intent": "informational",
+          "cpc": 0.05,
+          "competition": 0.04,
+          "competition_level": "LOW"
+        }
+      ],
+      "meta": {
+        "projectId": "6cbbba0c-c711-47e9-a6d1-a83c9a020cfc",
+        "url": "https://app.openseo.so/p/6cbbba0c-c711-47e9-a6d1-a83c9a020cfc/keywords"
+      }
+    },
+    {
+      "kind": "gsc",
+      "ok": false,
+      "reason": "not_connected",
+      "connectUrl": "https://app.openseo.so/p/6cbbba0c-c711-47e9-a6d1-a83c9a020cfc/search-performance",
+      "meta": {
+        "projectId": "6cbbba0c-c711-47e9-a6d1-a83c9a020cfc",
+        "url": "https://app.openseo.so/p/6cbbba0c-c711-47e9-a6d1-a83c9a020cfc/settings/integrations"
+      }
+    }
+  ],
+  "atp": {
+    "source": "AnswerThePublic",
+    "id": "2a9562c3-473a-4534-a945-c3d61a32c923",
+    "keyword": "carteira de identidade",
+    "language": "pt",
+    "region": "br",
+    "created_at": "2026-09-11T22:44:05.523Z",
+    "status": "completed",
+    "pagination": {
+      "page": 1,
+      "next_page": null,
+      "previous_page": null,
+      "per_page": 500,
+      "total_pages": 1
+    },
+    "summary": {
+      "search_volume_total": 90500,
+      "cost_per_click_total": 0.25,
+      "cost_per_click_category": "medium",
+      "search_volume_category": "good",
+      "prepositions": 67,
+      "comparisons": 10,
+      "questions": 71,
+      "numbers": 53,
+      "alphabeticals": 317,
+      "related": 1918
+    },
+    "questions": [
+      {
+        "suggestion": "onde fazer carteira de identidade",
+        "search_volume": 2400,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "como agendar carteira de identidade",
+        "search_volume": 1600,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que é carteira de identidade",
+        "search_volume": 1300,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que é carteira de identidade",
+        "search_volume": 1300,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "como baixar carteira de identidade digital",
+        "search_volume": 1300,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "onde tirar carteira de identidade na hora",
+        "search_volume": 1000,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que é carteira de identidade cin",
+        "search_volume": 720,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "onde tirar carteira de identidade infantil",
+        "search_volume": 320,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que é carteira de identidade nacional cin",
+        "search_volume": 260,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "onde agendar carteira de identidade",
+        "search_volume": 260,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "onde fazer carteira de identidade em porto alegre",
+        "search_volume": 260,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que é carteira de identidade civil",
+        "search_volume": 210,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "onde renovar carteira de identidade",
+        "search_volume": 210,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "onde tirar carteira de identidade em são luís ma",
+        "search_volume": 210,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "como adicionar carteira de identidade no gov",
+        "search_volume": 210,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "como tirar carteira de identidade para idoso",
+        "search_volume": 210,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "qual aplicativo da carteira de identidade digital",
+        "search_volume": 170,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que é carteira de identidade profissional",
+        "search_volume": 170,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que precisa para tirar carteira de identidade",
+        "search_volume": 170,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "onde tirar carteira de identidade em bh",
+        "search_volume": 170,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "onde tirar carteira de identidade na hora em ananindeua",
+        "search_volume": 170,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que é carteira de identidade classista",
+        "search_volume": 140,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que é carteira de identidade classista",
+        "search_volume": 140,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "onde fazer carteira de identidade em novo hamburgo",
+        "search_volume": 140,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "onde fazer carteira de identidade em florianópolis",
+        "search_volume": 140,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "onde fazer carteira de identidade em canoas",
+        "search_volume": 140,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "onde fazer carteira de identidade em santa maria",
+        "search_volume": 140,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "rg é carteira de identidade",
+        "search_volume": 110,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que carteira de identidade nacional",
+        "search_volume": 110,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que significa carteira de identidade",
+        "search_volume": 110,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "como baixar carteira de identidade no celular",
+        "search_volume": 110,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "como rastrear carteira de identidade",
+        "search_volume": 110,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "como tirar carteira de identidade em bh",
+        "search_volume": 110,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que é carteira de identidade sim",
+        "search_volume": 90,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "porque nao consigo agendar minha carteira de identidade",
+        "search_volume": 90,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que é carteira de identidade sim",
+        "search_volume": 90,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "onde tirar carteira de identidade em fortaleza",
+        "search_volume": 90,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "onde ver carteira de identidade digital",
+        "search_volume": 90,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "qual validade da carteira de identidade",
+        "search_volume": 70,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "porque a nova carteira de identidade nao tem rg",
+        "search_volume": 70,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que carteira de identidade cin",
+        "search_volume": 70,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que precisa para renovar carteira de identidade",
+        "search_volume": 50,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que é número da carteira de identidade",
+        "search_volume": 50,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "rg é carteira de identidade nacional",
+        "search_volume": 40,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que precisa para tirar carteira de identidade nova",
+        "search_volume": 40,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "como é carteira de identidade nova",
+        "search_volume": 30,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "quando perde a carteira de identidade o que fazer",
+        "search_volume": 30,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "como é carteira de identidade digital",
+        "search_volume": 10,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "é obrigatório fazer carteira de identidade nova",
+        "search_volume": 10,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "é obrigatório trocar carteira de identidade",
+        "search_volume": 10,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "são paulo carteira de identidade nacional",
+        "search_volume": 10,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "porque carteira de identidade é importante",
+        "search_volume": 10,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "porque minha carteira de identidade nao aparece no gov",
+        "search_volume": 10,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "quem teve primeira carteira de identidade",
+        "search_volume": 10,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "qual carteira de identidade é valida",
+        "search_volume": null,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "qual carteira de identidade nova",
+        "search_volume": null,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "como é carteira de identidade nacional",
+        "search_volume": null,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "é obrigatório carteira de identidade nova",
+        "search_volume": null,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "porque nova carteira de identidade",
+        "search_volume": null,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "porque a nova carteira de identidade não tem número",
+        "search_volume": null,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "porque trocar a carteira de identidade",
+        "search_volume": null,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "porque a nova carteira de identidade tem validade",
+        "search_volume": null,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "porque fazer nova carteira de identidade",
+        "search_volume": null,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "porque tirar nova carteira de identidade",
+        "search_volume": null,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que carteira de identidade civil",
+        "search_volume": null,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que carteira de identidade nacional cin",
+        "search_volume": null,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que carteira de identidade profissional",
+        "search_volume": null,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que significa na carteira de identidade uf",
+        "search_volume": null,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "o que significa na carteira de identidade órgão emissor",
+        "search_volume": null,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "quem precisa fazer carteira de identidade nova",
+        "search_volume": null,
+        "source_name": "questions"
+      },
+      {
+        "suggestion": "como carteira de identidade digital",
+        "search_volume": null,
+        "source_name": "questions"
+      }
+    ]
+  }
+}

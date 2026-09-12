@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Sitemap: https://agendamento-cin-itanhandu.web.app/sitemap.xml
