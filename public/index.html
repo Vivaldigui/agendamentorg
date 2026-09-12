@@ -261,6 +261,9 @@
         #dados-pessoais.modo-confirmar .so-preencher { display: none !important; }
         .instru-fase { background: var(--primary-light); border: 1px solid #bfdbfe; border-radius: var(--radius); padding: 14px 16px; margin-bottom: 20px; color: var(--primary-dark); font-size: 0.92rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
         .instru-fase i { font-size: 1.2rem; }
+        .instru-fase.instru-destaque { background: #eaf2ff; border: 2px solid var(--primary); border-left-width: 6px; padding: 16px 18px; font-size: 0.98rem; align-items: flex-start; box-shadow: 0 8px 20px rgba(0, 86, 179, 0.10); }
+        .instru-fase.instru-destaque i { font-size: 1.45rem; color: var(--primary); margin-top: 2px; }
+        .instru-titulo { display: block; margin-bottom: 4px; font-size: 1.05rem; font-weight: 900; color: var(--primary-dark); }
         .btn-hora.primeiro-livre { grid-column: 1 / -1; background: #047857; color: white; border-color: #047857; font-weight: 900; }
         .btn-hora.primeiro-livre:hover:not(:disabled) { background: #065f46; color: white; border-color: #065f46; }
         .btn-hora.primeiro-livre:disabled { opacity: 0.6; }
@@ -430,7 +433,7 @@
         .vaga-progress-fill.low { background: var(--warning); }
 
         /* 6. Subtítulo do cabeçalho */
-        .cabecalho-subtitulo { color: rgba(255,255,255,0.82); font-size: 0.74rem; font-weight: 700; margin-top: 9px; letter-spacing: 0.05em; text-transform: uppercase; }
+        .cabecalho-subtitulo { color: rgba(255,255,255,0.82); font-size: 0.74rem; font-weight: 700; margin-top: 9px; margin-bottom: 0; letter-spacing: 0.05em; text-transform: uppercase; }
 
         /* 7. Efeito ripple */
         .btn-principal, .btn-data, .btn-hora { position: relative; overflow: hidden; }
@@ -468,7 +471,7 @@
 <div id="sistema-agendamento">
     <div class="cabecalho-sistema">
         <img src="/assets/header-logo.png" alt="Câmara Municipal de Itanhandu">
-        <div class="cabecalho-subtitulo"><i class="fa-solid fa-id-card"></i> Agendamento RG / CIN &mdash; Câmara de Itanhandu</div>
+        <h1 class="cabecalho-subtitulo"><i class="fa-solid fa-id-card" aria-hidden="true"></i> Agendamento RG / CIN &mdash; Câmara de Itanhandu</h1>
     </div>
 
     <div id="banner-vagas" class="banner-vagas"></div>
@@ -481,15 +484,6 @@
     <div class="aviso-cancelamento" id="aviso-cancelamento">
         <span><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> Se não puder comparecer, cancele seu horário para liberar a vaga para outra pessoa.</span>
     </div>
-
-    <section aria-labelledby="titulo-servico-cin" style="padding:12px 20px;background:#fffbeb;border-bottom:1px solid #fde68a;text-align:center;">
-        <h1 id="titulo-servico-cin" style="margin:0 0 8px;font-size:1.1rem;color:#003d82;">Agendamento de RG e CIN — Câmara de Itanhandu</h1>
-        <nav class="atalhos-guia-cin" aria-label="Orientações sobre a CIN" style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;">
-            <a href="/cin/" style="display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;color:#003d82;font-weight:800;">Guia da CIN</a>
-            <a href="/cin/documentos/" style="display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;color:#003d82;font-weight:800;">Documentos</a>
-            <a href="/cin/como-agendar/" style="display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;color:#003d82;font-weight:800;">Como agendar</a>
-        </nav>
-    </section>
 
     <div class="corpo-sistema">
         <div class="secao ativa" id="secao-novo">
@@ -521,8 +515,8 @@
                     <div class="step-linha"></div>
                     <div class="step"><div class="step-num">3</div><span>Horário</span></div>
                 </div>
+                <div class="instru-fase instru-destaque so-preencher"><i class="fa-solid fa-keyboard" aria-hidden="true"></i> <span><strong class="instru-titulo">Dá para preencher mesmo antes de as vagas abrirem.</strong> Preencha os dados agora. No próximo passo você escolhe o dia e o horário — e confirma tudo antes de reservar. Seus dados ficam guardados enquanto esta aba estiver aberta.</span></div>
                 <div class="tarja-alerta"><i class="fa-solid fa-circle-exclamation" style="font-size:1.5rem;"></i><div><strong>ATENÇÃO:</strong> Os dados devem ser de quem irá fazer o RG.</div></div>
-                <div class="instru-fase so-preencher"><i class="fa-solid fa-keyboard"></i> <span>Preencha os dados agora. No próximo passo você escolhe o dia e o horário — e confirma tudo antes de reservar.</span></div>
                 <div class="card-resumo so-confirmar foco-etapa" id="resumo-confirmacao" tabindex="-1" role="status" aria-live="polite">
                     <div class="info">
                         <i class="fa-solid fa-calendar-check" style="color:var(--primary);"></i> <strong> <span id="resumo-data-txt"></span></strong> às <strong><span id="resumo-hora-txt"></span></strong>
@@ -665,6 +659,17 @@
             <span class="servico-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.5 2.5 0 0 1 4.85.85c0 1.65-2.55 2-2.55 3.65M12 17h.01"/></svg></span>
             <span><span class="servico-rotulo">Dúvidas frequentes</span><span class="servico-dica">Veja respostas rápidas</span></span>
         </a>
+    </div>
+</section>
+
+<section class="servicos-publicos" aria-labelledby="titulo-servico-cin" style="margin-top:16px;">
+    <div style="padding:14px 20px;background:#fffbeb;border:1px solid #fde68a;border-radius:var(--radius);text-align:center;">
+        <h2 id="titulo-servico-cin" style="margin:0 0 8px;font-size:1.1rem;color:#003d82;">Agendamento de RG e CIN — Câmara de Itanhandu</h2>
+        <nav class="atalhos-guia-cin" aria-label="Orientações sobre a CIN" style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;">
+            <a href="/cin/" style="display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;color:#003d82;font-weight:800;">Guia da CIN</a>
+            <a href="/cin/documentos/" style="display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;color:#003d82;font-weight:800;">Documentos</a>
+            <a href="/cin/como-agendar/" style="display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;color:#003d82;font-weight:800;">Como agendar</a>
+        </nav>
     </div>
 </section>
 
@@ -2408,6 +2413,17 @@
         } catch (e) { /* dado corrompido: ignora */ }
     }
 
+    // Grava a cada campo digitado, e nao so ao tocar em "Continuar": quem preenche
+    // durante a contagem regressiva e recarrega a pagina nao precisa digitar tudo
+    // de novo. As mascaras (oninput no HTML) foram registradas antes deste ouvinte
+    // e rodam primeiro, entao o valor salvo ja sai formatado.
+    function ativarPersistenciaPorCampo() {
+        CAMPOS_DADOS_AGENDAMENTO.forEach(id => {
+            const campo = document.getElementById(id);
+            if (campo) campo.addEventListener("input", persistirDadosAgendamento);
+        });
+    }
+
     function definirModoDados(modo) {
         const dp = document.getElementById("dados-pessoais");
         dp.classList.remove("modo-preencher", "modo-confirmar");
@@ -3549,6 +3565,7 @@
         // contagem regressiva e sai do caminho da disputa das 08:00. A grade de
         // datas so aparece depois de "Continuar". Ver docs/PLANO-agendar-em-um-toque.md.
         restaurarDadosAgendamento();
+        ativarPersistenciaPorCampo();
         mostrarTelaDados({ moverFoco: false });
         await carregarConfig();
         renderDatas();
