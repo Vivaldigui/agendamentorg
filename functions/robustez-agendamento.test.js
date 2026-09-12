@@ -88,16 +88,61 @@ test("rate limit fresco ignora prefixos x-forwarded-for fornecidos pelo cliente"
   assert.match(fingerprint, /ipOrigemConfiavel\(request\)/);
 });
 
-test("selecao usa callable sem CDN e nunca avanca quando a verificacao falha", () => {
+test("toque no horario pede confirmacao e so entao inicia a criacao transacional", async () => {
   const verificar = extrairFuncao(sitePublico, "verificarDisponibilidadeSlotAtual");
   const renderHoras = extrairFuncao(sitePublico, "renderHoras");
+  const selecionar = extrairFuncao(sitePublico, "selecionarHorarioEConfirmar");
 
-  // A selecao continua indo por callable (sem CDN). A chamada passou a sair por
-  // chamarFuncao, que garante o App Check antes de qualquer callable.
+  // A verificacao continua existindo (usada na reconciliacao dos slots ocultados)
+  // e continua saindo por callable, sem CDN, com App Check garantido.
   assert.match(verificar, /chamarFuncao\(["']verificarDisponibilidadeSlotCidadao["']/);
-  assert.match(renderHoras, /await\s+verificarDisponibilidadeSlotAtual\(data,\s*h\)/);
-  assert.match(renderHoras, /marcarSlotIndisponivelLocalmente\(data,\s*h\)/);
+
+  // O toque nao faz uma pre-verificacao remota: abre a confirmacao local e so o
+  // aceite explicito segue para a criacao transacional. A contencao continua
+  // dentro de confirmarAgendamento.
+  assert.match(renderHoras, /selecionarHorarioEConfirmar\(data,\s*h\)/);
+  assert.doesNotMatch(renderHoras, /verificarDisponibilidadeSlotAtual\(data,\s*h\)/);
+  assert.match(selecionar, /const\s+confirmou\s*=\s*await\s+confirmarModalAsync\(\{/);
+  assert.match(selecionar, /titulo:\s*["']Confirmar agendamento\?["']/);
+  assert.match(selecionar, /textoConfirmar:\s*["']Confirmar agendamento["']/);
+  assert.match(selecionar, /textoCancelar:\s*["']Voltar["']/);
+  assert.match(selecionar, /classeConfirmar:\s*["']primario["']/);
+  assert.match(selecionar, /if\s*\(!confirmou\)\s*return;/);
+  assert.match(selecionar, /await\s+confirmarAgendamento\(\)/);
+  assert.ok(
+    selecionar.indexOf("confirmarModalAsync") < selecionar.indexOf("dataSel = data"),
+    "a escolha so pode alterar o estado depois da confirmacao"
+  );
+  assert.match(selecionar, /finally\s*\{\s*selecionandoHora\s*=\s*false;/);
+  assert.ok(
+    selecionar.lastIndexOf("selecionandoHora = false") > selecionar.indexOf("await confirmarAgendamento()"),
+    "a trava de toque precisa permanecer ativa ate a confirmacao terminar"
+  );
   assert.doesNotMatch(renderHoras, /carregarConfig\(\{\s*ignorarCache:\s*true\s*\}\)/);
+
+  // A validacao bloqueante precisa espelhar o contrato minimo do backend antes
+  // de a pessoa chegar a escolha e a confirmacao do horario.
+  const avancar = extrairFuncao(sitePublico, "avancarParaDatas");
+  for (const validador of [
+    "nomeAgendamentoValido",
+    "cpfValido",
+    "nascimentoAgendamentoValido",
+    "telefoneAgendamentoValido",
+    "emailAgendamentoValido",
+    "destacarAceitesPendentes"
+  ]) assert.match(avancar, new RegExp(`${validador}\\(`));
+
+  // Depois do sucesso definitivo, os dados de preenchimento nao podem reaparecer
+  // num reload da mesma aba; o comprovante segue salvo na chave propria.
+  const confirmar = extrairFuncao(sitePublico, "confirmarAgendamento");
+  assert.match(confirmar, /guardarAgendamentoLocalmente\([^)]+\);[\s\S]*?limparDadosAgendamentoPersistidos\(\);/);
+
+  const confirmarModal = extrairFuncao(sitePublico, "confirmarModalAsync");
+  assert.match(confirmarModal, /classeConfirmar\s*=\s*["']perigo["']/);
+  assert.match(confirmarModal, /classe:\s*classeConfirmar/);
+  assert.match(confirmarModal, /textoCancelar[\s\S]*?resolve\(false\)/);
+  assert.match(confirmarModal, /onDismiss:\s*\(\)\s*=>\s*resolve\(false\)/);
+  assert.match(sitePublico, /Ao tocar em um horário, confira a data e a hora antes de confirmar\./);
 });
 
 test("codigos de erro das callables aceitam o prefixo functions do SDK web", () => {
@@ -119,9 +164,10 @@ test("codigos de erro das callables aceitam o prefixo functions do SDK web", () 
   assert.equal(erroTransiente({ code: "functions/data-loss" }), true);
 
   const confirmar = extrairFuncao(sitePublico, "confirmarAgendamento");
-  const renderHoras = extrairFuncao(sitePublico, "renderHoras");
   assert.match(confirmar, /const\s+codigo\s*=\s*codigoErroFunctions\(e\)/);
-  assert.match(renderHoras, /codigoErroFunctions\(e\)\s*===\s*["']failed-precondition["']/);
+  // O tratamento de failed-precondition migrou do toque para a criacao
+  // transacional, junto com o resto da contencao.
+  assert.match(confirmar, /codigoFinal\s*===\s*["']failed-precondition["']/);
 });
 
 test("resposta geral obsoleta nao ressuscita slot confirmado no mesmo minuto", () => {
@@ -262,12 +308,15 @@ test("retomada com estado tecnico nao depende de data de abertura conhecida", ()
 
 test("banner so chama agenda fechada quando o estado e valido", () => {
   const banner = extrairFuncao(sitePublico, "atualizarBannerVagas");
+  const renderDatas = extrairFuncao(sitePublico, "renderDatas");
   assert.match(banner, /ESTADO_AGENDA_PUBLICA\s*!==\s*["']valido["']/);
   assert.match(banner, /mostrarErroAtualizacaoAbertura/);
   assert.ok(
     banner.indexOf("ESTADO_AGENDA_PUBLICA") < banner.indexOf("Agenda fechada"),
     "o estado tecnico deve ser tratado antes do ramo de agenda fechada"
   );
+  assert.doesNotMatch(banner, /etapaSelecao\.style\.display\s*=\s*["']none["']/);
+  assert.match(renderDatas, /Não há datas com vagas no momento/);
 });
 
 test("retry idempotente nao consulta o proprio slot antes de reenviar", () => {
@@ -277,10 +326,18 @@ test("retry idempotente nao consulta o proprio slot antes de reenviar", () => {
 });
 
 test("slot removido da agenda e ocultado depois de failed-precondition", () => {
-  const renderHoras = extrairFuncao(sitePublico, "renderHoras");
+  // Agora a contencao vive em confirmarAgendamento. Um slot tomado (ocupado)
+  // e escondido localmente; um slot que saiu da agenda (failed-precondition)
+  // e escondido pelo recarregamento de abrirAlterarHorario, que refaz a grade
+  // a partir da config nova.
+  const confirmar = extrairFuncao(sitePublico, "confirmarAgendamento");
   assert.match(
-    renderHoras,
-    /catch\s*\(e\)\s*\{[\s\S]*?codigoErroFunctions\(e\)\s*===\s*["']failed-precondition["'][\s\S]*?marcarSlotIndisponivelLocalmente\(data,\s*h\)/
+    confirmar,
+    /erroHorarioOcupado\(e\)[\s\S]*?marcarSlotIndisponivelLocalmente\(dataOperacao,\s*horaOperacao\)/
+  );
+  assert.match(
+    confirmar,
+    /codigoFinal\s*===\s*["']failed-precondition["'][\s\S]*?abrirAlterarHorario\(\)/
   );
 });
 

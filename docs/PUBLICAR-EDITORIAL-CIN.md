@@ -10,6 +10,12 @@ Não houve commit, push ou deploy. O relatório completo está em `AUDITORIA-SEO
 
 ## Antes de publicar
 
+Hosting publica `public/` inteira. Antes de qualquer publicação, use a `main`
+atualizada e confira também `/recepcao.html`, `/recepcao.css` e `/recepcao.js`.
+As branches editoriais anteriores à reintegração de 12/09/2026 contêm o painel
+antigo e não devem ser usadas para deploy. Uma mudança apenas editorial ainda
+pode regredir outras páginas e os cabeçalhos de segurança do site.
+
 Na pasta `C:\Users\Users\Documents\agendamentorg`, execute:
 
 ```powershell

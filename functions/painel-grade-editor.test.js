@@ -1,6 +1,6 @@
 "use strict";
 
-// Trava de regressao do editor semanal do painel (public/recepcao.html).
+// Trava de regressao do editor semanal do painel (public/recepcao.js).
 //
 // O editor e por dia da semana, mas a grade vale por data. Se ele nao souber
 // representar o estado "automatico" (sem chave em horariosPorDiaSemana), a
@@ -13,7 +13,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const painel = fs.readFileSync(path.resolve(__dirname, "..", "public", "recepcao.html"), "utf8");
+const { painel } = require("./painel-fonte");
 
 function extrairFuncao(codigo, nome) {
   const inicio = codigo.indexOf(`function ${nome}(`);

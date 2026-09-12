@@ -7,7 +7,7 @@ const path = require("node:path");
 
 const raiz = path.resolve(__dirname, "..");
 const sitePublico = fs.readFileSync(path.join(raiz, "public", "index.html"), "utf8");
-const painel = fs.readFileSync(path.join(raiz, "public", "recepcao.html"), "utf8");
+const { painel } = require("./painel-fonte");
 const readme = fs.readFileSync(path.join(raiz, "README.md"), "utf8");
 
 test("site publico nao abre conexao de telemetria enquanto a medicao esta desativada", () => {

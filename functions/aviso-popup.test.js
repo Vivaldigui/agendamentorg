@@ -31,7 +31,7 @@ const {
 const raiz = path.resolve(__dirname, "..");
 const backend = fs.readFileSync(path.join(__dirname, "index.js"), "utf8");
 const sitePublico = fs.readFileSync(path.join(raiz, "public", "index.html"), "utf8");
-const painel = fs.readFileSync(path.join(raiz, "public", "recepcao.html"), "utf8");
+const { painel } = require("./painel-fonte");
 
 const FORMATO_INSTANTE_POPUP = /^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/;
 const FORMATO_ID_POPUP = /^[a-z0-9]{1,24}$/;

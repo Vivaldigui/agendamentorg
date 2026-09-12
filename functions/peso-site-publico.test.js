@@ -42,7 +42,7 @@ test("WhatsApp e Instagram usam marca em SVG inline", () => {
     // Decorativo: o rotulo textual do botao ja diz do que se trata.
     assert.match(svg, /aria-hidden="true"/);
     assert.match(svg, /focusable="false"/);
-    // Herdar a cor evita CSS extra e funciona no fundo verde e no gradiente.
+    // Herdar a cor evita CSS extra e funciona no fundo verde e no rodape.
     assert.match(svg, /currentColor/);
     // Sem fill solido: as duas marcas sao tracadas.
     assert.match(svg, /stroke="currentColor"/);
@@ -50,7 +50,7 @@ test("WhatsApp e Instagram usam marca em SVG inline", () => {
 
   // Os dois destinos seguem corretos.
   assert.match(sitePublico, /<button class="btn-acao-sucesso whatsapp"[^>]*>\s*<svg class="icone-marca"/);
-  assert.match(sitePublico, /<a class="btn-instagram"[^>]*href="https:\/\/www\.instagram\.com\/camaraitanhandu\/"/);
+  assert.match(sitePublico, /<a class="instagram-rodape"[^>]*href="https:\/\/www\.instagram\.com\/camaraitanhandu\/"/);
 
   // Dimensionamento acompanha o texto do botao.
   assert.match(sitePublico, /\.icone-marca \{[^}]*width: 1\.15em;[^}]*height: 1\.15em;/);

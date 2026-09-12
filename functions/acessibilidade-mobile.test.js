@@ -64,12 +64,14 @@ test("botoes do modal nao dependem de caber lado a lado no celular", () => {
 // Nome acessivel das abas
 // ---------------------------------------------------------------------------
 
-test("as abas mantem nome acessivel quando o rotulo visivel some", () => {
-  // Abaixo de 400px .aba-texto vira display:none e sobra so o icone.
-  assert.match(blocoMedia("(max-width: 400px)"), /\.aba-texto \{ display: none; \}/);
-
+test("o topo mantem somente o caminho acessivel para novo agendamento", () => {
+  // Consultar e Cancelar agora ficam apenas nos cards de servicos. O rotulo do
+  // unico controle do topo continua visivel ate nas telas estreitas.
+  assert.doesNotMatch(blocoMedia("(max-width: 400px)"), /\.aba-texto \{ display: none; \}/);
   const abas = sitePublico.match(/<button class="aba[^"]*" id="aba-[\w-]+"[^>]*>/g) || [];
-  assert.equal(abas.length, 3);
+  assert.equal(abas.length, 1);
+  assert.match(abas[0], /id="aba-novo"/);
+  assert.doesNotMatch(sitePublico, /id="aba-(?:consultar|cancelar)"/);
   for (const aba of abas) {
     assert.match(aba, /aria-label="[^"]+"/, `aba sem aria-label: ${aba}`);
     assert.match(aba, /aria-pressed="(true|false)"/, `aba sem aria-pressed: ${aba}`);
@@ -81,8 +83,14 @@ test("as abas mantem nome acessivel quando o rotulo visivel some", () => {
   // O icone e decorativo: o nome vem do aria-label.
   const marcacaoAbas = sitePublico.slice(sitePublico.indexOf('<div class="abas">'));
   const icones = marcacaoAbas.slice(0, marcacaoAbas.indexOf("</div>")).match(/<i class="fa-solid[^>]*>/g) || [];
-  assert.equal(icones.length, 3);
+  assert.equal(icones.length, 1);
   for (const icone of icones) assert.match(icone, /aria-hidden="true"/);
+
+  // A simplificacao do topo nao pode remover os dois caminhos pelos cards.
+  const cardConsultar = sitePublico.match(/<button class="servico-card servico-consultar"[^>]*>/)?.[0] || "";
+  const cardCancelar = sitePublico.match(/<button class="servico-card servico-cancelar"[^>]*>/)?.[0] || "";
+  assert.match(cardConsultar, /onclick="abrirAbaConsultar\(\)"/);
+  assert.match(cardCancelar, /onclick="abrirAbaCancelar\(\)"/);
 });
 
 test("mudarAba mantem o aria-pressed coerente", () => {
@@ -101,12 +109,11 @@ test("mudarAba mantem o aria-pressed coerente", () => {
 // ---------------------------------------------------------------------------
 
 test("controles tocaveis declaram ao menos 44px de altura", () => {
-  // Os dois atalhos do topo tinham 35px medidos no navegador. .btn-alterar e
-  // .acao-atualizar-agenda so existem em estados que a varredura inicial nao
-  // alcancou (formulario aberto e banner de erro), e tambem estavam menores.
+  // A grade de servicos substituiu os dois atalhos do topo e usa um alvo ainda
+  // maior. .btn-alterar e .acao-atualizar-agenda so existem em estados que a
+  // varredura inicial nao alcancou (formulario aberto e banner de erro).
   const alvos = [
-    /\.atalho-cancelamento button \{[^}]*min-height: 44px;/,
-    /\.atalho-documentos button \{[^}]*min-height: 44px;/,
+    /\.servico-card \{[^}]*min-height: 96px;/,
     /\.aba \{[^}]*min-height: 44px;/,
     /\.modal-btn \{[^}]*min-height: 44px;/,
     /\.btn-alterar \{[^}]*min-height: 44px;/,
@@ -115,8 +122,26 @@ test("controles tocaveis declaram ao menos 44px de altura", () => {
   for (const alvo of alvos) assert.match(sitePublico, alvo);
 
   // touch-action evita o atraso de 300ms e o zoom por duplo toque.
-  assert.match(sitePublico, /\.atalho-cancelamento button \{[^}]*touch-action: manipulation;/);
-  assert.match(sitePublico, /\.atalho-documentos button \{[^}]*touch-action: manipulation;/);
+  assert.match(sitePublico, /\.servico-card \{[^}]*touch-action: manipulation;/);
+
+  // Os controles e os destinos programaticos das transicoes mantem foco visivel.
+  assert.match(sitePublico, /\.btn-principal:focus-visible,[\s\S]*?outline: 3px solid #0f172a;/);
+  for (const id of ["titulo-escolher-dia", "titulo-escolher-horario", "resumo-confirmacao", "titulo-sucesso"]) {
+    assert.match(sitePublico, new RegExp(`id="${id}"[^>]*tabindex="-1"`));
+  }
+  assert.match(extrairFuncao(sitePublico, "mostrarTelaDados"), /focarConteudo\("inp-nome"\)/);
+  assert.match(extrairFuncao(sitePublico, "avancarParaDatas"), /focarConteudo\("titulo-escolher-dia"\)/);
+  assert.match(extrairFuncao(sitePublico, "selecionarHorarioEConfirmar"), /focarConteudo\("resumo-confirmacao"\)/);
+
+  // Branco sobre #047857 = 5,48:1; o antigo #10b981 dava apenas 2,54:1.
+  const luminancia = (hex) => {
+    const canais = hex.match(/[0-9a-f]{2}/gi).map((parte) => parseInt(parte, 16) / 255)
+      .map((valor) => valor <= 0.04045 ? valor / 12.92 : ((valor + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * canais[0] + 0.7152 * canais[1] + 0.0722 * canais[2];
+  };
+  const contrasteComBranco = 1.05 / (luminancia("047857") + 0.05);
+  assert.ok(contrasteComBranco >= 4.5, `contraste insuficiente: ${contrasteComBranco.toFixed(2)}:1`);
+  assert.match(sitePublico, /\.btn-hora\.primeiro-livre \{[^}]*background: #047857;[^}]*color: white;/);
 });
 
 // ---------------------------------------------------------------------------
@@ -185,6 +210,15 @@ test("o modal se anuncia como dialogo e recebe o foco", () => {
 
   // Fechar pelos botoes tambem devolve o foco.
   assert.match(abrir, /esconderModalGlobal\(\);/);
+
+  // Tab e Shift+Tab ficam dentro do dialogo; assim o teclado nao alcanca um
+  // controle da pagina capaz de substituir uma confirmacao ainda pendente.
+  assert.match(sitePublico, /e\.key !== "Tab"/);
+  assert.match(sitePublico, /dialogo\.querySelectorAll\("\.modal-btn:not\(\[disabled\]\)"\)/);
+  assert.match(sitePublico, /ultimo\.focus\(\)/);
+  assert.match(sitePublico, /primeiro\.focus\(\)/);
+  assert.match(abrir, /const dispensarAnterior = modalEstaAberto\(\) \? modalOnDismiss : null;/);
+  assert.match(abrir, /dispensarAnterior\(\);/);
 });
 
 test("Escape usa o caminho de dispensa, sem escolher acao pelo usuario", () => {
@@ -193,7 +227,7 @@ test("Escape usa o caminho de dispensa, sem escolher acao pelo usuario", () => {
   // certo para um modal de confirmacao, e nao pode ser duplicado.
   const tratadores = sitePublico.split("\n").filter((linha) => /e\.key === "Escape"|e\.key !== "Escape"/.test(linha));
   assert.equal(tratadores.length, 1, `Escape deveria ter um unico tratador: ${tratadores.join(" | ")}`);
-  assert.match(sitePublico, /if \(e\.key === "Escape" && !document\.getElementById\("modal-global"\)\.classList\.contains\("oculto"\)\) fecharModalGlobal\(\);/);
+  assert.match(sitePublico, /if \(e\.key === "Escape" && !modalGlobal\.classList\.contains\("oculto"\)\) fecharModalGlobal\(\);/);
 
   // E fecharModalGlobal precisa devolver o foco, senao Escape deixa o foco solto.
   const fechar = extrairFuncao(sitePublico, "fecharModalGlobal");

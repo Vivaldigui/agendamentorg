@@ -12,7 +12,7 @@ const {
 
 const raiz = path.resolve(__dirname, "..");
 const sitePublico = fs.readFileSync(path.join(raiz, "public", "index.html"), "utf8");
-const painel = fs.readFileSync(path.join(raiz, "public", "recepcao.html"), "utf8");
+const { painel } = require("./painel-fonte");
 
 function constanteTexto(codigo, nome) {
   const match = codigo.match(new RegExp(`const\\s+${nome}\\s*=\\s*"([^"]+)"`));

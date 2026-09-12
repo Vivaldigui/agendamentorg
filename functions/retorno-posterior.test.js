@@ -15,7 +15,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const painel = fs.readFileSync(path.resolve(__dirname, "..", "public", "recepcao.html"), "utf8");
+const { painel } = require("./painel-fonte");
 const backend = fs.readFileSync(path.resolve(__dirname, "index.js"), "utf8");
 
 function extrairFuncao(codigo, nome) {
@@ -49,7 +49,13 @@ test("marcar retorno posterior nunca bloqueia o CPF", () => {
 test("o status existe nas duas pontas e o painel oferece o botao", () => {
   assert.match(painel, /vai_voltar: "Vai voltar depois"/);
   assert.match(painel, /STATUS_ORDEM = \[[^\]]*"vai_voltar"/);
-  assert.match(painel, /alterarStatus\('\$\{id\}', 'vai_voltar'\)/, "Falta o botao direto na fila de hoje.");
+  // O painel deixou de usar onclick embutido: o gatilho agora e data-acao mais
+  // os argumentos em data-*, resolvidos pela delegacao de cliques.
+  assert.match(
+    painel,
+    /data-acao="alterar-status" data-id="\$\{id\}" data-status="vai_voltar"/,
+    "Falta o botao direto na fila de hoje."
+  );
   assert.match(backend, /const STATUS_VALIDOS = \[[^\]]*"vai_voltar"/, "respostaPublica rebaixaria o status para agendado.");
 });
 
