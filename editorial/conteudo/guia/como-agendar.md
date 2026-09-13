@@ -7,7 +7,7 @@ titulo_seo: "Como agendar RG e CIN em Itanhandu: vagas e horários"
 descricao: "As vagas para a CIN em Itanhandu abrem às segundas, às 8h, só pelo site. Veja como se preparar, quantas vagas abrem e o que fazer se esgotarem."
 resposta: "O agendamento da CIN em Itanhandu é feito somente pelo site. As vagas abrem toda segunda-feira, às 8h, para atendimento de terça a sexta da mesma semana. Geralmente são oferecidas 40 vagas, mas a quantidade pode variar e algumas semanas podem ficar sem atendimento. Quando as vagas acabam, aguarde a próxima abertura."
 publicado: 2026-09-11
-atualizado: 2026-09-11
+atualizado: 2026-09-13
 conferido: 2026-09-11
 conferido_por: "Responsável pelo projeto — aprovação registrada em conversa; conferência técnica por OpenAI Codex"
 cluster: agendamento
@@ -27,7 +27,7 @@ As vagas abrem toda segunda-feira, às 8h, somente pelo site. Os horários liber
 
 ## Passo a passo pelo celular
 
-Abra a página inicial do agendamento. Escolha a data e o horário que estiverem disponíveis. Preencha o formulário com os dados de quem irá fazer o RG. Revise as informações e conclua.
+Abra a página inicial do agendamento. Primeiro, preencha os dados de quem vai fazer o RG e marque a declaração. Isso pode ser feito antes de as vagas abrirem, e os dados ficam guardados enquanto a aba estiver aberta. Depois, toque em **Continuar para escolher o dia**, escolha o dia e o horário disponíveis, confira a data e a hora e toque em **Confirmar agendamento**. Preencher os dados não reserva a vaga: a reserva só acontece na confirmação.
 
 Guarde o código `CIN-` mostrado no comprovante. O site permite salvar o comprovante em PDF ou compartilhá-lo pelo WhatsApp; ele não é enviado automaticamente.
 
