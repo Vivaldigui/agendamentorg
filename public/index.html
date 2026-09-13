@@ -2388,11 +2388,18 @@
     // sem a pessoa tocar num horario. Ver docs/PLANO-agendar-em-um-toque.md.
     const CHAVE_DADOS_AGENDAMENTO = "cin_dados_agendamento";
     const CAMPOS_DADOS_AGENDAMENTO = ["inp-nome", "inp-cpf", "inp-nasc", "inp-tel", "inp-email"];
+    // A declaracao tambem volta marcada: foi a propria pessoa que marcou, nesta
+    // mesma aba. A sessao some ao fechar a aba ou ao concluir o agendamento.
+    const ACEITES_DADOS_AGENDAMENTO = ["aceite-lgpd"];
 
     function persistirDadosAgendamento() {
         try {
             const dados = {};
             CAMPOS_DADOS_AGENDAMENTO.forEach(id => { dados[id] = document.getElementById(id).value; });
+            ACEITES_DADOS_AGENDAMENTO.forEach(id => {
+                const aceite = document.getElementById(id);
+                if (aceite) dados[id] = aceite.checked === true;
+            });
             sessionStorage.setItem(CHAVE_DADOS_AGENDAMENTO, JSON.stringify(dados));
         } catch (e) { /* modo privativo: segue sem persistir */ }
     }
@@ -2409,6 +2416,10 @@
             CAMPOS_DADOS_AGENDAMENTO.forEach(id => {
                 if (typeof dados[id] === "string") document.getElementById(id).value = dados[id];
             });
+            ACEITES_DADOS_AGENDAMENTO.forEach(id => {
+                const aceite = document.getElementById(id);
+                if (aceite && typeof dados[id] === "boolean") aceite.checked = dados[id];
+            });
             validarNascimentoAgendamento();
         } catch (e) { /* dado corrompido: ignora */ }
     }
@@ -2416,11 +2427,16 @@
     // Grava a cada campo digitado, e nao so ao tocar em "Continuar": quem preenche
     // durante a contagem regressiva e recarrega a pagina nao precisa digitar tudo
     // de novo. As mascaras (oninput no HTML) foram registradas antes deste ouvinte
-    // e rodam primeiro, entao o valor salvo ja sai formatado.
+    // e rodam primeiro, entao o valor salvo ja sai formatado. A declaracao grava
+    // a cada marcacao ou desmarcacao.
     function ativarPersistenciaPorCampo() {
         CAMPOS_DADOS_AGENDAMENTO.forEach(id => {
             const campo = document.getElementById(id);
             if (campo) campo.addEventListener("input", persistirDadosAgendamento);
+        });
+        ACEITES_DADOS_AGENDAMENTO.forEach(id => {
+            const aceite = document.getElementById(id);
+            if (aceite) aceite.addEventListener("change", persistirDadosAgendamento);
         });
     }
 
