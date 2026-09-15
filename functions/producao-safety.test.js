@@ -80,7 +80,9 @@ for (const [nome, codigo, variavel] of [
     for (const alvo of [
       "https://agendamento-cin-itanhandu.web.app",
       "https://us-central1-agendamento-cin-itanhandu.cloudfunctions.net/criarAgendamentoCidadao",
-      "https://AGENDAMENTO-CIN-ITANHANDU.firebaseapp.com"
+      "https://AGENDAMENTO-CIN-ITANHANDU.firebaseapp.com",
+      "https://cin.itanhandu.cam.mg.gov.br",
+      "https://CIN.ITANHANDU.CAM.MG.GOV.BR/api/agenda-publica"
     ]) {
       assert.throws(() => bloquear(alvo, variavel), /producao|produção/i, alvo);
     }

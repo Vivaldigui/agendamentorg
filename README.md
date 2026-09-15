@@ -2,7 +2,7 @@
 
 Sistema web de **agendamento da Carteira de Identidade Nacional (CIN/RG)** para a Câmara Municipal de Itanhandu (MG). O cidadão escolhe data e horário, informa seus dados e recebe a confirmação; a recepção administra a fila do dia, remarcações, encaixes e relatórios.
 
-- **Produção:** https://agendamento-cin-itanhandu.web.app
+- **Produção:** https://cin.itanhandu.cam.mg.gov.br (também responde em https://agendamento-cin-itanhandu.web.app)
 - **Projeto Firebase:** `agendamento-cin-itanhandu`
 - **Repositório:** https://github.com/Vivaldigui/agendamentorg
 

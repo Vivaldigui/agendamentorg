@@ -13,7 +13,9 @@ const VUS = Number(__ENV.VUS || 50);
 
 export function bloquearAlvoProducao(url, nomeVariavel) {
   const alvo = String(url || "").toLowerCase();
-  if (alvo.includes("agendamento-cin-itanhandu")) {
+  // O dominio da Camara tambem e producao: cin.itanhandu.cam.mg.gov.br e o
+  // endereco oficial do servico desde 15/09/2026.
+  if (alvo.includes("agendamento-cin-itanhandu") || alvo.includes("itanhandu.cam.mg.gov.br")) {
     throw new Error(`${nomeVariavel || "URL"} aponta para producao e foi bloqueada pela denylist fixa.`);
   }
 }
