@@ -909,6 +909,8 @@
     const DATA_CORTE_GRADE_NOVA = "2026-08-18";
     const HORARIOS_LEGADOS = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
     const HORARIOS_NOVOS = ["14:30","14:45","15:00","15:15","15:30","15:45","16:00","16:15","16:30","16:45"];
+    const DATA_CORTE_GRADE_SEIS = "2026-09-21";
+    const HORARIOS_SEIS = ["14:30","14:55","15:20","15:45","16:10","16:35"];
     const DATA_NOVAS_VAGAS_PADRAO = "data a definir";
     const DURACAO_SLOT_OCUPADO_CONFIRMADO_MS = 16 * 60 * 1000;
     let DIAS_DISPONIVEIS = [], HORARIOS = [], DATA_NOVAS_VAGAS = DATA_NOVAS_VAGAS_PADRAO;
@@ -1292,9 +1294,10 @@
 
     // Espelho da regra canonica em functions/agenda-grade.js::horariosParaData.
     function horariosPadraoParaDataPublica(dataISO) {
-        return String(dataISO || "") < DATA_CORTE_GRADE_NOVA
-            ? [...HORARIOS_LEGADOS]
-            : [...HORARIOS_NOVOS];
+        const data = String(dataISO || "");
+        if (data < DATA_CORTE_GRADE_NOVA) return [...HORARIOS_LEGADOS];
+        if (data < DATA_CORTE_GRADE_SEIS) return [...HORARIOS_NOVOS];
+        return [...HORARIOS_SEIS];
     }
 
     function chaveSlotPublico(dataISO, hora) {

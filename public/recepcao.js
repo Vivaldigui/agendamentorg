@@ -7,8 +7,12 @@ const db = firebase.firestore(); const auth = firebase.auth(); const functions =
 // Mantem o login salvo entre fechamentos do navegador.
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.warn("Persistencia de login indisponivel", e));
 const HORARIOS_LEGADOS = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
-const HORARIOS_PADRAO = ["14:30","14:45","15:00","15:15","15:30","15:45","16:00","16:15","16:30","16:45"];
+const HORARIOS_NOVOS = ["14:30","14:45","15:00","15:15","15:30","15:45","16:00","16:15","16:30","16:45"];
+const HORARIOS_SEIS = ["14:30","14:55","15:20","15:45","16:10","16:35"];
+// Grade em vigor para datas novas: base do editor semanal e do campo legado `horarios`.
+const HORARIOS_PADRAO = HORARIOS_SEIS;
 const DATA_CORTE_GRADE_NOVA = "2026-08-18";
+const DATA_CORTE_GRADE_SEIS = "2026-09-21";
 const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const RESPONSAVEL_POSTO_PADRAO = "Guilherme Ribeiro Pinto";
 const URL_DAE_SEGUNDA_VIA = "https://daeonline1.fazenda.mg.gov.br/daeonline/executeEmissaoDocumentoArrecadacaoCarteiraIdentidade.action";
@@ -784,9 +788,10 @@ function indiceDiaSemana(dataISO) {
 
 // Espelho da regra canonica em functions/agenda-grade.js::horariosParaData.
 function horariosPadraoParaDataPainel(dataISO) {
-    return String(dataISO || "") < DATA_CORTE_GRADE_NOVA
-        ? [...HORARIOS_LEGADOS]
-        : [...HORARIOS_PADRAO];
+    const data = String(dataISO || "");
+    if (data < DATA_CORTE_GRADE_NOVA) return [...HORARIOS_LEGADOS];
+    if (data < DATA_CORTE_GRADE_SEIS) return [...HORARIOS_NOVOS];
+    return [...HORARIOS_SEIS];
 }
 
 function horariosDaData(dataISO) {
@@ -799,7 +804,7 @@ function horariosDaData(dataISO) {
 // Devolve a lista personalizada do dia da semana, ou null quando o dia esta em
 // modo automatico. Nesse modo a grade e resolvida por data (ver horariosDaData
 // e o espelho canonico em functions/agenda-grade.js::horariosParaData), o que
-// mantem 8 horarios antes do corte e 10 a partir dele.
+// mantem 8 horarios ate 17/08, 10 de 18/08 a 20/09 e 6 a partir de 21/09/2026.
 function horariosEditaveisDiaSemana(dia) {
     const chave = String(dia);
     return Object.prototype.hasOwnProperty.call(agendaHorariosPorDiaSemana, chave)
@@ -818,7 +823,8 @@ function linhaDiaAutomatico(nome, dia) {
                 <div class="horario-auto-info">
                     <span class="horario-auto-etiqueta">Automático</span>
                     até 17/08/2026: <strong>${HORARIOS_LEGADOS.length} horários</strong>
-                    &middot; a partir de 18/08/2026: <strong>${HORARIOS_PADRAO.length} horários</strong>
+                    &middot; 18/08 a 20/09/2026: <strong>${HORARIOS_NOVOS.length} horários</strong>
+                    &middot; a partir de 21/09/2026: <strong>${HORARIOS_SEIS.length} horários</strong>
                 </div>
                 <button type="button" class="btn btn-atualizar" data-acao="personalizarDiaSemana" data-dia="${dia}"><i class="fa-solid fa-pen"></i> Personalizar</button>
             </div>
@@ -838,7 +844,7 @@ function linhaDiaPersonalizado(nome, dia, horarios) {
                 <p class="horario-personalizado-aviso">
                     <i class="fa-solid fa-triangle-exclamation"></i>
                     Personalizado: esta lista vale para <strong>todas</strong> as datas de ${textoSeguro(nome.toLowerCase())},
-                    inclusive as anteriores a 18/08/2026.
+                    inclusive as de antes das mudanças de grade.
                     <button type="button" data-acao="voltarDiaSemanaAoAutomatico" data-dia="${dia}">Voltar ao automático</button>
                 </p>
             </div>
@@ -860,7 +866,7 @@ async function personalizarDiaSemana(dia) {
     if (!exigirAgendaGestaoCarregada()) return;
     const nome = DIAS_SEMANA[dia] || "este dia";
     const confirmou = await confirmarPainel(
-        `Personalizar ${nome} faz a lista escolhida valer para TODAS as datas desse dia da semana, inclusive as anteriores a 18/08/2026 que já estejam publicadas.\n\nEm datas já publicadas isso pode criar atendimentos sobrepostos. Deseja continuar?`,
+        `Personalizar ${nome} faz a lista escolhida valer para TODAS as datas desse dia da semana, inclusive as já publicadas e as de antes das mudanças de grade.\n\nEm datas já publicadas isso pode criar atendimentos sobrepostos. Deseja continuar?`,
         { titulo: `Personalizar ${nome}`, perigo: true, textoConfirmar: "Personalizar" }
     );
     if (!confirmou) return;
@@ -895,8 +901,8 @@ async function salvarHorariosSemana() {
     if (!exigirAgendaGestaoCarregada()) return;
     const personalizados = DIAS_SEMANA.filter((nome, dia) => diaSemanaPersonalizado(dia));
     const resumo = personalizados.length
-        ? `Dias personalizados: ${personalizados.join(", ")}.\n\nEsses dias deixam de seguir a regra por data e passam a valer para todas as datas do respectivo dia da semana, inclusive antes de 18/08/2026.`
-        : "Nenhum dia personalizado. Todos seguem a regra por data: 8 horários até 17/08/2026 e 10 a partir de 18/08/2026.";
+        ? `Dias personalizados: ${personalizados.join(", ")}.\n\nEsses dias deixam de seguir a regra por data e passam a valer para todas as datas do respectivo dia da semana, inclusive antes das mudanças de grade.`
+        : "Nenhum dia personalizado. Todos seguem a regra por data: 8 horários até 17/08/2026, 10 de 18/08 a 20/09/2026 e 6 a partir de 21/09/2026.";
     if (!(await confirmarPainel(`${resumo}\n\nSalvar assim?`, { titulo: "Salvar horários", textoConfirmar: "Salvar" }))) return;
     const conteudo = {
         horariosPorDiaSemana: agendaHorariosPorDiaSemana,

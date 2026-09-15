@@ -75,10 +75,10 @@
       "conferido_em": "2026-09-11"
     },
     "vagas_por_semana": {
-      "valor": "geralmente 40 vagas por semana; a quantidade pode aumentar, diminuir ou não haver atendimento",
+      "valor": "geralmente 24 vagas por semana; a quantidade pode aumentar, diminuir ou não haver atendimento",
       "status": "verificado",
       "fonte": "informação operacional fornecida para revisão editorial",
-      "conferido_em": "2026-09-11"
+      "conferido_em": "2026-09-15"
     },
     "consulta_cancelamento_dados": {
       "valor": "CPF, data de nascimento e código CIN- do comprovante (ou telefone, para agendamentos antigos sem código)",
