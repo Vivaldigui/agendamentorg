@@ -75,11 +75,11 @@ const CONEXAO_ACESSO_MAX_MS = 12 * 60 * 60 * 1000;
 
 const callableOptions = {
   cors: [
+    // Endereco oficial do servico desde 15/09/2026 (subdominio da Camara).
+    "https://cin.itanhandu.cam.mg.gov.br",
+    // Enderecos padrao do Firebase: continuam no ar e divulgados em links antigos.
     "https://agendamento-cin-itanhandu.web.app",
     "https://agendamento-cin-itanhandu.firebaseapp.com",
-    // Origem exata do canal temporario usado para validar as callables do painel;
-    // remover depois da validacao ou da expiracao do canal em 2026-09-02.
-    "https://agendamento-cin-itanhandu--revisao-painel-hmupkekk.web.app",
     "https://www.itanhandu.cam.mg.gov.br",
     "https://itanhandu.cam.mg.gov.br"
   ],

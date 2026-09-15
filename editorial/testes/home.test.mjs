@@ -14,7 +14,7 @@ test("a home tem canonical absoluta e JSON-LD igual ao módulo editorial", async
     fs.readFile(path.join(RAIZ, "dados", "servico.json"), "utf8")
   ]);
   const head = html.slice(html.indexOf("<head>"), html.indexOf("</head>") + 7);
-  const canonical = '<link rel="canonical" href="https://agendamento-cin-itanhandu.web.app/">';
+  const canonical = '<link rel="canonical" href="https://cin.itanhandu.cam.mg.gov.br/">';
   const blocos = [...head.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
 
   assert.equal(head.split(canonical).length - 1, 1);
@@ -23,7 +23,7 @@ test("a home tem canonical absoluta e JSON-LD igual ao módulo editorial", async
     blocos[0][1].trim(),
     serializarJsonLd(jsonLdHome(JSON.parse(configTexto), JSON.parse(servicoTexto)))
   );
-  assert.match(head, /<meta property="og:image" content="https:\/\/agendamento-cin-itanhandu\.web\.app\/assets\/cin\/guia-social\.png">/);
+  assert.match(head, /<meta property="og:image" content="https:\/\/cin\.itanhandu\.cam\.mg\.gov\.br\/assets\/cin\/guia-social\.png">/);
   const corpoEstatico = html.slice(html.indexOf("<body"), html.indexOf("<script", html.indexOf("<body")));
   assert.equal((corpoEstatico.match(/<h1\b/g) ?? []).length, 1);
   for (const caminho of ["cin", "cin/documentos", "cin/como-agendar"]) {

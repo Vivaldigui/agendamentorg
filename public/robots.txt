@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 Disallow: /api/
-Sitemap: https://agendamento-cin-itanhandu.web.app/sitemap.xml
+Sitemap: https://cin.itanhandu.cam.mg.gov.br/sitemap.xml

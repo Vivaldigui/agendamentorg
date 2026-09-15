@@ -56,9 +56,12 @@ test("falha historica nunca transforma o periodo atual em total completo", () =>
   assert.match(historico, /marcarIndicadoresHistoricosIndisponiveis\(\)/);
 });
 
-test("canal exato de preview pode exercitar as callables administrativas", () => {
+test("canal temporario de preview, expirado em 02/09/2026, nao exercita mais as callables administrativas", () => {
+  // O canal serviu para validar o painel antes da publicacao. Expirado, a origem
+  // saiu do CORS; o painel roda nos enderecos oficiais.
   const inicio = backend.indexOf("const callableOptions = {");
   const fim = backend.indexOf("const publicCallableOptions", inicio);
   const opcoes = backend.slice(inicio, fim);
-  assert.match(opcoes, /https:\/\/agendamento-cin-itanhandu--revisao-painel-hmupkekk\.web\.app/);
+  assert.doesNotMatch(opcoes, /--revisao-painel-/);
+  assert.match(opcoes, /"https:\/\/cin\.itanhandu\.cam\.mg\.gov\.br"/);
 });
