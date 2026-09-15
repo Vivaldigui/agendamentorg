@@ -7,7 +7,7 @@ titulo_seo: "CIN e benefícios do INSS e Bolsa Família: prazos atuais"
 descricao: "O governo federal passou a exigir biometria, e depois a CIN, para pedir ou manter benefícios sociais. Veja os prazos em vigor e quem deve se antecipar."
 resposta: "Nem toda pessoa que recebe benefício precisa fazer a CIN imediatamente. Desde 1º de maio de 2026, concessão, manutenção e renovação de benefícios sociais dependem de cadastro biométrico. Outras biometrias públicas continuam válidas durante a transição. A partir de 1º de janeiro de 2028, somente a biometria da CIN será aceita, salvo as dispensas temporárias previstas pelo Governo Federal."
 publicado: 2026-09-11
-atualizado: 2026-09-11
+atualizado: 2026-09-15
 conferido: 2026-09-11
 conferido_por: "Responsável pelo projeto — aprovação registrada em conversa; conferência técnica por OpenAI Codex"
 cluster: regras-e-contexto
@@ -57,7 +57,7 @@ Aposentados, titulares do BPC e famílias do Bolsa Família estão sujeitos à r
 
 ## Vagas em Itanhandu são limitadas: planeje com antecedência
 
-O posto geralmente oferece 40 vagas por semana. A quantidade pode variar e pode haver semana sem atendimento. As vagas abrem às segundas-feiras, às 8h, para atendimento de terça a sexta da mesma semana.
+O posto geralmente oferece 24 vagas por semana. A quantidade pode variar e pode haver semana sem atendimento. As vagas abrem às segundas-feiras, às 8h, para atendimento de terça a sexta da mesma semana.
 
 Confira primeiro se uma biometria já registrada atende à regra aplicável ao seu benefício. Se precisar da CIN, reúna os documentos e acompanhe a abertura da agenda local.
 

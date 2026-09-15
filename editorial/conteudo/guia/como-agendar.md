@@ -5,9 +5,9 @@ slug: como-agendar
 titulo: "Como agendar RG e CIN na Câmara de Itanhandu"
 titulo_seo: "Como agendar RG e CIN em Itanhandu: vagas e horários"
 descricao: "As vagas para a CIN em Itanhandu abrem às segundas, às 8h, só pelo site. Veja como se preparar, quantas vagas abrem e o que fazer se esgotarem."
-resposta: "O agendamento da CIN em Itanhandu é feito somente pelo site. As vagas abrem toda segunda-feira, às 8h, para atendimento de terça a sexta da mesma semana. Geralmente são oferecidas 40 vagas, mas a quantidade pode variar e algumas semanas podem ficar sem atendimento. Quando as vagas acabam, aguarde a próxima abertura."
+resposta: "O agendamento da CIN em Itanhandu é feito somente pelo site. As vagas abrem toda segunda-feira, às 8h, para atendimento de terça a sexta da mesma semana. Geralmente são oferecidas 24 vagas, mas a quantidade pode variar e algumas semanas podem ficar sem atendimento. Quando as vagas acabam, aguarde a próxima abertura."
 publicado: 2026-09-11
-atualizado: 2026-09-13
+atualizado: 2026-09-15
 conferido: 2026-09-11
 conferido_por: "Responsável pelo projeto — aprovação registrada em conversa; conferência técnica por OpenAI Codex"
 cluster: agendamento
@@ -33,7 +33,7 @@ Guarde o código `CIN-` mostrado no comprovante. O site permite salvar o comprov
 
 ## Quantas vagas abrem por semana
 
-Geralmente são oferecidas 40 vagas por semana. A quantidade pode aumentar ou diminuir, e pode haver semana sem atendimento.
+Geralmente são oferecidas 24 vagas por semana. A quantidade pode aumentar ou diminuir, e pode haver semana sem atendimento.
 
 ## Como se preparar para o horário da abertura
 

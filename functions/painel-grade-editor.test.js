@@ -91,4 +91,6 @@ test("as tres telas que gravam a agenda passam pelo helper", () => {
 test("o painel avisa que a edicao vale para todas as datas do dia da semana", () => {
   assert.match(painel, /dia da semana<\/strong>, não por data/);
   assert.match(painel, /anteriores\s*\n?\s*a 18\/08|anteriores a 18\/08/);
+  // Desde 21/09/2026 ha um segundo corte; o aviso precisa cita-lo tambem.
+  assert.match(painel, /anteriores a 18\/08 e a 21\/09/);
 });

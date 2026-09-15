@@ -198,7 +198,7 @@ As tarefas agendadas estão consolidadas em três jobs: manutenção diária, ab
 
 A configuração `configuracoes/agenda.automacaoSemanal` controla a abertura de cada segunda-feira. Por padrão, o backend prepara terça, quarta, quinta e sexta às 07:50/07:55/07:59 e programa a visibilidade para 08:00 (fuso `America/Sao_Paulo`). As execuções são idempotentes; a última serve como redundância e aquece a leitura pública.
 
-A grade é resolvida por data para preservar atendimentos existentes. Até `17/08/2026`, o padrão continua com os oito horários legados (`14:20` a `16:40`, em intervalos de 20 minutos). A partir de `18/08/2026`, o padrão passa a ter dez horários: `14:30`, `14:45`, `15:00`, `15:15`, `15:30`, `15:45`, `16:00`, `16:15`, `16:30`, `16:45`. Uma grade explicitamente configurada para o dia da semana sempre prevalece sobre esse corte.
+A grade é resolvida por data para preservar atendimentos existentes. Até `17/08/2026`, o padrão continua com os oito horários legados (`14:20` a `16:40`, em intervalos de 20 minutos). De `18/08/2026` a `20/09/2026`, o padrão teve dez horários: `14:30`, `14:45`, `15:00`, `15:15`, `15:30`, `15:45`, `16:00`, `16:15`, `16:30`, `16:45`. A partir de `21/09/2026`, são seis horários, a cada 25 minutos: `14:30`, `14:55`, `15:20`, `15:45`, `16:10`, `16:35`. Uma grade explicitamente configurada para o dia da semana sempre prevalece sobre esses cortes.
 
 No painel da recepção, em **Configurações operacionais → Abertura automática toda segunda-feira**, é possível:
 

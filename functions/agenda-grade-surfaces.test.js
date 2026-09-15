@@ -6,8 +6,10 @@ const fs = require("node:fs");
 const path = require("node:path");
 const {
   DATA_CORTE_GRADE_NOVA,
+  DATA_CORTE_GRADE_SEIS,
   HORARIOS_LEGADOS,
-  HORARIOS_NOVOS
+  HORARIOS_NOVOS,
+  HORARIOS_SEIS
 } = require("./agenda-grade");
 
 const raiz = path.resolve(__dirname, "..");
@@ -41,28 +43,43 @@ function extrairFuncao(codigo, nome) {
   throw new Error(`Fim da funcao ${nome} nao encontrado.`);
 }
 
-test("site publico espelha o corte e as duas grades canonicas", () => {
-  assert.equal(constanteTexto(sitePublico, "DATA_CORTE_GRADE_NOVA"), DATA_CORTE_GRADE_NOVA);
-  assert.deepEqual(constanteLista(sitePublico, "HORARIOS_LEGADOS"), HORARIOS_LEGADOS);
-  assert.deepEqual(constanteLista(sitePublico, "HORARIOS_NOVOS"), HORARIOS_NOVOS);
-  const codigoFuncao = extrairFuncao(sitePublico, "horariosPadraoParaDataPublica");
-  const resolver = new Function("DATA_CORTE_GRADE_NOVA", "HORARIOS_LEGADOS", "HORARIOS_NOVOS", `${codigoFuncao}; return horariosPadraoParaDataPublica;`)(
-    DATA_CORTE_GRADE_NOVA, HORARIOS_LEGADOS, HORARIOS_NOVOS
-  );
-  assert.deepEqual(resolver("2026-08-17"), HORARIOS_LEGADOS);
-  assert.deepEqual(resolver("2026-08-18"), HORARIOS_NOVOS);
+// Uma data de cada lado de cada corte.
+const DATAS_DE_CONTROLE = [
+  ["2026-08-17", HORARIOS_LEGADOS],
+  ["2026-08-18", HORARIOS_NOVOS],
+  ["2026-09-20", HORARIOS_NOVOS],
+  ["2026-09-21", HORARIOS_SEIS],
+  ["2026-09-22", HORARIOS_SEIS]
+];
+
+function conferirConstantes(codigo) {
+  assert.equal(constanteTexto(codigo, "DATA_CORTE_GRADE_NOVA"), DATA_CORTE_GRADE_NOVA);
+  assert.equal(constanteTexto(codigo, "DATA_CORTE_GRADE_SEIS"), DATA_CORTE_GRADE_SEIS);
+  assert.deepEqual(constanteLista(codigo, "HORARIOS_LEGADOS"), HORARIOS_LEGADOS);
+  assert.deepEqual(constanteLista(codigo, "HORARIOS_NOVOS"), HORARIOS_NOVOS);
+  assert.deepEqual(constanteLista(codigo, "HORARIOS_SEIS"), HORARIOS_SEIS);
+}
+
+function montarResolver(codigo, nomeFuncao) {
+  const corpo = extrairFuncao(codigo, nomeFuncao);
+  return new Function(
+    "DATA_CORTE_GRADE_NOVA", "DATA_CORTE_GRADE_SEIS", "HORARIOS_LEGADOS", "HORARIOS_NOVOS", "HORARIOS_SEIS",
+    `${corpo}; return ${nomeFuncao};`
+  )(DATA_CORTE_GRADE_NOVA, DATA_CORTE_GRADE_SEIS, HORARIOS_LEGADOS, HORARIOS_NOVOS, HORARIOS_SEIS);
+}
+
+test("site publico espelha os cortes e as tres grades canonicas", () => {
+  conferirConstantes(sitePublico);
+  const resolver = montarResolver(sitePublico, "horariosPadraoParaDataPublica");
+  for (const [data, esperado] of DATAS_DE_CONTROLE) assert.deepEqual(resolver(data), esperado, data);
 });
 
-test("painel da recepcao espelha o corte e as duas grades canonicas", () => {
-  assert.equal(constanteTexto(painel, "DATA_CORTE_GRADE_NOVA"), DATA_CORTE_GRADE_NOVA);
-  assert.deepEqual(constanteLista(painel, "HORARIOS_LEGADOS"), HORARIOS_LEGADOS);
-  assert.deepEqual(constanteLista(painel, "HORARIOS_PADRAO"), HORARIOS_NOVOS);
-  const codigoFuncao = extrairFuncao(painel, "horariosPadraoParaDataPainel");
-  const resolver = new Function("DATA_CORTE_GRADE_NOVA", "HORARIOS_LEGADOS", "HORARIOS_PADRAO", `${codigoFuncao}; return horariosPadraoParaDataPainel;`)(
-    DATA_CORTE_GRADE_NOVA, HORARIOS_LEGADOS, HORARIOS_NOVOS
-  );
-  assert.deepEqual(resolver("2026-08-17"), HORARIOS_LEGADOS);
-  assert.deepEqual(resolver("2026-08-18"), HORARIOS_NOVOS);
+test("painel da recepcao espelha os cortes e as tres grades canonicas", () => {
+  conferirConstantes(painel);
+  // A grade em vigor para datas novas alimenta o editor semanal e o campo legado `horarios`.
+  assert.match(painel, /const\s+HORARIOS_PADRAO\s*=\s*HORARIOS_SEIS\s*;/);
+  const resolver = montarResolver(painel, "horariosPadraoParaDataPainel");
+  for (const [data, esperado] of DATAS_DE_CONTROLE) assert.deepEqual(resolver(data), esperado, data);
 });
 
 test("nenhuma superficie mantem migracao por igualdade ou uniao cega", () => {
