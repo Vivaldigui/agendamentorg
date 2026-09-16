@@ -4,6 +4,8 @@ const { getDatabase } = require("firebase-admin/database");
 const { FieldValue, Timestamp, getFirestore } = require("firebase-admin/firestore");
 const { HttpsError, onCall, onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { defineBoolean, defineString, defineSecret } = require("firebase-functions/params");
+const { criarServicoAvaliacao, dataEmSaoPaulo } = require("./avaliacao-google");
 const { onValueCreated, onValueDeleted } = require("firebase-functions/v2/database");
 const {
   dataISOValida,
@@ -36,6 +38,28 @@ const { avisoPopupPublico } = require("./aviso-popup");
 initializeApp();
 
 const db = getFirestore();
+
+const avaliacaoGoogleAtiva = defineBoolean("AVALIACAO_GOOGLE_ATIVA", { default: false });
+const avaliacaoGoogleUrl = defineString("AVALIACAO_GOOGLE_URL", { default: "https://g.page/r/CfugOJBgujYPEBM/review" });
+const avaliacaoN8nUrl = defineSecret("AVALIACAO_N8N_WEBHOOK_URL");
+const avaliacaoN8nToken = defineSecret("AVALIACAO_N8N_TOKEN");
+const servicoAvaliacaoGoogle = criarServicoAvaliacao({ db, Timestamp });
+
+exports.enviarAvaliacoesGooglePendentes = onSchedule({
+  schedule: "0 17 * * *",
+  timeZone: "America/Sao_Paulo",
+  region: "southamerica-east1",
+  maxInstances: 1,
+  timeoutSeconds: 540,
+  secrets: [avaliacaoN8nUrl, avaliacaoN8nToken]
+}, async () => {
+  if (!avaliacaoGoogleAtiva.value()) return;
+  await servicoAvaliacaoGoogle.processarData(dataEmSaoPaulo(), {
+    webhookUrl: avaliacaoN8nUrl.value(),
+    token: avaliacaoN8nToken.value(),
+    googleUrl: avaliacaoGoogleUrl.value()
+  });
+});
 
 // getDatabase() lanca "Can't determine Firebase Database URL" quando o
 // FIREBASE_CONFIG do projeto nao traz databaseURL. Em escopo de modulo isso

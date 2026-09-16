@@ -1,0 +1,145 @@
+{
+  "name": "CIN - Avaliacao Google apos comparecimento",
+  "active": false,
+  "nodes": [
+    {
+      "id": "a310db8b-fce1-402b-900b-b6a099cc6d11",
+      "name": "Receber pedido",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "59e277a9-5ff6-49c4-9271-a29655434398",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cin-avaliacao-google",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "0a31a116-0d02-4146-8c00-7b58d426f7b2",
+      "name": "Preparar convite",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst avaliacaoUrl = body?.avaliacaoUrl || 'https://g.page/r/CfugOJBgujYPEBM/review';\nif (!body || body.evento !== 'avaliacao_google' || body.versao !== 1 ||\n    !/^avaliacao-google-v1:[^/]+$/.test(body.idempotencyKey || '')) {\n  throw new Error('Pedido de avaliacao invalido.');\n}\nif (typeof body.email !== 'string' || body.email.length > 120 ||\n    !/^[^\\s@,;<>]+@[^\\s@,;<>]+\\.[^\\s@,;<>]+$/.test(body.email)) {\n  throw new Error('Destinatario invalido.');\n}\nif (typeof avaliacaoUrl !== 'string' || !/^https:\\/\\/[^\\s]+$/.test(avaliacaoUrl)) {\n  throw new Error('Link de avaliacao invalido.');\n}\nconst confirmadoEm = Date.parse(body.confirmadoEm);\nif (!Number.isFinite(confirmadoEm) || confirmadoEm > Date.now() + 5 * 60 * 1000 ||\n    typeof body.dataAtendimento !== 'string' || !/^\\d{4}-\\d{2}-\\d{2}$/.test(body.dataAtendimento)) {\n  throw new Error('Data do atendimento ou da confirmacao invalida.');\n}\nconst nome = typeof body.nome === 'string' ? body.nome.trim().slice(0, 120) : '';\nreturn [{ json: {\n  email: body.email,\n  idempotencyKey: body.idempotencyKey,\n  assunto: 'Como foi seu atendimento na Camara de Itanhandu?',\n  mensagem: (nome ? 'Olá, ' + nome + '!' : 'Olá!') +\n    '\\n\\nObrigado por comparecer ao atendimento da Carteira de Identidade Nacional na Câmara Municipal de Itanhandu.' +\n    '\\n\\nComo foi sua experiência? Se desejar, compartilhe sua opinião em uma avaliação no Google:' +\n    '\\n' + avaliacaoUrl +\n    '\\n\\nSua participação é voluntária e nos ajuda a melhorar o atendimento.' +\n    '\\n\\nCâmara Municipal de Itanhandu'\n} }];"
+      }
+    },
+    {
+      "id": "4e5c8140-05a9-4a64-8f2a-3e91958a8e51",
+      "name": "Enviar email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        480,
+        0
+      ],
+      "retryOnFail": false,
+      "parameters": {
+        "resource": "email",
+        "operation": "send",
+        "fromEmail": "Identificação — Câmara Municipal de Itanhandu <identificacao@itanhandu.cam.mg.gov.br>",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.assunto }}",
+        "emailFormat": "text",
+        "text": "={{ $json.mensagem }}",
+        "options": {
+          "appendAttribution": false
+        }
+      }
+    },
+    {
+      "id": "4ec878d7-640f-4e0f-904d-44770c1ce7bd",
+      "name": "Conferir SMTP",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const pedido = $('Preparar convite').first().json;\nconst resultado = $input.first().json;\nif (!Array.isArray(resultado.accepted) ||\n    !resultado.accepted.some(email => String(email).toLowerCase() === pedido.email.toLowerCase())) {\n  throw new Error('O servidor SMTP nao confirmou a aceitacao do destinatario.');\n}\nreturn [{ json: { enviado: true, idempotencyKey: pedido.idempotencyKey } }];"
+      }
+    },
+    {
+      "id": "d7498983-515c-4c9c-a3ac-1592db79e6b8",
+      "name": "Confirmar envio",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Receber pedido": {
+      "main": [
+        [
+          {
+            "node": "Preparar convite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar convite": {
+      "main": [
+        [
+          {
+            "node": "Enviar email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar email": {
+      "main": [
+        [
+          {
+            "node": "Conferir SMTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conferir SMTP": {
+      "main": [
+        [
+          {
+            "node": "Confirmar envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 20,
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false
+  },
+  "pinData": {},
+  "tags": []
+}

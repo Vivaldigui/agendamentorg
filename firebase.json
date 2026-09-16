@@ -1,7 +1,16 @@
 {
   "functions": {
     "source": "functions",
-    "runtime": "nodejs22"
+    "runtime": "nodejs22",
+    "ignore": [
+      "node_modules",
+      ".git",
+      ".env",
+      ".env.*",
+      ".secret.local",
+      "firebase-debug.log",
+      "firebase-debug.*.log"
+    ]
   },
   "firestore": {
     "rules": "firestore.rules"
