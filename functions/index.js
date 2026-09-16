@@ -43,6 +43,7 @@ const avaliacaoGoogleAtiva = defineBoolean("AVALIACAO_GOOGLE_ATIVA", { default: 
 const avaliacaoGoogleUrl = defineString("AVALIACAO_GOOGLE_URL", { default: "https://g.page/r/CfugOJBgujYPEBM/review" });
 const avaliacaoN8nUrl = defineSecret("AVALIACAO_N8N_WEBHOOK_URL");
 const avaliacaoN8nToken = defineSecret("AVALIACAO_N8N_TOKEN");
+const avaliacaoDestinatarioChave = defineSecret("AVALIACAO_DESTINATARIO_CHAVE");
 const servicoAvaliacaoGoogle = criarServicoAvaliacao({ db, Timestamp });
 
 exports.enviarAvaliacoesGooglePendentes = onSchedule({
@@ -51,12 +52,13 @@ exports.enviarAvaliacoesGooglePendentes = onSchedule({
   region: "southamerica-east1",
   maxInstances: 1,
   timeoutSeconds: 540,
-  secrets: [avaliacaoN8nUrl, avaliacaoN8nToken]
+  secrets: [avaliacaoN8nUrl, avaliacaoN8nToken, avaliacaoDestinatarioChave]
 }, async () => {
   if (!avaliacaoGoogleAtiva.value()) return;
   await servicoAvaliacaoGoogle.processarData(dataEmSaoPaulo(), {
     webhookUrl: avaliacaoN8nUrl.value(),
     token: avaliacaoN8nToken.value(),
+    dedupeKey: avaliacaoDestinatarioChave.value(),
     googleUrl: avaliacaoGoogleUrl.value()
   });
 });

@@ -7,7 +7,9 @@ const vm = require("node:vm");
 const workflow = require("../docs/n8n/avaliacao-google.workflow.json");
 const {
   COLECAO,
+  COLECAO_DESTINATARIOS,
   emailValido,
+  identificadorDestinatario,
   dataISOValida,
   dataEmSaoPaulo,
   validarConfiguracao,
@@ -25,6 +27,7 @@ const DATA = "2026-09-16";
 const CONFIG = {
   webhookUrl: "https://n8n.example.test/webhook/avaliacao",
   token: "x".repeat(32),
+  dedupeKey: "d".repeat(32),
   googleUrl: "https://g.page/r/exemplo/review"
 };
 
@@ -109,6 +112,9 @@ function ambiente() {
     registros,
     cadastro,
     pedido: (id = "ag1") => registros.get(`${COLECAO}/${id}`),
+    destinatario: (email = cadastro.email) => registros.get(
+      `${COLECAO_DESTINATARIOS}/${identificadorDestinatario(email, CONFIG.dedupeKey)}`
+    ),
     responder: (fn) => { enviar = fn; }
   };
 }
@@ -148,6 +154,26 @@ test("concorrencia e repeticao do lote enviam apenas uma vez por agendamento", a
   await a.processarData(DATA, CONFIG);
   assert.equal(a.chamadas.length, 1);
   assert.equal(a.pedido().estado, "enviado");
+  assert.equal(a.destinatario().estado, "enviado");
+});
+
+test("dois agendamentos com o mesmo email recebem um unico convite", async () => {
+  const a = ambiente();
+  a.registros.set("dados_cidadaos/ag2", { ...a.cadastro, nome: "Outro cadastro" });
+  await a.processarData(DATA, CONFIG);
+  assert.equal(a.chamadas.length, 1);
+  assert.deepEqual([a.pedido("ag1").estado, a.pedido("ag2").estado].sort(), ["cancelado", "enviado"]);
+  assert.equal(a.destinatario().estado, "enviado");
+});
+
+test("trava migrada impede novo agendamento de repetir email historico", async () => {
+  const a = ambiente();
+  const id = identificadorDestinatario(a.cadastro.email, CONFIG.dedupeKey);
+  a.registros.set(`${COLECAO_DESTINATARIOS}/${id}`, { estado: "enviado", pedidoId: "historico" });
+  await a.processarData(DATA, CONFIG);
+  assert.equal(a.chamadas.length, 0);
+  assert.equal(a.pedido().estado, "cancelado");
+  assert.equal(a.pedido().motivo, "destinatario_ja_processado");
 });
 
 test("fila antiga pendente e cancelada pode ser reconciliada pelo lote diário", async () => {
@@ -175,6 +201,7 @@ test("payload minimo usa o email atual e registra a data do atendimento", async 
   assert.equal(body.dataAtendimento, DATA);
   assert.equal(body.email, "novo@example.test");
   assert.equal(JSON.stringify(a.pedido()).includes("novo@example.test"), false);
+  assert.equal(JSON.stringify(a.destinatario("novo@example.test")).includes("novo@example.test"), false);
 });
 
 test("falha ambigua exige revisao e nao dispara novamente", async () => {
@@ -184,6 +211,7 @@ test("falha ambigua exige revisao e nao dispara novamente", async () => {
   await a.processarData(DATA, CONFIG);
   assert.equal(a.chamadas.length, 1);
   assert.equal(a.pedido().estado, "revisar");
+  assert.equal(a.destinatario().estado, "revisar");
   assert.deepEqual(a.logs, [["avaliacao_google_requer_revisao", { pedidoId: "ag1" }]]);
 });
 
@@ -196,10 +224,20 @@ test("validadores recusam lista de destinatarios, datas e configuracao insegura"
   assert.equal(dataISOValida("2026-02-30"), false);
   assert.equal(dataISOValida("2026-99-99"), false);
   assert.equal(dataEmSaoPaulo(Date.parse("2026-09-17T01:30:00Z")), "2026-09-16");
+  assert.equal(
+    identificadorDestinatario(" Pessoa@Example.Test ", CONFIG.dedupeKey),
+    identificadorDestinatario("pessoa@example.test", CONFIG.dedupeKey)
+  );
+  assert.equal(
+    identificadorDestinatario("pessoa@example.test", `${CONFIG.dedupeKey}\r\n`),
+    identificadorDestinatario("pessoa@example.test", CONFIG.dedupeKey)
+  );
+  assert.doesNotMatch(identificadorDestinatario("pessoa@example.test", CONFIG.dedupeKey), /pessoa|example/);
   for (const config of [
     { ...CONFIG, webhookUrl: "http://n8n.example.test" },
     { ...CONFIG, googleUrl: "javascript:alert(1)" },
-    { ...CONFIG, token: "curto" }
+    { ...CONFIG, token: "curto" },
+    { ...CONFIG, dedupeKey: "curta" }
   ]) assert.throws(() => validarConfiguracao(config));
 });
 

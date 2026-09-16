@@ -1,6 +1,9 @@
 "use strict";
 
+const crypto = require("node:crypto");
+
 const COLECAO = "pedidos_avaliacao_google";
+const COLECAO_DESTINATARIOS = "destinatarios_avaliacao_google";
 const TERMINAIS = new Set(["enviando", "enviado", "revisar"]);
 const FUSO_HORARIO = "America/Sao_Paulo";
 
@@ -9,6 +12,15 @@ function emailValido(valor) {
   const email = valor.trim();
   // Um destinatario apenas: o campo To do SMTP aceita listas separadas por virgula.
   return email.length <= 120 && /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(email);
+}
+
+function identificadorDestinatario(email, chave) {
+  const chaveNormalizada = typeof chave === "string" ? chave.trim() : "";
+  if (!emailValido(email) || chaveNormalizada.length < 32 || /[\r\n]/.test(chaveNormalizada)) {
+    throw new Error("Destinatario ou chave de deduplicacao invalida.");
+  }
+  return crypto.createHmac("sha256", chaveNormalizada)
+    .update(email.trim().toLowerCase(), "utf8").digest("hex");
 }
 
 function dataISOValida(valor) {
@@ -26,7 +38,7 @@ function dataEmSaoPaulo(ms = Date.now()) {
   }).format(new Date(ms));
 }
 
-function validarConfiguracao({ webhookUrl, token, googleUrl }) {
+function validarConfiguracao({ webhookUrl, token, googleUrl, dedupeKey }) {
   for (const valor of [webhookUrl, googleUrl]) {
     const url = new URL(valor);
     if (url.protocol !== "https:" || url.username || url.password) {
@@ -36,10 +48,15 @@ function validarConfiguracao({ webhookUrl, token, googleUrl }) {
   if (typeof token !== "string" || token.trim().length < 32 || /[\r\n]/.test(token)) {
     throw new Error("Configure um token de webhook com pelo menos 32 caracteres.");
   }
+  const chaveNormalizada = typeof dedupeKey === "string" ? dedupeKey.trim() : "";
+  if (chaveNormalizada.length < 32 || /[\r\n]/.test(chaveNormalizada)) {
+    throw new Error("Configure uma chave de deduplicacao com pelo menos 32 caracteres.");
+  }
 }
 
 function criarServicoAvaliacao({ db, Timestamp, fetchImpl = fetch, logger = console, agora = Date.now }) {
   const fila = db.collection(COLECAO);
+  const destinatarios = db.collection(COLECAO_DESTINATARIOS);
 
   async function processarCadastro(cadastroRef, dataAtendimento, config) {
     validarConfiguracao(config);
@@ -65,6 +82,19 @@ function criarServicoAvaliacao({ db, Timestamp, fetchImpl = fetch, logger = cons
         return null;
       }
 
+      const destinatarioRef = destinatarios.doc(identificadorDestinatario(dados.email, config.dedupeKey));
+      const destinatarioSnap = await tx.get(destinatarioRef);
+      const destinatario = destinatarioSnap.exists ? destinatarioSnap.data() : null;
+      if (destinatario && TERMINAIS.has(destinatario.estado)) {
+        tx.set(pedidoRef, {
+          estado: "cancelado",
+          motivo: "destinatario_ja_processado",
+          dataAtendimento,
+          alteradoEm: Timestamp.fromMillis(agora())
+        });
+        return null;
+      }
+
       const confirmadoMs = Date.parse(dados.statusAtualizadoEm);
       const confirmadoEm = Number.isFinite(confirmadoMs) && confirmadoMs <= agora() + 5 * 60 * 1000
         ? new Date(confirmadoMs).toISOString()
@@ -75,18 +105,28 @@ function criarServicoAvaliacao({ db, Timestamp, fetchImpl = fetch, logger = cons
         confirmadoEm: Timestamp.fromMillis(Date.parse(confirmadoEm)),
         tentativaEm: Timestamp.fromMillis(agora())
       });
-      return {
-        evento: "avaliacao_google",
-        versao: 1,
-        idempotencyKey: `avaliacao-google-v1:${cadastroRef.id}`,
-        email: dados.email.trim(),
-        nome: String(dados.nome || "").trim().slice(0, 120),
-        confirmadoEm,
+      tx.set(destinatarioRef, {
+        estado: "enviando",
+        pedidoId: cadastroRef.id,
         dataAtendimento,
-        avaliacaoUrl: config.googleUrl
+        tentativaEm: Timestamp.fromMillis(agora())
+      });
+      return {
+        destinatarioRef,
+        body: {
+          evento: "avaliacao_google",
+          versao: 1,
+          idempotencyKey: `avaliacao-google-v1:${cadastroRef.id}`,
+          email: dados.email.trim(),
+          nome: String(dados.nome || "").trim().slice(0, 120),
+          confirmadoEm,
+          dataAtendimento,
+          avaliacaoUrl: config.googleUrl
+        }
       };
     });
     if (!payload) return;
+    const { body, destinatarioRef } = payload;
 
     // SMTP nao oferece exactly-once. Depois da reserva, uma falha ambigua exige
     // reconciliacao humana no n8n; reenviar cegamente pode duplicar o convite.
@@ -94,20 +134,28 @@ function criarServicoAvaliacao({ db, Timestamp, fetchImpl = fetch, logger = cons
       const response = await fetchImpl(config.webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Avaliacao-Token": config.token },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(body),
         redirect: "error",
         signal: AbortSignal.timeout(25000)
       });
       if (!response.ok) throw new Error("webhook_recusado");
       const recibo = await response.json();
-      if (recibo.enviado !== true || recibo.idempotencyKey !== payload.idempotencyKey) {
+      if (recibo.enviado !== true || recibo.idempotencyKey !== body.idempotencyKey) {
         throw new Error("recibo_invalido");
       }
-      await pedidoRef.update({ estado: "enviado", enviadoEm: Timestamp.fromMillis(agora()) });
+      const enviadoEm = Timestamp.fromMillis(agora());
+      await Promise.all([
+        pedidoRef.update({ estado: "enviado", enviadoEm }),
+        destinatarioRef.update({ estado: "enviado", enviadoEm })
+      ]);
     } catch (_) {
       // Nunca registra email, nome, token, URL secreta ou corpo da resposta.
       logger.error("avaliacao_google_requer_revisao", { pedidoId: cadastroRef.id });
-      await pedidoRef.update({ estado: "revisar", revisarEm: Timestamp.fromMillis(agora()) });
+      const revisarEm = Timestamp.fromMillis(agora());
+      await Promise.all([
+        pedidoRef.update({ estado: "revisar", revisarEm }),
+        destinatarioRef.update({ estado: "revisar", revisarEm })
+      ]);
     }
   }
 
@@ -127,8 +175,10 @@ function criarServicoAvaliacao({ db, Timestamp, fetchImpl = fetch, logger = cons
 
 module.exports = {
   COLECAO,
+  COLECAO_DESTINATARIOS,
   FUSO_HORARIO,
   emailValido,
+  identificadorDestinatario,
   dataISOValida,
   dataEmSaoPaulo,
   validarConfiguracao,

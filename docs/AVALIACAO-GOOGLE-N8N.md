@@ -29,9 +29,11 @@ agendamentos daquele dia. O convite é enviado somente para cadastros que ainda
 estejam com status **Compareceu**, tenham um único e-mail válido e não tenham
 sido anonimizados. O painel pode estar fechado durante a execução.
 
-A coleção privada `pedidos_avaliacao_google/{agendamentoId}` registra a reserva
-e o resultado. Ela impede que uma repetição do Scheduler, uma execução manual ou
-duas instâncias concorrentes enviem o mesmo convite mais de uma vez.
+As coleções privadas `pedidos_avaliacao_google/{agendamentoId}` e
+`destinatarios_avaliacao_google/{identificador}` registram a reserva e o
+resultado. A primeira protege o agendamento; a segunda usa HMAC do e-mail, sem
+guardar o endereço, e impede repetição para o mesmo destinatário mesmo que ele
+apareça em outro documento ou data.
 
 ## Comportamento
 
@@ -40,6 +42,9 @@ duas instâncias concorrentes enviem o mesmo convite mais de uma vez.
 - Registros sem e-mail, com e-mail inválido, ausentes, anonimizados ou com outro
   status não são enviados.
 - Uma nova execução do mesmo dia processa somente pessoas ainda não reservadas.
+- Um mesmo endereço de e-mail recebe no máximo um convite em todo o histórico.
+  Cadastros diferentes com o mesmo e-mail são reservados de forma transacional,
+  inclusive quando duas execuções concorrem.
 - Um cadastro marcado como Compareceu depois da execução das 17h fica fora do
   lote automático daquele dia.
 - Cada agendamento recebe no máximo uma tentativa automática no n8n. Falha
@@ -89,7 +94,12 @@ Segredos:
 ```powershell
 firebase functions:secrets:set AVALIACAO_N8N_WEBHOOK_URL --project <ID_DO_PROJETO>
 firebase functions:secrets:set AVALIACAO_N8N_TOKEN --project <ID_DO_PROJETO>
+firebase functions:secrets:set AVALIACAO_DESTINATARIO_CHAVE --project <ID_DO_PROJETO>
 ```
+
+`AVALIACAO_DESTINATARIO_CHAVE` deve ser aleatória, ter pelo menos 32 caracteres
+e permanecer estável. Antes de rotacioná-la, migre os identificadores existentes;
+trocar a chave sem migração perderia a proteção histórica contra repetição.
 
 Implantação:
 
