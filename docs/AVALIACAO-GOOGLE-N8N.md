@@ -43,6 +43,10 @@ somente nome, e-mail, data do atendimento, horário da confirmação, link e cha
 técnica. CPF, nascimento, telefone e observações não são enviados. A fila guarda
 somente metadados e o ID do agendamento; o navegador não pode acessá-la.
 
+O texto informa que a pessoa fez seu RG (Carteira de Identidade) na Câmara de
+Itanhandu, pede uma avaliação voluntária no Google e esclarece que se trata de
+um convite único. A mesma redação serve ao lote diário e ao envio histórico.
+
 ## Configuração no n8n
 
 1. Importe [`n8n/avaliacao-google.workflow.json`](n8n/avaliacao-google.workflow.json).

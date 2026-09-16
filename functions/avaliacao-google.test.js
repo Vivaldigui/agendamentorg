@@ -225,6 +225,9 @@ test("workflow aceita confirmacao recente no lote das 17h e confirma o SMTP", ()
   };
   const preparado = executarNode("Preparar convite", { body })[0].json;
   assert.match(preparado.mensagem, /participação é voluntária/);
+  assert.match(preparado.mensagem, /Você fez seu RG/);
+  assert.match(preparado.mensagem, /convite único/);
+  assert.equal(preparado.assunto, "Como foi fazer seu RG na Câmara de Itanhandu?");
   const recibo = executarNode("Conferir SMTP", { accepted: [body.email.toUpperCase()] }, preparado)[0].json;
   assert.equal(recibo.enviado, true);
   assert.throws(() => executarNode("Conferir SMTP", { accepted: [] }, preparado));
