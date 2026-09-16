@@ -13,9 +13,16 @@ foi removido. O lote excepcional autorizado do dia encontrou 8 elegíveis e
 obteve 8 recibos de aceitação SMTP, sem falhas nem duplicidades. A fila foi
 conferida com 8 registros `enviado`.
 
-O workflow JSON deste repositório já contém a validação nova. O workflow ativo
-do n8n ainda precisa ser substituído por esse arquivo, porque o painel estava
-sem sessão autenticada e o endpoint MCP respondeu HTTP 401.
+O workflow JSON deste repositório contém a validação e a redação atuais. O
+responsável atualizou o workflow ativo no n8n; o painel permaneceu sem sessão
+disponível para o agente e o endpoint MCP respondeu HTTP 401.
+
+Após a atualização do workflow pelo responsável, o lote histórico autorizado
+foi executado em **16/09/2026**. Foram deduplicados os cadastros por endereço de
+e-mail e processados 197 destinatários referentes a atendimentos entre 11/05 e
+15/09/2026: **196** tiveram aceitação confirmada pelo SMTP e **1** ficou em
+`revisar`. A conferência final não encontrou destinatários históricos elegíveis
+sem processamento. O registro em revisão não é reenviado automaticamente.
 
 Todos os dias, às **17h** no fuso `America/Sao_Paulo`, a função consulta os
 agendamentos daquele dia. O convite é enviado somente para cadastros que ainda
