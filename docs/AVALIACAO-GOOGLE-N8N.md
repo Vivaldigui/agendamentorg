@@ -55,9 +55,20 @@ somente nome, e-mail, data do atendimento, horário da confirmação, link e cha
 técnica. CPF, nascimento, telefone e observações não são enviados. A fila guarda
 somente metadados e o ID do agendamento; o navegador não pode acessá-la.
 
-O texto informa que a pessoa fez seu RG (Carteira de Identidade) na Câmara de
+O e-mail usa HTML responsivo com a identidade visual da página do CIN: azul
+institucional, detalhe dourado, logo oficial, conteúdo em cartão e botão de ação.
+O endereço completo da avaliação aparece abaixo do botão como alternativa. O
+texto informa que a pessoa fez seu RG (Carteira de Identidade) na Câmara de
 Itanhandu, pede uma avaliação voluntária no Google e esclarece que se trata de
 um convite único. A mesma redação serve ao lote diário e ao envio histórico.
+
+O logo é carregado pelo endereço público
+`https://cin.itanhandu.cam.mg.gov.br/assets/header-logo.png`. O cabeçalho mantém
+o nome da Câmara no texto alternativo caso o aplicativo de e-mail bloqueie
+imagens externas. Cores, espaçamento e tipografia ficam embutidos no próprio
+HTML para preservar a apresentação nos principais clientes de e-mail. O envio
+também inclui uma versão em texto simples para leitores e aplicativos que não
+renderizam HTML.
 
 ## Configuração no n8n
 

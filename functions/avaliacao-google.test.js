@@ -256,7 +256,7 @@ test("workflow aceita confirmacao recente no lote das 17h e confirma o SMTP", ()
     versao: 1,
     idempotencyKey: "avaliacao-google-v1:ag1",
     email: "pessoa@example.test",
-    nome: "Pessoa",
+    nome: "Pessoa <Teste>",
     confirmadoEm: new Date(Date.now() - 60 * 1000).toISOString(),
     dataAtendimento: DATA,
     avaliacaoUrl: CONFIG.googleUrl
@@ -265,7 +265,21 @@ test("workflow aceita confirmacao recente no lote das 17h e confirma o SMTP", ()
   assert.match(preparado.mensagem, /participação é voluntária/);
   assert.match(preparado.mensagem, /Você fez seu RG/);
   assert.match(preparado.mensagem, /convite único/);
-  assert.equal(preparado.assunto, "Como foi fazer seu RG na Câmara de Itanhandu?");
+  assert.equal(preparado.assunto, "Sua opinião sobre o atendimento de RG em Itanhandu");
+  assert.match(preparado.mensagemHtml, /Câmara Municipal de Itanhandu/);
+  assert.match(preparado.mensagemHtml, /Avaliar atendimento no Google/);
+  assert.match(preparado.mensagemHtml, /https:\/\/cin\.itanhandu\.cam\.mg\.gov\.br\/assets\/header-logo\.png/);
+  assert.match(preparado.mensagemHtml, /Pessoa &lt;Teste&gt;/);
+  assert.doesNotMatch(preparado.mensagemHtml, /Pessoa <Teste>/);
+  assert.match(preparado.mensagemHtml, /#0056b3/);
+  assert.match(preparado.mensagemHtml, /#f59e0b/);
+  assert.match(preparado.mensagemHtml, /^<!doctype html>/i);
+  assert.match(preparado.mensagemHtml, /role="presentation"/);
+  assert.doesNotMatch(preparado.mensagemHtml, /<script/i);
+  assert.ok(Buffer.byteLength(preparado.mensagemHtml, "utf8") < 30_000);
+  const links = [...preparado.mensagemHtml.matchAll(/href="([^"]+)"/g)].map((match) => match[1]);
+  assert.ok(links.length >= 4);
+  assert.ok(links.every((link) => link.startsWith("https://")));
   const recibo = executarNode("Conferir SMTP", { accepted: [body.email.toUpperCase()] }, preparado)[0].json;
   assert.equal(recibo.enviado, true);
   assert.throws(() => executarNode("Conferir SMTP", { accepted: [] }, preparado));
@@ -284,5 +298,10 @@ test("workflow fica autenticado e sem retry automatico de SMTP", () => {
   const webhook = workflow.nodes.find((node) => node.type === "n8n-nodes-base.webhook");
   assert.equal(webhook.parameters.authentication, "headerAuth");
   assert.equal(webhook.parameters.responseMode, "responseNode");
-  assert.equal(workflow.nodes.find((node) => node.type === "n8n-nodes-base.emailSend").retryOnFail, false);
+  const email = workflow.nodes.find((node) => node.type === "n8n-nodes-base.emailSend");
+  assert.equal(email.retryOnFail, false);
+  assert.equal(email.parameters.emailFormat, "both");
+  assert.equal(email.parameters.html, "={{ $json.mensagemHtml }}");
+  assert.equal(email.parameters.text, "={{ $json.mensagem }}");
+  assert.equal(email.parameters.options.appendAttribution, false);
 });
