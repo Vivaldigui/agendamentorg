@@ -294,9 +294,15 @@
         .msg-sucesso-topo { color: var(--success-dark); font-size: 1.6rem; font-weight: 900; display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 18px; }
         .docs-container { background: var(--warning-light); border: 1px solid #fde68a; border-left: 5px solid var(--warning); padding: 22px; border-radius: 12px; margin-top: 20px; color: #92400e; font-size: 0.95rem; line-height: 1.6; }
         .docs-container h3 { margin: 0 0 12px; color: #78350f; font-size: 1.1rem; }
-        .estado-civil { margin: 20px 0 0; padding: 14px 16px 16px; border: 1px solid var(--gray-200); border-radius: 12px; background: white; }
+        .estado-civil { margin: 4px 0 18px; padding: 14px 16px 16px; border: 1px solid var(--gray-200); border-radius: 12px; background: white; }
+        .estado-civil.erro { border-color: var(--danger); background: var(--danger-light); }
         .estado-civil legend { padding: 0 6px; font-weight: 800; font-size: 1rem; color: var(--gray-800); }
         .estado-civil-ajuda { margin: 0 0 10px; font-size: 0.85rem; line-height: 1.4; color: var(--gray-600); }
+        .certidao-destaque { display: flex; gap: 14px; align-items: flex-start; margin: 20px 0 0; padding: 16px 18px; background: #eff6ff; border: 2px solid var(--primary); border-radius: 12px; color: var(--gray-800); line-height: 1.45; }
+        .certidao-destaque[hidden] { display: none; }
+        .certidao-destaque > i { font-size: 1.6rem; color: var(--primary); margin-top: 2px; }
+        .certidao-destaque-rotulo { display: block; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--primary-dark); }
+        .certidao-destaque strong { display: block; margin: 2px 0; font-size: 1.12rem; color: var(--gray-800); }
         .estado-civil-opcoes { display: flex; flex-wrap: wrap; gap: 8px; }
         .estado-civil-opcoes label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 14px; border: 2px solid var(--gray-200); border-radius: 999px; font-weight: 700; color: var(--gray-800); cursor: pointer; touch-action: manipulation; }
         .estado-civil-opcoes input { width: 20px; height: 20px; margin: 0; flex-shrink: 0; accent-color: var(--primary); }
@@ -541,6 +547,18 @@
                 </div>
                 <div class="form-grupo so-preencher"><label for="inp-tel">Celular / WhatsApp: <span class="ajuda-campo">(para a Câmara entrar em contato, se precisar)</span> <span style="color:var(--danger)">*</span></label><input id="inp-tel" maxlength="15" inputmode="tel" autocomplete="tel" oninput="mascaraTel(this)" type="tel" placeholder="(00) 00000-0000" /><div class="msg-campo-erro" id="erro-tel">Informe um telefone válido.</div></div>
                 <div class="form-grupo so-preencher"><label for="inp-email">E-mail (Opcional)</label><input id="inp-email" type="email" maxlength="120" autocomplete="email" placeholder="seu.email@exemplo.com" /><div class="msg-campo-erro" id="erro-email">E-mail inválido.</div></div>
+                <fieldset class="estado-civil so-preencher" aria-describedby="estado-civil-ajuda erro-estado-civil">
+                    <legend>Qual é o seu estado civil? <span style="color:var(--danger)">*</span></legend>
+                    <p class="estado-civil-ajuda" id="estado-civil-ajuda">Serve para mostrar, depois de agendar, qual certidão você deve levar. Essa resposta não é enviada nem guardada.</p>
+                    <div class="estado-civil-opcoes">
+                        <label><input type="radio" name="estado-civil" value="solteiro" autocomplete="off" onchange="atualizarDicaCertidao(this.value); marcarErroEstadoCivil(false)"> Solteiro(a)</label>
+                        <label><input type="radio" name="estado-civil" value="uniao-estavel" autocomplete="off" onchange="atualizarDicaCertidao(this.value); marcarErroEstadoCivil(false)"> União estável</label>
+                        <label><input type="radio" name="estado-civil" value="casado" autocomplete="off" onchange="atualizarDicaCertidao(this.value); marcarErroEstadoCivil(false)"> Casado(a)</label>
+                        <label><input type="radio" name="estado-civil" value="viuvo" autocomplete="off" onchange="atualizarDicaCertidao(this.value); marcarErroEstadoCivil(false)"> Viúvo(a)</label>
+                        <label><input type="radio" name="estado-civil" value="divorciado" autocomplete="off" onchange="atualizarDicaCertidao(this.value); marcarErroEstadoCivil(false)"> Divorciado(a)</label>
+                    </div>
+                    <div class="msg-campo-erro" id="erro-estado-civil">Marque o seu estado civil.</div>
+                </fieldset>
                 <label class="form-grupo checkbox-termo so-preencher">
                     <input type="checkbox" id="aceite-lgpd" onchange="limparErroAceite('aceite-lgpd')">
                     <span style="font-size:0.85rem; color:var(--gray-600); line-height:1.4; font-weight:500; margin:0;">
@@ -589,21 +607,18 @@
                     <strong>Local do atendimento:</strong> Câmara Municipal de Itanhandu.<br>
                     Chegue com alguns minutos de antecedência e leve os documentos originais quando exigido.
                 </div>
-                <fieldset class="estado-civil" aria-describedby="estado-civil-ajuda">
-                    <legend>Qual é o seu estado civil?</legend>
-                    <p class="estado-civil-ajuda" id="estado-civil-ajuda">Opcional. Marque para ver qual certidão levar. Essa resposta não é enviada nem guardada.</p>
-                    <div class="estado-civil-opcoes">
-                        <label><input type="radio" name="estado-civil" value="solteiro" autocomplete="off" onchange="atualizarDicaCertidao(this.value)"> Solteiro(a)</label>
-                        <label><input type="radio" name="estado-civil" value="uniao-estavel" autocomplete="off" onchange="atualizarDicaCertidao(this.value)"> União estável</label>
-                        <label><input type="radio" name="estado-civil" value="casado" autocomplete="off" onchange="atualizarDicaCertidao(this.value)"> Casado(a)</label>
-                        <label><input type="radio" name="estado-civil" value="viuvo" autocomplete="off" onchange="atualizarDicaCertidao(this.value)"> Viúvo(a)</label>
-                        <label><input type="radio" name="estado-civil" value="divorciado" autocomplete="off" onchange="atualizarDicaCertidao(this.value)"> Divorciado(a)</label>
+                <div class="certidao-destaque" id="certidao-destaque" hidden>
+                    <i class="fa-solid fa-file-signature" aria-hidden="true"></i>
+                    <div>
+                        <span class="certidao-destaque-rotulo">Certidão que você deve levar</span>
+                        <strong id="certidao-destaque-nome"></strong>
+                        <span id="certidao-destaque-regra"></span>
                     </div>
-                </fieldset>
+                </div>
                 <div class="docs-container">
                     <h3><i class="fa-regular fa-folder-open"></i> Documentos Obrigatórios</h3>
                     <ul class="checklist-docs">
-                        <li id="dica-certidao" aria-live="polite" aria-atomic="true"><i class="fa-regular fa-square"></i><span><strong>Certidão original ou cópia autenticada</strong>, sem rasgos, rasuras ou alterações. Solteiros devem apresentar certidão de nascimento; casados, viúvos ou divorciados devem apresentar certidão de casamento, com averbação quando houver.</span></li>
+                        <li id="dica-certidao"><i class="fa-regular fa-square"></i><span><strong>Certidão original ou cópia autenticada</strong>, sem rasgos, rasuras ou alterações. Solteiros devem apresentar certidão de nascimento; casados, viúvos ou divorciados devem apresentar certidão de casamento, com averbação quando houver.</span></li>
                         <li><i class="fa-regular fa-square"></i><span><strong>Número do CPF.</strong> Basta informá-lo; não é necessário apresentar cartão ou comprovante de inscrição.</span></li>
                         <li><i class="fa-regular fa-square"></i><span>Comprovante de residência atualizado.</span></li>
                         <li><i class="fa-regular fa-square"></i><span>Menores de 16 anos devem estar acompanhados do responsável legal, que deve apresentar documento de identificação original com foto, como RG ou CNH. Quando o acompanhante não for o pai nem a mãe, é necessário também apresentar a documentação que comprove a representação ou a guarda.</span></li>
@@ -2037,8 +2052,10 @@
         setTimeout(() => URL.revokeObjectURL(link.href), 1500);
     }
 
-    // Dica da certidao por estado civil, so na tela de sucesso. A escolha vive
-    // apenas nesta pagina: nao entra no payload, nao e gravada e some ao recarregar.
+    // Dica da certidao por estado civil. Obrigatorio no preenchimento, e a tela
+    // de sucesso mostra a certidao em destaque. A escolha vive apenas nesta
+    // pagina: nao entra no payload, nao e gravada (nem na sessao) e some ao
+    // recarregar; quem recarregar marca de novo antes de continuar.
     // Texto fixo, montado por textContent; nenhum valor do usuario vai para o DOM.
     const DICAS_CERTIDAO = {
         "solteiro": ["Certidão de nascimento", " — original ou cópia autenticada, sem rasgos, rasuras ou alterações."],
@@ -2049,19 +2066,36 @@
     };
     let dicaCertidaoGenerica = null;
 
+    function estadoCivilMarcado() {
+        return !!document.querySelector('input[name="estado-civil"]:checked');
+    }
+
+    function marcarErroEstadoCivil(comErro) {
+        const grupo = document.querySelector("fieldset.estado-civil");
+        if (grupo) grupo.classList.toggle("erro", comErro);
+        const msg = document.getElementById("erro-estado-civil");
+        if (msg) msg.classList.toggle("visivel", comErro);
+    }
+
     function atualizarDicaCertidao(estadoCivil) {
         const item = document.getElementById("dica-certidao");
         const texto = item && item.querySelector("span");
         if (!texto) return;
         if (!dicaCertidaoGenerica) dicaCertidaoGenerica = Array.from(texto.childNodes, no => no.cloneNode(true));
         const dica = Object.prototype.hasOwnProperty.call(DICAS_CERTIDAO, estadoCivil) ? DICAS_CERTIDAO[estadoCivil] : null;
+        const destaque = document.getElementById("certidao-destaque");
+        if (destaque) {
+            destaque.hidden = !dica;
+            document.getElementById("certidao-destaque-nome").textContent = dica ? dica[0] : "";
+            document.getElementById("certidao-destaque-regra").textContent = dica ? dica[1].replace(/^ — /, "") : "";
+        }
         if (!dica) {
             texto.replaceChildren(...dicaCertidaoGenerica.map(no => no.cloneNode(true)));
             return;
         }
-        const destaque = document.createElement("strong");
-        destaque.textContent = dica[0];
-        texto.replaceChildren(destaque, document.createTextNode(dica[1]));
+        const nome = document.createElement("strong");
+        nome.textContent = dica[0];
+        texto.replaceChildren(nome, document.createTextNode(dica[1]));
     }
 
     function documentosTexto() {
@@ -2536,8 +2570,11 @@
         setErroCampo("inp-nasc", "erro-nasc", !nascISO); if (!nascISO) val = false;
         setErroCampo("inp-tel", "erro-tel", !telefoneAgendamentoValido(tel)); if (!telefoneAgendamentoValido(tel)) val = false;
         setErroCampo("inp-email", "erro-email", !emailAgendamentoValido(email)); if (!emailAgendamentoValido(email)) val = false;
+        const estadoCivilOk = estadoCivilMarcado();
+        marcarErroEstadoCivil(!estadoCivilOk); if (!estadoCivilOk) val = false;
         if (!val) {
-            const primeiro = document.querySelector("#dados-pessoais input.erro");
+            const primeiro = document.querySelector("#dados-pessoais input.erro")
+                || (!estadoCivilOk && document.querySelector('input[name="estado-civil"]'));
             if (primeiro) primeiro.focus({ preventScroll: true });
             aviso("Corrija os campos em destaque para continuar.");
             return;
