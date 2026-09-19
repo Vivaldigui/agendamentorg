@@ -22,7 +22,12 @@ function extrairFuncao(codigo, nome) {
 
 test("as quatro superficies da home espelham categorias definidas em servico.json", async () => {
   const html = await fs.readFile(path.resolve(RAIZ, "..", "public", "index.html"), "utf8");
-  const inicioChecklist = html.indexOf('<div class="docs-container compacto">');
+  // Desde que os documentos sairam da tela de preenchimento, a lista visivel da
+  // home e a da tela de sucesso (#sucesso-docs).
+  const inicioSucesso = html.indexOf('id="sucesso-docs"');
+  assert.notEqual(inicioSucesso, -1, "tela de sucesso nao encontrada");
+  const inicioChecklist = html.indexOf('<div class="docs-container">', inicioSucesso);
+  assert.notEqual(inicioChecklist, -1, "lista de documentos da tela de sucesso nao encontrada");
   const fimChecklist = html.indexOf("</ul>", inicioChecklist);
   const superficies = [
     html.slice(inicioChecklist, fimChecklist),
