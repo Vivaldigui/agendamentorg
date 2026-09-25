@@ -232,6 +232,7 @@
         .vagas-badge { font-size: 0.75rem; font-weight: 700; padding: 4px 8px; border-radius: 20px; margin-top: 4px; }
         .vagas-badge.ok { background: var(--success-light); color: var(--success-dark); }
         .vagas-badge.low { background: var(--warning-light); color: #b45309; }
+        .btn-hora .vagas-hora { font-size: 0.72rem; font-weight: 700; opacity: 0.85; }
         .selecionado { background: var(--primary) !important; color: white !important; border-color: var(--primary) !important; transform: translateY(-2px) !important; box-shadow: var(--shadow-hover) !important; }
         .form-grupo { margin-bottom: 20px; }
         .form-grupo label { display: block; margin-bottom: 8px; font-weight: 700; color: var(--gray-800); font-size: 0.9rem; }
@@ -1323,19 +1324,33 @@
         return true;
     }
 
-    function marcarSlotIndisponivelLocalmente(dataISO, hora) {
-        const agora = Date.now();
-        SLOTS_OCUPADOS_CONFIRMADOS.set(
-            chaveSlotPublico(dataISO, hora),
-            agora + DURACAO_SLOT_OCUPADO_CONFIRMADO_MS
-        );
-        salvarSlotsOcupadosConfirmados();
+    function somaVagasDia(dia) {
+        return dia.horarios.reduce((total, item) => total + (item.disponivel === true ? item.vagas : 0), 0);
+    }
 
+    // Um horario pode ter mais de uma vaga. Depois do proprio agendamento
+    // (`apenasUmaVaga`) so a vaga usada sai da tela: as outras continuam
+    // disponiveis, por exemplo para a mesma familia agendar mais alguem. Quando
+    // o servidor diz que o horario encheu, ou era a ultima vaga, o horario todo
+    // fica oculto localmente.
+    function marcarSlotIndisponivelLocalmente(dataISO, hora, { apenasUmaVaga = false } = {}) {
         const dia = DISPONIBILIDADE_PUBLICA.porData[dataISO];
+        const slot = dia && dia.horarios.find(item => item.hora === hora);
+        const restantes = slot && apenasUmaVaga ? Math.max(0, slot.vagas - 1) : 0;
+        if (restantes <= 0) {
+            SLOTS_OCUPADOS_CONFIRMADOS.set(
+                chaveSlotPublico(dataISO, hora),
+                Date.now() + DURACAO_SLOT_OCUPADO_CONFIRMADO_MS
+            );
+            salvarSlotsOcupadosConfirmados();
+        }
+
         if (dia) {
-            const slot = dia.horarios.find(item => item.hora === hora);
-            if (slot) slot.disponivel = false;
-            dia.vagas = dia.horarios.filter(item => item.disponivel === true).length;
+            if (slot) {
+                slot.vagas = restantes;
+                slot.disponivel = restantes > 0;
+            }
+            dia.vagas = somaVagasDia(dia);
             dia.lotado = dia.vagas <= 0;
             DISPONIBILIDADE_PUBLICA.totalVagasRestantes = Object.values(DISPONIBILIDADE_PUBLICA.porData)
                 .reduce((total, item) => total + item.vagas, 0);
@@ -1374,7 +1389,8 @@
                     const slotAtual = diaAtual && diaAtual.horarios.find(item => item.hora === hora);
                     if (slotAtual && horarioAgendamentoFuturo(dataISO, hora)) {
                         slotAtual.disponivel = true;
-                        diaAtual.vagas = diaAtual.horarios.filter(item => item.disponivel === true).length;
+                        slotAtual.vagas = Math.max(1, slotAtual.vagas);
+                        diaAtual.vagas = somaVagasDia(diaAtual);
                         diaAtual.lotado = diaAtual.vagas <= 0;
                         alterou = true;
                     }
@@ -1411,13 +1427,16 @@
             const horariosDia = Array.isArray(item.horarios)
                 ? item.horarios.filter(h => /^\d{2}:\d{2}$/.test(String(h.hora || "")))
                 : horariosPadraoParaDataPublica(dataISO).map(hora => ({ hora, disponivel: true }));
-            const horariosValidos = horariosDia.map(h => ({
-                hora: h.hora,
-                disponivel: h.disponivel === true
+            const horariosValidos = horariosDia.map(h => {
+                const disponivel = h.disponivel === true
                     && horarioAgendamentoFuturo(dataISO, h.hora)
-                    && !slotConfirmadoOcupadoLocalmente(dataISO, h.hora)
-            }));
-            const vagas = horariosValidos.filter(h => h.disponivel).length;
+                    && !slotConfirmadoOcupadoLocalmente(dataISO, h.hora);
+                // Vagas restantes do horario. Resposta antiga, sem o campo,
+                // vale uma vaga por horario livre.
+                const informadas = Number.isInteger(h.vagas) && h.vagas > 0 ? h.vagas : 1;
+                return { hora: h.hora, disponivel, vagas: disponivel ? informadas : 0 };
+            });
+            const vagas = horariosValidos.reduce((total, h) => total + h.vagas, 0);
             porData[dataISO] = {
                 dataISO,
                 vagas,
@@ -1474,7 +1493,7 @@
             dataISO,
             vagas: 0,
             lotado: true,
-            horarios: horariosPadraoParaDataPublica(dataISO).map(hora => ({ hora, disponivel: false }))
+            horarios: horariosPadraoParaDataPublica(dataISO).map(hora => ({ hora, disponivel: false, vagas: 0 }))
         };
     }
 
@@ -2715,6 +2734,9 @@
                 btn.type = "button";
                 btn.className = "btn-hora";
                 btn.innerHTML = `<i class="fa-regular fa-clock"></i> ${h}`;
+                if (itemHorario.disponivel === true && itemHorario.vagas > 1) {
+                    btn.innerHTML += ` <span class="vagas-hora">${itemHorario.vagas} vagas</span>`;
+                }
 
                 if (!disponibilidadePorHora[h] || !horarioAgendamentoFuturo(data, h)) {
                     btn.disabled = true;
@@ -2940,7 +2962,7 @@
                 // Sucesso!
                 const ag = resposta.data.agendamento || {};
                 const substituiu = resposta.data && resposta.data.substituiu;
-                marcarSlotIndisponivelLocalmente(dataOperacao, horaOperacao);
+                marcarSlotIndisponivelLocalmente(dataOperacao, horaOperacao, { apenasUmaVaga: true });
                 definirCamposOperacaoBloqueados(false);
                 operacaoAgendamentoPendente = null;
                 ultimoAgendamentoConfirmado = {

@@ -200,6 +200,17 @@ A configuração `configuracoes/agenda.automacaoSemanal` controla a abertura de 
 
 A grade é resolvida por data para preservar atendimentos existentes. Até `17/08/2026`, o padrão continua com os oito horários legados (`14:20` a `16:40`, em intervalos de 20 minutos). De `18/08/2026` a `20/09/2026`, o padrão teve dez horários: `14:30`, `14:45`, `15:00`, `15:15`, `15:30`, `15:45`, `16:00`, `16:15`, `16:30`, `16:45`. A partir de `21/09/2026`, são seis horários, a cada 25 minutos: `14:30`, `14:55`, `15:20`, `15:45`, `16:10`, `16:35`. Uma grade explicitamente configurada para o dia da semana sempre prevalece sobre esses cortes.
 
+Desde 25/09/2026 a recepção define a grade pelo painel, em **Configuração → Horários e vagas**, sem mudança de código:
+
+- horários do dia, gerados automaticamente (primeiro horário, intervalo, quantidade) ou um a um;
+- **vagas por horário** (1 a 10): cada horário pode receber mais de uma pessoa;
+- horários próprios para um dia da semana (ex.: sexta só de manhã), ou nenhum horário para fechar o dia;
+- **a partir de quando vale**: próxima semana (padrão), ainda esta semana (a partir de hoje) ou outra data.
+
+Cada grade salva fica em `configuracoes/agenda.gradesAtendimento` com a data de início; para uma data vale a grade de maior início que já começou. Datas anteriores à primeira grade seguem as regras acima (cortes fixos e `horariosPorDiaSemana`). Antes de salvar, o painel lista agendamentos que ficariam fora da nova grade — eles nunca são apagados automaticamente. Grades programadas podem ser excluídas até começarem. A regra canônica está em `functions/agenda-grade.js` e é espelhada no painel (há teste de equivalência).
+
+Cada vaga de um horário é um documento em `vagas_ocupadas`: a primeira mantém o id `AAAA-MM-DD_HH:MM`, as demais recebem `_2`, `_3`... A reserva lê todas as vagas do horário dentro da transação, então duas pessoas nunca levam a mesma vaga e o horário não passa da capacidade, mesmo quando a recepção reduz as vagas depois de haver reservas. O cancelamento continua liberando exatamente a vaga do agendamento (`slotId`).
+
 No painel da recepção, em **Configurações operacionais → Abertura automática toda segunda-feira**, é possível:
 
 - ativar ou suspender toda a automação;

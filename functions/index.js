@@ -17,6 +17,10 @@ const {
 const {
   HORARIOS_NOVOS,
   normalizarHorariosPorDiaSemana,
+  normalizarGradesAtendimento,
+  gradeDetalhadaParaData,
+  vagasDoHorario,
+  slotIdsDoHorario,
   horariosParaData,
   horarioPertenceAgenda
 } = require("./agenda-grade");
@@ -759,6 +763,8 @@ function processarAgenda(dadosBrutos, agora = agoraSaoPauloInput(), hoje = hojeS
     // Campo mantido por compatibilidade. A grade efetiva e sempre resolvida por data.
     horarios: [...HORARIOS_NOVOS],
     horariosPorDiaSemana: normalizarHorariosPorDiaSemana(agenda.horariosPorDiaSemana),
+    // Grades com vigencia por data, definidas pela recepcao (horarios e vagas).
+    gradesAtendimento: normalizarGradesAtendimento(agenda.gradesAtendimento),
     dataNovasVagas: avisoNovasVagasAtivo(agenda, agora),
     // Aviso em pop-up da recepcao. Vai normalizado, com a janela de exibicao
     // junto: quem decide mostrar e o site, com o relogio do servidor, para que
@@ -826,6 +832,34 @@ async function buscarPorCpfDireto(cpfNum, dataNasc) {
   return null;
 }
 
+// Le todas as vagas possiveis de um horario e diz quais estao de fato tomadas.
+// Le ate o limite, e nao so ate a capacidade atual: se a recepcao reduziu as
+// vagas do horario, uma reserva antiga pode estar numa posicao acima da nova
+// capacidade e ainda precisa contar. Vaga cujo agendamento foi cancelado conta
+// como livre e pode ser reaproveitada. `lerDocs` recebe as refs e devolve os
+// snapshots na mesma ordem (db.getAll fora da transacao, t.getAll dentro).
+async function lerVagasDoHorario(lerDocs, dataISO, hora) {
+  const refs = slotIdsDoHorario(dataISO, hora).map((id) => db.collection("vagas_ocupadas").doc(id));
+  const docs = await lerDocs(refs);
+  const idsAgendamento = [...new Set(docs
+    .filter((doc) => doc.exists && doc.data().agendamentoId)
+    .map((doc) => doc.data().agendamentoId))];
+  const agendamentos = idsAgendamento.length
+    ? await lerDocs(idsAgendamento.map((id) => db.collection("dados_cidadaos").doc(id)))
+    : [];
+  const agendamentoPorId = new Map(agendamentos.map((doc) => [doc.id, doc]));
+  return docs.map((doc, indice) => {
+    const dados = doc.exists ? doc.data() : null;
+    const agDoc = dados && dados.agendamentoId ? agendamentoPorId.get(dados.agendamentoId) : null;
+    const agExiste = Boolean(agDoc && agDoc.exists);
+    return {
+      ref: refs[indice],
+      ocupada: slotRepresentaOcupacaoAtual(doc.exists, dados, agExiste, agExiste ? agDoc.data() : null),
+      agendamentoDoc: agExiste ? agDoc : null
+    };
+  });
+}
+
 function vagaContaNoSite(vaga) {
   return vaga && vaga.contabilizaVaga !== false && vaga.origem !== "manual";
 }
@@ -838,25 +872,32 @@ async function carregarDisponibilidadePublica() {
   const hoje = hojeSaoPauloISO();
   const agenda = await carregarAgenda(agora, hoje);
   const vagasSnap = await db.collection("vagas_ocupadas").where("dataISO", ">=", hoje).get();
-  const ocupados = new Set();
+  // Quantas vagas de cada horario ja estao tomadas. Um horario pode ter mais de
+  // uma vaga (documentos AAAA-MM-DD_HH:MM, AAAA-MM-DD_HH:MM_2...), entao conta.
+  const ocupados = new Map();
 
   vagasSnap.docs.forEach((doc) => {
     const vaga = doc.data();
     if (vagaContaNoSite(vaga) && agenda.dias.includes(vaga.dataISO) && horariosParaData(agenda, vaga.dataISO).includes(vaga.hora)) {
-      ocupados.add(`${vaga.dataISO}_${vaga.hora}`);
+      const chave = `${vaga.dataISO}_${vaga.hora}`;
+      ocupados.set(chave, (ocupados.get(chave) || 0) + 1);
     }
   });
 
   const dias = agenda.dias.map((dataISO) => {
-    const horariosDia = horariosParaData(agenda, dataISO);
-    const horarios = horariosDia.map((hora) => {
+    const gradeDia = gradeDetalhadaParaData(agenda, dataISO);
+    const horarios = gradeDia.map(({ hora, vagas: capacidade }) => {
       const horarioFuturo = horarioAgendamentoFuturo(dataISO, hora, agora);
+      const restantes = horarioFuturo
+        ? Math.max(0, capacidade - (ocupados.get(`${dataISO}_${hora}`) || 0))
+        : 0;
       return {
         hora,
-        disponivel: horarioFuturo && !ocupados.has(`${dataISO}_${hora}`)
+        disponivel: restantes > 0,
+        vagas: restantes
       };
     });
-    const vagas = horarios.filter((item) => item.disponivel).length;
+    const vagas = horarios.reduce((total, item) => total + item.vagas, 0);
     return {
       dataISO,
       vagas,
@@ -930,27 +971,18 @@ exports.verificarDisponibilidadeSlotCidadao = onCall(verificacaoSlotOptions, asy
     10 * 60 * 1000,
     `fragmento_${fragmento}`
   );
-  await validarSlotDisponivel(dataISO, hora);
+  const agenda = await carregarAgenda();
+  checarDisponibilidade(agenda, dataISO, hora);
+  const capacidade = vagasDoHorario(agenda, dataISO, hora);
 
-  const slotRef = db.collection("vagas_ocupadas").doc(`${dataISO}_${hora}`);
-  const slotDoc = await slotRef.get();
-  let agendamentoDoc = null;
-  const agendamentoId = slotDoc.exists && slotDoc.data().agendamentoId;
-  if (agendamentoId) {
-    agendamentoDoc = await db.collection("dados_cidadaos").doc(agendamentoId).get();
-  }
-
-  const ocupado = slotRepresentaOcupacaoAtual(
-    slotDoc.exists,
-    slotDoc.exists ? slotDoc.data() : null,
-    Boolean(agendamentoDoc && agendamentoDoc.exists),
-    agendamentoDoc && agendamentoDoc.exists ? agendamentoDoc.data() : null
-  );
+  const posicoes = await lerVagasDoHorario((refs) => db.getAll(...refs), dataISO, hora);
+  const ocupadas = posicoes.filter((posicao) => posicao.ocupada).length;
 
   return {
     dataISO,
     hora,
-    disponivel: !ocupado,
+    disponivel: ocupadas < capacidade,
+    vagas: Math.max(0, capacidade - ocupadas),
     verificadoEm: new Date().toISOString()
   };
 });
@@ -1167,7 +1199,8 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
 
   const cpfFormatado = formatarCpf(cpfNum);
   const cpfHashId = cpfDocId(cpfNum);
-  const slotId = `${dataISO}_${hora}`;
+  // Definido dentro da transacao: e a primeira vaga livre do horario.
+  let slotId = "";
   await validarSlotDisponivel(dataISO, hora);
 
   const criado = new Date().toISOString();
@@ -1176,7 +1209,6 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
   // validarFatorExtra devolve cedo e CPF + nascimento continuam bastando para
   // consultar e cancelar o agendamento de qualquer pessoa.
   const protocolo = gerarProtocolo(agendamentoRef.id);
-  const slotRef = db.collection("vagas_ocupadas").doc(slotId);
   const cpfRef = db.collection("cpfs_agendados").doc(cpfHashId);
   const cpfLegadoRef = db.collection("cpfs_agendados").doc(cpfNum);
   const bloqueioRef = db.collection("bloqueios_agendamento").doc(cpfNum);
@@ -1189,8 +1221,7 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
       return resolverResultadoOperacaoAgendamento(operacaoDoc.data(), payloadHash);
     }
 
-    const [slotDoc, cpfDoc, cpfLegadoDoc, bloqueioDoc, agendaDoc] = await Promise.all([
-      t.get(slotRef),
+    const [cpfDoc, cpfLegadoDoc, bloqueioDoc, agendaDoc] = await Promise.all([
       t.get(cpfRef),
       t.get(cpfLegadoRef),
       t.get(bloqueioRef),
@@ -1202,21 +1233,18 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
       throw new HttpsError("failed-precondition", mensagemCpfBloqueado(bloqueioRevalidado));
     }
 
-    checarDisponibilidade(processarAgenda(agendaDoc.exists ? agendaDoc.data() : {}), dataISO, hora);
+    const agendaTransacao = processarAgenda(agendaDoc.exists ? agendaDoc.data() : {});
+    checarDisponibilidade(agendaTransacao, dataISO, hora);
+    const capacidade = vagasDoHorario(agendaTransacao, dataISO, hora);
 
-    let slotOcupado = slotDoc.exists;
-    let limparSlotObsoleto = false;
-    let agSlotDoc = null;
-    if (slotDoc.exists && slotDoc.data().agendamentoId) {
-      agSlotDoc = await t.get(db.collection("dados_cidadaos").doc(slotDoc.data().agendamentoId));
-      if (!agSlotDoc.exists || !agendamentoEstaAtivo(agSlotDoc.data())) {
-        slotOcupado = false;
-        limparSlotObsoleto = true;
-      }
-    }
-
-    if (slotOcupado) {
-      if (!operationIdInformado && agSlotDoc && agSlotDoc.exists && agendamentoCorrespondeAoPedido(agSlotDoc.data(), {
+    // Cada vaga do horario e um documento. Ler todas dentro da transacao faz
+    // duas pessoas disputando a mesma vaga livre colidirem: uma so a leva.
+    const posicoes = await lerVagasDoHorario((refs) => t.getAll(...refs), dataISO, hora);
+    const ocupadas = posicoes.filter((posicao) => posicao.ocupada);
+    const livre = posicoes.find((posicao) => !posicao.ocupada);
+    // Reenvio do cliente antigo (sem operationId) do mesmo pedido ja gravado.
+    const reenvio = !operationIdInformado && ocupadas.find((posicao) => posicao.agendamentoDoc
+      && agendamentoCorrespondeAoPedido(posicao.agendamentoDoc.data(), {
         nome,
         cpfNum,
         telefone,
@@ -1224,20 +1252,25 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
         dataNasc,
         dataISO,
         hora
-      })) {
-        return {
-          agendamento: {
-            id: agSlotDoc.id,
-            dataISO,
-            dataBR: dataBr(dataISO),
-            hora,
-            protocolo: agSlotDoc.data().protocolo || ""
-          },
-          substituiu: null
-        };
-      }
+      }));
+    if (reenvio) {
+      const agSlotDoc = reenvio.agendamentoDoc;
+      return {
+        agendamento: {
+          id: agSlotDoc.id,
+          dataISO,
+          dataBR: dataBr(dataISO),
+          hora,
+          protocolo: agSlotDoc.data().protocolo || ""
+        },
+        substituiu: null
+      };
+    }
+    if (ocupadas.length >= capacidade || !livre) {
       throw new HttpsError("already-exists", "Este horario foi preenchido por outra pessoa. Escolha outro horario.");
     }
+    const slotRef = livre.ref;
+    slotId = slotRef.id;
 
     const cpfRefs = [
       { ref: cpfRef, doc: cpfDoc },
@@ -1298,7 +1331,6 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
       };
     }
 
-    if (limparSlotObsoleto) t.delete(slotRef);
     cpfRefsObsoletos.forEach((ref) => t.delete(ref));
 
     const resultado = {
@@ -1312,6 +1344,7 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
       substituiu: agendamentoSubstituido
     };
 
+    // set sobrescreve a vaga de um agendamento ja cancelado, se for o caso.
     t.set(slotRef, { dataISO, hora, contabilizaVaga: true, origem: "publico", agendamentoId: agendamentoRef.id, criado });
     t.set(cpfRef, { agendamentoId: agendamentoRef.id, slotId, criado });
     t.set(agendamentoRef, {
@@ -1613,8 +1646,6 @@ exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
   }
 
   const agRef = db.collection("dados_cidadaos").doc(agendamentoId);
-  const novoSlotId = contabilizaVaga ? `${dataISO}_${hora}` : `manual_${agendamentoId}`;
-  const novoSlotRef = db.collection("vagas_ocupadas").doc(novoSlotId);
   const agora = new Date().toISOString();
   let retorno = null;
 
@@ -1627,11 +1658,27 @@ exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
     const dados = agDoc.data();
     const slotAntigoId = dados.slotId || `${dados.dataISO}_${dados.hora}`;
     const slotAntigoRef = slotAntigoId ? db.collection("vagas_ocupadas").doc(slotAntigoId) : null;
-    const novoSlotDoc = await t.get(novoSlotRef);
 
-    if (contabilizaVaga && novoSlotDoc.exists && novoSlotId !== slotAntigoId) {
-      throw new HttpsError("already-exists", "Este horario ja esta ocupado. Escolha outro horario.");
+    // Vaga contabilizada: a primeira livre do horario, respeitando quantas
+    // vagas a grade daquela data oferece. Se o agendamento ja ocupa uma vaga
+    // deste mesmo horario, ele a mantem.
+    let novoSlotId = `manual_${agendamentoId}`;
+    if (contabilizaVaga) {
+      const [agendaDoc, posicoes] = await Promise.all([
+        t.get(AGENDA_REF()),
+        lerVagasDoHorario((refs) => t.getAll(...refs), dataISO, hora)
+      ]);
+      const agendaTransacao = processarAgenda(agendaDoc.exists ? agendaDoc.data() : {});
+      const capacidade = Math.max(1, vagasDoHorario(agendaTransacao, dataISO, hora));
+      const propria = posicoes.find((posicao) => posicao.ref.id === slotAntigoId);
+      const ocupadasPorOutros = posicoes.filter((posicao) => posicao.ocupada && posicao.ref.id !== slotAntigoId);
+      const livre = posicoes.find((posicao) => !posicao.ocupada);
+      if (!propria && (ocupadasPorOutros.length >= capacidade || !livre)) {
+        throw new HttpsError("already-exists", "Este horario ja esta ocupado. Escolha outro horario.");
+      }
+      novoSlotId = propria ? propria.ref.id : livre.ref.id;
     }
+    const novoSlotRef = db.collection("vagas_ocupadas").doc(novoSlotId);
 
     if (slotAntigoRef && slotAntigoId !== novoSlotId) {
       t.delete(slotAntigoRef);

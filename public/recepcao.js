@@ -69,6 +69,8 @@ const STATUS_ORDEM = ["agendado", "compareceu", "vai_voltar", "nao_compareceu", 
 let agendaDias = [];
 let agendaHorarios = HORARIOS_PADRAO;
 let agendaHorariosPorDiaSemana = {};
+// Grades com vigencia por data (configuracoes/agenda.gradesAtendimento).
+let agendaGradesAtendimento = [];
 let agendaPublicacaoDatas = {};
 let agendaAutomacaoSemanal = { ativa: true, horaAbertura: "08:00", diasSemana: [2, 3, 4, 5], semanasPausadas: [], datasBloqueadas: [], periodosBloqueados: [] };
 let agendaDatasAutomaticas = [];
@@ -115,12 +117,12 @@ let logsRecentes = [];
 const ACOES_MUTACAO_AGENDA = new Set([
     "adicionarDataAgenda", "salvarLoteFlexivel", "salvarAvisoNovasVagas",
     "salvarAvisoPopup", "desativarAvisoPopup", "salvarAutomacaoSemanal",
-    "salvarHorariosSemana", "salvarPreferenciasOperacionais",
+    "salvarGradeAtendimento", "excluirGradeAtendimento", "salvarPreferenciasOperacionais",
     "adicionarSemanaPausada", "removerSemanaPausada",
     "adicionarDataBloqueada", "removerDataBloqueada",
     "adicionarPeriodoBloqueado", "removerPeriodoBloqueado",
-    "personalizarDiaSemana", "voltarDiaSemanaAoAutomatico",
-    "adicionarHorarioSemana", "removerHorarioSemana", "removerDataAgenda"
+    "personalizarDiaGrade", "voltarDiaGradePadrao", "gerarHorariosGrade",
+    "adicionarHorarioGrade", "removerHorarioGrade", "removerDataAgenda"
 ]);
 try {
     mostrarDatasPassadas = localStorage.getItem("cin_mostrar_datas_passadas") === "true";
@@ -794,134 +796,546 @@ function horariosPadraoParaDataPainel(dataISO) {
     return [...HORARIOS_SEIS];
 }
 
-function horariosDaData(dataISO) {
+// ---- Grade de atendimento (horarios e vagas com vigencia por data) ------
+// Espelho de functions/agenda-grade.js: normalizarItensGrade,
+// normalizarGradesAtendimento e gradeDetalhadaParaData. A recepcao salva uma
+// grade com data de inicio; ela vale dali em diante, ate a proxima grade.
+// Datas anteriores a primeira grade seguem a regra antiga (cortes fixos ou
+// horariosPorDiaSemana), entao nada ja publicado muda sem querer.
+const LIMITE_VAGAS_POR_HORARIO = 10;
+const LIMITE_HORARIOS_POR_DIA = 40;
+const LIMITE_GRADES_ATENDIMENTO = 60;
+const FORMATO_HORA_GRADE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const DIAS_SEMANA_CURTOS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+
+function normalizarVagasHorarioPainel(valor) {
+    const numero = Number(valor);
+    if (!Number.isInteger(numero) || numero < 1) return 1;
+    return Math.min(numero, LIMITE_VAGAS_POR_HORARIO);
+}
+
+function normalizarItensGradePainel(valor) {
+    const base = Array.isArray(valor) ? valor : [];
+    const porHora = new Map();
+    for (const item of base) {
+        const objeto = item && typeof item === "object" && !Array.isArray(item);
+        const hora = String(objeto ? item.hora : item || "");
+        if (!FORMATO_HORA_GRADE.test(hora)) continue;
+        const vagas = objeto ? normalizarVagasHorarioPainel(item.vagas) : 1;
+        porHora.set(hora, Math.max(porHora.get(hora) || 0, vagas));
+    }
+    return [...porHora.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .slice(0, LIMITE_HORARIOS_POR_DIA)
+        .map(([hora, vagas]) => ({ hora, vagas }));
+}
+
+function normalizarGradesPainel(valor) {
+    const base = Array.isArray(valor) ? valor : [];
+    const porInicio = new Map();
+    for (const item of base) {
+        if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+        const inicio = String(item.inicio || "");
+        if (!dataISOValidaAutomacao(inicio)) continue;
+        const porDiaSemana = {};
+        const origemDias = item.porDiaSemana && typeof item.porDiaSemana === "object" && !Array.isArray(item.porDiaSemana)
+            ? item.porDiaSemana
+            : {};
+        for (let dia = 0; dia <= 6; dia++) {
+            const chave = String(dia);
+            if (Object.prototype.hasOwnProperty.call(origemDias, chave) && Array.isArray(origemDias[chave])) {
+                porDiaSemana[chave] = normalizarItensGradePainel(origemDias[chave]);
+            }
+        }
+        porInicio.set(inicio, { inicio, horarios: normalizarItensGradePainel(item.horarios), porDiaSemana });
+    }
+    return [...porInicio.values()]
+        .sort((a, b) => a.inicio.localeCompare(b.inicio))
+        .slice(-LIMITE_GRADES_ATENDIMENTO);
+}
+
+function gradeVigentePainel(grades, dataISO) {
+    let vigente = null;
+    for (const grade of grades) {
+        if (grade.inicio <= dataISO) vigente = grade;
+    }
+    return vigente;
+}
+
+function itensDaGradeNoDia(grade, dataISO) {
     const chave = String(indiceDiaSemana(dataISO));
-    return Object.prototype.hasOwnProperty.call(agendaHorariosPorDiaSemana, chave)
+    return Object.prototype.hasOwnProperty.call(grade.porDiaSemana, chave)
+        ? grade.porDiaSemana[chave]
+        : grade.horarios;
+}
+
+// Horarios da data com as vagas de cada um. `grades` permite simular uma
+// grade antes de salvar.
+function gradeDetalhadaParaDataPainel(dataISO, grades = agendaGradesAtendimento) {
+    const vigente = gradeVigentePainel(grades, String(dataISO || ""));
+    if (vigente) return itensDaGradeNoDia(vigente, dataISO).map(item => ({ ...item }));
+    const chave = String(indiceDiaSemana(dataISO));
+    const horarios = Object.prototype.hasOwnProperty.call(agendaHorariosPorDiaSemana, chave)
         ? agendaHorariosPorDiaSemana[chave]
         : horariosPadraoParaDataPainel(dataISO);
+    return horarios.map(hora => ({ hora, vagas: 1 }));
 }
 
-// Devolve a lista personalizada do dia da semana, ou null quando o dia esta em
-// modo automatico. Nesse modo a grade e resolvida por data (ver horariosDaData
-// e o espelho canonico em functions/agenda-grade.js::horariosParaData), o que
-// mantem 8 horarios ate 17/08, 10 de 18/08 a 20/09 e 6 a partir de 21/09/2026.
-function horariosEditaveisDiaSemana(dia) {
-    const chave = String(dia);
-    return Object.prototype.hasOwnProperty.call(agendaHorariosPorDiaSemana, chave)
-        ? agendaHorariosPorDiaSemana[chave]
-        : null;
+function horariosDaData(dataISO) {
+    return gradeDetalhadaParaDataPainel(dataISO).map(item => item.hora);
 }
 
-function diaSemanaPersonalizado(dia) {
-    return horariosEditaveisDiaSemana(dia) !== null;
+function vagasDaData(dataISO) {
+    return gradeDetalhadaParaDataPainel(dataISO).reduce((total, item) => total + item.vagas, 0);
 }
 
-function linhaDiaAutomatico(nome, dia) {
-    return `
-            <div class="horario-dia automatico">
-                <strong>${textoSeguro(nome)}</strong>
-                <div class="horario-auto-info">
-                    <span class="horario-auto-etiqueta">Automático</span>
-                    até 17/08/2026: <strong>${HORARIOS_LEGADOS.length} horários</strong>
-                    &middot; 18/08 a 20/09/2026: <strong>${HORARIOS_NOVOS.length} horários</strong>
-                    &middot; a partir de 21/09/2026: <strong>${HORARIOS_SEIS.length} horários</strong>
-                </div>
-                <button type="button" class="btn btn-atualizar" data-acao="personalizarDiaSemana" data-dia="${dia}"><i class="fa-solid fa-pen"></i> Personalizar</button>
-            </div>
-        `;
+function vagasDoHorarioPainel(dataISO, hora) {
+    const item = gradeDetalhadaParaDataPainel(dataISO).find(h => h.hora === hora);
+    return item ? item.vagas : 0;
 }
 
-function linhaDiaPersonalizado(nome, dia, horarios) {
-    const chips = horarios.length
-        ? horarios.map(hora => `<span class="chip-horario">${textoSeguro(hora)}<button type="button" title="Remover horário" data-acao="removerHorarioSemana" data-dia="${dia}" data-hora="${textoSeguro(hora)}">x</button></span>`).join("")
-        : '<span class="detalhe-pessoal">Sem horários públicos neste dia.</span>';
-    return `
-            <div class="horario-dia">
-                <strong>${textoSeguro(nome)}</strong>
-                <div class="horario-chips">${chips}</div>
-                <input type="time" id="novo-horario-${dia}" aria-label="Novo horário de ${textoSeguro(nome)}">
-                <button type="button" class="btn btn-atualizar" data-acao="adicionarHorarioSemana" data-dia="${dia}"><i class="fa-solid fa-plus"></i> Adicionar</button>
-                <p class="horario-personalizado-aviso">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                    Personalizado: esta lista vale para <strong>todas</strong> as datas de ${textoSeguro(nome.toLowerCase())},
-                    inclusive as de antes das mudanças de grade.
-                    <button type="button" data-acao="voltarDiaSemanaAoAutomatico" data-dia="${dia}">Voltar ao automático</button>
-                </p>
-            </div>
-        `;
+// Mesmo esquema de ids do backend: a primeira vaga do horario mantem o id de
+// sempre, as demais ganham sufixo _2, _3...
+function slotIdsDoHorarioPainel(dataISO, hora) {
+    return Array.from({ length: LIMITE_VAGAS_POR_HORARIO }, (_, i) => (i === 0 ? `${dataISO}_${hora}` : `${dataISO}_${hora}_${i + 1}`));
 }
 
-function renderHorariosSemana() {
-    const box = document.getElementById("horarios-semana");
-    if (!box) return;
-    box.innerHTML = DIAS_SEMANA.map((nome, dia) => {
-        const horarios = horariosEditaveisDiaSemana(dia);
-        return horarios === null
-            ? linhaDiaAutomatico(nome, dia)
-            : linhaDiaPersonalizado(nome, dia, horarios);
-    }).join("");
+function totalVagasItens(itens) {
+    return itens.reduce((total, item) => total + item.vagas, 0);
 }
 
-async function personalizarDiaSemana(dia) {
-    if (!exigirAgendaGestaoCarregada()) return;
-    const nome = DIAS_SEMANA[dia] || "este dia";
-    const confirmou = await confirmarPainel(
-        `Personalizar ${nome} faz a lista escolhida valer para TODAS as datas desse dia da semana, inclusive as já publicadas e as de antes das mudanças de grade.\n\nEm datas já publicadas isso pode criar atendimentos sobrepostos. Deseja continuar?`,
-        { titulo: `Personalizar ${nome}`, perigo: true, textoConfirmar: "Personalizar" }
-    );
-    if (!confirmou) return;
-    agendaHorariosPorDiaSemana[String(dia)] = [...HORARIOS_PADRAO];
-    renderHorariosSemana();
+function resumoItensGrade(itens) {
+    if (!itens.length) return "sem atendimento";
+    const vagas = totalVagasItens(itens);
+    return `${itens.length} horário${itens.length === 1 ? "" : "s"} · ${vagas} vaga${vagas === 1 ? "" : "s"}`;
 }
 
-function voltarDiaSemanaAoAutomatico(dia) {
-    if (!exigirAgendaGestaoCarregada()) return;
-    delete agendaHorariosPorDiaSemana[String(dia)];
-    renderHorariosSemana();
+function proximaSegundaISO() {
+    return somarDiasISO(segundaDaSemanaPainel(hojeISO()), 7);
 }
 
-function adicionarHorarioSemana(dia) {
-    if (!exigirAgendaGestaoCarregada()) return;
-    const input = document.getElementById(`novo-horario-${dia}`);
-    const hora = input ? input.value : "";
-    if (!/^\d{2}:\d{2}$/.test(hora)) return avisoPainel("Informe um horário válido.");
-    const chave = String(dia);
-    agendaHorariosPorDiaSemana[chave] = ordenarHorariosEditaveis([...(horariosEditaveisDiaSemana(dia) || []), hora]);
-    renderHorariosSemana();
-}
+// Estado do formulario. Guarda so o que ainda nao foi salvo.
+let edicaoGrade = null;
 
-function removerHorarioSemana(dia, hora) {
-    if (!exigirAgendaGestaoCarregada()) return;
-    const chave = String(dia);
-    agendaHorariosPorDiaSemana[chave] = (horariosEditaveisDiaSemana(dia) || []).filter(item => item !== hora);
-    renderHorariosSemana();
-}
-
-async function salvarHorariosSemana() {
-    if (!exigirAgendaGestaoCarregada()) return;
-    const personalizados = DIAS_SEMANA.filter((nome, dia) => diaSemanaPersonalizado(dia));
-    const resumo = personalizados.length
-        ? `Dias personalizados: ${personalizados.join(", ")}.\n\nEsses dias deixam de seguir a regra por data e passam a valer para todas as datas do respectivo dia da semana, inclusive antes das mudanças de grade.`
-        : "Nenhum dia personalizado. Todos seguem a regra por data: 8 horários até 17/08/2026, 10 de 18/08 a 20/09/2026 e 6 a partir de 21/09/2026.";
-    if (!(await confirmarPainel(`${resumo}\n\nSalvar assim?`, { titulo: "Salvar horários", textoConfirmar: "Salvar" }))) return;
-    const conteudo = {
-        horariosPorDiaSemana: agendaHorariosPorDiaSemana,
-        atualizado: new Date().toISOString()
-    };
-    try {
-        await gravarAgendaConfig(conteudo);
-    } catch (e) {
-        mostrarToast("Erro ao salvar horários.", "erro");
-        return;
+function novaEdicaoGrade(base) {
+    const hoje = hojeISO();
+    const origem = base || gradeVigentePainel(agendaGradesAtendimento, proximaSegundaISO());
+    const padrao = origem
+        ? origem.horarios.map(item => ({ ...item }))
+        : gradeDetalhadaParaDataPainel(proximaSegundaISO()).map(item => ({ ...item }));
+    const porDiaSemana = {};
+    if (origem) {
+        Object.keys(origem.porDiaSemana).forEach(chave => {
+            porDiaSemana[chave] = origem.porDiaSemana[chave].map(item => ({ ...item }));
+        });
     }
+    let vigencia = "proxima";
+    let dataInicio = proximaSegundaISO();
+    if (base && base.inicio !== dataInicio) {
+        vigencia = base.inicio === hoje ? "atual" : "data";
+        dataInicio = base.inicio;
+    }
+    return { vigencia, dataInicio, padrao, porDiaSemana, diaSelecionado: "padrao" };
+}
+
+function inicioDaEdicaoGrade() {
+    if (!edicaoGrade) return "";
+    if (edicaoGrade.vigencia === "atual") return hojeISO();
+    if (edicaoGrade.vigencia === "proxima") return proximaSegundaISO();
+    return dataISOValidaAutomacao(edicaoGrade.dataInicio) ? edicaoGrade.dataInicio : "";
+}
+
+// Lista em edicao: a grade padrao ou a de um dia da semana personalizado.
+function itensEmEdicaoGrade() {
+    const dia = edicaoGrade.diaSelecionado;
+    if (dia === "padrao") return edicaoGrade.padrao;
+    return Object.prototype.hasOwnProperty.call(edicaoGrade.porDiaSemana, dia) ? edicaoGrade.porDiaSemana[dia] : null;
+}
+
+function definirItensEmEdicaoGrade(itens) {
+    const ordenados = normalizarItensGradePainel(itens);
+    if (edicaoGrade.diaSelecionado === "padrao") edicaoGrade.padrao = ordenados;
+    else edicaoGrade.porDiaSemana[edicaoGrade.diaSelecionado] = ordenados;
+}
+
+function gradeDaEdicao() {
+    return {
+        inicio: inicioDaEdicaoGrade(),
+        horarios: normalizarItensGradePainel(edicaoGrade.padrao),
+        porDiaSemana: Object.fromEntries(Object.entries(edicaoGrade.porDiaSemana)
+            .map(([chave, itens]) => [chave, normalizarItensGradePainel(itens)]))
+    };
+}
+
+function diasAtendimentoAutomacao() {
+    const cfg = normalizarAutomacaoPainel(agendaAutomacaoSemanal);
+    return cfg.diasSemana;
+}
+
+function htmlResumoGradeAtual() {
+    const hoje = hojeISO();
+    const segunda = proximaSegundaISO();
+    const vigenteHoje = gradeVigentePainel(agendaGradesAtendimento, hoje);
+    const linhas = [
+        `<li><strong>Hoje (${textoSeguro(DIAS_SEMANA_CURTOS[indiceDiaSemana(hoje)])} ${textoSeguro(dataBrISO(hoje))}):</strong> ${textoSeguro(resumoItensGrade(gradeDetalhadaParaDataPainel(hoje)))}${vigenteHoje ? "" : " <span class=\"grade-etiqueta\">regra anterior</span>"}</li>`,
+        `<li><strong>Semana de ${textoSeguro(dataBrISO(segunda))}:</strong> ${diasAtendimentoAutomacao().map(dia => {
+            const data = somarDiasISO(segunda, dia - 1);
+            return `${textoSeguro(DIAS_SEMANA_CURTOS[dia])} ${textoSeguro(resumoItensGrade(gradeDetalhadaParaDataPainel(data)))}`;
+        }).join(" &middot; ") || "nenhum dia de atendimento na automação"}</li>`
+    ];
+    return `<ul class="grade-resumo">${linhas.join("")}</ul>`;
+}
+
+function htmlGradesSalvas() {
+    const hoje = hojeISO();
+    if (!agendaGradesAtendimento.length) {
+        return '<p class="detalhe-pessoal">Nenhuma grade salva ainda. Até a primeira, vale a grade fixa: 6 horários com 1 vaga cada desde 21/09/2026.</p>';
+    }
+    const vigenteHoje = gradeVigentePainel(agendaGradesAtendimento, hoje);
+    return `<div class="grade-lista">${[...agendaGradesAtendimento].reverse().map(grade => {
+        const futura = grade.inicio > hoje;
+        const emVigor = vigenteHoje && vigenteHoje.inicio === grade.inicio;
+        if (!futura && !emVigor) return "";
+        const personalizados = Object.keys(grade.porDiaSemana).map(Number).sort()
+            .map(dia => `${DIAS_SEMANA_CURTOS[dia]}: ${resumoItensGrade(grade.porDiaSemana[String(dia)])}`);
+        return `
+            <div class="grade-item${emVigor ? " em-vigor" : ""}">
+                <div>
+                    <strong>${emVigor ? "Em vigor desde" : "Programada para"} ${textoSeguro(dataBrISO(grade.inicio))}</strong>
+                    <span>${textoSeguro(grade.horarios.map(item => item.vagas > 1 ? `${item.hora} (${item.vagas})` : item.hora).join(", ") || "sem horários")}</span>
+                    <small>${textoSeguro(resumoItensGrade(grade.horarios))} por dia${personalizados.length ? ` · ${textoSeguro(personalizados.join(" · "))}` : ""}</small>
+                </div>
+                <div class="grade-item-acoes">
+                    <button type="button" class="btn btn-atualizar" data-acao="editarGradeSalva" data-inicio="${textoSeguro(grade.inicio)}"><i class="fa-solid fa-pen"></i> Usar como base</button>
+                    ${futura ? `<button type="button" class="btn btn-atualizar" data-acao="excluirGradeAtendimento" data-inicio="${textoSeguro(grade.inicio)}"><i class="fa-solid fa-trash"></i> Excluir</button>` : ""}
+                </div>
+            </div>`;
+    }).join("")}</div>`;
+}
+
+function htmlAbasDiasGrade() {
+    const abas = [["padrao", "Todos os dias"], ...[1, 2, 3, 4, 5, 6].map(dia => [String(dia), DIAS_SEMANA[dia]])];
+    return `<div class="grade-abas" role="group" aria-label="Dia em edição">${abas.map(([valor, rotulo]) => {
+        const personalizado = valor !== "padrao" && Object.prototype.hasOwnProperty.call(edicaoGrade.porDiaSemana, valor);
+        const ativo = edicaoGrade.diaSelecionado === valor;
+        return `<button type="button" class="grade-aba${ativo ? " ativa" : ""}${personalizado ? " personalizada" : ""}" aria-pressed="${ativo}" data-acao="selecionarDiaGrade" data-dia="${valor}">${textoSeguro(rotulo)}${personalizado ? " *" : ""}</button>`;
+    }).join("")}</div>`;
+}
+
+function htmlItensEdicaoGrade(itens) {
+    const linhas = itens.length
+        ? itens.map((item, indice) => `
+            <div class="grade-linha">
+                <input type="time" value="${textoSeguro(item.hora)}" aria-label="Horário" data-change="editarHoraGrade" data-indice="${indice}">
+                <label class="grade-vagas">
+                    <input type="number" min="1" max="${LIMITE_VAGAS_POR_HORARIO}" value="${item.vagas}" aria-label="Vagas às ${textoSeguro(item.hora)}" data-change="editarVagasGrade" data-indice="${indice}">
+                    <span>vaga${item.vagas === 1 ? "" : "s"}</span>
+                </label>
+                <button type="button" class="grade-remover" title="Remover horário" aria-label="Remover ${textoSeguro(item.hora)}" data-acao="removerHorarioGrade" data-indice="${indice}"><i class="fa-solid fa-xmark"></i></button>
+            </div>`).join("")
+        : '<p class="detalhe-pessoal">Sem horários: não haverá atendimento neste dia.</p>';
+    return `<div class="grade-linhas">${linhas}</div>
+        <div class="grade-linha grade-linha-nova">
+            <input type="time" id="grade-novo-horario" aria-label="Novo horário">
+            <label class="grade-vagas">
+                <input type="number" id="grade-novo-vagas" min="1" max="${LIMITE_VAGAS_POR_HORARIO}" value="1" aria-label="Vagas do novo horário">
+                <span>vagas</span>
+            </label>
+            <button type="button" class="btn btn-atualizar" data-acao="adicionarHorarioGrade"><i class="fa-solid fa-plus"></i> Adicionar</button>
+        </div>`;
+}
+
+function htmlGeradorGrade() {
+    return `
+        <details class="grade-gerador">
+            <summary>Gerar horários automaticamente</summary>
+            <div class="grade-gerador-campos">
+                <div class="input-group"><label for="grade-gerar-inicio">Primeiro horário</label><input type="time" id="grade-gerar-inicio" value="14:30"></div>
+                <div class="input-group"><label for="grade-gerar-intervalo">Intervalo (min)</label><input type="number" id="grade-gerar-intervalo" min="5" max="240" value="25"></div>
+                <div class="input-group"><label for="grade-gerar-quantidade">Quantos horários</label><input type="number" id="grade-gerar-quantidade" min="1" max="${LIMITE_HORARIOS_POR_DIA}" value="6"></div>
+                <div class="input-group"><label for="grade-gerar-vagas">Vagas em cada</label><input type="number" id="grade-gerar-vagas" min="1" max="${LIMITE_VAGAS_POR_HORARIO}" value="1"></div>
+            </div>
+            <button type="button" class="btn btn-atualizar" data-acao="gerarHorariosGrade"><i class="fa-solid fa-wand-magic-sparkles"></i> Gerar e substituir a lista</button>
+        </details>`;
+}
+
+function htmlEdicaoDiaGrade() {
+    const dia = edicaoGrade.diaSelecionado;
+    const itens = itensEmEdicaoGrade();
+    if (dia !== "padrao" && itens === null) {
+        return `
+            <p class="grade-dia-padrao">${textoSeguro(DIAS_SEMANA[Number(dia)])} segue a lista de <strong>todos os dias</strong> (${textoSeguro(resumoItensGrade(normalizarItensGradePainel(edicaoGrade.padrao)))}).</p>
+            <button type="button" class="btn btn-atualizar" data-acao="personalizarDiaGrade"><i class="fa-solid fa-pen"></i> Horários diferentes neste dia</button>`;
+    }
+    const cabecalho = dia === "padrao"
+        ? '<p class="grade-dia-padrao">Vale para todos os dias de atendimento, menos os que tiverem horários próprios.</p>'
+        : `<p class="grade-dia-padrao">${textoSeguro(DIAS_SEMANA[Number(dia)])} tem horários próprios. <button type="button" class="grade-link" data-acao="voltarDiaGradePadrao">Usar a lista de todos os dias</button></p>`;
+    return `${cabecalho}${htmlGeradorGrade()}${htmlItensEdicaoGrade(itens)}`;
+}
+
+function htmlTotaisEdicaoGrade() {
+    const grade = gradeDaEdicao();
+    const dias = diasAtendimentoAutomacao();
+    const inicio = grade.inicio;
+    if (!inicio) return '<p class="grade-totais">Escolha a data de início.</p>';
+    const semana = segundaDaSemanaPainel(inicio);
+    const porDia = dias.map(dia => {
+        const itens = itensDaGradeNoDia(grade, somarDiasISO(semana, dia - 1));
+        return { dia, vagas: totalVagasItens(itens) };
+    });
+    const totalSemana = porDia.reduce((total, item) => total + item.vagas, 0);
+    return `<p class="grade-totais"><strong>${textoSeguro(resumoItensGrade(grade.horarios))}</strong> por dia
+        &middot; <strong>${totalSemana} vagas por semana</strong>
+        ${dias.length ? `(${porDia.map(item => `${DIAS_SEMANA_CURTOS[item.dia]} ${item.vagas}`).join(", ")}, conforme os dias de atendimento da automação)` : "(nenhum dia de atendimento marcado na automação)"}</p>`;
+}
+
+function renderGradeAtendimento() {
+    const box = document.getElementById("grade-atendimento");
+    if (!box) return;
+    if (!edicaoGrade) edicaoGrade = novaEdicaoGrade();
+    const hoje = hojeISO();
+    const segunda = proximaSegundaISO();
+    const opcaoVigencia = (valor, rotulo, detalhe) => `
+        <label class="grade-vigencia-opcao${edicaoGrade.vigencia === valor ? " ativa" : ""}">
+            <input type="radio" name="grade-vigencia" value="${valor}" data-change="alterarVigenciaGrade"${edicaoGrade.vigencia === valor ? " checked" : ""}>
+            <span><strong>${rotulo}</strong><small>${detalhe}</small></span>
+        </label>`;
+    box.innerHTML = `
+        <div class="grade-bloco">
+            <h4>O que vale agora</h4>
+            ${htmlResumoGradeAtual()}
+            ${htmlGradesSalvas()}
+        </div>
+        <div class="grade-bloco">
+            <h4>Nova grade</h4>
+            <div class="grade-vigencia" role="radiogroup" aria-label="A partir de quando vale">
+                ${opcaoVigencia("proxima", `Próxima semana`, `a partir de segunda, ${textoSeguro(dataBrISO(segunda))}`)}
+                ${opcaoVigencia("atual", `Ainda esta semana`, `a partir de hoje, ${textoSeguro(dataBrISO(hoje))}`)}
+                ${opcaoVigencia("data", `Outra data`, `escolha o dia de início`)}
+            </div>
+            ${edicaoGrade.vigencia === "data" ? `<div class="input-group grade-data-inicio"><label for="grade-data-inicio">Vale a partir de</label><input type="date" id="grade-data-inicio" min="${textoSeguro(hoje)}" value="${textoSeguro(edicaoGrade.dataInicio)}" data-change="alterarDataInicioGrade"></div>` : ""}
+            ${edicaoGrade.vigencia === "atual" ? '<p class="horarios-aviso-geral"><i class="fa-solid fa-triangle-exclamation"></i> Vale para datas <strong>já publicadas</strong>. Quem já agendou não perde a vaga: antes de salvar o painel lista os agendamentos que ficarem fora da nova grade.</p>' : ""}
+            ${htmlAbasDiasGrade()}
+            <div class="grade-dia">${htmlEdicaoDiaGrade()}</div>
+            ${htmlTotaisEdicaoGrade()}
+            <div class="grade-acoes">
+                <button type="button" class="btn btn-config" data-acao="salvarGradeAtendimento"><i class="fa-solid fa-floppy-disk"></i> Salvar grade</button>
+                <button type="button" class="btn btn-atualizar" data-acao="descartarEdicaoGrade"><i class="fa-solid fa-rotate-left"></i> Descartar alterações</button>
+            </div>
+            <small class="automacao-ajuda">Os dias da semana em que há atendimento continuam definidos em <strong>Automação semanal</strong>. Para a próxima semana, salve antes de segunda às 07:50.</small>
+        </div>`;
+}
+
+function alterarVigenciaGrade(el) {
+    if (!edicaoGrade || !el.checked) return;
+    edicaoGrade.vigencia = el.value;
+    if (el.value === "data" && !dataISOValidaAutomacao(edicaoGrade.dataInicio)) edicaoGrade.dataInicio = proximaSegundaISO();
+    renderGradeAtendimento();
+}
+
+function alterarDataInicioGrade(el) {
+    if (!edicaoGrade) return;
+    edicaoGrade.dataInicio = el.value;
+    renderGradeAtendimento();
+}
+
+function selecionarDiaGrade(dia) {
+    if (!edicaoGrade) return;
+    edicaoGrade.diaSelecionado = dia === "padrao" ? "padrao" : String(Number(dia));
+    renderGradeAtendimento();
+}
+
+function personalizarDiaGrade() {
+    if (!edicaoGrade || edicaoGrade.diaSelecionado === "padrao") return;
+    edicaoGrade.porDiaSemana[edicaoGrade.diaSelecionado] = edicaoGrade.padrao.map(item => ({ ...item }));
+    renderGradeAtendimento();
+}
+
+function voltarDiaGradePadrao() {
+    if (!edicaoGrade || edicaoGrade.diaSelecionado === "padrao") return;
+    delete edicaoGrade.porDiaSemana[edicaoGrade.diaSelecionado];
+    renderGradeAtendimento();
+}
+
+function editarHoraGrade(el) {
+    const itens = itensEmEdicaoGrade();
+    const indice = Number(el.dataset.indice);
+    if (!itens || !itens[indice]) return;
+    if (!FORMATO_HORA_GRADE.test(el.value)) {
+        avisoPainel("Informe um horário válido.");
+        return renderGradeAtendimento();
+    }
+    const copia = itens.map(item => ({ ...item }));
+    copia[indice].hora = el.value;
+    definirItensEmEdicaoGrade(copia);
+    renderGradeAtendimento();
+}
+
+function editarVagasGrade(el) {
+    const itens = itensEmEdicaoGrade();
+    const indice = Number(el.dataset.indice);
+    if (!itens || !itens[indice]) return;
+    itens[indice].vagas = normalizarVagasHorarioPainel(el.value);
+    renderGradeAtendimento();
+}
+
+function removerHorarioGrade(indice) {
+    const itens = itensEmEdicaoGrade();
+    if (!itens) return;
+    definirItensEmEdicaoGrade(itens.filter((_, i) => i !== indice));
+    renderGradeAtendimento();
+}
+
+function adicionarHorarioGrade() {
+    const itens = itensEmEdicaoGrade();
+    if (!itens) return;
+    const hora = document.getElementById("grade-novo-horario").value;
+    const vagas = normalizarVagasHorarioPainel(document.getElementById("grade-novo-vagas").value);
+    if (!FORMATO_HORA_GRADE.test(hora)) return avisoPainel("Informe o horário a adicionar.");
+    if (itens.some(item => item.hora === hora)) return avisoPainel(`${hora} já está na lista. Ajuste as vagas dele.`);
+    if (itens.length >= LIMITE_HORARIOS_POR_DIA) return avisoPainel(`No máximo ${LIMITE_HORARIOS_POR_DIA} horários por dia.`);
+    definirItensEmEdicaoGrade([...itens, { hora, vagas }]);
+    renderGradeAtendimento();
+}
+
+function gerarHorariosGrade() {
+    if (!itensEmEdicaoGrade()) return;
+    const inicio = document.getElementById("grade-gerar-inicio").value;
+    const intervalo = Number(document.getElementById("grade-gerar-intervalo").value);
+    const quantidade = Number(document.getElementById("grade-gerar-quantidade").value);
+    const vagas = normalizarVagasHorarioPainel(document.getElementById("grade-gerar-vagas").value);
+    if (!FORMATO_HORA_GRADE.test(inicio)) return avisoPainel("Informe o primeiro horário.");
+    if (!Number.isInteger(intervalo) || intervalo < 5 || intervalo > 240) return avisoPainel("O intervalo deve ficar entre 5 e 240 minutos.");
+    if (!Number.isInteger(quantidade) || quantidade < 1 || quantidade > LIMITE_HORARIOS_POR_DIA) return avisoPainel(`Informe de 1 a ${LIMITE_HORARIOS_POR_DIA} horários.`);
+    const [h, m] = inicio.split(":").map(Number);
+    const itens = [];
+    for (let i = 0; i < quantidade; i++) {
+        const minutos = h * 60 + m + i * intervalo;
+        if (minutos >= 24 * 60) break;
+        itens.push({ hora: `${String(Math.floor(minutos / 60)).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}`, vagas });
+    }
+    if (itens.length < quantidade) avisoPainel(`Só couberam ${itens.length} horários antes da meia-noite.`);
+    definirItensEmEdicaoGrade(itens);
+    renderGradeAtendimento();
+}
+
+function descartarEdicaoGrade() {
+    edicaoGrade = null;
+    renderGradeAtendimento();
+}
+
+function editarGradeSalva(inicio) {
+    const grade = agendaGradesAtendimento.find(item => item.inicio === inicio);
+    if (!grade) return;
+    // Uma grade ja em vigor vira base para a proxima semana; uma programada e
+    // reaberta na propria data.
+    edicaoGrade = novaEdicaoGrade(grade.inicio > hojeISO() ? grade : { ...grade, inicio: proximaSegundaISO() });
+    renderGradeAtendimento();
+    const alvo = document.getElementById("grade-atendimento");
+    if (alvo) alvo.querySelector(".grade-bloco:last-child").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// Agendamentos ativos que ficariam fora de `grades` a partir de `inicio`:
+// horario que deixa de existir ou horario com mais gente que vagas. Eles NAO
+// sao apagados; a recepcao decide o que fazer com cada um.
+async function agendamentosForaDaGrade(grades, inicio) {
+    const desde = inicio > hojeISO() ? inicio : hojeISO();
+    const snap = await db.collection("dados_cidadaos").where("dataISO", ">=", desde).get({ source: "server" });
+    const porHorario = new Map();
+    snap.docs.forEach(doc => {
+        const d = doc.data();
+        if (d.ativo === false || d.insercaoManual || ["cancelado", "cancelado_cidadao", "cancelado_camara"].includes(d.status)) return;
+        if (d.status === "remarcado" && d.remarcadoParaAgendamentoId) return;
+        const chave = `${d.dataISO}_${d.hora}`;
+        if (!porHorario.has(chave)) porHorario.set(chave, { dataISO: d.dataISO, hora: d.hora, nomes: [] });
+        porHorario.get(chave).nomes.push(String(d.nome || "Sem nome"));
+    });
+    const problemas = [];
+    porHorario.forEach(grupo => {
+        const item = gradeDetalhadaParaDataPainel(grupo.dataISO, grades).find(h => h.hora === grupo.hora);
+        if (!item) {
+            problemas.push(`${dataBrISO(grupo.dataISO)} ${grupo.hora}: ${grupo.nomes.join(", ")} (horário deixa de existir)`);
+        } else if (grupo.nomes.length > item.vagas) {
+            problemas.push(`${dataBrISO(grupo.dataISO)} ${grupo.hora}: ${grupo.nomes.length} agendados para ${item.vagas} vaga(s)`);
+        }
+    });
+    return problemas.sort();
+}
+
+async function salvarGradeAtendimento() {
+    if (!exigirAgendaGestaoCarregada() || !edicaoGrade) return;
+    const grade = gradeDaEdicao();
+    const hoje = hojeISO();
+    if (!grade.inicio) return avisoPainel("Escolha a data a partir da qual a grade vale.");
+    if (grade.inicio < hoje) return avisoPainel("A grade não pode começar numa data passada.");
+    if (!grade.horarios.length) return avisoPainel("Inclua ao menos um horário em Todos os dias. Para uma semana sem atendimento, use a Automação semanal.");
+
+    const resultantes = normalizarGradesPainel([...agendaGradesAtendimento.filter(item => item.inicio !== grade.inicio), grade]);
+    const posteriores = resultantes.filter(item => item.inicio > grade.inicio);
+    const btn = document.querySelector('[data-acao="salvarGradeAtendimento"]');
+    if (btn) btn.disabled = true;
     try {
-        await registrarLog("agenda_salvar_horarios_semana", { horariosPorDiaSemana: agendaHorariosPorDiaSemana, personalizados });
+        let problemas = [];
+        try {
+            problemas = await agendamentosForaDaGrade(resultantes, grade.inicio);
+        } catch (e) {
+            if (await encerrarSessaoPorAcessoRevogado(e)) return;
+            problemas = ["Não foi possível conferir os agendamentos já feitos. Revise a lista depois de salvar."];
+        }
+        const partes = [
+            `A partir de ${dataBrISO(grade.inicio)}: ${resumoItensGrade(grade.horarios)} por dia.`,
+            ...Object.keys(grade.porDiaSemana).map(Number).sort()
+                .map(dia => `${DIAS_SEMANA[dia]}: ${resumoItensGrade(grade.porDiaSemana[String(dia)])}.`)
+        ];
+        if (posteriores.length) {
+            partes.push(`\nContinua programada a grade de ${posteriores.map(item => dataBrISO(item.inicio)).join(", ")}, que passa a valer na data dela.`);
+        }
+        if (problemas.length) {
+            partes.push(`\nAtenção: ${problemas.length} horário(s) com agendamentos que ficam fora da nova grade. Ninguém perde a vaga automaticamente — confira e, se preciso, remarque:\n- ${problemas.slice(0, 12).join("\n- ")}${problemas.length > 12 ? `\n- e mais ${problemas.length - 12}` : ""}`);
+        }
+        const confirmou = await confirmarPainel(`${partes.join("\n")}\n\nSalvar esta grade?`, {
+            titulo: "Salvar grade de atendimento",
+            perigo: problemas.length > 0,
+            textoConfirmar: "Salvar grade"
+        });
+        if (!confirmou) return;
+        await gravarAgendaConfig({ gradesAtendimento: resultantes, atualizado: new Date().toISOString() });
+        agendaGradesAtendimento = resultantes;
+        edicaoGrade = null;
+        renderGradeAtendimento();
         atualizarResumo();
-        mostrarToast(personalizados.length
-            ? `Horários salvos. ${personalizados.length} dia(s) personalizado(s).`
-            : "Horários salvos. Todos os dias seguem a regra por data.");
+        atualizarEstadoConfigHub();
+        mostrarToast(`Grade salva. Vale a partir de ${dataBrISO(grade.inicio)}.`);
+        registrarLog("agenda_salvar_grade_atendimento", { grade, conflitos: problemas.length });
     } catch (e) {
-        mostrarToast("Horários salvos, mas houve erro ao registrar o log.", "aviso");
+        if (await encerrarSessaoPorAcessoRevogado(e)) return;
+        mostrarToast("Erro ao salvar a grade.", "erro");
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function excluirGradeAtendimento(inicio) {
+    if (!exigirAgendaGestaoCarregada()) return;
+    if (!(inicio > hojeISO())) return avisoPainel("Só é possível excluir uma grade que ainda não começou. Para mudar a grade em vigor, salve uma nova.");
+    const confirmou = await confirmarPainel(`Excluir a grade programada para ${dataBrISO(inicio)}? As datas a partir dela voltam a seguir a grade anterior.`, {
+        titulo: "Excluir grade programada",
+        perigo: true,
+        textoConfirmar: "Excluir"
+    });
+    if (!confirmou) return;
+    const resultantes = agendaGradesAtendimento.filter(item => item.inicio !== inicio);
+    try {
+        await gravarAgendaConfig({ gradesAtendimento: resultantes, atualizado: new Date().toISOString() });
+        agendaGradesAtendimento = resultantes;
+        renderGradeAtendimento();
+        atualizarResumo();
+        atualizarEstadoConfigHub();
+        mostrarToast("Grade programada excluída.");
+        registrarLog("agenda_excluir_grade_atendimento", { inicio });
+    } catch (e) {
+        if (await encerrarSessaoPorAcessoRevogado(e)) return;
+        mostrarToast("Erro ao excluir a grade.", "erro");
     }
 }
 
@@ -1712,6 +2126,7 @@ async function carregarAgendaGestao() {
         agendaDias = ordenarDatas(Array.isArray(cfg.dias) ? cfg.dias : []);
         agendaHorarios = ordenarHorarios(cfg.horarios);
         agendaHorariosPorDiaSemana = normalizarHorariosSemana(cfg.horariosPorDiaSemana);
+        agendaGradesAtendimento = normalizarGradesPainel(cfg.gradesAtendimento);
         agendaPublicacaoDatas = normalizarPublicacaoDatas(cfg.publicacaoDatas);
         agendaAutomacaoSemanal = normalizarAutomacaoPainel(cfg.automacaoSemanal);
         agendaDatasAutomaticas = ordenarDatas(Array.isArray(cfg.datasGeradasAutomaticamente) ? cfg.datasGeradasAutomaticamente : []);
@@ -1741,7 +2156,8 @@ async function carregarAgendaGestao() {
         alternarProgramacaoAviso();
         renderAgendaDatas();
         renderAutomacaoSemanal();
-        renderHorariosSemana();
+        edicaoGrade = null;
+        renderGradeAtendimento();
         agendaGestaoCarregada = true;
         definirMutacoesAgendaHabilitadas(true);
         atualizarResumo();
@@ -2387,14 +2803,13 @@ function atualizarResumo() {
         : (totalAtendimentosIndisponivel ? "Indisponível" : "...");
     // diasAtivos ja filtra apenas datas >= hojeISO(), entao o KPI de vagas restantes ignora datas encerradas.
     const diasAtivos = agendaDias.filter(d => d >= hoje);
-    const vagasOcupadasAgenda = ativos.filter(ag => !ag.dados.insercaoManual && diasAtivos.includes(ag.dados.dataISO) && horariosDaData(ag.dados.dataISO).includes(ag.dados.hora)).length;
-    const vagasConfiguradas = diasAtivos.reduce((total, data) => total + horariosDaData(data).length, 0);
-    const vagasRestantes = Math.max(0, vagasConfiguradas - vagasOcupadasAgenda);
-    const lotadas = diasAtivos.filter(data => {
-        const horariosDia = horariosDaData(data);
-        const ocupadas = ativos.filter(ag => !ag.dados.insercaoManual && ag.dados.dataISO === data && horariosDia.includes(ag.dados.hora)).length;
-        return horariosDia.length && ocupadas >= horariosDia.length;
-    }).length;
+    // Um horario pode ter mais de uma vaga: soma as vagas da grade de cada data.
+    const vagasLivresDoDia = data => gradeDetalhadaParaDataPainel(data).reduce((total, item) => {
+        const ocupadas = ativos.filter(ag => !ag.dados.insercaoManual && ag.dados.dataISO === data && ag.dados.hora === item.hora).length;
+        return total + Math.max(0, item.vagas - ocupadas);
+    }, 0);
+    const vagasRestantes = diasAtivos.reduce((total, data) => total + vagasLivresDoDia(data), 0);
+    const lotadas = diasAtivos.filter(data => vagasDaData(data) > 0 && vagasLivresDoDia(data) === 0).length;
     document.getElementById("kpi-hoje").textContent = totalHoje;
     document.getElementById("kpi-amanha").textContent = totalAmanha;
     document.getElementById("kpi-vagas").textContent = vagasRestantes;
@@ -2571,8 +2986,11 @@ function atualizarEstadoConfigHub() {
     const popAtivo = !!(document.getElementById("popup-ativo") || {}).checked;
     marcarEstado("est-popup", popAtivo ? "Publicado" : "Sem aviso no ar", popAtivo ? "e-on" : "");
 
-    const totalHorarios = Array.isArray(agendaHorarios) ? agendaHorarios.length : 0;
-    marcarEstado("est-horarios", totalHorarios ? `${totalHorarios} horários padrão` : "Grade automática", "");
+    const hojeGrade = hojeISO();
+    const programada = agendaGradesAtendimento.find(grade => grade.inicio > hojeGrade);
+    marcarEstado("est-horarios", programada
+        ? `Nova grade a partir de ${dataBrISO(programada.inicio)}`
+        : `Hoje: ${resumoItensGrade(gradeDetalhadaParaDataPainel(hojeGrade))}`, programada ? "e-on" : "");
 
     const responsavel = String((document.getElementById("cfg-responsavel-posto") || {}).value || "").trim();
     marcarEstado("est-preferencias", responsavel || "Sem responsável definido", responsavel ? "" : "e-off");
@@ -2993,11 +3411,21 @@ async function salvarRemarcacao() {
     btn.innerText = "Remarcando...";
     try {
         const slotAntigo = ag.dados.slotId || `${ag.dados.dataISO}_${ag.dados.hora}`;
-        const novoSlot = `${data}_${hora}`;
+        let novoSlot = `${data}_${hora}`;
         if (contabilizaVaga) {
-            const slotDoc = await db.collection("vagas_ocupadas").doc(novoSlot).get();
-            if (slotDoc.exists && novoSlot !== slotAntigo) {
-                throw new Error("Este horário já está ocupado. Escolha outro horário.");
+            // O horario pode ter mais de uma vaga: usa a primeira livre, ou
+            // mantem a vaga que o agendamento ja ocupa neste mesmo horario.
+            const ids = slotIdsDoHorarioPainel(data, hora);
+            if (ids.includes(slotAntigo)) {
+                novoSlot = slotAntigo;
+            } else {
+                const docs = await Promise.all(ids.map(id => db.collection("vagas_ocupadas").doc(id).get()));
+                const capacidade = Math.max(1, vagasDoHorarioPainel(data, hora));
+                const livre = docs.find(doc => !doc.exists);
+                if (docs.filter(doc => doc.exists).length >= capacidade || !livre) {
+                    throw new Error("Este horário já está ocupado. Escolha outro horário.");
+                }
+                novoSlot = livre.id;
             }
         }
         if (slotAntigo && slotAntigo !== novoSlot) {
@@ -3695,15 +4123,19 @@ const ACOES_CLIQUE = {
     carregarAgendaGestao, adicionarDataAgenda, abrirModalLoteFlex,
     fecharModalLoteFlex, gerarPreviaLote, salvarLoteFlexivel,
     salvarAvisoNovasVagas, salvarAvisoPopup, desativarAvisoPopup,
-    salvarAutomacaoSemanal, salvarHorariosSemana, salvarPreferenciasOperacionais,
+    salvarAutomacaoSemanal, salvarPreferenciasOperacionais,
     adicionarSemanaPausada, adicionarDataBloqueada, adicionarPeriodoBloqueado,
     removerSemanaPausada: el => removerSemanaPausada(Number(el.dataset.indice)),
     removerDataBloqueada: el => removerDataBloqueada(Number(el.dataset.indice)),
     removerPeriodoBloqueado: el => removerPeriodoBloqueado(Number(el.dataset.indice)),
-    personalizarDiaSemana: el => personalizarDiaSemana(Number(el.dataset.dia)),
-    adicionarHorarioSemana: el => adicionarHorarioSemana(Number(el.dataset.dia)),
-    voltarDiaSemanaAoAutomatico: el => voltarDiaSemanaAoAutomatico(Number(el.dataset.dia)),
-    removerHorarioSemana: el => removerHorarioSemana(Number(el.dataset.dia), el.dataset.hora),
+
+    // Grade de atendimento
+    salvarGradeAtendimento, descartarEdicaoGrade, personalizarDiaGrade,
+    voltarDiaGradePadrao, gerarHorariosGrade, adicionarHorarioGrade,
+    selecionarDiaGrade: el => selecionarDiaGrade(el.dataset.dia),
+    removerHorarioGrade: el => removerHorarioGrade(Number(el.dataset.indice)),
+    editarGradeSalva: el => editarGradeSalva(el.dataset.inicio),
+    excluirGradeAtendimento: el => excluirGradeAtendimento(el.dataset.inicio),
 
     // Relatorios
     carregarLogsAdmin
@@ -3715,6 +4147,10 @@ const ACOES_CLIQUE = {
 const ACOES_CAMPO = {
     renderFilaHoje, renderTabelaAgendamentos, atualizarPreviaAvisoPopup,
     alternarProgramacaoData, alternarProgramacaoAviso, alternarProgLoteFlex,
+    alterarVigenciaGrade: el => alterarVigenciaGrade(el),
+    alterarDataInicioGrade: el => alterarDataInicioGrade(el),
+    editarHoraGrade: el => editarHoraGrade(el),
+    editarVagasGrade: el => editarVagasGrade(el),
     mascaraCPF: el => mascaraCPF(el),
     mascaraTel: el => mascaraTel(el),
     mascaraData: el => mascaraData(el),
