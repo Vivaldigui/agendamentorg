@@ -44,8 +44,8 @@ Passando para lembrar que seu atendimento para emissão do RG/CIN está agendado
 
 Não se esqueça de levar os documentos necessários:
 
-1. A certidão deve ser ORIGINAL, sem rasgos, rasuras ou alterações.
-2. Certidão de nascimento original (se solteiro), certidão de casamento original (se casado). Se viúvo ou divorciado, a certidão de casamento deve estar averbada.
+1. A certidão deve ser ORIGINAL ou CÓPIA AUTENTICADA, sem rasgos, rasuras ou alterações.
+2. Certidão de nascimento (se solteiro), certidão de casamento (se casado). Se viúvo ou divorciado, a certidão de casamento deve estar averbada.
 3. Número do CPF. Basta informá-lo; não é necessário apresentar cartão ou comprovante de inscrição.
 4. Comprovante de residência.
 5. Se for menor de 3 anos, além dos documentos acima, levar 1 foto 3x4 recente.
@@ -1595,8 +1595,8 @@ function documentosComprovanteHTML(nascBR) {
     }
     return `
         <ul>
-            <li><strong>A certidão deve ser ORIGINAL, sem rasgos, rasuras ou alterações.</strong></li>
-            <li>Certidão de nascimento original, se solteiro, ou certidão de casamento original, se casado.</li>
+            <li><strong>A certidão deve ser ORIGINAL ou CÓPIA AUTENTICADA, sem rasgos, rasuras ou alterações.</strong></li>
+            <li>Certidão de nascimento, se solteiro, ou certidão de casamento, se casado.</li>
             <li>Se viúvo ou divorciado, a certidão de casamento deve estar averbada.</li>
             <li>Número do CPF: basta informá-lo; não é necessário apresentar cartão ou comprovante de inscrição.</li>
             <li>Comprovante de residência.</li>
