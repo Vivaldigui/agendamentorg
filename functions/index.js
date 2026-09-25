@@ -454,10 +454,20 @@ function respostaPublica(dados) {
   };
 }
 
+// "remarcado" tem dois sentidos no banco:
+//   - substituicao pelo cidadao: o agendamento ANTIGO e encerrado (ativo:false,
+//     remarcadoParaAgendamentoId aponta para o novo). Esse esta inativo.
+//   - remarcacao pelo painel: o MESMO agendamento muda de data/hora e continua
+//     valendo. Trata-lo como inativo deixava a vaga nova parecer livre (outra
+//     pessoa podia reserva-la), liberava o CPF para um segundo agendamento e
+//     impedia o cidadao de consultar ou cancelar e a recepcao de cancelar.
 function agendamentoEstaAtivo(dados) {
   if (dados && dados.ativo === false) return false;
   const status = String(dados && dados.status || "agendado");
-  return !["cancelado", "cancelado_cidadao", "cancelado_camara", "remarcado"].includes(status);
+  if (status === "remarcado") {
+    return !dados.remarcadoParaAgendamentoId && dados.canceladoPor !== "cidadao_substituicao";
+  }
+  return !["cancelado", "cancelado_cidadao", "cancelado_camara"].includes(status);
 }
 
 function slotRepresentaOcupacaoAtual(slotExiste, dadosSlot, agendamentoExiste, dadosAgendamento) {

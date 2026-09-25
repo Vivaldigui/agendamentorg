@@ -355,3 +355,40 @@ test("verificacao e remarcacao usam a mesma leitura de vagas do horario", () => 
   assert.match(remarcar, /lerVagasDoHorario\(\(refs\) => t\.getAll\(\.\.\.refs\)/);
   assert.match(remarcar, /vagasDoHorario\(agendaTransacao, dataISO, hora\)/);
 });
+
+// ---- "remarcado" pelo painel continua ocupando a vaga ----------------------
+
+test("agendamento remarcado pelo painel continua ativo; substituido nao", () => {
+  const ativo = new Function(`${extrairFuncao(backend, "agendamentoEstaAtivo")}; return agendamentoEstaAtivo;`)();
+  assert.equal(ativo({ status: "remarcado" }), true);
+  assert.equal(ativo({ status: "remarcado", ativo: true }), true);
+  assert.equal(ativo({ status: "remarcado", ativo: false, remarcadoParaAgendamentoId: "novo" }), false);
+  assert.equal(ativo({ status: "remarcado", remarcadoParaAgendamentoId: "novo" }), false);
+  assert.equal(ativo({ status: "remarcado", canceladoPor: "cidadao_substituicao" }), false);
+  for (const status of ["cancelado", "cancelado_cidadao", "cancelado_camara"]) assert.equal(ativo({ status }), false);
+  for (const status of ["agendado", "compareceu", "vai_voltar", "nao_compareceu"]) assert.equal(ativo({ status }), true);
+});
+
+test("vaga de quem foi remarcado pelo painel nao e vendida de novo", async () => {
+  // A recepcao remarcou A para 29/09 14:00 pelo painel: a vaga aponta para A
+  // e o status de A e "remarcado". Antes, a reserva via isso como vaga livre.
+  const docs = {
+    "configuracoes/agenda": agendaCom(1),
+    "dados_cidadaos/A": { nome: "A", cpf: "99999999999", dataISO: "2026-09-29", hora: "14:00", slotId: "2026-09-29_14:00", status: "remarcado", ativo: true },
+    "vagas_ocupadas/2026-09-29_14:00": { dataISO: "2026-09-29", hora: "14:00", agendamentoId: "A", origem: "gestaov6_remarcacao" }
+  };
+  const criar = montarCriar(docs);
+  await assert.rejects(() => criar("11111111111"), (e) => e.code === "already-exists");
+  assert.equal(docs["vagas_ocupadas/2026-09-29_14:00"].agendamentoId, "A");
+});
+
+test("CPF remarcado pelo painel nao consegue um segundo agendamento", async () => {
+  const docs = {
+    "configuracoes/agenda": agendaCom(2),
+    "dados_cidadaos/A": { nome: "A", cpf: "11111111111", dataISO: "2026-09-29", hora: "14:00", slotId: "2026-09-29_14:00", status: "remarcado" },
+    "vagas_ocupadas/2026-09-29_14:00": { dataISO: "2026-09-29", hora: "14:00", agendamentoId: "A" },
+    "cpfs_agendados/cpf_11111111111": { agendamentoId: "A" }
+  };
+  const criar = montarCriar(docs);
+  await assert.rejects(() => criar("11111111111"), (e) => e.code === "already-exists" && /CPF/.test(e.message));
+});

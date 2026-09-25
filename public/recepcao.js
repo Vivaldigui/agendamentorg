@@ -3447,6 +3447,8 @@ async function salvarRemarcacao() {
             slotId: contabilizaVaga ? novoSlot : null,
             insercaoManual: !contabilizaVaga,
             status: "remarcado",
+            // Remarcar reativa: o agendamento continua valendo na nova data.
+            ativo: true,
             remarcadoEm: new Date().toISOString(),
             remarcadoPor: auth.currentUser ? auth.currentUser.email : "",
             statusAtualizadoEm: new Date().toISOString(),
