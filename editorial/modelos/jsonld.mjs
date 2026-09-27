@@ -104,10 +104,13 @@ export function jsonLdDocumento(documento, config, servico, faq = []) {
   const itens = [{ nome: "Início", caminho: "/" }];
   if (documento.dados.tipo === "guia") itens.push({ nome: "Guia da CIN", caminho: "/cin/" });
   if (documento.dados.tipo === "aviso") itens.push({ nome: "Avisos", caminho: "/avisos/" });
+  if (documento.dados.tipo === "artigo") itens.push({ nome: "Blog", caminho: "/blog/" });
   if (!documento.pilar) itens.push({ nome: documento.dados.titulo, caminho });
 
   const tipo = documento.dados.tipo === "aviso"
     ? "NewsArticle"
+    : documento.dados.tipo === "artigo"
+      ? "BlogPosting"
     : documento.dados.tipo === "institucional"
       ? (documento.dados.slug === "sobre" ? "AboutPage" : "WebPage")
       : "Article";
@@ -119,13 +122,15 @@ export function jsonLdDocumento(documento, config, servico, faq = []) {
     description: documento.dados.descricao,
     inLanguage: "pt-BR"
   };
-  if (["Article", "NewsArticle"].includes(tipo)) {
+  if (["Article", "NewsArticle", "BlogPosting"].includes(tipo)) {
     pagina.headline = documento.dados.titulo;
     pagina.datePublished = dataISO(documento.dados.publicado);
     pagina.dateModified = dataISO(documento.dados.atualizado);
     pagina.author = { "@id": `${base}/#camara` };
     pagina.publisher = { "@id": `${base}/#camara` };
-    pagina.about = { "@id": `${base}/#servico` };
+    // O artigo do blog trata da regra nacional, não do serviço do posto.
+    if (tipo === "BlogPosting") pagina.isPartOf = { "@id": `${base}/blog/#blog` };
+    else pagina.about = { "@id": `${base}/#servico` };
     pagina.citation = documento.dados.fontes.map((fonte) => fonte.url);
   }
   if (documento.dados.imagem) pagina.image = urlAbsoluta(base, documento.dados.imagem);
@@ -157,4 +162,26 @@ export function jsonLdIndiceAvisos(config, servico) {
     }
   };
   return jsonLdDocumento(documento, config, servico, []);
+}
+
+export function jsonLdIndiceBlog(artigos, config, servico) {
+  const base = config.urlBase.replace(/\/$/, "");
+  const url = urlAbsoluta(base, "/blog/");
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      ...organizacoes(config, servico),
+      breadcrumb(config, [{ nome: "Início", caminho: "/" }, { nome: "Blog", caminho: "/blog/" }]),
+      {
+        "@type": "Blog",
+        "@id": `${url}#blog`,
+        url,
+        name: "Blog do RG",
+        description: "Artigos sobre o RG e a Carteira de Identidade Nacional.",
+        inLanguage: "pt-BR",
+        publisher: { "@id": `${base}/#camara` },
+        blogPost: artigos.map((artigo) => ({ "@id": `${urlAbsoluta(base, caminhoDocumento(artigo))}#conteudo` }))
+      }
+    ]
+  };
 }

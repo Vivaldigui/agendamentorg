@@ -70,3 +70,15 @@ A imagem social de 1200 × 630 px foi criada e revisada: `public/assets/cin/guia
 - Preview de rascunhos recebe noindex, robots bloqueado e sitemap sem rascunhos. Nunca copiar a pasta de preview para publicação.
 - Institucionais têm slugs limitados a `sobre` e `privacidade`; links de navegação só aparecem se o destino existe.
 - A FAQ continua descritiva e visível, mas não se promete resultado enriquecido: o Google descontinuou esse recurso em maio de 2026.
+
+## Blog do RG (`/blog/`)
+
+Seção informativa **nacional** sobre o RG e a CIN, com o blog da Sucupira como modelo de layout: capa com chamada, grade de cartões, cabeçalho com tema e subtítulo, caixa "Sobre este conteúdo" e "Leia também" em cartões.
+
+- Fonte em `conteudo/blog/<slug>.md`, com `tipo: artigo`. Mesmo fluxo de aprovação, mesmo contrato de FAQ e de fontes do guia.
+- `escopos: [nacional]` é obrigatório; blocos `:::minas` e `:::local` são recusados. A ficha do posto não aparece.
+- `cluster` usa o vocabulário do blog: `entendendo-a-cin`, `dados-no-documento`, `casos-especificos`, `uso-e-seguranca`.
+- "Leia também" mostra até 3 cartões: primeiro os `relacionados`, depois artigos do mesmo cluster, depois os mais recentes.
+- O slug precisa ser único em todo o site (guia, avisos, blog e institucionais).
+- O índice `/blog/`, o link "Blog" no menu e a entrada no sitemap só aparecem quando existe ao menos um artigo aprovado.
+- CTA sugerido: `guia-cin`, que leva ao Guia da CIN sem tirar o foco nacional do texto.
