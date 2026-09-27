@@ -77,8 +77,8 @@ da conclusão da CIN.
 
 Para a emissão da CIN, apresente:
 
-- **Certidão original**, sem rasgos, rasuras ou alterações que prejudiquem a
-  conferência: certidão de nascimento para pessoas solteiras, ou certidão de
+- **Certidão original ou cópia autenticada**, sem rasgos, rasuras ou alterações
+  que prejudiquem a conferência: certidão de nascimento para pessoas solteiras, ou certidão de
   casamento para casadas, viúvas ou divorciadas. Em caso de viuvez, divórcio ou
   alteração de nome, a certidão de casamento deve estar averbada.
 - **Número do CPF.** Basta informá-lo; não é necessário apresentar cartão ou
