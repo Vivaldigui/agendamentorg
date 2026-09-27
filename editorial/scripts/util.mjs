@@ -46,6 +46,7 @@ export function caminhoDocumento(documento) {
   const { tipo, slug } = documento.dados;
   if (tipo === "guia") return slug === "cin" || documento.pilar ? "/cin/" : `/cin/${slug}/`;
   if (tipo === "aviso") return `/avisos/${slug}/`;
+  if (tipo === "artigo") return `/blog/${slug}/`;
   return `/${slug}/`;
 }
 

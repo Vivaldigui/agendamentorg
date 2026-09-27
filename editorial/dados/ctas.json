@@ -23,5 +23,10 @@
     "rotulo": "Agendar em Itanhandu",
     "texto": "Conferiu os documentos? Agende o atendimento na Câmara de Itanhandu.",
     "destino": "/"
+  },
+  "guia-cin": {
+    "rotulo": "Abrir o Guia da CIN",
+    "texto": "Vai fazer a CIN em Itanhandu ou região? O guia da Câmara reúne documentos, agendamento e prazo.",
+    "destino": "/cin/"
   }
 }

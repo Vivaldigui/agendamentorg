@@ -13,9 +13,11 @@ const OBRIGATORIOS = [
   "publicado", "atualizado", "cluster", "escopos", "fatos", "fontes", "cta",
   "relacionados", "gerado_por_ia"
 ];
-const TIPOS = new Set(["guia", "aviso", "institucional"]);
+const TIPOS = new Set(["guia", "aviso", "institucional", "artigo"]);
 const STATUS = new Set(["rascunho", "revisao", "aprovado"]);
 const CLUSTERS = new Set(["antes-de-agendar", "agendamento", "atendimento-e-depois", "regras-e-contexto"]);
+// O blog é nacional: clusters próprios e nenhum bloco de regra estadual ou local.
+export const CLUSTERS_BLOG = new Set(["entendendo-a-cin", "dados-no-documento", "casos-especificos", "uso-e-seguranca"]);
 const ESCOPOS = new Set(["nacional", "minas", "local"]);
 const DOMINIOS = ["gov.br", "mg.gov.br", "planalto.gov.br", "policiacivil.mg.gov.br", "pc.mg.gov.br", "itanhandu.cam.mg.gov.br"];
 
@@ -40,9 +42,10 @@ export function validarDocumento(documento, contexto) {
     if (!(campo in dados)) erro(arquivo, campo, "campo obrigatório ausente");
   }
 
-  if (!TIPOS.has(dados.tipo)) erro(arquivo, "tipo", "use guia, aviso ou institucional");
+  if (!TIPOS.has(dados.tipo)) erro(arquivo, "tipo", "use guia, aviso, institucional ou artigo");
   if (!STATUS.has(dados.status)) erro(arquivo, "status", "use rascunho, revisao ou aprovado");
-  if (!CLUSTERS.has(dados.cluster)) erro(arquivo, "cluster", "cluster inválido");
+  const artigo = dados.tipo === "artigo";
+  if (!(artigo ? CLUSTERS_BLOG : CLUSTERS).has(dados.cluster)) erro(arquivo, "cluster", "cluster inválido");
   const pilar = dados.tipo === "guia" && (dados.slug === "cin" || path.basename(arquivo) === "_pilar.md");
   documento.pilar = pilar;
   if (!(pilar && dados.slug === "") && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(dados.slug)) {
@@ -70,6 +73,7 @@ export function validarDocumento(documento, contexto) {
     if (!Array.isArray(dados[campo])) erro(arquivo, campo, "precisa ser uma lista");
   }
   if (dados.escopos.some((item) => !ESCOPOS.has(item))) erro(arquivo, "escopos", "use somente nacional, minas e local");
+  if (artigo && (dados.escopos.length !== 1 || dados.escopos[0] !== "nacional")) erro(arquivo, "escopos", "artigo do blog usa somente [nacional]");
   if (!contexto.ctas[dados.cta]) erro(arquivo, "cta", "chave não existe em ctas.json");
   for (const chave of dados.fatos) {
     const fato = contexto.servico.fatos[chave];
@@ -90,12 +94,13 @@ export function validarDocumento(documento, contexto) {
     if (!fs.existsSync(imagem)) erro(arquivo, "imagem", "arquivo não encontrado em public/");
   }
   if (/^#\s+/m.test(corpo)) erro(arquivo, "corpo", "não use H1; o título vem do frontmatter");
+  if (artigo && /^:::(minas|local)\s*$/m.test(corpo)) erro(arquivo, "corpo", "artigo do blog não usa blocos :::minas ou :::local");
   extrairFaq(corpo, arquivo);
 
   const fontes = new Set(dados.fontes.map((fonte) => new URL(fonte.url).href));
   for (const link of linksMarkdown(corpo)) {
     if (link.startsWith("/")) {
-      if (!/^\/$|^\/avisos\/$|^\/sobre\/$|^\/privacidade\/$|^\/cin\/(?:[a-z0-9]+(?:-[a-z0-9]+)*\/)?$/.test(link)) {
+      if (!/^\/$|^\/avisos\/$|^\/sobre\/$|^\/privacidade\/$|^\/(?:cin|blog)\/(?:[a-z0-9]+(?:-[a-z0-9]+)*\/)?$/.test(link)) {
         erro(arquivo, "corpo", `link interno fora do formato permitido: ${link}`);
       }
       continue;
@@ -115,6 +120,12 @@ export function validarDocumento(documento, contexto) {
 export function validarColecao(documentos) {
   const todos = new Map(documentos.map((doc) => [caminhoDocumento(doc), doc]));
   if (todos.size !== documentos.length) throw new Error("coleção: colisão de caminhos entre documentos");
+  // relacionados aponta por slug; o mesmo slug em seções diferentes seria ambíguo.
+  const slugs = new Map();
+  for (const doc of documentos) {
+    if (slugs.has(doc.dados.slug)) erro(doc.arquivo, "slug", `já usado em ${slugs.get(doc.dados.slug)}`);
+    slugs.set(doc.dados.slug, doc.arquivo);
+  }
   const aprovados = new Map(documentos.filter((doc) => doc.dados.status === "aprovado").map((doc) => [caminhoDocumento(doc), doc]));
   for (const doc of documentos) {
     const universo = doc.dados.status === "aprovado" ? aprovados : todos;
@@ -125,8 +136,9 @@ export function validarColecao(documentos) {
       }
     }
     for (const link of linksMarkdown(doc.corpo).filter((item) => item.startsWith("/") && item !== "/")) {
-      const existe = link === "/avisos/"
-        ? [...universo.values()].some((item) => item.dados.tipo === "aviso")
+      const indices = { "/avisos/": "aviso", "/blog/": "artigo" };
+      const existe = indices[link]
+        ? [...universo.values()].some((item) => item.dados.tipo === indices[link])
         : universo.has(link);
       if (!existe) erro(doc.arquivo, "corpo", `link interno inexistente ou não publicado: ${link}`);
     }
