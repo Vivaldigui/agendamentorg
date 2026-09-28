@@ -33,7 +33,8 @@ const {
 } = require("./agendamento-idempotencia");
 const {
   CACHE_SEM_ARMAZENAMENTO,
-  cacheControlAgendaPublica
+  cacheControlAgendaPublica,
+  fimAtualizacaoRapida
 } = require("./agenda-cache-publica");
 const { avisoPopupPublico } = require("./aviso-popup");
 
@@ -107,8 +108,8 @@ const publicCallableOptions = {
 // precise viajar junto do deploy.
 const PICO_MIN_INSTANCES = Number(process.env.PICO_MIN_INSTANCES) || 0;
 // Qualquer pre-aquecimento tem de alcancar a LEITURA tambem. Nos minutos ao
-// redor da abertura a resposta publica vale 5s em vez de 60s: o CDN segue
-// absorvendo a rajada, mas busca na origem doze vezes mais, e um cold start de
+// redor da abertura a resposta publica vale 2s em vez de 60s: o CDN segue
+// absorvendo a rajada, mas busca na origem trinta vezes mais, e um cold start de
 // ~2s numa dessas buscas cai justamente em cima da virada. Esta constante
 // tambem configura verificarDisponibilidadeSlotCidadao, no caminho da selecao.
 const PICO_MIN_INSTANCES_LEITURA = PICO_MIN_INSTANCES > 0
@@ -923,7 +924,11 @@ async function carregarDisponibilidadePublica() {
       dataNovasVagas: agenda.dataNovasVagas,
       avisoPopup: agenda.avisoPopup,
       servidorEm: agora,
-      totalVagasRestantes: dias.reduce((total, dia) => total + dia.vagas, 0)
+      totalVagasRestantes: dias.reduce((total, dia) => total + dia.vagas, 0),
+      // Ate quando o site atualiza a grade a cada 2s ("" fora da janela). Vem do
+      // mesmo instante do corpo, entao a copia do CDN nunca promete uma janela
+      // que o cabecalho de cache nao cobre.
+      atualizacaoRapidaAte: fimAtualizacaoRapida(agenda.publicacaoDatas, agenda.automacaoSemanal, agora)
     },
     // O prazo e contado da emissao (agora, depois das leituras), mas a
     // publicacao a evitar e a que o corpo ainda esconde (agora, antes delas).
@@ -934,6 +939,45 @@ async function carregarDisponibilidadePublica() {
       agenda.automacaoSemanal
     )
   };
+}
+
+// Quem perde a disputa por um horario recebe, junto com o erro, a agenda
+// publica lida AGORA do Firestore -- sem o CDN, que pode estar ate alguns
+// segundos atras. Com ela o site mostra na hora os horarios ainda livres, em
+// vez de devolver a pessoa a uma grade velha onde ela tocaria em outro horario
+// ja tomado. A leitura e a mesma de /api/agenda-publica: nenhum dado pessoal.
+//
+// O conflito nunca pode virar outro erro: se a leitura falhar ou passar do
+// limite, o erro original sobe intacto e o site cai no fluxo antigo.
+const TIPO_CONFLITO_HORARIO_PREENCHIDO = "horario-preenchido";
+const LIMITE_AGENDA_CONFLITO_MS = 2500;
+
+async function relancarConflitoComAgenda(err) {
+  const conflitoDeVaga = err instanceof HttpsError
+    && err.code === "already-exists"
+    && Boolean(err.details)
+    && err.details.tipo === TIPO_CONFLITO_HORARIO_PREENCHIDO;
+  if (!conflitoDeVaga) throw err;
+
+  let timer = null;
+  // O catch vem antes do race: uma leitura que falhe depois do limite nao pode
+  // virar rejeicao sem tratamento, que no Node 22 derruba a instancia.
+  const leitura = carregarDisponibilidadePublica()
+    .then(({ payload }) => payload)
+    .catch((erroLeitura) => {
+      console.warn("Nao foi possivel anexar a agenda ao conflito de vaga.", erroLeitura);
+      return null;
+    });
+  const limite = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(null), LIMITE_AGENDA_CONFLITO_MS);
+  });
+  const agenda = await Promise.race([leitura, limite]);
+  clearTimeout(timer);
+  if (!agenda) throw err;
+  throw new HttpsError("already-exists", err.message, {
+    tipo: TIPO_CONFLITO_HORARIO_PREENCHIDO,
+    agenda
+  });
 }
 
 exports.carregarAgendaPublicaHttp = onRequest({
@@ -1277,7 +1321,11 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
       };
     }
     if (ocupadas.length >= capacidade || !livre) {
-      throw new HttpsError("already-exists", "Este horario foi preenchido por outra pessoa. Escolha outro horario.");
+      throw new HttpsError(
+        "already-exists",
+        "Este horario foi preenchido por outra pessoa. Escolha outro horario.",
+        { tipo: TIPO_CONFLITO_HORARIO_PREENCHIDO }
+      );
     }
     const slotRef = livre.ref;
     slotId = slotRef.id;
@@ -1382,7 +1430,7 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
     });
 
     return resultado;
-  });
+  }).catch(relancarConflitoComAgenda);
 
   return resultadoTransacao;
 });

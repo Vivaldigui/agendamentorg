@@ -141,7 +141,10 @@ test("controles tocaveis declaram ao menos 44px de altura", () => {
   };
   const contrasteComBranco = 1.05 / (luminancia("047857") + 0.05);
   assert.ok(contrasteComBranco >= 4.5, `contraste insuficiente: ${contrasteComBranco.toFixed(2)}:1`);
-  assert.match(sitePublico, /\.btn-hora\.primeiro-livre \{[^}]*background: #047857;[^}]*color: white;/);
+  // O verde saiu do antigo atalho "Primeiro horario livre" (removido em
+  // 28/09/2026) e ficou nos botoes "Agendar as HH:MM" do aviso de horario
+  // preenchido.
+  assert.match(sitePublico, /\.modal-btn\.livre-agora \{[^}]*background: #047857;[^}]*color: white;/);
 });
 
 // ---------------------------------------------------------------------------
