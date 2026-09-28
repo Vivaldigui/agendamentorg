@@ -163,11 +163,27 @@ function extrairFuncao(codigo, nome) {
 }
 
 class ErroFalso extends Error {
-  constructor(code, message) {
+  constructor(code, message, details) {
     super(message);
     this.code = code;
+    if (details !== undefined) this.details = details;
   }
 }
+
+// relancarConflitoComAgenda de verdade, com a leitura publica trocada por um
+// dublê controlado pelo teste.
+function montarRelancarConflito(leituraPublica, limiteMs = 2500) {
+  return new Function(
+    "HttpsError",
+    "TIPO_CONFLITO_HORARIO_PREENCHIDO",
+    "LIMITE_AGENDA_CONFLITO_MS",
+    "carregarDisponibilidadePublica",
+    "console",
+    `${extrairFuncao(backend, "relancarConflitoComAgenda")}; return relancarConflitoComAgenda;`
+  )(ErroFalso, "horario-preenchido", limiteMs, leituraPublica, { warn: () => {} });
+}
+
+const AGENDA_FRESCA = { dias: [{ dataISO: "2026-09-29", vagas: 0, lotado: true, horarios: [] }], horarios: [], marca: "fresca" };
 
 function montarFirestore(docs) {
   let sequencia = 0;
@@ -200,7 +216,7 @@ function montarFirestore(docs) {
   return db;
 }
 
-function montarCriar(docs) {
+function montarCriar(docs, { leituraPublica = async () => ({ payload: AGENDA_FRESCA }), limiteMs } = {}) {
   const db = montarFirestore(docs);
   const agendamentoEstaAtivo = new Function(`${extrairFuncao(backend, "agendamentoEstaAtivo")}; return agendamentoEstaAtivo;`)();
   const slotRepresentaOcupacaoAtual = new Function(
@@ -259,7 +275,9 @@ function montarCriar(docs) {
     agendamentoEstaAtivo,
     dataBr: (v) => v,
     OPERACAO_AGENDAMENTO_VERSAO: 1,
-    FieldValue: { serverTimestamp: () => "TS" }
+    FieldValue: { serverTimestamp: () => "TS" },
+    TIPO_CONFLITO_HORARIO_PREENCHIDO: "horario-preenchido",
+    relancarConflitoComAgenda: montarRelancarConflito(leituraPublica, limiteMs)
   };
   new Function(...Object.keys(dependencias), extrairExport(backend, "criarAgendamentoCidadao"))(
     ...Object.values(dependencias)
@@ -391,4 +409,95 @@ test("CPF remarcado pelo painel nao consegue um segundo agendamento", async () =
   };
   const criar = montarCriar(docs);
   await assert.rejects(() => criar("11111111111"), (e) => e.code === "already-exists" && /CPF/.test(e.message));
+});
+
+// ---- Conflito devolve a agenda lida agora (28/09/2026) ---------------------
+
+test("quem perde a disputa recebe a agenda fresca junto com o conflito", async () => {
+  const docs = { "configuracoes/agenda": agendaCom(1) };
+  let leituras = 0;
+  const criar = montarCriar(docs, { leituraPublica: async () => { leituras++; return { payload: AGENDA_FRESCA }; } });
+  await criar("11111111111");
+  assert.equal(leituras, 0, "o agendamento que deu certo nao paga a leitura extra");
+  await assert.rejects(() => criar("22222222222"), (e) => {
+    assert.equal(e.code, "already-exists");
+    assert.match(e.message, /preenchido por outra pessoa/);
+    assert.equal(e.details.tipo, "horario-preenchido");
+    assert.deepEqual(e.details.agenda, AGENDA_FRESCA);
+    return true;
+  });
+  assert.equal(leituras, 1);
+});
+
+test("falha ao ler a agenda nao troca o erro de conflito", async () => {
+  const docs = { "configuracoes/agenda": agendaCom(1) };
+  const criar = montarCriar(docs, { leituraPublica: async () => { throw new Error("firestore fora"); } });
+  await criar("11111111111");
+  await assert.rejects(() => criar("22222222222"), (e) => {
+    assert.equal(e.code, "already-exists");
+    assert.equal(e.details.tipo, "horario-preenchido");
+    assert.equal(e.details.agenda, undefined);
+    return true;
+  });
+});
+
+test("leitura lenta nao segura a resposta de quem perdeu a vaga", async () => {
+  const docs = { "configuracoes/agenda": agendaCom(1) };
+  let soltar = null;
+  const criar = montarCriar(docs, {
+    leituraPublica: () => new Promise((resolve) => { soltar = resolve; }),
+    limiteMs: 30
+  });
+  await criar("11111111111");
+  const inicio = Date.now();
+  await assert.rejects(() => criar("22222222222"), (e) => e.code === "already-exists" && e.details.agenda === undefined);
+  assert.ok(Date.now() - inicio < 1000, "o limite precisa cortar a espera");
+  // A leitura que chega depois do limite nao pode estourar sem tratamento.
+  soltar({ payload: AGENDA_FRESCA });
+});
+
+test("CPF com agendamento ativo nao recebe a agenda nem dispara a leitura", async () => {
+  const docs = {
+    "configuracoes/agenda": agendaCom(2),
+    "dados_cidadaos/A": { nome: "A", cpf: "11111111111", dataISO: "2026-09-29", hora: "14:00", slotId: "2026-09-29_14:00", status: "agendado" },
+    "vagas_ocupadas/2026-09-29_14:00": { dataISO: "2026-09-29", hora: "14:00", agendamentoId: "A" },
+    "cpfs_agendados/cpf_11111111111": { agendamentoId: "A" }
+  };
+  let leituras = 0;
+  const criar = montarCriar(docs, { leituraPublica: async () => { leituras++; return { payload: AGENDA_FRESCA }; } });
+  await assert.rejects(() => criar("11111111111"), (e) => {
+    assert.equal(e.details.tipo, "cpf-ja-agendado");
+    assert.equal(e.details.agenda, undefined);
+    return true;
+  });
+  assert.equal(leituras, 0);
+});
+
+test("erros que nao sao conflito de vaga passam intactos", async () => {
+  let leituras = 0;
+  const relancar = montarRelancarConflito(async () => { leituras++; return { payload: AGENDA_FRESCA }; });
+  const precondicao = new ErroFalso("failed-precondition", "Horario indisponivel para agendamento.");
+  await assert.rejects(() => relancar(precondicao), (e) => e === precondicao);
+  const semTipo = new ErroFalso("already-exists", "Este horario foi preenchido por outra pessoa.");
+  await assert.rejects(() => relancar(semTipo), (e) => e === semTipo);
+  const generico = new Error("rede");
+  await assert.rejects(() => relancar(generico), (e) => e === generico);
+  assert.equal(leituras, 0);
+});
+
+test("a transacao marca o conflito de vaga e anexa a agenda fora dela", () => {
+  const criar = extrairExport(backend, "criarAgendamentoCidadao");
+  assert.match(
+    criar,
+    /"Este horario foi preenchido por outra pessoa\. Escolha outro horario\.",\s*\{\s*tipo:\s*TIPO_CONFLITO_HORARIO_PREENCHIDO\s*\}/
+  );
+  assert.match(criar, /\}\)\.catch\(relancarConflitoComAgenda\);\s*return resultadoTransacao;/);
+  // A leitura extra e a mesma da agenda publica: nenhum dado pessoal no erro.
+  const relancar = extrairFuncao(backend, "relancarConflitoComAgenda");
+  assert.match(relancar, /carregarDisponibilidadePublica\(\)/);
+  assert.match(relancar, /\.catch\(/);
+  assert.ok(
+    relancar.indexOf(".catch(") < relancar.indexOf("Promise.race"),
+    "a leitura precisa ter catch antes do race, senao uma falha tardia derruba a instancia"
+  );
 });

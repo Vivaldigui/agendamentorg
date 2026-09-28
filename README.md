@@ -178,7 +178,7 @@ Os scripts usam o **mínimo de serviço do Cloud Run** (`gcloud run services upd
 
 O painel *Functions* do console do Firebase mostrará `0 / 80` mesmo com o pré-aquecimento ligado: ele lê a configuração da função, que só muda num deploy. A fonte da verdade é o Cloud Run — é o que os scripts conferem, e é onde o valor aparece.
 
-A leitura não pode ficar em escala zero. Nos minutos ao redor das 08:00 a resposta pública vale 5 segundos em vez de 60, então o CDN continua absorvendo a rajada, mas passa a buscar na origem doze vezes mais. Um cold start numa dessas buscas cairia bem em cima da virada. A chamada leve da automação às 07:59 é complemento, não substituto. **Não faça deploy entre ligar e desligar**: revisão nova desfaz o aquecimento.
+A leitura não pode ficar em escala zero. Nos minutos ao redor das 08:00 a resposta pública vale 2 segundos em vez de 60, então o CDN continua absorvendo a rajada, mas passa a buscar na origem trinta vezes mais. Um cold start numa dessas buscas cairia bem em cima da virada. A chamada leve da automação às 07:59 é complemento, não substituto. **Não faça deploy entre ligar e desligar**: revisão nova desfaz o aquecimento.
 
 ### Regiões
 
@@ -225,6 +225,14 @@ As exceções sempre prevalecem sobre a regra automática. Datas cadastradas man
 Na abertura das 08:00, o aviso público de novas vagas também passa automaticamente para a próxima segunda-feira que tenha algum dia de atendimento, pulando semanas suspensas, datas bloqueadas e períodos de férias. Com a automação desligada, o aviso continua sob controle manual.
 
 Para garantir que a exceção entre na primeira execução, salve-a antes de segunda-feira às 07:50. Se uma data automática for removida manualmente, ela também é adicionada à lista de dias bloqueados, evitando que seja recriada na execução redundante das 07:55.
+
+### Disputa na abertura
+
+Desde 28/09/2026, para quem perdia a vaga tentando horário atrás de horário. A pessoa continua sempre escolhendo o próprio horário:
+
+- **Sem atalho "Primeiro horário livre".** Ele apontava o mesmo horário em todos os celulares e juntava a abertura inteira numa vaga só.
+- **Horário preenchido mostra o que ainda está livre.** Quando a transação recusa o horário, `criarAgendamentoCidadao` devolve no próprio erro (`details.agenda`) a agenda pública lida naquele instante do Firestore, sem CDN. O site mostra os horários livres daquele dia com botões "Agendar às HH:MM": um toque agenda, sem segundo modal. Outros dias só abrem a grade. Se a leitura falhar ou passar de 2,5 s, o erro sai como antes e o site volta à grade.
+- **Grade a cada 2 s nos 5 minutos após cada publicação.** A resposta pública traz `atualizacaoRapidaAte`, e o cache curto do CDN caiu de 5 s para 2 s. A grade é atualizada no lugar, sem redesenhar nem esconder os horários de quem está escolhendo. A atualização para com a aba oculta, durante o envio do agendamento, na tela de sucesso e quando as vagas acabam. A atualização de 3 minutos também passou a atualizar no lugar.
 
 ### Pop-up de aviso no site
 

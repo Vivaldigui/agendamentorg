@@ -5,8 +5,8 @@
 #  criacao, leitura publica e verificacao de vaga.
 #
 #  A leitura NAO pode ficar em escala zero: nos minutos ao redor da
-#  abertura a resposta publica vale 5 segundos em vez de 60, entao o CDN
-#  segue absorvendo a rajada mas busca na origem doze vezes mais, e um
+#  abertura a resposta publica vale 2 segundos em vez de 60, entao o CDN
+#  segue absorvendo a rajada mas busca na origem trinta vezes mais, e um
 #  cold start cai bem em cima da virada.
 #
 #  COMO USAR:

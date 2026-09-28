@@ -40,11 +40,22 @@ const MINUTOS_CACHE_CURTO_AGUARDANDO_PUBLICACAO = 20;
 // Nao usamos no-store nessa janela. Sem CDN, cada visitante executa uma
 // transacao Firestore de rate limit cuja chave e SHA256(ip|user-agent): atras
 // de um mesmo CGNAT, celulares do mesmo modelo caem no mesmo documento e
-// disputam a transacao, rendendo ABORTED e 429 justamente no pico. Cinco
-// segundos de cache limitam um falso "sem vagas" a ~5s e devolvem a rajada
+// disputam a transacao, rendendo ABORTED e 429 justamente no pico. Dois
+// segundos de cache limitam um falso "sem vagas" a ~2s e devolvem a rajada
 // para o CDN.
-const SEGUNDOS_CACHE_CURTO = 5;
+//
+// Eram 5s ate 28/09/2026. Nos minutos seguintes a abertura o site passou a
+// atualizar a grade a cada 2s (MINUTOS_ATUALIZACAO_RAPIDA); com 5s de cache ele
+// baixaria a mesma copia duas ou tres vezes e a grade continuaria ate ~7s
+// atrasada. A origem passa a receber no maximo uma busca a cada 2s por borda.
+const SEGUNDOS_CACHE_CURTO = 2;
 const CACHE_CURTO = `public, max-age=0, s-maxage=${SEGUNDOS_CACHE_CURTO}`;
+
+// Depois de cada publicacao, o site atualiza a grade a cada 2s durante estes
+// minutos: e quando as vagas somem em segundos. Amarrado a janela de cache
+// curto de proposito -- atualizar rapido contra uma copia de 60s so gastaria
+// banda sem mostrar nada novo.
+const MINUTOS_ATUALIZACAO_RAPIDA = MINUTOS_CACHE_CURTO_DEPOIS;
 
 const CACHE_SEM_ARMAZENAMENTO = "no-store";
 
@@ -198,6 +209,33 @@ function publicacaoAtravessada(publicacaoDatas, automacaoSemanal, agoraCorpo, ag
   return false;
 }
 
+function formatarInstante(minutosTotais) {
+  const data = new Date(minutosTotais * 60000);
+  const doisDigitos = (valor) => String(valor).padStart(2, "0");
+  return `${data.getUTCFullYear()}-${doisDigitos(data.getUTCMonth() + 1)}-${doisDigitos(data.getUTCDate())}`
+    + `T${doisDigitos(data.getUTCHours())}:${doisDigitos(data.getUTCMinutes())}`;
+}
+
+// Fim da atualizacao rapida da grade ("YYYY-MM-DDTHH:MM", fuso de Sao Paulo),
+// ou "" fora dela. Vale do minuto de uma publicacao ja alcancada ate
+// MINUTOS_ATUALIZACAO_RAPIDA depois. Havendo mais de uma, vale a que termina
+// mais tarde. O site so atualiza rapido enquanto o proprio relogio (sincronizado
+// com o servidor) estiver antes desse instante.
+function fimAtualizacaoRapida(publicacaoDatas, automacaoSemanal, agora) {
+  const referencia = partesInstante(agora);
+  if (!referencia) return "";
+  let fim = null;
+  for (const valor of instantesDePublicacao(publicacaoDatas, automacaoSemanal, agora)) {
+    const instante = partesInstante(valor);
+    if (!instante) continue;
+    const decorridos = referencia.minutos - instante.minutos;
+    if (decorridos < 0 || decorridos >= MINUTOS_ATUALIZACAO_RAPIDA) continue;
+    const termino = instante.minutos + MINUTOS_ATUALIZACAO_RAPIDA;
+    if (fim === null || termino > fim) fim = termino;
+  }
+  return fim === null ? "" : formatarInstante(fim);
+}
+
 function minutosAtePublicacao(publicacaoDatas, agora, automacaoSemanal) {
   const referencia = partesInstante(agora);
   const proxima = proximaPublicacao(publicacaoDatas, agora, automacaoSemanal);
@@ -280,6 +318,7 @@ module.exports = {
   MINUTOS_CACHE_CURTO_ANTES,
   MINUTOS_CACHE_CURTO_DEPOIS,
   MINUTOS_CACHE_CURTO_AGUARDANDO_PUBLICACAO,
+  MINUTOS_ATUALIZACAO_RAPIDA,
   SEGUNDOS_CACHE_CURTO,
   CACHE_CURTO,
   CACHE_SEM_ARMAZENAMENTO,
@@ -294,5 +333,6 @@ module.exports = {
   minutosAtePublicacao,
   janelaAberturaSemanal,
   cacheControlAgendaPublica,
+  fimAtualizacaoRapida,
   vidaMaximaCacheSegundos
 };
