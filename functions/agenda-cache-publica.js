@@ -314,6 +314,39 @@ function vidaMaximaCacheSegundos(cacheControl) {
   return numero("s-maxage") + numero("stale-while-revalidate") + numero("max-age");
 }
 
+
+// Parametros aceitos na leitura publica. Cada valor diferente de query string e
+// uma chave nova no CDN: sem esta trava, "?x=aleatorio" furava o cache em toda
+// requisicao e cada uma custava uma transacao de rate limit e ~30 leituras no
+// Firestore. So passam as duas chaves que o proprio sistema usa, e so com
+// valores perto do relogio do servidor -- no maximo algumas dezenas de chaves
+// por borda, o que nao da alavanca a ataque.
+//   atualizar-minuto: minuto do servidor (epoch/60000) escolhido pelo site.
+//   preaquecer:       instante "YYYY-MM-DDTHH:MM" da chamada das 07:59.
+// A folga de 10 minutos cobre aparelho com relogio ainda nao sincronizado.
+const FOLGA_PARAMETRO_LEITURA_MINUTOS = 10;
+
+function parametrosLeituraPublicaValidos(query, agoraMs = Date.now(), agoraSaoPaulo = "") {
+  const origem = query && typeof query === "object" ? query : {};
+  const chaves = Object.keys(origem);
+  if (chaves.length === 0) return true;
+  if (chaves.length > 1) return false;
+  const [chave] = chaves;
+  const valor = origem[chave];
+  if (typeof valor !== "string") return false;
+  if (chave === "atualizar-minuto") {
+    if (!/^\d{1,12}$/.test(valor)) return false;
+    return Math.abs(Number(valor) - Math.floor(agoraMs / 60000)) <= FOLGA_PARAMETRO_LEITURA_MINUTOS;
+  }
+  if (chave === "preaquecer") {
+    const pedido = partesInstante(valor);
+    const referencia = partesInstante(agoraSaoPaulo);
+    if (!pedido || !referencia) return false;
+    return Math.abs(pedido.minutos - referencia.minutos) <= FOLGA_PARAMETRO_LEITURA_MINUTOS;
+  }
+  return false;
+}
+
 module.exports = {
   MINUTOS_CACHE_CURTO_ANTES,
   MINUTOS_CACHE_CURTO_DEPOIS,
@@ -334,5 +367,7 @@ module.exports = {
   janelaAberturaSemanal,
   cacheControlAgendaPublica,
   fimAtualizacaoRapida,
+  FOLGA_PARAMETRO_LEITURA_MINUTOS,
+  parametrosLeituraPublicaValidos,
   vidaMaximaCacheSegundos
 };

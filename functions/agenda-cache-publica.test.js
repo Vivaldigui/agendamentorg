@@ -490,5 +490,55 @@ test("a resposta publica leva o fim da janela rapida calculado no instante do co
     carregar,
     /atualizacaoRapidaAte:\s*fimAtualizacaoRapida\(agenda\.publicacaoDatas,\s*agenda\.automacaoSemanal,\s*agora\)/
   );
-  assert.match(backend, /fimAtualizacaoRapida\s*\n?\s*\}\s*=\s*require\(["']\.\/agenda-cache-publica["']\)/);
+  assert.match(backend, /fimAtualizacaoRapida,?[\s\w,]*\}\s*=\s*require\(["']\.\/agenda-cache-publica["']\)/);
+});
+
+// ---------------------------------------------------------------------------
+// Query string da leitura publica (29/09/2026)
+// ---------------------------------------------------------------------------
+
+const { parametrosLeituraPublicaValidos, FOLGA_PARAMETRO_LEITURA_MINUTOS } = require("./agenda-cache-publica");
+
+test("a leitura publica so aceita as chaves que o sistema usa, perto do relogio", () => {
+  const agoraMs = Date.UTC(2026, 7, 24, 11, 0, 30); // 08:00:30 em Sao Paulo
+  const minuto = Math.floor(agoraMs / 60000);
+  const valida = (query) => parametrosLeituraPublicaValidos(query, agoraMs, ABERTURA);
+  assert.equal(valida({}), true);
+  assert.equal(valida(undefined), true);
+  assert.equal(valida({ "atualizar-minuto": String(minuto) }), true);
+  assert.equal(valida({ "atualizar-minuto": String(minuto - FOLGA_PARAMETRO_LEITURA_MINUTOS) }), true);
+  assert.equal(valida({ "atualizar-minuto": String(minuto + FOLGA_PARAMETRO_LEITURA_MINUTOS + 1) }), false);
+  assert.equal(valida({ preaquecer: `${SEGUNDA}T07:59` }), true);
+  assert.equal(valida({ preaquecer: `${SEGUNDA}T06:00` }), false);
+  // Furos de cache: chave desconhecida, valor qualquer, repeticao e combinacao.
+  assert.equal(valida({ x: "1" }), false);
+  assert.equal(valida({ "teste-carga": "homologacao" }), false);
+  assert.equal(valida({ "atualizar-minuto": "abc" }), false);
+  assert.equal(valida({ "atualizar-minuto": [String(minuto), String(minuto)] }), false);
+  assert.equal(valida({ "atualizar-minuto": String(minuto), preaquecer: `${SEGUNDA}T07:59` }), false);
+});
+
+test("parametro invalido e recusado antes do rate limit e das leituras", () => {
+  const handler = backend.slice(backend.indexOf("exports.carregarAgendaPublicaHttp"));
+  const corpo = handler.slice(0, handler.indexOf("exports.", 1));
+  const trava = corpo.indexOf("parametrosLeituraPublicaValidos(req.query");
+  assert.notEqual(trava, -1);
+  assert.ok(trava < corpo.indexOf("aplicarRateLimit("), "a trava precisa vir antes de qualquer gravacao");
+  assert.ok(trava < corpo.indexOf("carregarDisponibilidadePublica()"));
+  assert.match(corpo.slice(trava, corpo.indexOf("try {")), /CACHE_SEM_ARMAZENAMENTO[\s\S]*status\(400\)/);
+  // Os dois usos legitimos continuam no formato aceito.
+  const site = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
+  assert.match(site, /\?atualizar-minuto=\$\{minutoCompartilhado\}/);
+  assert.match(backend, /carregarAgendaPublicaHttp\?preaquecer=\$\{encodeURIComponent\(agora\)\}/);
+});
+
+test("o banco de tempo real nao aceita gravacao anonima", () => {
+  // A telemetria de presenca esta desligada no site. A regra antiga deixava
+  // qualquer um criar e apagar conexoes sem login, e cada gravacao disparava uma
+  // funcao que lia o no inteiro: custo que crescia ao quadrado com o abuso.
+  const regras = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "database.rules.json"), "utf8"));
+  const conexoes = regras.rules.presenca_publica.conexoes;
+  assert.equal(conexoes.$conexaoId[".write"], false);
+  assert.equal(regras.rules[".write"], false);
+  assert.equal(regras.rules.presenca_publica.metricas[".write"], false);
 });
