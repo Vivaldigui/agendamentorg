@@ -34,7 +34,8 @@ const {
 const {
   CACHE_SEM_ARMAZENAMENTO,
   cacheControlAgendaPublica,
-  fimAtualizacaoRapida
+  fimAtualizacaoRapida,
+  parametrosLeituraPublicaValidos
 } = require("./agenda-cache-publica");
 const { avisoPopupPublico } = require("./aviso-popup");
 
@@ -988,6 +989,14 @@ exports.carregarAgendaPublicaHttp = onRequest({
 }, async (req, res) => {
   if (req.method !== "GET" && req.method !== "POST") {
     res.status(405).json({ erro: "Metodo nao permitido." });
+    return;
+  }
+
+  // Antes de qualquer custo: query string fora do que o site usa so serviria
+  // para furar o CDN e fazer a origem pagar leituras a cada pedido.
+  if (!parametrosLeituraPublicaValidos(req.query, Date.now(), agoraSaoPauloInput())) {
+    res.set("Cache-Control", CACHE_SEM_ARMAZENAMENTO);
+    res.status(400).json({ erro: "Parametros invalidos." });
     return;
   }
 
