@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="800" viewBox="0 0 640 800" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <title id="t">Onde ficam a matrícula e as averbações na certidão</title>
+  <desc id="d">Desenho esquemático de uma certidão de registro civil. A matrícula aparece no alto, logo abaixo do nome. O campo de averbações e anotações fica na parte de baixo, antes da assinatura do cartório.</desc>
+  <rect width="640" height="800" fill="#f3f6f9"/>
+  <rect x="40" y="30" width="560" height="740" rx="10" fill="#ffffff" stroke="#b9c4d2" stroke-width="2"/>
+  <text x="320" y="78" text-anchor="middle" font-size="20" font-weight="700" fill="#172033">REPÚBLICA FEDERATIVA DO BRASIL</text>
+  <text x="320" y="106" text-anchor="middle" font-size="17" fill="#566174">Registro Civil das Pessoas Naturais</text>
+  <text x="320" y="150" text-anchor="middle" font-size="24" font-weight="800" fill="#003d82">CERTIDÃO DE NASCIMENTO</text>
+
+  <text x="70" y="196" font-size="16" font-weight="700" fill="#566174">NOME</text>
+  <rect x="70" y="206" width="500" height="34" rx="5" fill="#e8edf3"/>
+
+  <rect x="62" y="256" width="516" height="92" rx="8" fill="#fff4d6" stroke="#f59e0b" stroke-width="4"/>
+  <text x="80" y="284" font-size="16" font-weight="700" fill="#78350f">MATRÍCULA</text>
+  <text x="80" y="324" font-size="19" font-weight="700" fill="#172033">123456 01 55 2015 1 00012 345 0067890 12</text>
+  <circle cx="578" cy="256" r="24" fill="#f59e0b"/>
+  <text x="578" y="265" text-anchor="middle" font-size="26" font-weight="800" fill="#172033">1</text>
+
+  <rect x="70" y="372" width="240" height="26" rx="5" fill="#e8edf3"/>
+  <rect x="330" y="372" width="240" height="26" rx="5" fill="#e8edf3"/>
+  <rect x="70" y="412" width="500" height="26" rx="5" fill="#e8edf3"/>
+  <rect x="70" y="452" width="500" height="26" rx="5" fill="#e8edf3"/>
+  <rect x="70" y="492" width="320" height="26" rx="5" fill="#e8edf3"/>
+
+  <rect x="62" y="544" width="516" height="132" rx="8" fill="#eaf3ff" stroke="#0056b3" stroke-width="4"/>
+  <text x="80" y="574" font-size="16" font-weight="700" fill="#003d82">AVERBAÇÕES / ANOTAÇÕES</text>
+  <rect x="80" y="590" width="470" height="18" rx="4" fill="#c9dcf3"/>
+  <rect x="80" y="618" width="470" height="18" rx="4" fill="#c9dcf3"/>
+  <rect x="80" y="646" width="300" height="18" rx="4" fill="#c9dcf3"/>
+  <circle cx="578" cy="544" r="24" fill="#0056b3"/>
+  <text x="578" y="553" text-anchor="middle" font-size="26" font-weight="800" fill="#ffffff">2</text>
+
+  <rect x="70" y="700" width="220" height="18" rx="4" fill="#e8edf3"/>
+  <text x="570" y="716" text-anchor="end" font-size="15" fill="#566174">Assinatura do oficial</text>
+  <text x="320" y="754" text-anchor="middle" font-size="15" fill="#566174">Desenho ilustrativo. Dados fictícios.</text>
+</svg>

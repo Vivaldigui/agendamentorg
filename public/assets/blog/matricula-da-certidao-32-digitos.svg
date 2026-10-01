@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="560" viewBox="0 0 640 560" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <title id="t">Como ler os 32 dígitos da matrícula da certidão</title>
+  <desc id="d">A matrícula tem nove partes: código do cartório com 6 dígitos, acervo com 2, tipo de serviço com 2, ano do registro com 4, tipo de livro com 1, número do livro com 5, folha com 3, termo com 7 e dígito verificador com 2.</desc>
+  <rect width="640" height="560" fill="#f3f6f9"/>
+  <text x="320" y="44" text-anchor="middle" font-size="22" font-weight="800" fill="#172033">Matrícula: 32 dígitos em 9 partes</text>
+  <g font-size="26" font-weight="800" text-anchor="middle" fill="#172033">
+    <rect x="30" y="70" width="180" height="64" rx="8" fill="#ffffff" stroke="#b9c4d2" stroke-width="2"/><text x="120" y="112">123456</text>
+    <rect x="230" y="70" width="180" height="64" rx="8" fill="#ffffff" stroke="#b9c4d2" stroke-width="2"/><text x="320" y="112">01</text>
+    <rect x="430" y="70" width="180" height="64" rx="8" fill="#ffffff" stroke="#b9c4d2" stroke-width="2"/><text x="520" y="112">55</text>
+    <rect x="30" y="230" width="180" height="64" rx="8" fill="#ffffff" stroke="#b9c4d2" stroke-width="2"/><text x="120" y="272">2015</text>
+    <rect x="230" y="230" width="180" height="64" rx="8" fill="#fff4d6" stroke="#f59e0b" stroke-width="4"/><text x="320" y="272">1</text>
+    <rect x="430" y="230" width="180" height="64" rx="8" fill="#ffffff" stroke="#b9c4d2" stroke-width="2"/><text x="520" y="272">00012</text>
+    <rect x="30" y="390" width="180" height="64" rx="8" fill="#ffffff" stroke="#b9c4d2" stroke-width="2"/><text x="120" y="432">345</text>
+    <rect x="230" y="390" width="180" height="64" rx="8" fill="#ffffff" stroke="#b9c4d2" stroke-width="2"/><text x="320" y="432">0067890</text>
+    <rect x="430" y="390" width="180" height="64" rx="8" fill="#ffffff" stroke="#b9c4d2" stroke-width="2"/><text x="520" y="432">12</text>
+  </g>
+  <g font-size="18" font-weight="700" text-anchor="middle" fill="#003d82">
+    <text x="120" y="162">Cartório</text><text x="320" y="162">Acervo</text><text x="520" y="162">Serviço</text>
+    <text x="120" y="322">Ano do registro</text><text x="320" y="322" fill="#78350f">Tipo de livro</text><text x="520" y="322">Nº do livro</text>
+    <text x="120" y="482">Folha</text><text x="320" y="482">Termo</text><text x="520" y="482">Verificador</text>
+  </g>
+  <g font-size="16" text-anchor="middle" fill="#566174">
+    <text x="120" y="186">6 dígitos</text><text x="320" y="186">2 dígitos</text><text x="520" y="186">2 dígitos</text>
+    <text x="120" y="346">4 dígitos</text><text x="320" y="346">1 nascimento, 2 casamento</text><text x="520" y="346">5 dígitos</text>
+    <text x="120" y="506">3 dígitos</text><text x="320" y="506">7 dígitos</text><text x="520" y="506">2 dígitos</text>
+  </g>
+  <text x="320" y="542" text-anchor="middle" font-size="15" fill="#566174">Número fictício, usado só como exemplo.</text>
+</svg>

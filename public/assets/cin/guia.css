@@ -236,3 +236,5 @@ code { padding: 0.1em 0.35em; border-radius: 5px; background: #e8edf3; font-size
 .caixa-transparencia p { margin: 0; font-size: 0.94rem; }
 .relacionados-blog { margin-top: 34px; }
 @media (min-width: 640px) { .grade-blog { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.conteudo-editorial img { display: block; max-width: 100%; height: auto; margin: 22px auto 8px; border: 1px solid var(--line); border-radius: var(--radius); }
+.conteudo-editorial p > img + em, .conteudo-editorial p:has(> img) + p > em:only-child { color: var(--muted); font-size: 0.9rem; }

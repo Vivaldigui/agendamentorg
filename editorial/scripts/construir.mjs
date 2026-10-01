@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -28,9 +29,23 @@ async function json(arquivo) {
   return JSON.parse(await fs.readFile(arquivo, "utf8"));
 }
 
-export function criarMarkdown() {
+function dimensoesImagem(arquivo) {
+  const buffer = fsSync.readFileSync(arquivo);
+  if (arquivo.endsWith(".png")) return { largura: buffer.readUInt32BE(16), altura: buffer.readUInt32BE(20) };
+  const svg = /<svg\s[^>]*?\swidth="(\d+)"[^>]*?\sheight="(\d+)"/.exec(buffer.toString("utf8"));
+  if (!svg) throw new Error(`${arquivo}: imagem precisa declarar width e height em pixels`);
+  return { largura: Number(svg[1]), altura: Number(svg[2]) };
+}
+
+export function criarMarkdown(publicDir) {
   const md = new MarkdownIt({ html: false, linkify: false, typographer: false });
   md.use(pluginContainers);
+  // Largura e altura evitam salto de layout; as imagens ficam fora da dobra.
+  md.renderer.rules.image = (tokens, idx) => {
+    const src = tokens[idx].attrGet("src");
+    const { largura, altura } = dimensoesImagem(path.join(publicDir, src.replace(/^\/+/, "")));
+    return `<img src="${esc(src)}" alt="${esc(tokens[idx].content)}" width="${largura}" height="${altura}" loading="lazy" decoding="async">`;
+  };
   md.renderer.rules.table_open = (tokens, idx) => `<div class="tabela-rolavel"><table><caption>${esc(tokens[idx].meta?.caption ?? "Informações do serviço")}</caption>\n`;
   md.renderer.rules.th_open = () => '<th scope="col">';
   md.renderer.rules.table_close = () => "</table></div>\n";
@@ -147,7 +162,7 @@ export async function construir({ raizEditorial = RAIZ_EDITORIAL, saida, incluir
   if (limpar && destino === publicDir) await limparPublico(destino);
   await fs.mkdir(destino, { recursive: true });
 
-  const md = criarMarkdown();
+  const md = criarMarkdown(publicDir);
   const linksInstitucionais = {
     cin: documentos.some((item) => item.pilar),
     avisos: documentos.some((item) => item.dados.tipo === "aviso"),
