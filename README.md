@@ -178,7 +178,7 @@ Os scripts usam o **mínimo de serviço do Cloud Run** (`gcloud run services upd
 
 O painel *Functions* do console do Firebase mostrará `0 / 80` mesmo com o pré-aquecimento ligado: ele lê a configuração da função, que só muda num deploy. A fonte da verdade é o Cloud Run — é o que os scripts conferem, e é onde o valor aparece.
 
-A leitura não pode ficar em escala zero. Nos minutos ao redor das 08:00 a resposta pública vale 5 segundos em vez de 60, então o CDN continua absorvendo a rajada, mas passa a buscar na origem doze vezes mais. Um cold start numa dessas buscas cairia bem em cima da virada. A chamada leve da automação às 07:59 é complemento, não substituto. **Não faça deploy entre ligar e desligar**: revisão nova desfaz o aquecimento.
+A leitura não pode ficar em escala zero. Nos minutos ao redor das 08:00 a resposta pública vale 2 segundos em vez de 60, então o CDN continua absorvendo a rajada, mas passa a buscar na origem trinta vezes mais. Um cold start numa dessas buscas cairia bem em cima da virada. A chamada leve da automação às 07:59 é complemento, não substituto. **Não faça deploy entre ligar e desligar**: revisão nova desfaz o aquecimento.
 
 ### Regiões
 
@@ -200,6 +200,17 @@ A configuração `configuracoes/agenda.automacaoSemanal` controla a abertura de 
 
 A grade é resolvida por data para preservar atendimentos existentes. Até `17/08/2026`, o padrão continua com os oito horários legados (`14:20` a `16:40`, em intervalos de 20 minutos). De `18/08/2026` a `20/09/2026`, o padrão teve dez horários: `14:30`, `14:45`, `15:00`, `15:15`, `15:30`, `15:45`, `16:00`, `16:15`, `16:30`, `16:45`. A partir de `21/09/2026`, são seis horários, a cada 25 minutos: `14:30`, `14:55`, `15:20`, `15:45`, `16:10`, `16:35`. Uma grade explicitamente configurada para o dia da semana sempre prevalece sobre esses cortes.
 
+Desde 25/09/2026 a recepção define a grade pelo painel, em **Configuração → Horários e vagas**, sem mudança de código:
+
+- horários do dia, gerados automaticamente (primeiro horário, intervalo, quantidade) ou um a um;
+- **vagas por horário** (1 a 10): cada horário pode receber mais de uma pessoa;
+- horários próprios para um dia da semana (ex.: sexta só de manhã), ou nenhum horário para fechar o dia;
+- **a partir de quando vale**: próxima semana (padrão), ainda esta semana (a partir de hoje) ou outra data.
+
+Cada grade salva fica em `configuracoes/agenda.gradesAtendimento` com a data de início; para uma data vale a grade de maior início que já começou. Datas anteriores à primeira grade seguem as regras acima (cortes fixos e `horariosPorDiaSemana`). Antes de salvar, o painel lista agendamentos que ficariam fora da nova grade — eles nunca são apagados automaticamente. Grades programadas podem ser excluídas até começarem. A regra canônica está em `functions/agenda-grade.js` e é espelhada no painel (há teste de equivalência).
+
+Cada vaga de um horário é um documento em `vagas_ocupadas`: a primeira mantém o id `AAAA-MM-DD_HH:MM`, as demais recebem `_2`, `_3`... A reserva lê todas as vagas do horário dentro da transação, então duas pessoas nunca levam a mesma vaga e o horário não passa da capacidade, mesmo quando a recepção reduz as vagas depois de haver reservas. O cancelamento continua liberando exatamente a vaga do agendamento (`slotId`).
+
 No painel da recepção, em **Configurações operacionais → Abertura automática toda segunda-feira**, é possível:
 
 - ativar ou suspender toda a automação;
@@ -214,6 +225,14 @@ As exceções sempre prevalecem sobre a regra automática. Datas cadastradas man
 Na abertura das 08:00, o aviso público de novas vagas também passa automaticamente para a próxima segunda-feira que tenha algum dia de atendimento, pulando semanas suspensas, datas bloqueadas e períodos de férias. Com a automação desligada, o aviso continua sob controle manual.
 
 Para garantir que a exceção entre na primeira execução, salve-a antes de segunda-feira às 07:50. Se uma data automática for removida manualmente, ela também é adicionada à lista de dias bloqueados, evitando que seja recriada na execução redundante das 07:55.
+
+### Disputa na abertura
+
+Desde 28/09/2026, para quem perdia a vaga tentando horário atrás de horário. A pessoa continua sempre escolhendo o próprio horário:
+
+- **Sem atalho "Primeiro horário livre".** Ele apontava o mesmo horário em todos os celulares e juntava a abertura inteira numa vaga só.
+- **Horário preenchido mostra o que ainda está livre.** Quando a transação recusa o horário, `criarAgendamentoCidadao` devolve no próprio erro (`details.agenda`) a agenda pública lida naquele instante do Firestore, sem CDN. O site mostra os horários livres daquele dia com botões "Agendar às HH:MM": um toque agenda, sem segundo modal. Outros dias só abrem a grade. Se a leitura falhar ou passar de 2,5 s, o erro sai como antes e o site volta à grade.
+- **Grade a cada 2 s nos 5 minutos após cada publicação.** A resposta pública traz `atualizacaoRapidaAte`, e o cache curto do CDN caiu de 5 s para 2 s. A grade é atualizada no lugar, sem redesenhar nem esconder os horários de quem está escolhendo. A atualização para com a aba oculta, durante o envio do agendamento, na tela de sucesso e quando as vagas acabam. A atualização de 3 minutos também passou a atualizar no lugar.
 
 ### Pop-up de aviso no site
 

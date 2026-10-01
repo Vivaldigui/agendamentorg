@@ -34,6 +34,17 @@ function extrairExport(codigo, nome) {
   return proxima === -1 ? codigo.slice(inicio) : codigo.slice(inicio, inicio + 1 + proxima);
 }
 
+function extrairFuncao(codigo, nome) {
+  const inicio = codigo.indexOf("function " + nome + "(");
+  assert.notEqual(inicio, -1, "Funcao " + nome + " nao encontrada.");
+  let nivel = 0;
+  for (let i = codigo.indexOf("{", inicio); i < codigo.length; i++) {
+    if (codigo[i] === "{") nivel++;
+    if (codigo[i] === "}" && --nivel === 0) return codigo.slice(inicio, i + 1);
+  }
+  throw new Error("Fim da funcao " + nome + " nao encontrado.");
+}
+
 // Firestore falso, so o suficiente para exercitar a transacao.
 function montarFirestore(docs) {
   const escritas = { deletes: [], sets: [] };
@@ -65,8 +76,7 @@ function montarCancelar(docs) {
   const { db, escritas, ordem } = montarFirestore(docs);
   let capturado = null;
   const onCall = (_opcoes, handler) => { capturado = handler; };
-  const ativo = (d) => d.ativo !== false
-    && ["cancelado", "cancelado_cidadao", "cancelado_camara", "remarcado"].includes(String(d.status || "agendado")) === false;
+  const ativo = new Function(`${extrairFuncao(backend, "agendamentoEstaAtivo")}; return agendamentoEstaAtivo;`)();
 
   new Function(
     "exports", "onCall", "callableOptions", "assertAdmin", "HttpsError", "db",

@@ -8,6 +8,7 @@ const {
   MINUTOS_CACHE_CURTO_ANTES,
   MINUTOS_CACHE_CURTO_DEPOIS,
   MINUTOS_CACHE_CURTO_AGUARDANDO_PUBLICACAO,
+  MINUTOS_ATUALIZACAO_RAPIDA,
   SEGUNDOS_CACHE_CURTO,
   CACHE_CURTO,
   CACHE_SEM_ARMAZENAMENTO,
@@ -19,6 +20,7 @@ const {
   aberturasProgramadasPendentes,
   publicacaoAtravessada,
   janelaAberturaSemanal,
+  fimAtualizacaoRapida,
   vidaMaximaCacheSegundos
 } = require("./agenda-cache-publica");
 
@@ -102,15 +104,15 @@ test("nos minutos ao redor da abertura o prazo cai para segundos", () => {
 
 test("o cache curto nao guarda copia no navegador nem usa stale-while-revalidate", () => {
   const cabecalho = politica(`${SEGUNDA}T07:59`, PUBLICACAO_SEMANAL);
-  assert.equal(cabecalho, "public, max-age=0, s-maxage=5");
+  assert.equal(cabecalho, "public, max-age=0, s-maxage=2");
   assert.equal(diretiva(cabecalho, "max-age"), 0);
   assert.equal(diretiva(cabecalho, "stale-while-revalidate"), null);
   assert.equal(vidaMaximaCacheSegundos(cabecalho), SEGUNDOS_CACHE_CURTO);
 });
 
-test("pedir de proposito a chave de um minuto futuro rende no maximo cinco segundos", () => {
+test("pedir de proposito a chave de um minuto futuro rende no maximo dois segundos", () => {
   // A pre-semeadura deixa de fixar 60s de agenda fechada; o estrago cabe na
-  // janela de cinco segundos, e o CDN continua absorvendo a rajada em vez de
+  // janela de dois segundos, e o CDN continua absorvendo a rajada em vez de
   // jogar cada visitante na transacao de rate limit.
   for (const agora of [`${SEGUNDA}T07:57`, `${SEGUNDA}T07:58`, `${SEGUNDA}T07:59`]) {
     assert.equal(vidaMaximaCacheSegundos(politica(agora, PUBLICACAO_SEMANAL)), SEGUNDOS_CACHE_CURTO);
@@ -294,9 +296,9 @@ test("fora da janela de virada, nenhuma copia sobrevive a publicacao", () => {
   }
 });
 
-test("dentro da janela de virada o falso fechamento cabe em cinco segundos", () => {
+test("dentro da janela de virada o falso fechamento cabe em dois segundos", () => {
   // Compromisso explicito: trocamos a garantia de zero falso fechamento por um
-  // teto de ~5s, porque no-store jogaria cada visitante numa transacao Firestore
+  // teto de ~2s, porque no-store jogaria cada visitante numa transacao Firestore
   // de rate limit compartilhada por CGNAT durante o pico.
   for (let minuto = -MINUTOS_CACHE_CURTO_ANTES; minuto <= MINUTOS_CACHE_CURTO_DEPOIS; minuto++) {
     const agora = somarMinutos(ABERTURA, minuto);
@@ -427,4 +429,116 @@ test("erro da leitura publica tambem sai como no-store", () => {
   const handler = backend.slice(backend.indexOf("exports.carregarAgendaPublicaHttp"));
   const corpo = handler.slice(0, handler.indexOf("exports.", 1));
   assert.match(corpo, /catch\s*\(err\)\s*\{[\s\S]*res\.set\("Cache-Control",\s*CACHE_SEM_ARMAZENAMENTO\)/);
+});
+
+// ---------------------------------------------------------------------------
+// Atualizacao rapida da grade depois da abertura (28/09/2026)
+// ---------------------------------------------------------------------------
+
+test("a atualizacao rapida vale do minuto da abertura ate cinco minutos depois", () => {
+  assert.equal(MINUTOS_ATUALIZACAO_RAPIDA, 5);
+  const fim = somarMinutos(ABERTURA, MINUTOS_ATUALIZACAO_RAPIDA);
+  for (let passaram = 0; passaram < MINUTOS_ATUALIZACAO_RAPIDA; passaram++) {
+    const agora = somarMinutos(ABERTURA, passaram);
+    assert.equal(fimAtualizacaoRapida(PUBLICACAO_SEMANAL, SEM_AUTOMACAO, agora), fim, agora);
+  }
+  // Antes da abertura a agenda ainda esta fechada: nada para atualizar rapido.
+  assert.equal(fimAtualizacaoRapida(PUBLICACAO_SEMANAL, SEM_AUTOMACAO, somarMinutos(ABERTURA, -1)), "");
+  // No quinto minuto a janela ja acabou.
+  assert.equal(fimAtualizacaoRapida(PUBLICACAO_SEMANAL, SEM_AUTOMACAO, fim), "");
+  assert.equal(fimAtualizacaoRapida(PUBLICACAO_SEMANAL, SEM_AUTOMACAO, somarMinutos(ABERTURA, 60)), "");
+});
+
+test("a atualizacao rapida nunca ultrapassa a janela de cache curto", () => {
+  // Atualizar a cada 2s contra uma copia de 60s so gastaria banda. Em todo
+  // minuto em que o site atualiza rapido, o CDN segura a resposta por 2s.
+  assert.ok(MINUTOS_ATUALIZACAO_RAPIDA <= MINUTOS_CACHE_CURTO_DEPOIS);
+  for (let passaram = 0; passaram <= MINUTOS_CACHE_CURTO_DEPOIS + 2; passaram++) {
+    const agora = somarMinutos(ABERTURA, passaram);
+    if (!fimAtualizacaoRapida(PUBLICACAO_SEMANAL, SEM_AUTOMACAO, agora)) continue;
+    assert.equal(politica(agora, PUBLICACAO_SEMANAL), CACHE_CURTO, agora);
+    assert.equal(vidaMaximaCacheSegundos(politica(agora, PUBLICACAO_SEMANAL)), 2, agora);
+  }
+});
+
+test("a abertura prevista pela automacao conta mesmo sem publicacaoDatas gravado", () => {
+  // Se as execucoes de 07:50/07:55 atrasarem, o site ainda sabe que 08:00 e
+  // abertura. Automacao desligada e sem mapa: nenhuma janela.
+  assert.equal(fimAtualizacaoRapida({}, {}, `${SEGUNDA}T08:02`), `${SEGUNDA}T08:05`);
+  assert.equal(fimAtualizacaoRapida({}, SEM_AUTOMACAO, `${SEGUNDA}T08:02`), "");
+  assert.equal(fimAtualizacaoRapida({}, { semanasPausadas: [SEGUNDA] }, `${SEGUNDA}T08:02`), "");
+  assert.equal(fimAtualizacaoRapida({}, { horaAbertura: "09:30" }, `${SEGUNDA}T09:31`), `${SEGUNDA}T09:35`);
+});
+
+test("publicacao manual fora de segunda tambem ganha a janela, inclusive na virada do dia", () => {
+  const datas = { [QUARTA]: `${SEGUNDA}T23:58` };
+  assert.equal(fimAtualizacaoRapida(datas, SEM_AUTOMACAO, `${SEGUNDA}T23:59`), "2026-08-25T00:03");
+  assert.equal(fimAtualizacaoRapida(datas, SEM_AUTOMACAO, "2026-08-25T00:02"), "2026-08-25T00:03");
+  assert.equal(fimAtualizacaoRapida(datas, SEM_AUTOMACAO, "2026-08-25T00:03"), "");
+});
+
+test("entradas invalidas nao abrem janela rapida", () => {
+  assert.equal(fimAtualizacaoRapida(PUBLICACAO_SEMANAL, SEM_AUTOMACAO, "lixo"), "");
+  assert.equal(fimAtualizacaoRapida(null, null, `${SEGUNDA}T08:01`), `${SEGUNDA}T08:05`);
+  assert.equal(fimAtualizacaoRapida({ "x": `${SEGUNDA}T08:00` }, SEM_AUTOMACAO, `${SEGUNDA}T08:01`), "");
+  assert.equal(fimAtualizacaoRapida({ [QUARTA]: "amanha" }, SEM_AUTOMACAO, `${SEGUNDA}T08:01`), "");
+});
+
+test("a resposta publica leva o fim da janela rapida calculado no instante do corpo", () => {
+  const carregar = extrairFuncao(backend, "carregarDisponibilidadePublica");
+  assert.match(
+    carregar,
+    /atualizacaoRapidaAte:\s*fimAtualizacaoRapida\(agenda\.publicacaoDatas,\s*agenda\.automacaoSemanal,\s*agora\)/
+  );
+  assert.match(backend, /fimAtualizacaoRapida,?[\s\w,]*\}\s*=\s*require\(["']\.\/agenda-cache-publica["']\)/);
+});
+
+// ---------------------------------------------------------------------------
+// Query string da leitura publica (29/09/2026)
+// ---------------------------------------------------------------------------
+
+const { parametrosLeituraPublicaValidos, FOLGA_PARAMETRO_LEITURA_MINUTOS } = require("./agenda-cache-publica");
+
+test("a leitura publica so aceita as chaves que o sistema usa, perto do relogio", () => {
+  const agoraMs = Date.UTC(2026, 7, 24, 11, 0, 30); // 08:00:30 em Sao Paulo
+  const minuto = Math.floor(agoraMs / 60000);
+  const valida = (query) => parametrosLeituraPublicaValidos(query, agoraMs, ABERTURA);
+  assert.equal(valida({}), true);
+  assert.equal(valida(undefined), true);
+  assert.equal(valida({ "atualizar-minuto": String(minuto) }), true);
+  assert.equal(valida({ "atualizar-minuto": String(minuto - FOLGA_PARAMETRO_LEITURA_MINUTOS) }), true);
+  assert.equal(valida({ "atualizar-minuto": String(minuto + FOLGA_PARAMETRO_LEITURA_MINUTOS + 1) }), false);
+  assert.equal(valida({ preaquecer: `${SEGUNDA}T07:59` }), true);
+  assert.equal(valida({ preaquecer: `${SEGUNDA}T06:00` }), false);
+  // Furos de cache: chave desconhecida, valor qualquer, repeticao e combinacao.
+  assert.equal(valida({ x: "1" }), false);
+  assert.equal(valida({ "teste-carga": "homologacao" }), false);
+  assert.equal(valida({ "atualizar-minuto": "abc" }), false);
+  assert.equal(valida({ "atualizar-minuto": [String(minuto), String(minuto)] }), false);
+  assert.equal(valida({ "atualizar-minuto": String(minuto), preaquecer: `${SEGUNDA}T07:59` }), false);
+});
+
+test("parametro invalido e recusado antes do rate limit e das leituras", () => {
+  const handler = backend.slice(backend.indexOf("exports.carregarAgendaPublicaHttp"));
+  const corpo = handler.slice(0, handler.indexOf("exports.", 1));
+  const trava = corpo.indexOf("parametrosLeituraPublicaValidos(req.query");
+  assert.notEqual(trava, -1);
+  assert.ok(trava < corpo.indexOf("aplicarRateLimit("), "a trava precisa vir antes de qualquer gravacao");
+  assert.ok(trava < corpo.indexOf("carregarDisponibilidadePublica()"));
+  assert.match(corpo.slice(trava, corpo.indexOf("try {")), /CACHE_SEM_ARMAZENAMENTO[\s\S]*status\(400\)/);
+  // Os dois usos legitimos continuam no formato aceito.
+  const site = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
+  assert.match(site, /\?atualizar-minuto=\$\{minutoCompartilhado\}/);
+  assert.match(backend, /carregarAgendaPublicaHttp\?preaquecer=\$\{encodeURIComponent\(agora\)\}/);
+});
+
+test("o banco de tempo real nao aceita gravacao anonima", () => {
+  // A telemetria de presenca esta desligada no site. A regra antiga deixava
+  // qualquer um criar e apagar conexoes sem login, e cada gravacao disparava uma
+  // funcao que lia o no inteiro: custo que crescia ao quadrado com o abuso.
+  const regras = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "database.rules.json"), "utf8"));
+  const conexoes = regras.rules.presenca_publica.conexoes;
+  assert.equal(conexoes.$conexaoId[".write"], false);
+  assert.equal(regras.rules[".write"], false);
+  assert.equal(regras.rules.presenca_publica.metricas[".write"], false);
 });

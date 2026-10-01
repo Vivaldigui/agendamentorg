@@ -232,6 +232,7 @@
         .vagas-badge { font-size: 0.75rem; font-weight: 700; padding: 4px 8px; border-radius: 20px; margin-top: 4px; }
         .vagas-badge.ok { background: var(--success-light); color: var(--success-dark); }
         .vagas-badge.low { background: var(--warning-light); color: #b45309; }
+        .btn-hora .vagas-hora { font-size: 0.72rem; font-weight: 700; opacity: 0.85; }
         .selecionado { background: var(--primary) !important; color: white !important; border-color: var(--primary) !important; transform: translateY(-2px) !important; box-shadow: var(--shadow-hover) !important; }
         .form-grupo { margin-bottom: 20px; }
         .form-grupo label { display: block; margin-bottom: 8px; font-weight: 700; color: var(--gray-800); font-size: 0.9rem; }
@@ -266,9 +267,9 @@
         .instru-fase.instru-destaque { background: #eaf2ff; border: 2px solid var(--primary); border-left-width: 6px; padding: 16px 18px; font-size: 0.98rem; align-items: flex-start; box-shadow: 0 8px 20px rgba(0, 86, 179, 0.10); }
         .instru-fase.instru-destaque i { font-size: 1.45rem; color: var(--primary); margin-top: 2px; }
         .instru-titulo { display: block; margin-bottom: 4px; font-size: 1.05rem; font-weight: 900; color: var(--primary-dark); }
-        .btn-hora.primeiro-livre { grid-column: 1 / -1; background: #047857; color: white; border-color: #047857; font-weight: 900; }
-        .btn-hora.primeiro-livre:hover:not(:disabled) { background: #065f46; color: white; border-color: #065f46; }
-        .btn-hora.primeiro-livre:disabled { opacity: 0.6; }
+        .modal-btn.livre-agora { background: #047857; color: white; }
+        .modal-btn.livre-agora:hover:not(:disabled) { background: #065f46; }
+        .modal-btn:disabled { opacity: 0.55; cursor: not-allowed; }
         .aviso-toque-confirma { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; border-radius: 10px; padding: 10px 14px; margin: 4px 0 14px; font-size: 0.82rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
         .contador-vagas-topo { text-align: center; font-size: 0.85rem; font-weight: 800; color: var(--gray-600); margin: 0 0 14px; }
         .contador-vagas-topo strong { color: var(--primary); }
@@ -370,14 +371,17 @@
         @media (min-width: 720px) {
             body { padding: 20px 10px calc(96px + env(safe-area-inset-bottom, 0px)); }
             .cabecalho-sistema { padding: 24px 20px 22px; }
-            .cabecalho-sistema img { max-width: 230px; width: 46%; }
+            .cabecalho-sistema img { max-width: 440px; width: 70%; }
             .banner-vagas { padding: 12px 16px; }
             .grade-servicos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         }
         @media (max-width: 520px) {
             #sistema-agendamento { border-radius: 16px; }
-            .cabecalho-sistema { padding: 18px 12px 16px; }
-            .cabecalho-sistema img { max-width: 175px; width: 72%; }
+            .cabecalho-sistema { padding: 16px 14px 18px; }
+            /* No celular a logo ocupa toda a faixa azul, na proporcao original. */
+            .cabecalho-sistema img { max-width: 100%; width: 100%; }
+            /* O titulo sai da tela no celular, mas continua para leitor de tela e buscadores. */
+            .cabecalho-subtitulo { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
             .banner-vagas { padding: 10px; }
             .status-vagas-card { padding: 14px 12px; gap: 10px; border-radius: 14px; }
             .status-vagas-icone { width: 38px; height: 38px; font-size: 1.08rem; }
@@ -947,6 +951,8 @@
     let avisoPopupExibidoNestaVisita = false;
     let DISPONIBILIDADE_PUBLICA = { porData: {}, totalVagasRestantes: 0 };
     let ESTADO_AGENDA_PUBLICA = "desconhecido";
+    // Fim da atualizacao rapida da grade, dito pelo servidor ("" fora dela).
+    let ATUALIZACAO_RAPIDA_ATE = "";
     const SLOTS_OCUPADOS_CONFIRMADOS = new Map();
     let operacaoAgendamentoPendente = null;
     try {
@@ -1342,19 +1348,33 @@
         return true;
     }
 
-    function marcarSlotIndisponivelLocalmente(dataISO, hora) {
-        const agora = Date.now();
-        SLOTS_OCUPADOS_CONFIRMADOS.set(
-            chaveSlotPublico(dataISO, hora),
-            agora + DURACAO_SLOT_OCUPADO_CONFIRMADO_MS
-        );
-        salvarSlotsOcupadosConfirmados();
+    function somaVagasDia(dia) {
+        return dia.horarios.reduce((total, item) => total + (item.disponivel === true ? item.vagas : 0), 0);
+    }
 
+    // Um horario pode ter mais de uma vaga. Depois do proprio agendamento
+    // (`apenasUmaVaga`) so a vaga usada sai da tela: as outras continuam
+    // disponiveis, por exemplo para a mesma familia agendar mais alguem. Quando
+    // o servidor diz que o horario encheu, ou era a ultima vaga, o horario todo
+    // fica oculto localmente.
+    function marcarSlotIndisponivelLocalmente(dataISO, hora, { apenasUmaVaga = false } = {}) {
         const dia = DISPONIBILIDADE_PUBLICA.porData[dataISO];
+        const slot = dia && dia.horarios.find(item => item.hora === hora);
+        const restantes = slot && apenasUmaVaga ? Math.max(0, slot.vagas - 1) : 0;
+        if (restantes <= 0) {
+            SLOTS_OCUPADOS_CONFIRMADOS.set(
+                chaveSlotPublico(dataISO, hora),
+                Date.now() + DURACAO_SLOT_OCUPADO_CONFIRMADO_MS
+            );
+            salvarSlotsOcupadosConfirmados();
+        }
+
         if (dia) {
-            const slot = dia.horarios.find(item => item.hora === hora);
-            if (slot) slot.disponivel = false;
-            dia.vagas = dia.horarios.filter(item => item.disponivel === true).length;
+            if (slot) {
+                slot.vagas = restantes;
+                slot.disponivel = restantes > 0;
+            }
+            dia.vagas = somaVagasDia(dia);
             dia.lotado = dia.vagas <= 0;
             DISPONIBILIDADE_PUBLICA.totalVagasRestantes = Object.values(DISPONIBILIDADE_PUBLICA.porData)
                 .reduce((total, item) => total + item.vagas, 0);
@@ -1393,7 +1413,8 @@
                     const slotAtual = diaAtual && diaAtual.horarios.find(item => item.hora === hora);
                     if (slotAtual && horarioAgendamentoFuturo(dataISO, hora)) {
                         slotAtual.disponivel = true;
-                        diaAtual.vagas = diaAtual.horarios.filter(item => item.disponivel === true).length;
+                        slotAtual.vagas = Math.max(1, slotAtual.vagas);
+                        diaAtual.vagas = somaVagasDia(diaAtual);
                         diaAtual.lotado = diaAtual.vagas <= 0;
                         alterou = true;
                     }
@@ -1430,13 +1451,16 @@
             const horariosDia = Array.isArray(item.horarios)
                 ? item.horarios.filter(h => /^\d{2}:\d{2}$/.test(String(h.hora || "")))
                 : horariosPadraoParaDataPublica(dataISO).map(hora => ({ hora, disponivel: true }));
-            const horariosValidos = horariosDia.map(h => ({
-                hora: h.hora,
-                disponivel: h.disponivel === true
+            const horariosValidos = horariosDia.map(h => {
+                const disponivel = h.disponivel === true
                     && horarioAgendamentoFuturo(dataISO, h.hora)
-                    && !slotConfirmadoOcupadoLocalmente(dataISO, h.hora)
-            }));
-            const vagas = horariosValidos.filter(h => h.disponivel).length;
+                    && !slotConfirmadoOcupadoLocalmente(dataISO, h.hora);
+                // Vagas restantes do horario. Resposta antiga, sem o campo,
+                // vale uma vaga por horario livre.
+                const informadas = Number.isInteger(h.vagas) && h.vagas > 0 ? h.vagas : 1;
+                return { hora: h.hora, disponivel, vagas: disponivel ? informadas : 0 };
+            });
+            const vagas = horariosValidos.reduce((total, h) => total + h.vagas, 0);
             porData[dataISO] = {
                 dataISO,
                 vagas,
@@ -1484,6 +1508,11 @@
         DIAS_DISPONIVEIS = datasAtivas(Object.keys(DISPONIBILIDADE_PUBLICA.porData));
         DATA_NOVAS_VAGAS = cfg.dataNovasVagas || DATA_NOVAS_VAGAS_PADRAO;
         AVISO_POPUP = normalizarAvisoPopup(cfg.avisoPopup);
+        // Resposta de servidor anterior a 28/09/2026 nao traz o campo: sem ele o
+        // site segue so com a atualizacao normal de 3 minutos.
+        ATUALIZACAO_RAPIDA_ATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(String(cfg.atualizacaoRapidaAte || ""))
+            ? String(cfg.atualizacaoRapidaAte)
+            : "";
         ESTADO_AGENDA_PUBLICA = "valido";
         return cfg;
     }
@@ -1493,7 +1522,7 @@
             dataISO,
             vagas: 0,
             lotado: true,
-            horarios: horariosPadraoParaDataPublica(dataISO).map(hora => ({ hora, disponivel: false }))
+            horarios: horariosPadraoParaDataPublica(dataISO).map(hora => ({ hora, disponivel: false, vagas: 0 }))
         };
     }
 
@@ -2618,21 +2647,28 @@
     // Somente o botao "Confirmar agendamento" inicia a criacao transacional.
     // Se a criacao falhar por rede, o resumo e o botao FINALIZAR ficam
     // disponiveis para o retry seguro do mesmo operationId.
-    async function selecionarHorarioEConfirmar(data, h) {
+    async function selecionarHorarioEConfirmar(data, h, { jaConfirmado = false } = {}) {
         if (selecionandoHora) return;
         selecionandoHora = true;
         try {
-            const confirmou = await confirmarModalAsync({
-                titulo: "Confirmar agendamento?",
-                mensagem: `Data: ${dataBrTela(data)}\nHorário: ${h}\n\nConfira as informações antes de reservar a vaga.`,
-                textoConfirmar: "Confirmar agendamento",
-                textoCancelar: "Voltar",
-                classeConfirmar: "primario"
-            });
-            if (!confirmou) return;
+            // Vindo do aviso "ainda livres" (mostrarHorariosLivresAgora), o toque
+            // ja foi a confirmacao explicita: o botao dizia o horario, dentro de
+            // um aviso que dizia o dia. Pedir de novo so gastaria segundos na
+            // disputa.
+            if (!jaConfirmado) {
+                const confirmou = await confirmarModalAsync({
+                    titulo: "Confirmar agendamento?",
+                    mensagem: `Data: ${dataBrTela(data)}\nHorário: ${h}\n\nConfira as informações antes de reservar a vaga.`,
+                    textoConfirmar: "Confirmar agendamento",
+                    textoCancelar: "Voltar",
+                    classeConfirmar: "primario"
+                });
+                if (!confirmou) return;
+            }
 
             dataSel = data;
             horaSel = h;
+            document.getElementById("resumo-data-txt").textContent = dataBrTela(data);
             document.getElementById("resumo-hora-txt").textContent = h;
             document.getElementById("etapa-selecao").style.display = "none";
             definirModoDados("modo-confirmar");
@@ -2646,12 +2682,6 @@
         } finally {
             selecionandoHora = false;
         }
-    }
-
-    function primeiroHorarioLivre(data) {
-        const infoDia = disponibilidadeDia(data);
-        const item = infoDia.horarios.find(it => it.disponivel === true && horarioAgendamentoFuturo(data, it.hora));
-        return item ? item.hora : null;
     }
 
     function atualizarContadorVagasTopo() {
@@ -2682,43 +2712,59 @@
                 return;
             }
             DIAS_DISPONIVEIS.forEach(ds => {
-                const p = ds.split('-'); 
-                const d = new Date(+p[0], +p[1]-1, +p[2]);
-                const infoDia = disponibilidadeDia(ds);
-                const vagas = infoDia.vagas;
-                
-                const btn = document.createElement("button"); 
+                const btn = document.createElement("button");
                 btn.className = "btn-data";
-                
-                const diaSemana = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"][d.getDay()];
-                const diaMes = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
-                
-                btn.innerHTML = `<div class="dia-semana">${diaSemana}</div><strong style="font-size:1.15rem;">${diaMes}</strong>`;
-                
-                if (vagas <= 0) { 
-                    btn.disabled = true; 
-                    btn.classList.add("esgotada");
-                    btn.innerHTML += '<div><span class="lotado-badge">Lotado</span></div>';
-                } else {
-                    const badgeClass = vagas <= 2 ? 'low' : 'ok';
-                    const vagaText = vagas === 1 ? 'vaga' : 'vagas';
-                    const totalSlots = infoDia.horarios.length || 1;
-                    const pct = Math.round((vagas / totalSlots) * 100);
-                    btn.innerHTML += `<div style="width:100%;text-align:center;"><span class="vagas-badge ${badgeClass}">${vagas} ${vagaText}</span><div class="vaga-progress"><div class="vaga-progress-fill ${badgeClass}" style="width:${pct}%"></div></div></div>`;
-                    btn.onclick = async () => {
-                        dataSel = ds; 
-                        document.querySelectorAll('.btn-data').forEach(b => b.classList.remove('selecionado')); 
-                        btn.classList.add('selecionado'); 
-                        document.getElementById("resumo-data-txt").textContent = d.toLocaleDateString('pt-BR'); 
-                        await renderHoras(ds);
-                        atualizarEtapasFluxo(3);
-                        document.getElementById("container-horas").scrollIntoView({ behavior: "smooth", block: "start" });
-                        focarConteudo("titulo-escolher-horario");
-                    };
-                }
+                btn.dataset.data = ds;
+                preencherBotaoDia(btn, ds);
+                // Sempre ligado: um dia lotado pode reabrir numa atualizacao no
+                // lugar, e o botao desabilitado nao dispara clique.
+                btn.onclick = () => selecionarDia(ds);
                 grade.appendChild(btn);
             });
         } catch(e) { grade.innerHTML = '<p style="color:var(--danger); text-align:center; font-weight:700; grid-column:1/-1;"><i class="fa-solid fa-circle-exclamation"></i> Erro ao carregar datas. Tente novamente.</p>'; }
+    }
+
+    // Conteudo e estado do botao de um dia. Usado no desenho da grade e na
+    // atualizacao no lugar (atualizarGradeNoLugar), que so reescreve o botao
+    // quando o numero de vagas mudou.
+    function preencherBotaoDia(btn, ds) {
+        const p = ds.split('-');
+        const d = new Date(+p[0], +p[1]-1, +p[2]);
+        const infoDia = disponibilidadeDia(ds);
+        const vagas = infoDia.vagas;
+        const totalSlots = infoDia.horarios.length || 1;
+        const assinatura = `${vagas}|${totalSlots}`;
+        if (btn.dataset.estado === assinatura) return;
+        btn.dataset.estado = assinatura;
+
+        const diaSemana = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"][d.getDay()];
+        const diaMes = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+        let html = `<div class="dia-semana">${diaSemana}</div><strong style="font-size:1.15rem;">${diaMes}</strong>`;
+        if (vagas <= 0) {
+            // A barra invisivel mantem a altura do botao igual a de um dia com
+            // vagas: o dia que lota durante a atualizacao nao empurra a grade
+            // de horarios para cima debaixo do dedo de ninguem.
+            html += '<div style="width:100%;text-align:center;"><span class="lotado-badge">Lotado</span><div class="vaga-progress" style="visibility:hidden;"></div></div>';
+        } else {
+            const badgeClass = vagas <= 2 ? 'low' : 'ok';
+            const vagaText = vagas === 1 ? 'vaga' : 'vagas';
+            const pct = Math.round((vagas / totalSlots) * 100);
+            html += `<div style="width:100%;text-align:center;"><span class="vagas-badge ${badgeClass}">${vagas} ${vagaText}</span><div class="vaga-progress"><div class="vaga-progress-fill ${badgeClass}" style="width:${pct}%"></div></div></div>`;
+        }
+        btn.innerHTML = html;
+        btn.disabled = vagas <= 0;
+        btn.classList.toggle("esgotada", vagas <= 0);
+    }
+
+    async function selecionarDia(ds) {
+        if (!DIAS_DISPONIVEIS.includes(ds)) return;
+        dataSel = ds;
+        document.querySelectorAll('.btn-data').forEach(b => b.classList.toggle('selecionado', b.dataset.data === ds));
+        document.getElementById("resumo-data-txt").textContent = dataBrTela(ds);
+        await renderHoras(ds);
+        atualizarEtapasFluxo(3);
+        document.getElementById("container-horas").scrollIntoView({ behavior: "smooth", block: "start" });
+        focarConteudo("titulo-escolher-horario");
     }
 
     let SESSAO_VERIFICACAO_SLOT = null;
@@ -2760,38 +2806,249 @@
         grade.innerHTML = htmlSkeletonHoras();
         try {
             const infoDia = disponibilidadeDia(data);
-            const disponibilidadePorHora = {};
-            infoDia.horarios.forEach(item => { disponibilidadePorHora[item.hora] = item.disponivel === true; });
             grade.innerHTML = "";
+            grade.dataset.data = data;
 
-            // Atalho para quem so quer a vaga, nao o horario: marca o primeiro
-            // livre do dia. Numa disputa e o caminho mais curto ate o agendamento.
-            const primeira = primeiroHorarioLivre(data);
-            if (primeira) {
-                const btnPrimeiro = document.createElement("button");
-                btnPrimeiro.type = "button";
-                btnPrimeiro.className = "btn-hora primeiro-livre";
-                btnPrimeiro.setAttribute("aria-label", `Selecionar o primeiro horário livre, ${primeira}`);
-                btnPrimeiro.innerHTML = `<i class="fa-solid fa-bolt"></i> Primeiro horário livre · ${primeira}`;
-                btnPrimeiro.onclick = () => selecionarHorarioEConfirmar(data, primeira);
-                grade.appendChild(btnPrimeiro);
-            }
-
+            // Nao ha mais o atalho "Primeiro horario livre": ele apontava o MESMO
+            // horario em todos os celulares e juntava a abertura inteira numa
+            // vaga so. Cada um escolhe o horario que lhe serve.
             infoDia.horarios.forEach(itemHorario => {
                 const h = itemHorario.hora;
                 const btn = document.createElement("button");
                 btn.type = "button";
                 btn.className = "btn-hora";
-                btn.innerHTML = `<i class="fa-regular fa-clock"></i> ${h}`;
-
-                if (!disponibilidadePorHora[h] || !horarioAgendamentoFuturo(data, h)) {
-                    btn.disabled = true;
-                } else {
-                    btn.onclick = () => selecionarHorarioEConfirmar(data, h);
-                }
+                btn.dataset.hora = h;
+                preencherBotaoHora(btn, data, itemHorario);
+                // Sempre ligado: o horario pode reabrir numa atualizacao no
+                // lugar, e o botao desabilitado nao dispara clique.
+                btn.onclick = () => selecionarHorarioEConfirmar(data, h);
                 grade.appendChild(btn);
             });
         } catch(e) { grade.innerHTML = '<p style="color:var(--danger); text-align:center; font-weight:700; grid-column:1/-1;"><i class="fa-solid fa-circle-exclamation"></i> Erro ao carregar horários.</p>'; }
+    }
+
+    // Conteudo e estado do botao de um horario, no desenho e na atualizacao no
+    // lugar. So reescreve quando algo mudou.
+    function preencherBotaoHora(btn, data, item) {
+        const h = btn.dataset.hora;
+        const livre = Boolean(item && item.disponivel === true && horarioAgendamentoFuturo(data, h));
+        const vagas = livre && item.vagas > 1 ? item.vagas : 0;
+        const assinatura = `${livre ? 1 : 0}|${vagas}`;
+        if (btn.dataset.estado === assinatura) return;
+        btn.dataset.estado = assinatura;
+        btn.innerHTML = `<i class="fa-regular fa-clock"></i> ${h}${vagas ? ` <span class="vagas-hora">${vagas} vagas</span>` : ""}`;
+        btn.disabled = !livre;
+    }
+
+    // Aplica a disponibilidade atual na grade que ja esta na tela, sem
+    // redesenhar: os botoes ficam onde estao e a grade de horarios aberta nao
+    // some. Devolve false quando os dias mudaram -- quem chama redesenha.
+    function atualizarGradeNoLugar() {
+        if (ESTADO_AGENDA_PUBLICA !== "valido") return false;
+        const botoesDias = [...document.querySelectorAll("#gradeDatas .btn-data[data-data]")];
+        if (!botoesDias.length || botoesDias.map(b => b.dataset.data).join("|") !== DIAS_DISPONIVEIS.join("|")) {
+            return false;
+        }
+        botoesDias.forEach(btn => preencherBotaoDia(btn, btn.dataset.data));
+        const gradeHoras = document.getElementById("gradeHoras");
+        const dataHoras = gradeHoras.dataset.data;
+        if (dataHoras && document.getElementById("container-horas").style.display !== "none") {
+            const infoDia = disponibilidadeDia(dataHoras);
+            gradeHoras.querySelectorAll(".btn-hora[data-hora]").forEach(btn => {
+                preencherBotaoHora(btn, dataHoras, infoDia.horarios.find(item => item.hora === btn.dataset.hora));
+            });
+        }
+        atualizarContadorVagasTopo();
+        return true;
+    }
+
+    async function redesenharGradePreservandoDia() {
+        const gradeHoras = document.getElementById("gradeHoras");
+        const diaAberto = document.getElementById("container-horas").style.display !== "none"
+            ? gradeHoras.dataset.data
+            : "";
+        await renderDatas();
+        if (diaAberto && DIAS_DISPONIVEIS.includes(diaAberto)) {
+            document.querySelectorAll(".btn-data").forEach(b => b.classList.toggle("selecionado", b.dataset.data === diaAberto));
+            await renderHoras(diaAberto);
+        }
+    }
+
+    // Mesmo formato gravado por carregarConfig: quem recarrega a pagina ou volta
+    // a grade parte da copia mais recente, e nao de uma de minutos atras.
+    function guardarAgendaNoCacheLocal(cfg) {
+        try {
+            localStorage.setItem("cin_agenda_cache", JSON.stringify({
+                dados: cfg,
+                expiraEm: Date.now() + 3 * 60 * 1000
+            }));
+        } catch (e) {}
+    }
+
+    // ---- Atualizacao rapida logo depois da abertura ----
+    // Nos minutos em que as vagas somem em segundos, a grade atualiza a cada 2s,
+    // sempre no lugar. O servidor diz ate quando (atualizacaoRapidaAte) e segura
+    // a copia no CDN por 2s nessa janela. Freios: aba em segundo plano,
+    // agendamento sendo enviado (o pedido que importa nao disputa a rede com a
+    // grade), tela de sucesso, vagas esgotadas e nunca duas buscas ao mesmo tempo.
+    const ATUALIZACAO_RAPIDA_MS = 2000;
+    const LIMITE_BUSCA_ATUALIZACAO_RAPIDA_MS = 4000;
+    let intervaloAtualizacaoRapida = null;
+    let atualizacaoRapidaEmCurso = false;
+
+    function atualizacaoRapidaAtiva() {
+        return Boolean(ATUALIZACAO_RAPIDA_ATE)
+            && agoraSaoPauloInput() < ATUALIZACAO_RAPIDA_ATE
+            && ESTADO_AGENDA_PUBLICA === "valido"
+            && DIAS_DISPONIVEIS.length > 0
+            && (DISPONIBILIDADE_PUBLICA.totalVagasRestantes || 0) > 0;
+    }
+
+    function atualizacaoRapidaPermitidaAgora() {
+        return document.visibilityState === "visible"
+            && !atualizacaoAberturaEmCurso
+            && !(operacaoAgendamentoPendente && operacaoAgendamentoPendente.emEnvio === true)
+            && document.getElementById("sucesso-docs").style.display !== "block";
+    }
+
+    async function atualizarGradeRapido() {
+        if (atualizacaoRapidaEmCurso || !atualizacaoRapidaAtiva() || !atualizacaoRapidaPermitidaAgora()) return false;
+        atualizacaoRapidaEmCurso = true;
+        try {
+            const buscaIniciadaEm = Date.now();
+            const { dados: cfg, relogioServidor } = await buscarAgendaPublicaAtualizada({
+                timeoutMs: LIMITE_BUSCA_ATUALIZACAO_RAPIDA_MS
+            });
+            // O agendamento pode ter comecado enquanto a busca viajava: a tela de
+            // confirmacao nao e tocada, e a proxima volta busca de novo.
+            if (!atualizacaoRapidaPermitidaAgora()) return false;
+            sincronizarRelogioServidor(relogioServidor, Math.round((buscaIniciadaEm + Date.now()) / 2));
+            aplicarConfigAgendaPublica(cfg);
+            guardarAgendaNoCacheLocal(cfg);
+            if (podeRedesenharAgenda() && !atualizarGradeNoLugar()) await redesenharGradePreservandoDia();
+            atualizarBotoesLivresNoModal();
+            atualizarBannerVagas();
+            return true;
+        } catch (e) {
+            // Silencioso de proposito: a tela fica com a ultima grade boa e a
+            // proxima volta, em 2s, tenta de novo.
+            return false;
+        } finally {
+            atualizacaoRapidaEmCurso = false;
+        }
+    }
+
+    // ---- Horario preenchido: o que ainda esta livre, agora ----
+    // O servidor devolve, junto com o conflito, a agenda lida naquele instante
+    // direto do banco. Resposta sem ela (servidor antigo, leitura lenta) cai no
+    // fluxo anterior de voltar a grade.
+    function agendaFrescaDoConflito(e) {
+        const detalhes = e && e.details;
+        if (!detalhes || detalhes.tipo !== "horario-preenchido") return null;
+        return configAgendaPublicaValida(detalhes.agenda) ? detalhes.agenda : null;
+    }
+
+    function descricaoDia(dataISO) {
+        const p = String(dataISO || "").split("-").map(Number);
+        const d = new Date(p[0], p[1] - 1, p[2]);
+        const nome = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"][d.getDay()] || "";
+        return `${nome}, ${String(p[2]).padStart(2, "0")}/${String(p[1]).padStart(2, "0")}`;
+    }
+
+    function horarioLivreAgora(dataISO, hora) {
+        const item = disponibilidadeDia(dataISO).horarios.find(it => it.hora === hora);
+        return Boolean(item && item.disponivel === true && horarioAgendamentoFuturo(dataISO, hora));
+    }
+
+    // A pessoa continua escolhendo: o aviso so lista os horarios livres do dia
+    // que ela queria, e cada botao diz qual horario agenda. Um toque agenda.
+    async function mostrarHorariosLivresAgora(cfg, dataISO, horaPerdida) {
+        try {
+            aplicarConfigAgendaPublica(cfg);
+            guardarAgendaNoCacheLocal(cfg);
+            horaSel = null;
+            document.getElementById("dados-pessoais").style.display = "none";
+            document.getElementById("etapa-selecao").style.display = "block";
+            atualizarEtapasFluxo(2);
+            atualizarVisibilidadeAtalhos();
+            await renderDatas();
+            if (DIAS_DISPONIVEIS.includes(dataISO)) {
+                dataSel = dataISO;
+                document.querySelectorAll(".btn-data").forEach(b => b.classList.toggle("selecionado", b.dataset.data === dataISO));
+                await renderHoras(dataISO);
+                atualizarEtapasFluxo(3);
+            }
+            atualizarBannerVagas();
+            window.scrollTo(0, 0);
+        } catch (erroTela) {
+            console.warn("Nao foi possivel montar os horarios livres:", erroTela);
+            return false;
+        }
+
+        const livres = disponibilidadeDia(dataISO).horarios
+            .map(it => it.hora)
+            .filter(hora => horarioLivreAgora(dataISO, hora));
+        const outrosDias = DIAS_DISPONIVEIS.filter(dia => dia !== dataISO && disponibilidadeDia(dia).vagas > 0);
+        const perdido = `O horário das ${horaPerdida} de ${descricaoDia(dataISO)} foi confirmado por outra pessoa segundos antes de você. Seus dados foram mantidos.`;
+        const botoes = [];
+        let mensagem;
+        if (livres.length) {
+            mensagem = `${perdido}\n\nAinda livres neste dia. Toque em um para agendar direto:`;
+            livres.forEach(hora => botoes.push({
+                texto: `Agendar às ${hora}`,
+                classe: "livre-agora",
+                hora,
+                acao: () => selecionarHorarioEConfirmar(dataISO, hora, { jaConfirmado: true })
+            }));
+            botoes.push(outrosDias.length
+                ? { texto: "Ver outros dias", classe: "neutro", acao: () => focarConteudo("titulo-escolher-dia") }
+                : { texto: "Fechar", classe: "neutro" });
+        } else if (outrosDias.length) {
+            mensagem = `${perdido}\n\nEste dia não tem mais horários livres. Ainda há vagas em:`;
+            outrosDias.forEach(dia => {
+                const vagas = disponibilidadeDia(dia).vagas;
+                botoes.push({
+                    texto: `Ver ${descricaoDia(dia)} · ${vagas} ${vagas === 1 ? "vaga" : "vagas"}`,
+                    classe: "primario",
+                    acao: () => selecionarDia(dia)
+                });
+            });
+            botoes.push({ texto: "Fechar", classe: "neutro" });
+        } else {
+            mensagem = `${perdido}\n\nAs vagas desta abertura acabaram.`;
+            botoes.push({ texto: "Entendi", classe: "primario" });
+        }
+        modal({
+            icone: '<i class="fa-regular fa-clock" style="color:var(--warning);"></i>',
+            titulo: "Esse horário acabou de ser preenchido",
+            mensagem,
+            botoes
+        });
+        // Liga cada botao ao horario que agenda: a atualizacao rapida apaga o
+        // que for preenchido enquanto o aviso esta aberto.
+        const nos = document.querySelectorAll("#modal-botoes .modal-btn");
+        botoes.forEach((b, i) => {
+            if (!b.hora || !nos[i]) return;
+            nos[i].dataset.data = dataISO;
+            nos[i].dataset.hora = b.hora;
+        });
+        // Quem tocava sem parar enquanto esperava a resposta nao pode agendar sem
+        // querer o horario que caiu debaixo do dedo: os botoes so respondem ao
+        // toque depois de um instante.
+        const caixaBotoes = document.getElementById("modal-botoes");
+        caixaBotoes.style.pointerEvents = "none";
+        setTimeout(() => { caixaBotoes.style.pointerEvents = ""; }, 600);
+        return true;
+    }
+
+    function atualizarBotoesLivresNoModal() {
+        if (!modalEstaAberto()) return;
+        document.querySelectorAll("#modal-botoes .modal-btn[data-hora]").forEach(btn => {
+            const livre = horarioLivreAgora(btn.dataset.data, btn.dataset.hora);
+            if (btn.disabled === !livre) return;
+            btn.disabled = !livre;
+            btn.textContent = livre ? `Agendar às ${btn.dataset.hora}` : `${btn.dataset.hora} · preenchido`;
+        });
     }
 
     let timerAtualizacaoAutomatica = null;
@@ -2806,7 +3063,10 @@
         clearTimeout(timerAtualizacaoAutomatica);
         timerAtualizacaoAutomatica = setTimeout(async () => {
             const vagasAntes = DISPONIBILIDADE_PUBLICA.totalVagasRestantes || 0;
-            await carregarConfig();
+            // Sem desenhar dentro de carregarConfig: a grade e atualizada no
+            // lugar logo abaixo. O redesenho escondia, a cada 3 minutos, a grade
+            // de horarios de quem estava escolhendo.
+            await carregarConfig({ atualizarInterface: false });
             const vagasDepois = DISPONIBILIDADE_PUBLICA.totalVagasRestantes || 0;
             if (vagasDepois < vagasAntes && podeRedesenharAgenda()) {
                 mostrarToastAgenda(`${vagasAntes - vagasDepois} vaga(s) preenchida(s) agora.`);
@@ -2837,14 +3097,21 @@
                     return;
                 }
             }
-            if (podeRedesenharAgenda()) await renderDatas();
+            if (podeRedesenharAgenda() && !atualizarGradeNoLugar()) await redesenharGradePreservandoDia();
+            atualizarBotoesLivresNoModal();
             atualizarBannerVagas();
+            mostrarAvisoPopupSePreciso();
         }, 300);
     }
 
     function iniciarAtualizacaoAutomatica() {
         if (!intervaloAtualizacaoAutomatica) {
             intervaloAtualizacaoAutomatica = setInterval(agendarAtualizacaoAutomatica, ATUALIZACAO_AGENDA_PUBLICA_MS);
+        }
+        // Roda sempre, mas so busca quando atualizacaoRapidaAtiva(): fora da
+        // janela cada volta e apenas uma checagem local.
+        if (!intervaloAtualizacaoRapida) {
+            intervaloAtualizacaoRapida = setInterval(atualizarGradeRapido, ATUALIZACAO_RAPIDA_MS);
         }
     }
 
@@ -3008,7 +3275,7 @@
                 // Sucesso!
                 const ag = resposta.data.agendamento || {};
                 const substituiu = resposta.data && resposta.data.substituiu;
-                marcarSlotIndisponivelLocalmente(dataOperacao, horaOperacao);
+                marcarSlotIndisponivelLocalmente(dataOperacao, horaOperacao, { apenasUmaVaga: true });
                 definirCamposOperacaoBloqueados(false);
                 operacaoAgendamentoPendente = null;
                 ultimoAgendamentoConfirmado = {
@@ -3109,6 +3376,11 @@
             marcarSlotIndisponivelLocalmente(dataOperacao, horaOperacao);
             definirCamposOperacaoBloqueados(false);
             operacaoAgendamentoPendente = null;
+            // A resposta ja traz a agenda lida agora no banco: a pessoa ve na
+            // hora o que ainda esta livre e agenda com um toque, em vez de voltar
+            // a uma grade velha e tocar em outro horario ja tomado.
+            const agendaFresca = agendaFrescaDoConflito(e);
+            if (agendaFresca && await mostrarHorariosLivresAgora(agendaFresca, dataOperacao, horaOperacao)) return;
             await abrirAlterarHorario();
             erro("Outra pessoa concluiu o agendamento primeiro nesse horário. Seus dados foram mantidos; escolha outra data ou horário disponível.");
         }
@@ -3623,6 +3895,9 @@
             abaOcultaDesde = 0;
             // Melhor esforco: nao bloqueia a retomada nem a interacao seguinte.
             if (ausencia >= MS_OCULTA_PARA_RENOVAR_APP_CHECK) tentarRefreshAppCheck();
+            // Quem volta a aba no meio da disputa ve a grade atual na hora, sem
+            // esperar a proxima volta. Fora da janela rapida nao faz nada.
+            atualizarGradeRapido();
         }
     });
 

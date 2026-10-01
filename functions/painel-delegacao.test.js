@@ -192,10 +192,7 @@ test("delegacao converte indices e dias para numero e confirmacao para booleano"
   for (const acao of ["removerSemanaPausada", "removerDataBloqueada", "removerPeriodoBloqueado"]) {
     assert.match(painelJs, new RegExp(`${acao}: el => ${acao}\\(Number\\(el\\.dataset\\.indice\\)\\)`));
   }
-  for (const acao of ["personalizarDiaSemana", "adicionarHorarioSemana", "voltarDiaSemanaAoAutomatico"]) {
-    assert.match(painelJs, new RegExp(`${acao}: el => ${acao}\\(Number\\(el\\.dataset\\.dia\\)\\)`));
-  }
-  assert.match(painelJs, /removerHorarioSemana: el => removerHorarioSemana\(Number\(el\.dataset\.dia\), el\.dataset\.hora\)/);
+  assert.match(painelJs, /removerHorarioGrade: el => removerHorarioGrade\(Number\(el\.dataset\.indice\)\)/);
   assert.match(painelJs, /confirmacao: el => resolverConfirmacao\(el\.dataset\.valor === "true"\)/);
 });
 

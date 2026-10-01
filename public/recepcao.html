@@ -201,9 +201,9 @@
                     </button>
                     <button type="button" class="cfg-tile" data-acao="abrir-config" data-painel="horarios">
                         <span class="cfg-ico"><i class="fa-solid fa-clock"></i></span>
-                        <b>Horários da semana</b>
+                        <b>Horários e vagas</b>
                         <span class="cfg-estado" id="est-horarios">&nbsp;</span>
-                        <small>Grade de horários de cada dia da semana.</small>
+                        <small>Horários, vagas por horário e a partir de quando valem.</small>
                     </button>
                     <button type="button" class="cfg-tile" data-acao="abrir-config" data-painel="preferencias">
                         <span class="cfg-ico"><i class="fa-solid fa-sliders"></i></span>
@@ -405,18 +405,9 @@
             <div class="config-pane" id="pane-horarios" style="display:none;">
                 <button type="button" class="btn-voltar" data-acao="voltarConfigHub"><i class="fa-solid fa-arrow-left"></i> Configuração</button>
                 <div class="painel-config">
-                    <h3><i class="fa-solid fa-clock"></i> Horários disponíveis por dia da semana</h3>
-                <p class="horarios-aviso-geral">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                    Esta tela é por <strong>dia da semana</strong>, não por data. Um dia deixado em
-                    <strong>Automático</strong> usa a grade correta de cada período: 8 horários até 17/08/2026,
-                    10 horários de 18/08 a 20/09/2026 e 6 horários a partir de 21/09/2026. Ao personalizar um dia,
-                    a lista escolhida passa a valer para <strong>todas as datas daquele dia da semana</strong>,
-                    inclusive as anteriores a 18/08 e a 21/09 — o que pode criar atendimentos sobrepostos em datas já publicadas.
-                    Só personalize se for realmente necessário.
-                </p>
-                <div class="horarios-semana" id="horarios-semana"></div>
-                <button type="button" class="btn btn-config" style="margin-top:12px;" data-acao="salvarHorariosSemana"><i class="fa-solid fa-floppy-disk"></i> Salvar horários</button>
+                    <h3><i class="fa-solid fa-clock"></i> Horários e vagas de atendimento</h3>
+                <p class="automacao-ajuda">Defina os horários, quantas pessoas cada horário recebe e a partir de quando a grade vale. Datas anteriores ao início não mudam.</p>
+                <div id="grade-atendimento"></div>
                 </div>
             </div>
 

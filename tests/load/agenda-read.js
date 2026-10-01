@@ -44,8 +44,9 @@ export const options = {
 };
 
 export default function () {
-  // A chave e compartilhada por toda a execucao para medir o ganho do CDN.
-  const resposta = http.get(`${BASE_URL}/api/agenda-publica?teste-carga=${__ENV.RUN_ID || "homologacao"}`, {
+  // Mesma URL do site (sem query string): a leitura publica recusa parametros
+  // desconhecidos desde 29/09/2026, e a chave unica mede o ganho do CDN.
+  const resposta = http.get(`${BASE_URL}/api/agenda-publica`, {
     headers: {
       // Evita que o ensaio local trate todos os VUs como um unico navegador no
       // rate limit (todos compartilham o mesmo IP de loopback).
