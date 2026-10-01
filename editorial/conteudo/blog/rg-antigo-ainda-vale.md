@@ -7,8 +7,8 @@ titulo_seo: "RG antigo ainda vale? Prazos, exceções e como trocar"
 descricao: "O RG antigo vale até 28/02/2032 e não vence para quem já tinha 60 anos em 2022. Veja quando ele pode ser recusado, o prazo do INSS e como pedir a CIN."
 resposta: "Sim. O RG no modelo antigo vale até 28 de fevereiro de 2032, e para quem já tinha 60 anos em 1º de março de 2022 a validade é indeterminada. Mesmo dentro do prazo, bancos, cartórios e companhias aéreas podem recusar documentos emitidos há mais de dez anos, e quem recebe benefício do INSS tem prazos próprios para a biometria."
 publicado: 2026-09-26
-atualizado: 2026-09-26
-conferido: 2026-09-26
+atualizado: 2026-10-01
+conferido: 2026-10-01
 cluster: entendendo-a-cin
 escopos: [nacional]
 fatos: []
@@ -37,8 +37,8 @@ fontes:
     titulo: "Posso viajar ao Mercosul sem passaporte?"
     url: "https://www.gov.br/pf/pt-br/assuntos/passaporte/ajuda/duvidas_/inicio/inicio-posso-viajar-ao-mercosul-sem"
     consultado: 2026-09-26
-cta: guia-cin
-relacionados: []
+cta: mais-artigos
+relacionados: [qual-certidao-levar-para-fazer-rg]
 imagem: /assets/cin/guia-social.png
 imagem_alt: "Guia da CIN — Câmara Municipal de Itanhandu: documentos, agendamento e atendimento"
 gerado_por_ia: true
@@ -124,13 +124,11 @@ Quem emite a CIN é o órgão de identificação de cada estado, em geral ligado
 
 ### O que levar
 
-Pela regra nacional, a única exigência para emitir a CIN é a certidão de nascimento ou de casamento, em papel ou digital. O número do documento passa a ser o CPF. Leve a certidão que corresponde ao seu estado civil atual, com as averbações de divórcio ou óbito, quando for o caso. Se houver dúvida fundamentada sobre a autenticidade, o órgão pode pedir uma certidão emitida nos últimos seis meses.
+Pela regra nacional, a única exigência para emitir a CIN é a certidão de nascimento ou de casamento, em papel ou digital. O número do documento passa a ser o CPF. Leve a certidão que corresponde ao seu estado civil atual, com as averbações de divórcio ou óbito, quando for o caso. Veja [qual certidão levar em cada situação](/blog/qual-certidao-levar-para-fazer-rg/). Se houver dúvida fundamentada sobre a autenticidade, o órgão pode pedir uma certidão emitida nos últimos seis meses.
 
 ### Quanto custa e a versão digital
 
 A primeira via da CIN em papel é gratuita em todo o país. Depois de emitido o documento físico, a versão digital fica disponível no aplicativo gov.br. O processo começa sempre no atendimento presencial, onde são coletadas a foto e as impressões digitais.
-
-Se você mora no sul de Minas, a Câmara Municipal de Itanhandu mantém um posto de identificação com agendamento pelo site e atende também moradores de cidades vizinhas. O [Guia da CIN](/cin/) reúne documentos, horários e prazos.
 
 ## Resumo
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
-import { construir } from "../scripts/construir.mjs";
+import { construir, criarMarkdown, renderizarMarkdown } from "../scripts/construir.mjs";
 import { validarColecao, validarDocumento } from "../scripts/validar.mjs";
 import { bases, CORPO_COMPLETO, dadosValidos, documento, projetoTemporario, removerProjeto } from "./auxiliares.mjs";
 
@@ -90,4 +90,21 @@ test("sem artigo aprovado não há índice nem link do blog", async (t) => {
   await construir({ raizEditorial: projeto.editorial, saida });
   await assert.rejects(() => fs.access(path.join(saida, "blog", "index.html")));
   assert.doesNotMatch(await fs.readFile(path.join(saida, "cin", "index.html"), "utf8"), /href="\/blog\//);
+});
+
+test("imagem no corpo: só em artigo, só de /assets/blog/ e com arquivo existente", () => {
+  const imagem = "![Desenho](/assets/blog/matricula-da-certidao-32-digitos.svg)";
+  const corpo = CORPO_ARTIGO.replace("## Segunda orientação", `${imagem}
+
+## Segunda orientação`);
+  assert.doesNotThrow(() => validarDocumento(documento(dadosArtigo(), corpo, "conteudo/blog/a.md"), contexto));
+  assert.throws(() => validarDocumento(documento(dadosArtigo(), corpo.replace("matricula-da-certidao-32-digitos", "nao-existe"), "conteudo/blog/a.md"), contexto), /imagem não encontrada/);
+  assert.throws(() => validarDocumento(documento(dadosValidos(), CORPO_COMPLETO.replace("## Segunda orientação", `${imagem}
+
+## Segunda orientação`)), contexto), /só é permitida em artigo/);
+});
+
+test("imagem renderizada tem alt, largura, altura e carregamento adiado", () => {
+  const { html } = renderizarMarkdown(criarMarkdown(contexto.publicDir), "![Os 32 dígitos](/assets/blog/matricula-da-certidao-32-digitos.svg)");
+  assert.match(html, /<img src="\/assets\/blog\/matricula-da-certidao-32-digitos\.svg" alt="Os 32 dígitos" width="640" height="560" loading="lazy" decoding="async">/);
 });

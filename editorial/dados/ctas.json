@@ -28,5 +28,10 @@
     "rotulo": "Abrir o Guia da CIN",
     "texto": "Vai fazer a CIN em Itanhandu ou região? O guia da Câmara reúne documentos, agendamento e prazo.",
     "destino": "/cin/"
+  },
+  "mais-artigos": {
+    "rotulo": "Ver todos os artigos",
+    "texto": "Tem outra dúvida sobre o RG ou a Carteira de Identidade Nacional? O blog reúne as regras nacionais com fonte oficial.",
+    "destino": "/blog/"
   }
 }

@@ -29,6 +29,9 @@ function texto(dados, arquivo, campo) {
   if (typeof dados[campo] !== "string" || !dados[campo].trim()) erro(arquivo, campo, "precisa ser texto não vazio");
 }
 
+// Imagens do blog são arquivos estáticos versionados em public/assets/blog/.
+export const IMAGEM_BLOG = /^\/assets\/blog\/[a-z0-9]+(?:-[a-z0-9]+)*\.(?:svg|png)$/;
+
 function dominioPermitido(hostname) {
   return DOMINIOS.some((dominio) => hostname === dominio || hostname.endsWith(`.${dominio}`));
 }
@@ -99,6 +102,11 @@ export function validarDocumento(documento, contexto) {
 
   const fontes = new Set(dados.fontes.map((fonte) => new URL(fonte.url).href));
   for (const link of linksMarkdown(corpo)) {
+    if (IMAGEM_BLOG.test(link)) {
+      if (!artigo) erro(arquivo, "corpo", `imagem no corpo só é permitida em artigo do blog: ${link}`);
+      if (contexto.publicDir && !fs.existsSync(path.join(contexto.publicDir, link.slice(1)))) erro(arquivo, "corpo", `imagem não encontrada em public/: ${link}`);
+      continue;
+    }
     if (link.startsWith("/")) {
       if (!/^\/$|^\/avisos\/$|^\/sobre\/$|^\/privacidade\/$|^\/(?:cin|blog)\/(?:[a-z0-9]+(?:-[a-z0-9]+)*\/)?$/.test(link)) {
         erro(arquivo, "corpo", `link interno fora do formato permitido: ${link}`);
@@ -135,7 +143,7 @@ export function validarColecao(documentos) {
         erro(doc.arquivo, "relacionados", `slug inexistente ou não publicado: ${slug}`);
       }
     }
-    for (const link of linksMarkdown(doc.corpo).filter((item) => item.startsWith("/") && item !== "/")) {
+    for (const link of linksMarkdown(doc.corpo).filter((item) => item.startsWith("/") && item !== "/" && !IMAGEM_BLOG.test(item))) {
       const indices = { "/avisos/": "aviso", "/blog/": "artigo" };
       const existe = indices[link]
         ? [...universo.values()].some((item) => item.dados.tipo === indices[link])
