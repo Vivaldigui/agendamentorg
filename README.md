@@ -62,6 +62,15 @@ agendamentorg/
 
 ## Cloud Functions
 
+### Convite de avaliação Google via n8n
+
+A integração opcional envia um convite por e-mail às 17h para quem estiver
+marcado como **Compareceu** no dia e tiver e-mail válido. A fila é persistente,
+revalida o cadastro antes do envio e impede disparos concorrentes.
+O link do Google já está definido; a integração começa desativada até configurar
+o webhook e o SMTP.
+Consulte [configuração, workflow importável e recuperação de falhas](docs/AVALIACAO-GOOGLE-N8N.md).
+
 Definidas em [`functions/index.js`](functions/index.js).
 
 ### Públicas (`onCall`, exigem App Check)
