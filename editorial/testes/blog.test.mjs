@@ -70,6 +70,7 @@ test("build gera artigo, índice do blog, link no menu e entrada no sitemap", as
   assert.doesNotMatch(artigo, /#servico"/);
   assert.match(artigo, /href="\/blog\/">Blog<\/a>/);
   assert.match(indice, /"@type": "Blog"/);
+  assert.doesNotMatch(indice, /Fazer a CIN em Itanhandu/);
   assert.doesNotMatch(artigo, /class="cta-fixo"/);
   assert.doesNotMatch(indice, /class="cta-fixo"/);
   assert.match(pilar, /class="cta-fixo"/);
