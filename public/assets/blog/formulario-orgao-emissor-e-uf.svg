@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="500" viewBox="0 0 640 500" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <title id="t">Como preencher órgão emissor e UF em um formulário</title>
+  <desc id="d">Exemplo de formulário com os campos do RG preenchidos: número 12.345.678-9, órgão emissor SSP, UF XX e data de expedição 10/05/2012. Abaixo, três erros comuns: escrever o nome da cidade, escrever RG ou escrever o nome do cartório no campo do órgão emissor.</desc>
+  <rect width="640" height="500" fill="#f3f6f9"/>
+  <rect x="40" y="24" width="560" height="270" rx="12" fill="#ffffff" stroke="#b9c4d2" stroke-width="2"/>
+  <text x="64" y="60" font-size="18" font-weight="800" fill="#172033">Documento de identidade</text>
+  <g font-size="15" font-weight="700" fill="#566174">
+    <text x="64" y="98">Número do RG</text>
+    <text x="64" y="186">Órgão emissor</text>
+    <text x="284" y="186">UF</text>
+    <text x="404" y="186">Data de expedição</text>
+  </g>
+  <rect x="64" y="108" width="300" height="46" rx="7" fill="#f8fafc" stroke="#b9c4d2" stroke-width="2"/>
+  <text x="80" y="138" font-size="20" fill="#172033">12.345.678-9</text>
+  <rect x="64" y="196" width="196" height="46" rx="7" fill="#fff4d6" stroke="#f59e0b" stroke-width="4"/>
+  <text x="80" y="227" font-size="22" font-weight="800" fill="#172033">SSP</text>
+  <rect x="284" y="196" width="96" height="46" rx="7" fill="#fff4d6" stroke="#f59e0b" stroke-width="4"/>
+  <text x="300" y="227" font-size="22" font-weight="800" fill="#172033">XX</text>
+  <rect x="404" y="196" width="172" height="46" rx="7" fill="#f8fafc" stroke="#b9c4d2" stroke-width="2"/>
+  <text x="420" y="227" font-size="20" fill="#172033">10/05/2012</text>
+  <text x="64" y="272" font-size="15" fill="#566174">Quando o formulário tem um campo só: SSP/XX ou SSP-XX.</text>
+
+  <text x="40" y="336" font-size="18" font-weight="800" fill="#7a271a">Não escreva no campo do órgão emissor:</text>
+  <g font-size="18" fill="#172033">
+    <text x="64" y="376">✕  o nome da cidade onde você mora</text>
+    <text x="64" y="412">✕  a palavra "RG" ou "identidade"</text>
+    <text x="64" y="448">✕  o cartório que aparece em "Doc. origem"</text>
+  </g>
+  <text x="320" y="486" text-anchor="middle" font-size="15" fill="#566174">Exemplo fictício. Copie a sigla e a UF do seu documento.</text>
+</svg>

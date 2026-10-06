@@ -29,8 +29,7 @@ export function renderizarIndiceBlog({ artigos, config, servico, linksInstitucio
     descricao: "Artigos sobre o RG e a Carteira de Identidade Nacional: o que muda, validade, dados, versão digital, casos específicos e como se proteger de golpes."
   };
   const ordenados = ordenarArtigos(artigos);
-  const guia = linksInstitucionais.cin ? '<a class="botao-guia" href="/cin/">Fazer a CIN em Itanhandu</a>' : "";
-  const capa = `<section class="capa-blog" aria-labelledby="titulo-blog"><p class="sobretitulo">Conteúdo informativo</p><h1 id="titulo-blog">${esc(meta.titulo)}</h1><p>Regras nacionais do RG e da Carteira de Identidade Nacional explicadas com fonte oficial e data de conferência.</p><div class="capa-acoes">${guia}<span>Requisitos e taxas variam por estado.</span></div></section>`;
+  const capa = `<section class="capa-blog" aria-labelledby="titulo-blog"><p class="sobretitulo">Conteúdo informativo</p><h1 id="titulo-blog">${esc(meta.titulo)}</h1><p>Regras nacionais do RG e da Carteira de Identidade Nacional explicadas com fonte oficial e data de conferência.</p><p class="capa-acoes">Requisitos, taxas e prazos variam por estado.</p></section>`;
   return paginaBase({
     config,
     meta,
