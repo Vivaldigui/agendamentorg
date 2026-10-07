@@ -222,11 +222,60 @@ test("hoje sem visita aparece zerado, mesmo com resumo de ontem", () => {
 });
 
 test("dias relidos: ontem e hoje, ou o buraco desde a ultima consolidacao", () => {
-  assert.deepEqual(diasParaRecalcular("2026-10-07", "2026-10-07"), ["2026-10-06", "2026-10-07"]);
-  assert.deepEqual(diasParaRecalcular("2026-10-04", "2026-10-07"), ["2026-10-03", "2026-10-04", "2026-10-05", "2026-10-06", "2026-10-07"]);
-  assert.equal(diasParaRecalcular(null, "2026-10-07").length, MAX_DIAS_RECALCULO);
-  assert.equal(diasParaRecalcular("2025-01-01", "2026-10-07").length, MAX_DIAS_RECALCULO);
-  assert.deepEqual(diasParaRecalcular("2030-01-01", "2026-10-07").slice(-1), ["2026-10-07"]);
+  assert.deepEqual(diasParaRecalcular("2026-10-07", "2026-10-07"), { dias: ["2026-10-06", "2026-10-07"], ateDia: "2026-10-07" });
+  assert.deepEqual(diasParaRecalcular("2026-10-04", "2026-10-07"), {
+    dias: ["2026-10-03", "2026-10-04", "2026-10-05", "2026-10-06", "2026-10-07"], ateDia: "2026-10-07"
+  });
+  const primeira = diasParaRecalcular(null, "2026-10-07");
+  assert.equal(primeira.dias.length, MAX_DIAS_RECALCULO);
+  assert.equal(primeira.ateDia, "2026-10-07");
+  assert.deepEqual(diasParaRecalcular("2030-01-01", "2026-10-07").dias.slice(-1), ["2026-10-07"]);
+});
+
+test("buraco maior que uma rodada e lido aos poucos, sem pular dia", () => {
+  // Achado da revisao do PR #6: antes, a leitura pulava para os ultimos 45
+  // dias e a marca ia para hoje, perdendo o meio para sempre.
+  const { dias, ateDia } = diasParaRecalcular("2026-06-01", "2026-10-07");
+  assert.equal(dias[0], "2026-05-31");
+  assert.equal(ateDia, "2026-07-14");
+  assert.equal(dias.length, MAX_DIAS_RECALCULO + 1, "45 seguidos e mais hoje");
+  assert.equal(dias[dias.length - 1], "2026-10-07");
+
+  // Rodadas sucessivas fecham o buraco e cada dia conta uma vez so.
+  const fragmentos = {};
+  for (let d = "2026-05-31"; d <= "2026-10-07"; d = new Date(Date.parse(d + "T12:00:00Z") + 864e5).toISOString().slice(0, 10)) {
+    fragmentos[d] = totaisDia(1, 1);
+  }
+  let resumo = consolidarResumo(null, { "2026-05-31": totaisDia(1, 1), "2026-06-01": totaisDia(1, 1) }, "2026-06-01", "2026-06-01");
+  for (let rodada = 0; rodada < 5; rodada++) {
+    const plano = diasParaRecalcular(resumo.ultimoDiaConsolidado, "2026-10-07");
+    const lidos = Object.fromEntries(plano.dias.map((d) => [d, fragmentos[d]]));
+    resumo = consolidarResumo(resumo, lidos, "2026-10-07", plano.ateDia);
+  }
+  assert.equal(resumo.ultimoDiaConsolidado, "2026-10-07");
+  assert.equal(visaoDoResumo(resumo, "2026-10-07").total.paginas.total, Object.keys(fragmentos).length);
+});
+
+test("consolidacao com leitura mais velha nao desfaz uma mais nova", () => {
+  // Achado da revisao do PR #6: duas abas abertas ao mesmo tempo, ou o painel
+  // junto da manutencao. A rodada lenta chega depois com numeros menores.
+  const hoje = "2026-10-07";
+  const nova = consolidarResumo(null, { [hoje]: totaisDia(30, 9, { inicio: 30 }) }, hoje, hoje);
+  const depoisDaLenta = consolidarResumo(nova, { [hoje]: totaisDia(25, 7, { inicio: 25 }) }, hoje, "2026-10-06");
+  const visao = visaoDoResumo(depoisDaLenta, hoje);
+  assert.equal(visao.hoje.paginas.total, 30);
+  assert.equal(visao.hoje.visitantes.total, 9);
+  assert.equal(visao.maisLidas7[0].paginas, 30);
+  assert.equal(depoisDaLenta.ultimoDiaConsolidado, hoje, "a marca nao volta");
+});
+
+test("dia ja levado ao acumulado nao entra de novo", () => {
+  const resumo = { dias: {}, acumulado: totaisDia(100, 40), inicio: "2026-07-01", ultimoDiaConsolidado: "2026-07-20" };
+  const depois = consolidarResumo(resumo, { "2026-07-19": totaisDia(5, 2), "2026-07-20": totaisDia(5, 2) }, "2026-10-07", "2026-10-07");
+  assert.equal(depois.acumulado.paginas.total, 100);
+  // Ja um dia antigo nunca consolidado (depois da marca) entra no acumulado.
+  const comNovo = consolidarResumo(resumo, { "2026-07-21": totaisDia(5, 2) }, "2026-10-07", "2026-10-07");
+  assert.equal(comNovo.acumulado.paginas.total, 105);
 });
 
 // ---------------------------------------------------------------------------
