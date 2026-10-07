@@ -48,6 +48,13 @@
           "functionId": "carregarAgendaPublicaHttp",
           "region": "southamerica-east1"
         }
+      },
+      {
+        "source": "/api/visita",
+        "function": {
+          "functionId": "registrarVisita",
+          "region": "southamerica-east1"
+        }
       }
     ],
     "headers": [
@@ -106,6 +113,12 @@
         "source": "**/*.html",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+        ]
+      },
+      {
+        "source": "/visita.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
         ]
       },
       {

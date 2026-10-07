@@ -83,6 +83,22 @@ test("HTML gerado é isolado, acessível e fica dentro do orçamento", async (t)
   assert.match(css, /prefers-reduced-motion/);
 });
 
+test("contador de visitas: script local nas páginas aprovadas, fora de rascunho e 404", async (t) => {
+  const projeto = await projetoTemporario(documentosTeste());
+  t.after(() => removerProjeto(projeto));
+  const saida = path.join(projeto.raizProjeto, "preview-visitas");
+  await construir({ raizEditorial: projeto.editorial, saida, incluirRascunhos: true });
+  const tag = /<script src="\/visita\.js" defer><\/script>/g;
+  for (const arquivo of ["cin/index.html", "cin/documentos/index.html"]) {
+    const html = await ler(path.join(saida, arquivo));
+    assert.equal((html.match(tag) ?? []).length, 1, `${arquivo}: uma tag do contador`);
+    // Fica no fim do body: nunca atrasa o primeiro desenho do texto.
+    assert.ok(html.indexOf("/visita.js") > html.indexOf("</main>"));
+  }
+  assert.doesNotMatch(await ler(path.join(saida, "cin", "pagina-em-rascunho", "index.html")), tag);
+  assert.doesNotMatch(await ler(path.join(saida, "404.html")), tag);
+});
+
 test("JSON-LD espelha FAQ e datas visíveis sem fatos pendentes", async (t) => {
   const projeto = await projetoTemporario(documentosTeste());
   t.after(() => removerProjeto(projeto));

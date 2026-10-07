@@ -1872,6 +1872,97 @@ async function carregarLogsAdmin() {
     }
 }
 
+// ---- Estatisticas de visitas ao site (functions/visitas.js) ----------
+const SECOES_VISITAS = [
+    ["agendamento", "Agendamento"],
+    ["blog", "Blog"],
+    ["guia", "Guia da CIN"],
+    ["outros", "Outras páginas"]
+];
+let estatisticasVisitasEmAndamento = false;
+
+// O painel e usado no mesmo navegador que, as vezes, abre o site publico para
+// conferir algo. Essas aberturas nao sao visitas de cidadao.
+function marcarAparelhoSemContagemDeVisita() {
+    try { window.localStorage.setItem("cin_nao_contar_visita", "1"); } catch (e) { /* armazenamento bloqueado */ }
+}
+
+function numeroBr(valor) {
+    return (Number(valor) || 0).toLocaleString("pt-BR");
+}
+
+function textoPaginasVistas(total) {
+    const n = Number(total) || 0;
+    return `${numeroBr(n)} ${n === 1 ? "página vista" : "páginas vistas"}`;
+}
+
+async function carregarEstatisticasVisitas() {
+    if (estatisticasVisitasEmAndamento) return;
+    estatisticasVisitasEmAndamento = true;
+    const atualizado = document.getElementById("visitas-atualizado");
+    if (atualizado) atualizado.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Atualizando...';
+    try {
+        const consultar = functions.httpsCallable("consultarEstatisticasVisitas");
+        const resposta = await consultar({});
+        renderEstatisticasVisitas(resposta.data || {});
+        if (atualizado) atualizado.innerHTML = `<i class="fa-solid fa-rotate"></i> Atualizado às ${textoSeguro(new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }))}`;
+    } catch (e) {
+        if (await encerrarSessaoPorAcessoRevogado(e)) return;
+        console.warn("Estatisticas de visitas indisponiveis", e);
+        if (atualizado) atualizado.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Não foi possível carregar agora';
+    } finally {
+        estatisticasVisitasEmAndamento = false;
+    }
+}
+
+function renderEstatisticasVisitas(dados) {
+    const janelas = [["hoje", "visitas-hoje"], ["ultimos7", "visitas-7"], ["ultimos30", "visitas-30"], ["total", "visitas-total"]];
+    janelas.forEach(([chave, id]) => {
+        const janela = dados[chave] || {};
+        document.getElementById(id).textContent = numeroBr(janela.visitantes && janela.visitantes.total);
+        document.getElementById(id + "-paginas").textContent = textoPaginasVistas(janela.paginas && janela.paginas.total);
+    });
+
+    const celula = (janela, secao) => {
+        const v = dados[janela] && dados[janela].visitantes ? dados[janela].visitantes[secao] : 0;
+        const p = dados[janela] && dados[janela].paginas ? dados[janela].paginas[secao] : 0;
+        return `<td><strong>${numeroBr(v)}</strong><small>${numeroBr(p)} pág.</small></td>`;
+    };
+    document.getElementById("visitas-secoes").innerHTML = `
+        <table class="tabela-visitas">
+            <thead><tr><th scope="col">Área</th><th scope="col">Hoje</th><th scope="col">7 dias</th><th scope="col">30 dias</th><th scope="col">Total</th></tr></thead>
+            <tbody>${SECOES_VISITAS.map(([secao, nome]) => `
+                <tr><th scope="row">${textoSeguro(nome)}</th>${celula("hoje", secao)}${celula("ultimos7", secao)}${celula("ultimos30", secao)}${celula("total", secao)}</tr>`).join("")}
+            </tbody>
+        </table>`;
+
+    const serie = Array.isArray(dados.serie30) ? dados.serie30 : [];
+    const maior = Math.max(1, ...serie.map(d => Number(d.visitantes) || 0));
+    document.getElementById("visitas-serie").innerHTML = serie.map(d => {
+        const visitas = Number(d.visitantes) || 0;
+        const altura = visitas ? Math.max(4, Math.round((visitas / maior) * 100)) : 0;
+        const rotulo = `${dataBrISO(d.dia)}: ${numeroBr(visitas)} ${visitas === 1 ? "visita" : "visitas"}, ${textoPaginasVistas(d.paginas)}`;
+        return `<span class="visitas-barra" title="${textoSeguro(rotulo)}"><i style="height:${altura}%"></i></span>`;
+    }).join("");
+    document.getElementById("visitas-serie-eixo").innerHTML = serie.length
+        ? `<span>${textoSeguro(dataBrISO(serie[0].dia).slice(0, 5))}</span><span>${textoSeguro(dataBrISO(serie[serie.length - 1].dia).slice(0, 5))}</span>`
+        : "";
+
+    const ranking = (id, lista) => {
+        const el = document.getElementById(id);
+        const itens = Array.isArray(lista) ? lista : [];
+        el.innerHTML = itens.length
+            ? itens.map(item => `<li><a href="${textoSeguro(item.caminho)}" target="_blank" rel="noopener">${textoSeguro(item.titulo)}</a><strong>${numeroBr(item.paginas)}</strong></li>`).join("")
+            : '<li class="indicador-vazio">Sem visitas no período.</li>';
+    };
+    ranking("visitas-mais-lidas-7", dados.maisLidas7);
+    ranking("visitas-mais-lidas-30", dados.maisLidas30);
+
+    document.getElementById("visitas-inicio").textContent = dados.inicio
+        ? `Contagem desde ${dataBrISO(dados.inicio)}.`
+        : "Ainda não há visitas registradas.";
+}
+
 function alternarCardsAcesso(visivel) {
     const box = document.getElementById("acessos-tempo-real");
     if (box) box.style.display = visivel ? "" : "none";
@@ -1938,6 +2029,7 @@ auth.onAuthStateChanged(async user => {
         if (splash) splash.style.display = 'none';
         document.getElementById('login-screen').style.display='none';
         document.getElementById('painel-screen').style.display='block';
+        marcarAparelhoSemContagemDeVisita();
         resetarTimerInatividade();
         // Impede selecionar datas passadas no input de nova data.
         document.getElementById('cfg-data').min = hojeISO();
@@ -2918,10 +3010,10 @@ function renderFilaHoje() {
     }).join("");
 }
 
-// Cinco areas: tres de operacao diaria (hoje/lista/credenciais) e duas de
-// uso eventual (config/relatorios). A configuracao saiu da lista para que
+// Seis areas: tres de operacao diaria (hoje/lista/credenciais) e tres de
+// uso eventual (config/relatorios/estatisticas). A configuracao saiu da lista para que
 // a tela de operacao nao carregue mais dez blocos numa rolagem so.
-const VISTAS_PAINEL = ["hoje", "lista", "credenciais", "config", "relatorios"];
+const VISTAS_PAINEL = ["hoje", "lista", "credenciais", "config", "relatorios", "estatisticas"];
 
 function mostrarVistaPainel(vista) {
     vistaPainelAtual = VISTAS_PAINEL.includes(vista) ? vista : "hoje";
@@ -2941,6 +3033,7 @@ function mostrarVistaPainel(vista) {
     if (vistaPainelAtual === "hoje") renderFilaHoje();
     if (vistaPainelAtual === "credenciais" && !credenciaisCarregadas) carregarCredenciais();
     if (vistaPainelAtual === "config") atualizarEstadoConfigHub();
+    if (vistaPainelAtual === "estatisticas") carregarEstatisticasVisitas();
     atualizarFaixaEstado();
 }
 
@@ -4139,8 +4232,8 @@ const ACOES_CLIQUE = {
     editarGradeSalva: el => editarGradeSalva(el.dataset.inicio),
     excluirGradeAtendimento: el => excluirGradeAtendimento(el.dataset.inicio),
 
-    // Relatorios
-    carregarLogsAdmin
+    // Relatorios e estatisticas
+    carregarLogsAdmin, carregarEstatisticasVisitas
 };
 
 // Campos de formulario seguem a mesma regra: data-input e data-change em vez

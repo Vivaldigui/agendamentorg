@@ -61,6 +61,16 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Contador de visitas: so as funcoes gravam e leem. O painel recebe o
+    // resumo pela callable consultarEstatisticasVisitas, que exige admin.
+    match /metricas_visitas/{documentId} {
+      allow read, write: if false;
+    }
+
+    match /metricas_visitas_fragmentos/{documentId} {
+      allow read, write: if false;
+    }
+
     match /configuracoes/{document=**} {
       allow read: if isAdmin();
       allow write: if isAdmin();
