@@ -191,34 +191,59 @@ function dataISOValida(valor) {
 
 // Relemos sempre ontem e hoje (a ultima consolidacao de ontem pode ter sido
 // antes da meia-noite) e, se o painel ficou dias fechado e a manutencao falhou,
-// tudo desde a ultima consolidacao, ate MAX_DIAS_RECALCULO.
+// tudo desde a ultima consolidacao. Cada rodada le no maximo
+// MAX_DIAS_RECALCULO dias seguidos e so avanca a marca ate onde leu: um buraco
+// maior e fechado em rodadas sucessivas, nunca pulado. Hoje entra sempre, para
+// o painel nao mostrar zero enquanto o atraso e recuperado.
 function diasParaRecalcular(ultimoDia, hoje) {
-  const limite = somarDiasISO(hoje, -(MAX_DIAS_RECALCULO - 1));
-  let inicio = dataISOValida(ultimoDia) && ultimoDia <= hoje ? somarDiasISO(ultimoDia, -1) : limite;
-  if (inicio < limite) inicio = limite;
+  const primeiro = somarDiasISO(hoje, -(MAX_DIAS_RECALCULO - 1));
+  const inicio = dataISOValida(ultimoDia) && ultimoDia <= hoje ? somarDiasISO(ultimoDia, -1) : primeiro;
+  let ateDia = somarDiasISO(inicio, MAX_DIAS_RECALCULO - 1);
+  if (ateDia > hoje) ateDia = hoje;
   const dias = [];
-  for (let dia = inicio; dia <= hoje; dia = somarDiasISO(dia, 1)) dias.push(dia);
-  return dias;
+  for (let dia = inicio; dia <= ateDia; dia = somarDiasISO(dia, 1)) dias.push(dia);
+  if (ateDia < hoje) dias.push(hoje);
+  return { dias, ateDia };
+}
+
+// Os fragmentos so crescem, entao o valor certo de um dia e sempre o maior ja
+// visto. Tomar o maximo campo a campo deixa a ordem das consolidacoes
+// irrelevante: uma rodada lenta, com leitura mais velha, nao desfaz outra.
+function maiorDosTotais(a, b) {
+  const resultado = totaisVazios();
+  for (const grupo of ["paginas", "visitantes"]) {
+    for (const chave of ["total", ...SECOES]) {
+      resultado[grupo][chave] = Math.max(a[grupo][chave], b[grupo][chave]);
+    }
+  }
+  for (const id of new Set([...Object.keys(a.porPagina), ...Object.keys(b.porPagina)])) {
+    resultado.porPagina[id] = Math.max(a.porPagina[id] || 0, b.porPagina[id] || 0);
+  }
+  return resultado;
 }
 
 // resumoAtual: documento salvo. recalculados: { dia: totais } relidos dos
-// fragmentos. Devolve o novo documento; nao conta nada duas vezes porque cada
-// dia recalculado substitui o anterior em vez de somar.
-function consolidarResumo(resumoAtual, recalculados, hoje) {
+// fragmentos. ateDia: ultimo dia lido sem buraco (a nova marca). Nao conta nada
+// duas vezes: cada dia guarda o maior valor visto, e um dia que ja foi para o
+// acumulado nao e aceito de novo.
+function consolidarResumo(resumoAtual, recalculados, hoje, ateDia = null) {
   const base = resumoAtual && typeof resumoAtual === "object" ? resumoAtual : {};
+  const ultimoAnterior = dataISOValida(base.ultimoDiaConsolidado) ? base.ultimoDiaConsolidado : null;
+  const corte = somarDiasISO(hoje, -(RETENCAO_DIAS - 1));
   const dias = {};
   for (const [dia, totais] of Object.entries(base.dias || {})) {
     if (dataISOValida(dia)) dias[dia] = somarTotais(totaisVazios(), totais);
   }
   for (const [dia, totais] of Object.entries(recalculados || {})) {
-    if (!dataISOValida(dia)) continue;
-    if (diaVazio(totais)) delete dias[dia];
-    else dias[dia] = somarTotais(totaisVazios(), totais);
+    if (!dataISOValida(dia) || diaVazio(totais)) continue;
+    // Fora da retencao e ja consolidado antes: esta somado no acumulado.
+    if (dia < corte && !dias[dia] && ultimoAnterior && dia <= ultimoAnterior) continue;
+    const lido = somarTotais(totaisVazios(), totais);
+    dias[dia] = dias[dia] ? maiorDosTotais(dias[dia], lido) : lido;
   }
 
   const acumulado = somarTotais(totaisVazios(), base.acumulado);
   acumulado.porPagina = {};
-  const corte = somarDiasISO(hoje, -(RETENCAO_DIAS - 1));
   for (const dia of Object.keys(dias)) {
     if (dia >= corte) continue;
     somarTotais(acumulado, { paginas: dias[dia].paginas, visitantes: dias[dia].visitantes });
@@ -227,7 +252,9 @@ function consolidarResumo(resumoAtual, recalculados, hoje) {
 
   const conhecidos = Object.keys(dias).sort();
   const inicio = [base.inicio, conhecidos[0]].filter(dataISOValida).sort()[0] || null;
-  return { dias, acumulado, inicio, ultimoDiaConsolidado: hoje };
+  // A marca nunca volta: duas rodadas simultaneas nao reabrem dias ja lidos.
+  const marcas = [ultimoAnterior, dataISOValida(ateDia) ? ateDia : null].filter(Boolean).sort();
+  return { dias, acumulado, inicio, ultimoDiaConsolidado: marcas[marcas.length - 1] || null };
 }
 
 function somaJanela(dias, hoje, quantidade) {
@@ -351,13 +378,13 @@ function criarContadorVisitas({ db, FieldValue, hoje, origensPermitidas = [], al
     const resumoRef = db.collection(COLECAO_RESUMO).doc(DOC_RESUMO);
     const anterior = await resumoRef.get();
     const ultimo = anterior.exists ? anterior.data().ultimoDiaConsolidado : null;
-    const dias = diasParaRecalcular(ultimo, dia);
+    const { dias, ateDia } = diasParaRecalcular(ultimo, dia);
     const lidos = await Promise.all(dias.map(lerDia));
     const recalculados = Object.fromEntries(dias.map((d, i) => [d, lidos[i]]));
 
     return db.runTransaction(async (t) => {
       const atual = await t.get(resumoRef);
-      const novo = consolidarResumo(atual.exists ? atual.data() : null, recalculados, dia);
+      const novo = consolidarResumo(atual.exists ? atual.data() : null, recalculados, dia, ateDia);
       t.set(resumoRef, { ...novo, atualizadoEm: new Date().toISOString() });
       return visaoDoResumo(novo, dia);
     });
