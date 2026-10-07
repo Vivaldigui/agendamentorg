@@ -242,19 +242,26 @@ function consolidarResumo(resumoAtual, recalculados, hoje, ateDia = null) {
     dias[dia] = dias[dia] ? maiorDosTotais(dias[dia], lido) : lido;
   }
 
+  // A marca nunca volta: duas rodadas simultaneas nao reabrem dias ja lidos.
+  const marcas = [ultimoAnterior, dataISOValida(ateDia) ? ateDia : null].filter(Boolean).sort();
+  const marca = marcas[marcas.length - 1] || null;
+
+  // So vai para o acumulado o dia que a leitura em sequencia ja cobriu. Um dia
+  // lido fora da sequencia (o "hoje" de uma rodada de recuperacao) fica em
+  // dias ate a marca alcanca-lo; se fosse acumulado antes, a leitura em
+  // sequencia o aceitaria de novo e ele contaria duas vezes.
+  const limiteAcumulo = marca || hoje;
   const acumulado = somarTotais(totaisVazios(), base.acumulado);
   acumulado.porPagina = {};
   for (const dia of Object.keys(dias)) {
-    if (dia >= corte) continue;
+    if (dia >= corte || dia > limiteAcumulo) continue;
     somarTotais(acumulado, { paginas: dias[dia].paginas, visitantes: dias[dia].visitantes });
     delete dias[dia];
   }
 
   const conhecidos = Object.keys(dias).sort();
   const inicio = [base.inicio, conhecidos[0]].filter(dataISOValida).sort()[0] || null;
-  // A marca nunca volta: duas rodadas simultaneas nao reabrem dias ja lidos.
-  const marcas = [ultimoAnterior, dataISOValida(ateDia) ? ateDia : null].filter(Boolean).sort();
-  return { dias, acumulado, inicio, ultimoDiaConsolidado: marcas[marcas.length - 1] || null };
+  return { dias, acumulado, inicio, ultimoDiaConsolidado: marca };
 }
 
 function somaJanela(dias, hoje, quantidade) {
