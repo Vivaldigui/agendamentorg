@@ -15,7 +15,9 @@ O sistema tem duas faces, servidas como site estático pelo Firebase Hosting e a
 | Página | Quem usa | Função |
 |---|---|---|
 | [`public/index.html`](public/index.html) | Cidadão | Agendar, consultar e cancelar agendamento |
-| [`public/recepcao.html`](public/recepcao.html) | Recepção / Admin | Fila do dia, check-in, encaixes, remarcação, configuração da agenda, logs e backup |
+| [`public/recepcao.html`](public/recepcao.html) | Recepção / Admin | Fila do dia, check-in, encaixes, remarcação, configuração da agenda, logs, backup e estatísticas de visitas |
+
+O painel é aberto em **`/painel`** (`https://cin.itanhandu.cam.mg.gov.br/painel`). O arquivo continua sendo `public/recepcao.html`, servido por um rewrite em `firebase.json`; `/recepcao.html` e `/gestaov6.html` redirecionam (301) para `/painel`. Os cabeçalhos do painel (CSP sem `'unsafe-inline'`, `noindex`, sem cache) ficam no bloco `"/painel"`, porque o Hosting casa cabeçalhos pelo endereço pedido, não pelo arquivo servido.
 
 Toda gravação de dados passa por **Cloud Functions** — o frontend nunca escreve diretamente nas coleções sensíveis. As operações críticas (criar, cancelar, remarcar) rodam em **transações atômicas do Firestore**, garantindo que uma vaga nunca seja vendida duas vezes mesmo sob acesso simultâneo.
 
@@ -47,7 +49,7 @@ agendamentorg/
 │   └── package.json         # Runtime Node 22
 ├── public/
 │   ├── index.html           # App público (cidadão)
-│   ├── recepcao.html        # Painel administrativo
+│   ├── recepcao.html        # Painel administrativo (servido em /painel)
 │   ├── 404.html
 │   ├── sw.js                # Service worker (pass-through)
 │   ├── manifest.json        # PWA

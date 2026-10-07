@@ -5,7 +5,12 @@
 // Depois que o painel deixou de ter script e handler embutidos, ele nao precisa
 // mais de 'unsafe-inline' em script-src. O cabecalho global nao pode ser
 // apertado junto: vale para "**" e o site publico ainda tem codigo embutido.
-// Por isso /recepcao.html ganhou politica propria.
+// Por isso o painel ganhou politica propria.
+//
+// Desde 07/10/2026 o endereco do painel e /painel (rewrite para o arquivo
+// recepcao.html). O Hosting casa cabecalhos pelo endereco PEDIDO, nao pelo
+// arquivo servido: a politica restrita tem de estar em "/painel". Deixada em
+// "/recepcao.html", o painel cairia em silencio na politica global.
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -30,8 +35,8 @@ const diretiva = (csp, nome) => {
 };
 
 test("o painel tem politica propria, sem inline nem eval no script-src", () => {
-  const csp = cspDe("/recepcao.html");
-  assert.ok(csp, "/recepcao.html precisa de um Content-Security-Policy proprio.");
+  const csp = cspDe("/painel");
+  assert.ok(csp, "/painel precisa de um Content-Security-Policy proprio.");
   const scripts = diretiva(csp, "script-src");
   assert.equal(scripts.includes("'unsafe-inline'"), false,
     "O painel nao tem mais codigo embutido; 'unsafe-inline' devolveria a brecha de graca.");
@@ -41,7 +46,7 @@ test("o painel tem politica propria, sem inline nem eval no script-src", () => {
 
 test("a politica do painel libera todos os scripts externos que ele carrega", () => {
   // Uma origem esquecida aqui quebra o login sem erro obvio para quem opera.
-  const permitidas = diretiva(cspDe("/recepcao.html"), "script-src");
+  const permitidas = diretiva(cspDe("/painel"), "script-src");
   const usadas = [...painelHtml.matchAll(/<script src="(https:\/\/[^/"]+)/g)].map(m => m[1]);
   assert.equal(usadas.length > 0, true, "Nenhum script externo encontrado no painel.");
   const bloqueadas = [...new Set(usadas)].filter(o => !permitidas.includes(o));
@@ -56,7 +61,7 @@ test("a politica do painel e a ultima da lista", () => {
   // nosniff e os demais cabecalhos da entrada "**". Mover esta entrada para
   // cima devolve a politica permissiva ao painel, em silencio.
   const ultima = hosting.headers[hosting.headers.length - 1];
-  assert.equal(ultima.source, "/recepcao.html");
+  assert.equal(ultima.source, "/painel");
 });
 
 test("o CSP global segue permitindo inline enquanto o site publico tiver codigo embutido", () => {
@@ -74,7 +79,7 @@ test("o CSP global segue permitindo inline enquanto o site publico tiver codigo 
 test("estilo continua com inline liberado, por causa dos atributos style", () => {
   // style-src nao pode ser apertado junto: o markup usa style="..." em varios
   // pontos, e as janelas de impressao levam <style> proprio.
-  const estilos = diretiva(cspDe("/recepcao.html"), "style-src");
+  const estilos = diretiva(cspDe("/painel"), "style-src");
   assert.equal(estilos.includes("'unsafe-inline'"), true);
   assert.match(painelHtml, /\sstyle="/, "Se os atributos style sumirem, aperte tambem o style-src.");
 });
@@ -101,7 +106,7 @@ test("recepcao.js e recepcao.css nao ficam em cache junto com HTML novo", () => 
 // ---------------------------------------------------------------------------
 
 test("as DUAS politicas liberam o fetch que o reCAPTCHA faz de verdade", () => {
-  for (const origem of ["**", "/recepcao.html"]) {
+  for (const origem of ["**", "/painel"]) {
     assert.ok(
       diretiva(cspDe(origem), "connect-src").includes("https://www.google.com"),
       `${origem}: sem www.google.com em connect-src, o reCAPTCHA e bloqueado 4x por carga.`
@@ -112,7 +117,7 @@ test("as DUAS politicas liberam o fetch que o reCAPTCHA faz de verdade", () => {
 test("o dominio liberado ja era confiavel nas outras diretivas", () => {
   // Nao e ampliacao de superficie: www.google.com ja carregava script e iframe
   // nas duas politicas. So faltava o canal de volta.
-  for (const origem of ["**", "/recepcao.html"]) {
+  for (const origem of ["**", "/painel"]) {
     assert.ok(diretiva(cspDe(origem), "script-src").includes("https://www.google.com"), `${origem}: script-src`);
     assert.ok(diretiva(cspDe(origem), "frame-src").includes("https://www.google.com"), `${origem}: frame-src`);
   }
@@ -123,7 +128,7 @@ test("o site publico nao herdou a folga do painel em script-src", () => {
   // publico ainda tem, entao a politica global mantem. Liberar connect-src nao
   // pode ser desculpa para afrouxar o resto.
   assert.ok(diretiva(cspDe("**"), "script-src").includes("'unsafe-inline'"));
-  assert.ok(!diretiva(cspDe("/recepcao.html"), "script-src").includes("'unsafe-inline'"));
+  assert.ok(!diretiva(cspDe("/painel"), "script-src").includes("'unsafe-inline'"));
 });
 
 // ---------------------------------------------------------------------------
@@ -154,14 +159,14 @@ function cspEfetivo(caminho) {
 }
 
 test("o CSP EFETIVO do painel e o restrito, nao o global", () => {
-  const efetivo = cspEfetivo("/recepcao.html");
-  assert.ok(efetivo, "Nenhum CSP casaria com /recepcao.html.");
+  const efetivo = cspEfetivo("/painel");
+  assert.ok(efetivo, "Nenhum CSP casaria com /painel.");
   assert.equal(
     diretiva(efetivo, "script-src").includes("'unsafe-inline'"),
     false,
-    "Um bloco depois de /recepcao.html devolveu 'unsafe-inline' ao painel."
+    "Um bloco depois de /painel devolveu 'unsafe-inline' ao painel."
   );
-  assert.equal(efetivo, cspDe("/recepcao.html"), "O bloco especifico tem de ser o vencedor.");
+  assert.equal(efetivo, cspDe("/painel"), "O bloco especifico tem de ser o vencedor.");
 });
 
 test("o CSP EFETIVO do site publico continua sendo o global", () => {
@@ -171,4 +176,50 @@ test("o CSP EFETIVO do site publico continua sendo o global", () => {
     "O site publico ainda tem codigo embutido e depende disso.");
   assert.ok(diretiva(efetivo, "connect-src").includes("https://www.google.com"),
     "Sem isto o reCAPTCHA e bloqueado 4x por carga no site que recebe o pico.");
+});
+
+// ---------------------------------------------------------------------------
+// Endereco do painel: /painel. O arquivo continua public/recepcao.html para
+// nao mexer nos caminhos de /recepcao.js e /recepcao.css nem nas travas que
+// leem o markup.
+// ---------------------------------------------------------------------------
+
+test("/painel serve o arquivo do painel", () => {
+  const rewrite = hosting.rewrites.find(r => r.source === "/painel");
+  assert.ok(rewrite, "rewrite de /painel nao encontrado.");
+  assert.equal(rewrite.destination, "/recepcao.html");
+  // Um rewrite generico antes dele roubaria o endereco.
+  assert.equal(hosting.rewrites.indexOf(rewrite), 0);
+});
+
+test("enderecos antigos do painel levam para /painel com 301", () => {
+  for (const antigo of ["/recepcao.html", "/gestaov6.html"]) {
+    const redirect = hosting.redirects.find(r => r.source === antigo);
+    assert.ok(redirect, `${antigo} precisa redirecionar para o painel.`);
+    assert.equal(redirect.destination, "/painel", `${antigo} sem cadeia de redirecionamentos.`);
+    assert.equal(redirect.type, 301);
+  }
+});
+
+test("/painel herda as protecoes que o arquivo tinha", () => {
+  const entrada = hosting.headers.find(h => h.source === "/painel");
+  const valor = chave => (entrada.headers.find(h => h.key === chave) || {}).value || "";
+  assert.match(valor("X-Robots-Tag"), /noindex/);
+  // "**/*.html" nao casa com /painel: sem isto o HTML iria para o cache.
+  assert.match(valor("Cache-Control"), /no-cache/);
+  // O bloco antigo morreu junto com o endereco: o arquivo so responde 301.
+  assert.equal(hosting.headers.some(h => h.source === "/recepcao.html"), false);
+});
+
+test("nenhum link do sistema aponta mais para /recepcao.html", () => {
+  const publico = path.join(raiz, "public");
+  const arquivos = [];
+  const visitar = dir => fs.readdirSync(dir, { withFileTypes: true }).forEach(item => {
+    const alvo = path.join(dir, item.name);
+    if (item.isDirectory()) { if (item.name !== "vendor") visitar(alvo); }
+    else if (/\.(html|js|json|xml|txt)$/.test(item.name)) arquivos.push(alvo);
+  });
+  visitar(publico);
+  const comLink = arquivos.filter(a => /["'(]\/recepcao\.html/.test(fs.readFileSync(a, "utf8")));
+  assert.deepEqual(comLink.map(a => path.relative(raiz, a)), []);
 });

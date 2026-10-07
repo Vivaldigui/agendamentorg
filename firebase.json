@@ -28,11 +28,20 @@
     "redirects": [
       {
         "source": "/gestaov6.html",
-        "destination": "/recepcao.html",
+        "destination": "/painel",
+        "type": 301
+      },
+      {
+        "source": "/recepcao.html",
+        "destination": "/painel",
         "type": 301
       }
     ],
     "rewrites": [
+      {
+        "source": "/painel",
+        "destination": "/recepcao.html"
+      },
       {
         "source": "/api/agenda-publica",
         "function": {
@@ -118,8 +127,9 @@
         ]
       },
       {
-        "source": "/recepcao.html",
+        "source": "/painel",
         "headers": [
+          { "key": "Cache-Control", "value": "no-cache, must-revalidate" },
           { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
           {
             "key": "Content-Security-Policy",
