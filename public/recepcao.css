@@ -1029,9 +1029,6 @@ body.modo-escuro .barra-serie {
 .fila-detalhe-linha .fila-detalhe { flex:1; min-width:0; }
 .btn-copiar-contato { width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--line); border-radius:8px; color:var(--primary-dark); background:var(--surface-soft); cursor:pointer; }
 .btn-copiar-contato:hover { border-color:#60a5fa; background:#eff6ff; }
-.acessos-tempo-real { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin:0 0 12px; }
-.acesso-card { padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--surface-soft); color:var(--muted); font-size:0.76rem; font-weight:800; }
-.acesso-card strong { display:block; margin-top:2px; color:var(--ink); font-size:1.15rem; }
 .fila-hora { font-size:1.35rem; color:var(--primary-dark); font-weight:900; }
 .fila-nome { margin:8px 0 3px; font-size:0.98rem; font-weight:900; color:var(--ink); }
 .fila-detalhe { color:var(--muted); font-size:0.76rem; font-weight:700; }
@@ -1138,13 +1135,12 @@ body.modo-escuro .chip-excecao { color:#fed7aa; background:#431407; border-color
 .card-kpi.clicavel { cursor:pointer; text-align:left; font-family:inherit; transition:0.16s; }
 .card-kpi.clicavel:hover { transform:translateY(-2px); border-color:#93c5fd; box-shadow:var(--shadow-sm); }
 body.modo-escuro .fila-topo, body.modo-escuro .fila-card, body.modo-escuro .card-kpi, body.modo-escuro .log-item { background:#111827; border-color:#334155; }
-body.modo-escuro .acesso-card, body.modo-escuro .btn-copiar-contato { background:#111827; border-color:#334155; }
+body.modo-escuro .btn-copiar-contato { background:#111827; border-color:#334155; }
 body.modo-escuro .fila-nome, body.modo-escuro .log-item strong { color:#e2e8f0; }
 body.modo-escuro .grade-linha input { background:#0b1220; color:#e2e8f0; border-color:#334155; }
 @media (max-width:760px) {
     .fila-topo { grid-template-columns:1fr; top:4px; }
     .fila-resumo { text-align:left; }
-    .acessos-tempo-real { grid-template-columns:1fr; }
     .config-grid { grid-template-columns:1fr; }
     .automacao-excecao, .automacao-excecao.simples { grid-template-columns:1fr; }
     .log-item { grid-template-columns:1fr; gap:2px; }

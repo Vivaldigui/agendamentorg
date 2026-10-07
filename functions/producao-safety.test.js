@@ -46,27 +46,11 @@ test("backend usa a configuracao Firebase do projeto atual sem fallback de produ
   assert.doesNotMatch(backend, /FIREBASE_DATABASE_URL/);
 });
 
-// Sem databaseURL no FIREBASE_CONFIG, getDatabase() lanca. Em escopo de modulo
-// isso derrubaria todas as funcoes do arquivo na carga, inclusive o agendamento
-// -- justamente o que nao pode falhar as 08:00. O Realtime Database so serve a
-// telemetria de presenca, entao a inicializacao tem de ser adiada.
-test("Realtime Database e inicializado sob demanda, nunca na carga do modulo", () => {
-  assert.doesNotMatch(
-    backend,
-    /^\s*(const|let|var)\s+\w+\s*=\s*getDatabase\(\)/m,
-    "getDatabase() em escopo de modulo derruba todo o backend se faltar databaseURL."
-  );
-  assert.match(backend, /function\s+obterRealtimeDb\s*\(\s*\)/);
-  assert.doesNotMatch(
-    backend.replace(/\/\/[^\n]*/g, ""),
-    /\brealtimeDb\s*\.\s*ref\(/,
-    "Use obterRealtimeDb() para que a falta de databaseURL nao quebre a carga."
-  );
-
-  // A inicializacao adiada so protege enquanto nenhuma funcao do caminho do
-  // cidadao depender do Realtime Database.
-  const chamadas = [...backend.matchAll(/obterRealtimeDb\(\)/g)].length;
-  assert.ok(chamadas >= 4, `Esperava ao menos 4 usos adiados, encontrei ${chamadas}.`);
+// O Realtime Database saiu do backend junto com a telemetria de presenca
+// (07/10/2026). Um getDatabase() de volta em escopo de modulo derrubaria todas
+// as funcoes na carga quando o FIREBASE_CONFIG nao traz databaseURL.
+test("backend nao inicializa o Realtime Database", () => {
+  assert.doesNotMatch(backend, /getDatabase\(/);
 });
 
 for (const [nome, codigo, variavel] of [

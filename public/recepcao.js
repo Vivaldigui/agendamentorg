@@ -1,9 +1,8 @@
 const APP_CHECK_RECAPTCHA_SITE_KEY = "6LdoYfcsAAAAALyCdBKewXtFLB1e9biRnXTWqNv0";
-const METRICAS_ACESSO_PUBLICO_ATIVAS = false;
 var firebaseConfig = { apiKey: "AIzaSyBqmzQw8CtTD6O2C3fiXcm7_GBmkgite_c", authDomain: "agendamento-cin-itanhandu.firebaseapp.com", databaseURL: "https://agendamento-cin-itanhandu-default-rtdb.firebaseio.com", projectId: "agendamento-cin-itanhandu", storageBucket: "agendamento-cin-itanhandu.firebasestorage.app", messagingSenderId: "144820039253", appId: "1:144820039253:web:af179156ce8da4b73a6edc", measurementId: "G-KWKF7NCJHK" };
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 if (firebase.appCheck) firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
-const db = firebase.firestore(); const auth = firebase.auth(); const functions = firebase.functions(); const realtimeDbAdmin = firebase.database();
+const db = firebase.firestore(); const auth = firebase.auth(); const functions = firebase.functions();
 // Mantem o login salvo entre fechamentos do navegador.
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.warn("Persistencia de login indisponivel", e));
 const HORARIOS_LEGADOS = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
@@ -104,7 +103,6 @@ let estatisticasHistoricas = { cin: [], faltas: [] };
 let credenciaisCache = [];
 let credenciaisCarregadas = false;
 let filtroCredencialAtual = "ativas";
-let monitoramentoAcessosRef = null;
 const INATIVIDADE_AVISO_MS = 7 * 60 * 60 * 1000 + 55 * 60 * 1000; // 7h55min
 const INATIVIDADE_LOGOUT_MS = 8 * 60 * 60 * 1000; // 8h (jornada completa)
 const ATUALIZACAO_AUTOMATICA_MS = 2 * 60 * 1000;
@@ -158,7 +156,6 @@ async function validarAdministradorAtivo(user) {
 async function encerrarSessaoPorAcessoRevogado(erro) {
     if (!erroDeAutorizacao(erro)) return false;
     clearInterval(timerAtualizacaoAutomatica);
-    pararMonitoramentoAcessos();
     try { await auth.signOut(); } catch (e) { console.warn("Falha ao encerrar sessao revogada", e); }
     mostrarErroLogin("Seu acesso administrativo foi revogado ou está inativo. Entre em contato com o responsável pelo sistema.");
     return true;
@@ -1963,49 +1960,6 @@ function renderEstatisticasVisitas(dados) {
         : "Ainda não há visitas registradas.";
 }
 
-function alternarCardsAcesso(visivel) {
-    const box = document.getElementById("acessos-tempo-real");
-    if (box) box.style.display = visivel ? "" : "none";
-}
-
-function atualizarMetricasAcessoPainel(dados) {
-    const metricas = dados && typeof dados === "object" ? dados : {};
-    alternarCardsAcesso(true);
-    document.getElementById("acessos-agora").textContent = Number(metricas.ativosAgora) || 0;
-    document.getElementById("acessos-pico-hoje").textContent = Number(metricas.picoHoje) || 0;
-    document.getElementById("acessos-total-hoje").textContent = Number(metricas.acessosHoje) || 0;
-}
-
-function mostrarMetricasAcessoDesativadas() {
-    // Sem medicao os tres cards so repetiam "Medicao desativada" no topo
-    // da tela de operacao; melhor nao ocupar o espaco.
-    alternarCardsAcesso(false);
-    ["acessos-agora", "acessos-pico-hoje", "acessos-total-hoje"].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = "Medição desativada";
-    });
-}
-
-function iniciarMonitoramentoAcessos() {
-    if (!METRICAS_ACESSO_PUBLICO_ATIVAS) {
-        pararMonitoramentoAcessos();
-        mostrarMetricasAcessoDesativadas();
-        return;
-    }
-    if (monitoramentoAcessosRef) return;
-    monitoramentoAcessosRef = realtimeDbAdmin.ref("presenca_publica/metricas");
-    monitoramentoAcessosRef.on("value", snapshot => atualizarMetricasAcessoPainel(snapshot.val()), erro => {
-        console.warn("Monitoramento de acessos indisponível", erro);
-        ["acessos-agora", "acessos-pico-hoje", "acessos-total-hoje"].forEach(id => { document.getElementById(id).textContent = "Indisponível"; });
-    });
-}
-
-function pararMonitoramentoAcessos() {
-    if (!monitoramentoAcessosRef) return;
-    monitoramentoAcessosRef.off();
-    monitoramentoAcessosRef = null;
-}
-
 auth.onAuthStateChanged(async user => {
     const splash = document.getElementById('boot-splash');
     if (user) {
@@ -2055,7 +2009,6 @@ auth.onAuthStateChanged(async user => {
         await carregarAgendaGestao();
         await Promise.all([listarAgendamentos(), carregarTotalAtendimentosRealizados()]);
         await carregarLogsAdmin();
-        iniciarMonitoramentoAcessos();
         const apelido = String(user.email || "").split("@")[0];
         const quem = document.getElementById("quem-nome");
         if (quem && apelido) quem.textContent = apelido;
@@ -2069,7 +2022,6 @@ auth.onAuthStateChanged(async user => {
         carregamentoListaEmAndamento = false;
         atualizacaoDiasEmAndamento = false;
         clearInterval(timerAtualizacaoAutomatica);
-        pararMonitoramentoAcessos();
         agendaGestaoCarregada = false;
         definirMutacoesAgendaHabilitadas(false);
         document.getElementById('login-screen').style.display='block';

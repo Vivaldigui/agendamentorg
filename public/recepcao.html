@@ -83,13 +83,6 @@
                 <input id="busca-fila-hoje" type="search" placeholder="Check-in por nome, CPF ou protocolo" data-input="renderFilaHoje">
                 <kbd class="atalho-busca">/</kbd>
             </div>
-            <!-- Os cards de acesso ficam ocultos enquanto a medicao esta
-                 desligada; antes ocupavam o topo escrito "Medicao desativada". -->
-            <div class="acessos-tempo-real" id="acessos-tempo-real" aria-label="Acessos ao agendamento público em tempo real">
-                <div class="acesso-card">Acessos agora<strong id="acessos-agora">Medição desativada</strong></div>
-                <div class="acesso-card">Pico de hoje<strong id="acessos-pico-hoje">Medição desativada</strong></div>
-                <div class="acesso-card">Entradas hoje<strong id="acessos-total-hoje">Medição desativada</strong></div>
-            </div>
             <div class="fila-cards" id="fila-hoje-cards"></div>
         </section>
 
@@ -654,7 +647,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <script src="/recepcao.js"></script>
 </body>

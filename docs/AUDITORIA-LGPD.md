@@ -171,6 +171,13 @@ Atenuante: a telemetria de presença que usaria o RTDB está **desligada**
 (`METRICAS_ACESSO_PUBLICO_ATIVAS = false`). Se for religada, passa a haver dado de
 acesso saindo do país — e aí precisa estar na política antes, não depois.
 
+Atualização de 07/10/2026: a telemetria de presença e o uso do RTDB foram
+removidos. O contador de visitas que a substituiu (`functions/visitas.js`) grava
+no Firestore em `southamerica-east1` e não guarda IP, navegador nem identificador
+do aparelho: só contagens agregadas por dia, seção e página. A marca de "já
+contei hoje" fica no `localStorage` do próprio visitante e não é enviada. Vale
+mencionar o contador na página de privacidade quando ela for publicada.
+
 ### 10. Sem procedimento para incidente de segurança — BAIXO
 
 O art. 48 exige comunicação à ANPD e aos titulares em caso de incidente com risco

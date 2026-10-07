@@ -28,7 +28,6 @@ Toda gravação de dados passa por **Cloud Functions** — o frontend nunca escr
 - **Firebase Hosting** — frontend estático + PWA ([`manifest.json`](public/manifest.json), [`sw.js`](public/sw.js))
 - **Cloud Functions (2ª geração, Node.js 22)** — `firebase-functions 7.3.2`, `firebase-admin 14.2.0`
 - **Cloud Firestore** — dados de agendamento e configuração
-- **Realtime Database** — métricas de presença/acesso em tempo real
 - **Firebase App Check** (reCAPTCHA v3) — proteção das funções públicas contra abuso
 - **Firebase Analytics** (`G-KWKF7NCJHK`)
 - **Frontend** — HTML/CSS/JS puro, Firebase JS SDK 8.10.1, Font Awesome (servido localmente em `public/vendor`)
@@ -42,7 +41,7 @@ agendamentorg/
 ├── firebase.json            # Hosting, rewrites, headers (CSP), Functions, regras
 ├── .firebaserc              # Projeto padrão: agendamento-cin-itanhandu
 ├── firestore.rules          # Regras de segurança do Firestore
-├── database.rules.json      # Regras do Realtime Database
+├── database.rules.json      # Realtime Database fechado (sem uso desde 07/10/2026)
 ├── functions/
 │   ├── index.js             # Todas as Cloud Functions e regras de negócio
 │   ├── aviso-popup.js       # Regra canônica do pop-up de aviso do site
@@ -94,15 +93,19 @@ Definidas em [`functions/index.js`](functions/index.js).
 | `remarcarAgendamentoAdmin` | Remarca data/horário |
 | `listarLogsAdmin` | Auditoria de ações administrativas |
 | `gerarBackupAdmin` | Exportação de dados |
+| `consultarEstatisticasVisitas` | Consolida e devolve o contador de visitas (aba **Estatísticas**) |
+
+### Contador de visitas (`onRequest`, público)
+| Função | Descrição |
+|---|---|
+| `registrarVisita` | Recebe `/api/visita` (rewrite do Hosting) e grava um incremento num fragmento do dia |
 
 ### Gatilho e tarefas agendadas
 | Função | Gatilho |
 |---|---|
-| `registrarMetricasAcessoPublico` | RTDB `onValueCreated` em `presenca_publica/conexoes` |
-| `atualizarMetricasSaidaAcessoPublico` | RTDB `onValueDeleted` em `presenca_publica/conexoes` |
 | `prepararAgendaSemanalAutomatica` | Cron de segunda às 07:50, 07:55 e 07:59 — prepara a semana, aquece a leitura e publica às 08:00 |
 | `anonimizarDadosAntigosLGPD` | Cron mensal `0 3 1 * *` — anonimiza dados com retenção > 6 meses |
-| `executarManutencaoDiaria` | Cron diário `0 2 * * *` — limpa agenda passada, auxiliares expirados e sessões de acesso |
+| `executarManutencaoDiaria` | Cron diário `0 2 * * *` — limpa agenda passada e auxiliares expirados e fecha o dia do contador de visitas |
 
 ---
 
@@ -120,9 +123,10 @@ Definidas em [`functions/index.js`](functions/index.js).
 | `configuracoes/agenda` | Dias, horários, avisos e pop-up configurados pela recepção |
 | `admins` | E-mails autorizados a acessar o painel |
 | `logs_admin` | Trilha de auditoria das ações administrativas |
+| `metricas_visitas_fragmentos` | Contador de visitas: doc `AAAA-MM-DD_N` (N de 0 a 9) com páginas vistas e visitas somadas por seção e página. Sem dado pessoal |
+| `metricas_visitas/resumo` | Contador consolidado: um registro por dia (últimos 60) mais o acumulado dos dias anteriores |
 
-### Realtime Database
-`presenca_publica/` — `conexoes`, `sessoes` e `metricas` para acompanhar acessos simultâneos em tempo real.
+O Realtime Database não é mais usado: a telemetria de presença (`presenca_publica`) foi removida em 07/10/2026 e as regras fecham leitura e escrita. Os dados antigos, se existirem, podem ser apagados pelo console.
 
 ---
 
@@ -198,7 +202,7 @@ Desde 24/08/2026 o caminho crítico do pico roda em **`southamerica-east1`**, ju
 | Função | Região | Por quê |
 |---|---|---|
 | `criarAgendamentoCidadao`, `verificarDisponibilidadeSlotCidadao`, `carregarAgendaPublicaHttp` | `southamerica-east1` | Ficam junto do Firestore. Medido antes e depois com cache furado de propósito: de ~0,89 s (instância quente) para ~0,46 s (instância fria) |
-| `registrarMetricasAcessoPublico`, `atualizarMetricasSaidaAcessoPublico` | `us-central1` | Gatilhos de RTDB. O banco é uma instância `firebaseio.com`, presa a `us-central1` |
+| `registrarVisita` | `southamerica-east1` | Grava no Firestore a cada visita; fica junto do banco |
 | Agendadas e administrativas | `us-central1` | Rodam às 02:00 e 07:50, onde latência de rede é irrelevante. Duplicar região duplicaria os jobs do Cloud Scheduler, saindo da franquia de três |
 
 O site mantém **dois clientes de Functions** e roteia por nome (`clienteFunctions` em `public/index.html`). Chamar uma callable na região errada devolve `not-found` — erro que só apareceria às 08:00 de uma segunda-feira. Há trava automatizada comparando a lista do site com as funções que o backend de fato moveu.
@@ -284,9 +288,18 @@ Requer credenciais de aplicação (`GOOGLE_APPLICATION_CREDENTIALS`) com acesso 
 firebase functions:log --only criarAgendamentoCidadao --project agendamento-cin-itanhandu
 ```
 
-A telemetria pública de presença está **desativada temporariamente** para não competir com o agendamento durante o pico. Por isso, o painel **Recepção → Lista de hoje** mostra “Medição desativada” nos cartões de acessos simultâneos, pico e entradas do dia. O código dos gatilhos e a estrutura `presenca_publica` foram preservados. A telemetria só deve ser religada depois que o processamento tiver deduplicação idempotente, contadores distribuídos em shards e validação de carga em homologação.
+### Contador de visitas
 
-Como a medição é o único uso do Realtime Database no site do cidadão, [`public/index.html`](public/index.html) **não carrega** `firebase-database.js` (183 KB, 51 KB comprimido). Religar a telemetria exige **duas** mudanças juntas: ligar `METRICAS_ACESSO_PUBLICO_ATIVAS` e recolocar a tag do SDK. Só a flag não basta — `realtimeDb` fica nulo e a medição some em silêncio. Há teste automatizado cobrindo essa combinação. O painel da recepção continua carregando o SDK normalmente.
+O painel tem a aba **Estatísticas**: visitas e páginas vistas de hoje, dos últimos 7 dias, dos últimos 30 dias e o total, separadas por área (agendamento, blog, guia da CIN, outras), com gráfico diário e as páginas mais lidas.
+
+- **Navegador:** [`public/visita.js`](public/visita.js) é carregado com `defer` na home, em `duvidas.html` e em todas as páginas aprovadas do editorial (blog, guia, sobre); a 404 e o painel não carregam. Depois do `load`, com a aba visível, ele manda `{ p: caminho, n, s }` por `sendBeacon` para `/api/visita`. `n` e `s` marcam a primeira visita do aparelho no dia e a primeira visita do dia à seção, guardadas em `localStorage` (`cin_visita`). Não usa cookie e não envia nada que identifique a pessoa.
+- **Não contam:** navegador automatizado (`navigator.webdriver`), robôs pelo user-agent e o navegador em que alguém entrou no painel (`cin_nao_contar_visita`).
+- **Servidor:** `registrarVisita` faz **uma gravação por visita**, sem leitura e sem transação: incrementa um de 10 fragmentos do dia, sorteado, para não encostar no limite de ~1 gravação/s por documento no minuto da abertura. É uma função separada do agendamento, com `maxInstances: 10`; erro nela responde 204 e nunca chega ao cidadão. O ranking de páginas usa uma lista fechada (`PAGINAS` em [`functions/visitas.js`](functions/visitas.js)): **ao publicar um post novo, acrescente o caminho e um título curto ali** e publique as functions junto. A trava `visitas.test.js` falha enquanto a lista não bater com `public/`. Página fora da lista conta na seção, só não entra no ranking.
+- **Consolidação:** `consultarEstatisticasVisitas` (admin) relê os fragmentos de ontem e de hoje (ou o intervalo desde a última consolidação, até 45 dias) e grava valores absolutos por dia em `metricas_visitas/resumo`. Rodar de novo não conta duas vezes. A manutenção diária também consolida, então nenhum job novo de Cloud Scheduler foi criado.
+- **Desligar sem deploy de hosting:** parâmetro `CONTADOR_VISITAS_ATIVO=false` nas functions. O endpoint passa a responder 204 sem gravar.
+- **Leitura dos números:** "visitas" é a soma de visitantes únicos de cada dia; quem volta em dias diferentes conta uma vez por dia. Sem `localStorage` disponível, a visita conta só como página vista.
+
+**Deploy desta mudança.** O primeiro `firebase deploy --only functions` depois da remoção da telemetria vai pedir para confirmar a exclusão de `registrarMetricasAcessoPublico` e `atualizarMetricasSaidaAcessoPublico`: confirme. O parâmetro novo `CONTADOR_VISITAS_ATIVO` pode ser perguntado na primeira vez; responda `true` ou deixe o padrão. Publique `firestore:rules` e `database` junto. A ordem segura é functions → regras → hosting: o hosting é que passa a chamar `/api/visita`.
 
 A atualização pública das 08:00 usa uma chave de cache comum por minuto. Assim, os navegadores recebem a agenda atualizada sem criar uma URL única por visitante e o CDN consegue compartilhar a mesma resposta durante o pico.
 
