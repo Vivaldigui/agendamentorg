@@ -256,6 +256,27 @@ test("buraco maior que uma rodada e lido aos poucos, sem pular dia", () => {
   assert.equal(visaoDoResumo(resumo, "2026-10-07").total.paginas.total, Object.keys(fragmentos).length);
 });
 
+test("dia lido fora da sequencia nao conta duas vezes depois de outra parada longa", () => {
+  // Achado da revisao do PR #7: marca em 01/01; a rodada de 01/04 le
+  // 31/12-13/02 e, fora da sequencia, 01/04. Outra parada ate 01/07: 01/04 sai
+  // da retencao antes de a marca chega-lo. A leitura em sequencia o relia e o
+  // somava de novo no acumulado.
+  const proximo = (d) => new Date(Date.parse(d + "T12:00:00Z") + 864e5).toISOString().slice(0, 10);
+  const fragmentos = {};
+  for (let d = "2025-12-31"; d <= "2026-07-01"; d = proximo(d)) fragmentos[d] = totaisDia(1, 1);
+  const rodada = (resumo, hoje) => {
+    const plano = diasParaRecalcular(resumo.ultimoDiaConsolidado, hoje);
+    const lidos = Object.fromEntries(plano.dias.map((d) => [d, fragmentos[d]]));
+    return consolidarResumo(resumo, lidos, hoje, plano.ateDia);
+  };
+  let resumo = consolidarResumo(null, { "2025-12-31": fragmentos["2025-12-31"], "2026-01-01": fragmentos["2026-01-01"] }, "2026-01-01", "2026-01-01");
+  resumo = rodada(resumo, "2026-04-01");
+  assert.ok(resumo.dias["2026-04-01"], "dia de hoje guardado fora da sequencia");
+  for (let i = 0; i < 6; i++) resumo = rodada(resumo, "2026-07-01");
+  assert.equal(resumo.ultimoDiaConsolidado, "2026-07-01");
+  assert.equal(visaoDoResumo(resumo, "2026-07-01").total.paginas.total, Object.keys(fragmentos).length);
+});
+
 test("consolidacao com leitura mais velha nao desfaz uma mais nova", () => {
   // Achado da revisao do PR #6: duas abas abertas ao mesmo tempo, ou o painel
   // junto da manutencao. A rodada lenta chega depois com numeros menores.
