@@ -1,6 +1,6 @@
 # Guia da CIN — operação editorial
 
-O diretório `editorial/` transforma Markdown com frontmatter em páginas HTML estáticas. O agendamento continua isolado na home; as páginas do guia não carregam Firebase, App Check, reCAPTCHA, Font Awesome, Google Fonts nem recursos externos.
+O diretório `editorial/` transforma Markdown com frontmatter em páginas HTML estáticas. O agendamento continua isolado na home; as páginas do guia não carregam Firebase, App Check, reCAPTCHA, Font Awesome, Google Fonts nem recursos externos. A única exceção local é `/visita.js`, o contador de visitas do site (sem cookie), que o modelo base inclui nas páginas aprovadas e não inclui em rascunhos. Ao publicar um artigo novo, acrescente o caminho em `PAGINAS` de `functions/visitas.js` (a trava `npm --prefix functions test` cobra).
 
 ## Fluxo de publicação
 

@@ -533,12 +533,11 @@ test("parametro invalido e recusado antes do rate limit e das leituras", () => {
 });
 
 test("o banco de tempo real nao aceita gravacao anonima", () => {
-  // A telemetria de presenca esta desligada no site. A regra antiga deixava
-  // qualquer um criar e apagar conexoes sem login, e cada gravacao disparava uma
-  // funcao que lia o no inteiro: custo que crescia ao quadrado com o abuso.
+  // A telemetria de presenca foi removida; a regra antiga deixava qualquer um
+  // criar e apagar conexoes sem login, e cada gravacao disparava uma funcao
+  // que lia o no inteiro. Sem uso, o banco fica fechado por inteiro.
   const regras = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "database.rules.json"), "utf8"));
-  const conexoes = regras.rules.presenca_publica.conexoes;
-  assert.equal(conexoes.$conexaoId[".write"], false);
   assert.equal(regras.rules[".write"], false);
-  assert.equal(regras.rules.presenca_publica.metricas[".write"], false);
+  assert.equal(regras.rules[".read"], false);
+  assert.deepEqual(Object.keys(regras.rules).sort(), [".read", ".write"]);
 });

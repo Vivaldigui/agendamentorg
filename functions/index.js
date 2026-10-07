@@ -1,12 +1,10 @@
 const crypto = require("crypto");
 const { initializeApp } = require("firebase-admin/app");
-const { getDatabase } = require("firebase-admin/database");
 const { FieldValue, Timestamp, getFirestore } = require("firebase-admin/firestore");
 const { HttpsError, onCall, onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineBoolean, defineString, defineSecret } = require("firebase-functions/params");
 const { criarServicoAvaliacao, dataEmSaoPaulo } = require("./avaliacao-google");
-const { onValueCreated, onValueDeleted } = require("firebase-functions/v2/database");
 const {
   dataISOValida,
   somarDiasISO,
@@ -40,11 +38,15 @@ const {
   parametrosLeituraPublicaValidos
 } = require("./agenda-cache-publica");
 const { avisoPopupPublico } = require("./aviso-popup");
+const { criarContadorVisitas } = require("./visitas");
 
 initializeApp();
 
 const db = getFirestore();
 
+// Desliga a gravacao do contador de visitas sem deploy de hosting: com false,
+// /api/visita responde 204 sem tocar no Firestore.
+const contadorVisitasAtivo = defineBoolean("CONTADOR_VISITAS_ATIVO", { default: true });
 const avaliacaoGoogleAtiva = defineBoolean("AVALIACAO_GOOGLE_ATIVA", { default: false });
 const avaliacaoGoogleUrl = defineString("AVALIACAO_GOOGLE_URL", { default: "https://g.page/r/CfugOJBgujYPEBM/review" });
 const avaliacaoN8nUrl = defineSecret("AVALIACAO_N8N_WEBHOOK_URL");
@@ -69,16 +71,6 @@ exports.enviarAvaliacoesGooglePendentes = onSchedule({
   });
 });
 
-// getDatabase() lanca "Can't determine Firebase Database URL" quando o
-// FIREBASE_CONFIG do projeto nao traz databaseURL. Em escopo de modulo isso
-// derrubaria TODAS as funcoes do arquivo na carga, inclusive o agendamento.
-// O Realtime Database so e usado pela telemetria de presenca (hoje desativada),
-// entao a inicializacao e adiada: uma URL ausente falha apenas ali.
-let _realtimeDb = null;
-function obterRealtimeDb() {
-  if (!_realtimeDb) _realtimeDb = getDatabase();
-  return _realtimeDb;
-}
 const CANCELAMENTO_TTL_MS = 30 * 60 * 1000;
 const DATA_NOVAS_VAGAS_PADRAO = "01/06/2026";
 const STATUS_VALIDOS = [
@@ -102,8 +94,6 @@ const STATUS_ANONIMIZAR_LGPD = new Set([
 const LGPD_RETENCAO_MESES = 6;
 const LGPD_MAX_LEITURAS_POR_EXECUCAO = 5000;
 const LGPD_TAMANHO_PAGINA = 250;
-const SESSAO_ACESSO_TTL_MS = 24 * 60 * 60 * 1000;
-const CONEXAO_ACESSO_MAX_MS = 12 * 60 * 60 * 1000;
 
 const callableOptions = {
   cors: [
@@ -123,6 +113,13 @@ const publicCallableOptions = {
   ...callableOptions,
   enforceAppCheck: true
 };
+
+const contadorVisitas = criarContadorVisitas({
+  db,
+  FieldValue,
+  hoje: hojeSaoPauloISO,
+  origensPermitidas: callableOptions.cors
+});
 
 // ATENCAO: esta env var NAO e mais o caminho do pre-aquecimento. Ela so tem
 // efeito num `firebase deploy`, que reconstroi conteineres e cria revisao nova
@@ -366,28 +363,6 @@ function normalizarPublicacaoDatas(valor) {
     }
   });
   return limpo;
-}
-
-async function quantidadeConexoesPublicasAtivas() {
-  const snap = await obterRealtimeDb().ref("presenca_publica/conexoes").once("value");
-  return snap.numChildren();
-}
-
-async function atualizarContagemAcessosAtivos(ativosAgora) {
-  const dia = hojeSaoPauloISO();
-  const agora = Date.now();
-  await obterRealtimeDb().ref("presenca_publica/metricas").transaction((atual) => {
-    const base = atual && typeof atual === "object" ? atual : {};
-    const mesmoDia = base.dataReferencia === dia;
-    return {
-      ...base,
-      dataReferencia: dia,
-      ativosAgora,
-      picoHoje: mesmoDia ? Math.max(Number(base.picoHoje) || 0, ativosAgora) : ativosAgora,
-      acessosHoje: mesmoDia ? Number(base.acessosHoje) || 0 : 0,
-      atualizadoEm: agora
-    };
-  });
 }
 
 function avisoNovasVagasAtivo(agenda, agora = agoraSaoPauloInput()) {
@@ -1045,6 +1020,26 @@ exports.carregarAgendaPublicaHttp = onRequest({
   }
 });
 
+// Contador de visitas (public/visita.js -> /api/visita). Fora do caminho do
+// agendamento: funcao propria, sem App Check (sendBeacon nao leva cabecalho),
+// sem leitura e com uma unica gravacao por visita. Ver functions/visitas.js.
+exports.registrarVisita = onRequest({
+  region: REGIAO_PICO,
+  maxInstances: 10,
+  timeoutSeconds: 10,
+  memory: "256MiB"
+}, async (req, res) => {
+  await contadorVisitas.registrar(req, res, {
+    ativo: contadorVisitasAtivo.value(),
+    chaveCliente: fingerprintRequisicao({ rawRequest: req })
+  });
+});
+
+exports.consultarEstatisticasVisitas = onCall(callableOptions, async (request) => {
+  await assertAdmin(request);
+  return contadorVisitas.consolidar();
+});
+
 exports.verificarDisponibilidadeSlotCidadao = onCall(verificacaoSlotOptions, async (request) => {
   const dataISO = normalizarData(request.data && request.data.data, "data do agendamento");
   const hora = normalizarHora(request.data && request.data.hora);
@@ -1573,49 +1568,6 @@ exports.cancelarAgendamentoCidadao = onCall(publicCallableOptions, async (reques
   });
 
   return { cancelado: true };
-});
-
-exports.registrarMetricasAcessoPublico = onValueCreated({
-  ref: "/presenca_publica/conexoes/{conexaoId}",
-  region: "us-central1",
-  maxInstances: 20
-}, async (event) => {
-  const conexaoId = String(event.params.conexaoId || "");
-  const conectadoEm = Number(event.data && event.data.val && event.data.val().conectadoEm) || Date.now();
-  const agora = Date.now();
-  const dia = hojeSaoPauloISO();
-  const ativosAgora = await quantidadeConexoesPublicasAtivas();
-  const raiz = obterRealtimeDb().ref("presenca_publica");
-
-  await Promise.all([
-    raiz.child(`sessoes/${conexaoId}`).set({
-      conectadoEm,
-      registradoEm: agora,
-      expiraEm: agora + SESSAO_ACESSO_TTL_MS
-    }),
-    raiz.child("metricas").transaction((atual) => {
-      const base = atual && typeof atual === "object" ? atual : {};
-      const mesmoDia = base.dataReferencia === dia;
-      return {
-        ...base,
-        dataReferencia: dia,
-        ativosAgora,
-        picoHoje: mesmoDia ? Math.max(Number(base.picoHoje) || 0, ativosAgora) : ativosAgora,
-        acessosHoje: (mesmoDia ? Number(base.acessosHoje) || 0 : 0) + 1,
-        totalAcessos: (Number(base.totalAcessos) || 0) + 1,
-        ultimoAcessoEm: agora,
-        atualizadoEm: agora
-      };
-    })
-  ]);
-});
-
-exports.atualizarMetricasSaidaAcessoPublico = onValueDeleted({
-  ref: "/presenca_publica/conexoes/{conexaoId}",
-  region: "us-central1",
-  maxInstances: 20
-}, async () => {
-  await atualizarContagemAcessosAtivos(await quantidadeConexoesPublicasAtivas());
 });
 
 exports.criarEncaixeManual = onCall(callableOptions, async (request) => {
@@ -2230,34 +2182,6 @@ async function limparAuxiliaresExpirados() {
   }
 }
 
-async function limparSessoesAcessoPublico() {
-  const raiz = obterRealtimeDb().ref("presenca_publica");
-  const agora = Date.now();
-  const atualizacoes = {};
-  const [sessoesSnap, conexoesAntigasSnap] = await Promise.all([
-    raiz.child("sessoes").orderByChild("expiraEm").endAt(agora).limitToFirst(1000).once("value"),
-    raiz.child("conexoes").orderByChild("conectadoEm").endAt(agora - CONEXAO_ACESSO_MAX_MS).limitToFirst(1000).once("value")
-  ]);
-
-  sessoesSnap.forEach((item) => { atualizacoes[`sessoes/${item.key}`] = null; });
-  conexoesAntigasSnap.forEach((item) => { atualizacoes[`conexoes/${item.key}`] = null; });
-  if (Object.keys(atualizacoes).length) await raiz.update(atualizacoes);
-  const ativosAgora = await quantidadeConexoesPublicasAtivas();
-  await atualizarContagemAcessosAtivos(ativosAgora);
-
-  await db.collection("logs_admin").add({
-    acao: "limpeza_sessoes_acesso_publico",
-    detalhes: {
-      sessoesRemovidas: sessoesSnap.numChildren(),
-      conexoesAntigasRemovidas: conexoesAntigasSnap.numChildren(),
-      ativosAgora
-    },
-    adminEmail: "sistema",
-    criadoEm: FieldValue.serverTimestamp(),
-    criado: new Date().toISOString()
-  });
-}
-
 // Um unico job diario substitui os tres agendamentos de limpeza. Junto da
 // automacao semanal e da anonimizacao mensal, o projeto passa a ter tres jobs
 // do Cloud Scheduler, dentro da franquia gratuita quando a conta nao possui
@@ -2273,5 +2197,8 @@ exports.executarManutencaoDiaria = onSchedule({
 }, async () => {
   await limparDatasPassadasAgenda();
   await limparAuxiliaresExpirados();
-  await limparSessoesAcessoPublico();
+  // Fecha o dia no resumo mesmo que ninguem abra a aba Estatisticas.
+  await contadorVisitas.consolidar().catch((err) => {
+    console.error("Falha ao consolidar visitas.", err && err.message);
+  });
 });

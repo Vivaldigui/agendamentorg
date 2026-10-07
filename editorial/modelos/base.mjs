@@ -12,6 +12,9 @@ function breadcrumbHtml(itens) {
 }
 
 export function paginaBase({ config, meta, caminho, jsonld, breadcrumb, conteudo, servico, linksInstitucionais = {}, ctaFixo = true }) {
+  // Contador de visitas proprio (public/visita.js, 1 script local, sem cookie).
+  // Rascunho em revisao nao conta.
+  const contarVisita = config.contadorVisitas !== false && (!meta.status || meta.status === "aprovado");
   const canonical = urlAbsoluta(config.urlBase, caminho);
   const imagem = meta.imagem ? `\n  <meta property="og:image" content="${esc(urlAbsoluta(config.urlBase, meta.imagem))}">\n  <meta property="og:image:alt" content="${esc(meta.imagem_alt)}">\n  <meta name="twitter:image" content="${esc(urlAbsoluta(config.urlBase, meta.imagem))}">\n  <meta name="twitter:image:alt" content="${esc(meta.imagem_alt)}">` : "";
   const analytics = config.analyticsNoGuia
@@ -58,6 +61,7 @@ export function paginaBase({ config, meta, caminho, jsonld, breadcrumb, conteudo
   </main>
   <footer class="rodape-guia"><div class="rodape-guia-interno"><strong>${esc(servico.organizacoes.camara.nome)}</strong><br>${esc(endereco.rua)}, ${esc(endereco.bairro)}, ${esc(endereco.cidade)} — ${esc(endereco.uf)}<p>${institucionais}</p></div></footer>
   ${ctaFixo ? '<a class="cta-fixo" href="/">Agendar atendimento</a>' : ""}
+  ${contarVisita ? '<script src="/visita.js" defer></script>' : ""}
 </body>
 </html>`;
 }

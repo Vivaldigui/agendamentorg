@@ -49,6 +49,7 @@
                     <span class="nav-sep" aria-hidden="true"></span>
                     <button type="button" class="btn btn-vista" id="btn-vista-config" role="tab" aria-selected="false" data-acao="vista" data-vista="config"><i class="fa-solid fa-gears"></i> Configuração</button>
                     <button type="button" class="btn btn-vista" id="btn-vista-relatorios" role="tab" aria-selected="false" data-acao="vista" data-vista="relatorios"><i class="fa-solid fa-chart-simple"></i> Relatórios</button>
+                    <button type="button" class="btn btn-vista" id="btn-vista-estatisticas" role="tab" aria-selected="false" data-acao="vista" data-vista="estatisticas"><i class="fa-solid fa-chart-line"></i> Estatísticas</button>
                 </div>
             </nav>
         </header>
@@ -81,13 +82,6 @@
                 <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
                 <input id="busca-fila-hoje" type="search" placeholder="Check-in por nome, CPF ou protocolo" data-input="renderFilaHoje">
                 <kbd class="atalho-busca">/</kbd>
-            </div>
-            <!-- Os cards de acesso ficam ocultos enquanto a medicao esta
-                 desligada; antes ocupavam o topo escrito "Medicao desativada". -->
-            <div class="acessos-tempo-real" id="acessos-tempo-real" aria-label="Acessos ao agendamento público em tempo real">
-                <div class="acesso-card">Acessos agora<strong id="acessos-agora">Medição desativada</strong></div>
-                <div class="acesso-card">Pico de hoje<strong id="acessos-pico-hoje">Medição desativada</strong></div>
-                <div class="acesso-card">Entradas hoje<strong id="acessos-total-hoje">Medição desativada</strong></div>
             </div>
             <div class="fila-cards" id="fila-hoje-cards"></div>
         </section>
@@ -461,6 +455,50 @@
             </div>
         </div>
 
+        <!-- Contador de visitas do site publico (functions/visitas.js). Os
+             numeros chegam pela callable consultarEstatisticasVisitas, que
+             consolida os contadores na hora em que a aba abre. -->
+        <div id="vista-estatisticas" style="display:none;">
+            <div class="painel-indicadores painel-visitas">
+                <div class="visitas-topo">
+                    <h3><i class="fa-solid fa-chart-line"></i> Visitas ao site</h3>
+                    <span class="atualizado-em" id="visitas-atualizado"><i class="fa-solid fa-rotate"></i> Aguardando atualização</span>
+                    <button type="button" class="btn btn-atualizar" data-acao="carregarEstatisticasVisitas"><i class="fa-solid fa-rotate"></i> Atualizar</button>
+                </div>
+                <div class="indicadores-grid visitas-grid">
+                    <div class="indicador-card"><span>Hoje</span><strong id="visitas-hoje">...</strong><small id="visitas-hoje-paginas">Carregando...</small></div>
+                    <div class="indicador-card"><span>Últimos 7 dias</span><strong id="visitas-7">...</strong><small id="visitas-7-paginas">Carregando...</small></div>
+                    <div class="indicador-card"><span>Últimos 30 dias</span><strong id="visitas-30">...</strong><small id="visitas-30-paginas">Carregando...</small></div>
+                    <div class="indicador-card"><span>Total</span><strong id="visitas-total">...</strong><small id="visitas-total-paginas">Carregando...</small></div>
+                </div>
+                <div class="indicadores-tabelas">
+                    <div class="indicador-bloco">
+                        <h4>Por área do site</h4>
+                        <div class="tabela-visitas-rolavel" id="visitas-secoes"></div>
+                    </div>
+                    <div class="indicador-bloco">
+                        <h4>Visitas por dia &middot; últimos 30 dias</h4>
+                        <div class="visitas-serie" id="visitas-serie" role="img" aria-label="Gráfico de visitas por dia nos últimos 30 dias"></div>
+                        <div class="visitas-serie-eixo" id="visitas-serie-eixo"></div>
+                    </div>
+                    <div class="indicador-bloco">
+                        <h4>Mais lidas &middot; últimos 7 dias</h4>
+                        <ol class="visitas-ranking" id="visitas-mais-lidas-7"></ol>
+                    </div>
+                    <div class="indicador-bloco">
+                        <h4>Mais lidas &middot; últimos 30 dias</h4>
+                        <ol class="visitas-ranking" id="visitas-mais-lidas-30"></ol>
+                    </div>
+                </div>
+                <p class="visitas-legenda">
+                    <strong>Visitas:</strong> cada aparelho conta uma vez por dia (em cada área, na tabela por área).
+                    <strong>Páginas vistas:</strong> cada página aberta, inclusive repetida.
+                    Sem cookies e sem dado pessoal: só números somados. Robôs e este navegador, usado no painel, não entram na conta.
+                    <span id="visitas-inicio"></span>
+                </p>
+            </div>
+        </div>
+
         <div id="vista-credenciais" style="display:none;">
             <div class="painel-config">
                 <h3><i class="fa-solid fa-square-parking"></i> Nova credencial de estacionamento</h3>
@@ -609,7 +647,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <script src="/recepcao.js"></script>
 </body>

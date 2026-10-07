@@ -1,5 +1,12 @@
 "use strict";
 
+// A telemetria de presenca no Realtime Database (presenca_publica, gatilhos
+// onValueCreated/onValueDeleted e a flag METRICAS_ACESSO_PUBLICO_ATIVAS) foi
+// removida em 07/10/2026. Ela ficou desligada desde 17/08 porque cada acesso
+// lia o no inteiro de conexoes e disputava uma transacao num unico contador.
+// A contagem de visitas agora e functions/visitas.js (Firestore, fragmentos).
+// Estas travas impedem que o caminho antigo volte aos poucos.
+
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -7,54 +14,25 @@ const path = require("node:path");
 
 const raiz = path.resolve(__dirname, "..");
 const sitePublico = fs.readFileSync(path.join(raiz, "public", "index.html"), "utf8");
-const { painel } = require("./painel-fonte");
-const readme = fs.readFileSync(path.join(raiz, "README.md"), "utf8");
+const backend = fs.readFileSync(path.join(__dirname, "index.js"), "utf8");
+const { painel, painelHtml } = require("./painel-fonte");
 
-test("site publico nao abre conexao de telemetria enquanto a medicao esta desativada", () => {
-  assert.match(sitePublico, /const\s+METRICAS_ACESSO_PUBLICO_ATIVAS\s*=\s*false\s*;/);
-  assert.match(sitePublico, /function\s+registrarPresencaPublica\(\)\s*\{\s*if\s*\(!METRICAS_ACESSO_PUBLICO_ATIVAS\s*\|\|\s*!realtimeDb\)\s*return\s*;/);
+test("site publico nao fala mais com o Realtime Database", () => {
+  assert.doesNotMatch(sitePublico, /firebase-database\.js/);
+  assert.doesNotMatch(sitePublico, /firebase\.database|presenca_publica|METRICAS_ACESSO_PUBLICO_ATIVAS/);
 });
 
-test("painel informa explicitamente que a medicao esta desativada", () => {
-  assert.match(painel, /const\s+METRICAS_ACESSO_PUBLICO_ATIVAS\s*=\s*false\s*;/);
-  assert.equal((painel.match(/Medição desativada/g) || []).length >= 3, true);
-  assert.match(painel, /if\s*\(!METRICAS_ACESSO_PUBLICO_ATIVAS\)/);
+test("painel nao carrega o SDK do Realtime Database nem os cartoes antigos", () => {
+  assert.doesNotMatch(painelHtml, /firebase-database\.js/);
+  assert.doesNotMatch(painel, /firebase\.database|presenca_publica|METRICAS_ACESSO_PUBLICO_ATIVAS|acessos-tempo-real/);
 });
 
-test("README registra a condicao necessaria para religar a telemetria", () => {
-  assert.match(readme, /telemetria[^\n]*desativada/i);
-  assert.match(readme, /idempot[^\n]*shards|shards[^\n]*idempot/i);
-  assert.match(readme, /homologa/i);
-  // Religar exige a flag E a tag do SDK; so a flag deixa realtimeDb nulo.
-  assert.match(readme, /firebase-database\.js/);
-  assert.match(readme, /METRICAS_ACESSO_PUBLICO_ATIVAS/);
+test("backend nao tem mais gatilho nem limpeza do Realtime Database", () => {
+  assert.doesNotMatch(backend, /firebase-admin\/database|firebase-functions\/v2\/database/);
+  assert.doesNotMatch(backend, /onValueCreated|onValueDeleted|presenca_publica|getDatabase/);
 });
 
-test("religar a telemetria exige a flag e o SDK do Realtime Database juntos", () => {
-  const flag = sitePublico.match(/const\s+METRICAS_ACESSO_PUBLICO_ATIVAS\s*=\s*(true|false)\s*;/);
-  assert.ok(flag, "flag METRICAS_ACESSO_PUBLICO_ATIVAS nao encontrada no site publico.");
-  const medicaoLigada = flag[1] === "true";
-  const carregaSdk = /<script[^>]+firebasejs\/[\d.]+\/firebase-database\.js/.test(sitePublico);
-
-  // Com a medicao ligada e sem a tag, registrarPresencaPublica desiste em
-  // silencio porque realtimeDb fica nulo: a telemetria pareceria funcionar.
-  assert.equal(
-    medicaoLigada && !carregaSdk,
-    false,
-    "METRICAS_ACESSO_PUBLICO_ATIVAS=true exige a tag do firebase-database.js em public/index.html."
-  );
-
-  // Com a medicao desligada o SDK nao pode voltar a pesar no site do cidadao.
-  if (!medicaoLigada) {
-    assert.equal(
-      carregaSdk,
-      false,
-      "Com a medicao desligada, o site publico nao deve carregar firebase-database.js."
-    );
-  }
-
-  // A degradacao continua sendo silenciosa por construcao, nunca um erro.
-  assert.match(sitePublico, /var realtimeDb = firebase\.database \? firebase\.database\(\) : null;/);
-  // O painel da recepcao segue usando o Realtime Database.
-  assert.match(painel, /firebasejs\/[\d.]+\/firebase-database\.js/);
+test("o Realtime Database fica fechado para leitura e escrita", () => {
+  const regras = JSON.parse(fs.readFileSync(path.join(raiz, "database.rules.json"), "utf8"));
+  assert.deepEqual(regras, { rules: { ".read": false, ".write": false } });
 });

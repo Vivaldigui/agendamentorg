@@ -708,17 +708,10 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app-check.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
-<!-- firebase-database.js (183 KB, 51 KB comprimido) NAO e carregado aqui: o unico
-     uso no site publico e a telemetria de presenca, hoje desligada por
-     METRICAS_ACESSO_PUBLICO_ATIVAS. Ao religar a telemetria e obrigatorio
-     recolocar esta tag, senao realtimeDb fica nulo e a medicao nao acontece.
-     O painel da recepcao continua carregando o SDK normalmente. -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
 
 <script>
     const APP_CHECK_RECAPTCHA_SITE_KEY = "6LdoYfcsAAAAALyCdBKewXtFLB1e9biRnXTWqNv0";
-    // Desativada ate a telemetria idempotente e distribuida ser validada em homologacao.
-    const METRICAS_ACESSO_PUBLICO_ATIVAS = false;
     const ATUALIZACAO_AGENDA_PUBLICA_MS = 3 * 60 * 1000;
     const JANELA_ATUALIZACAO_ABERTURA_MS = 60 * 1000;
     const JITTER_ATUALIZACAO_ABERTURA_MS = 1500;
@@ -925,10 +918,6 @@
     function aquecerAppCheckEmSegundoPlano() {
         agendarQuandoOcioso(() => { garantirAppCheckPronto(); });
     }
-    // Fica nulo enquanto a tag do firebase-database.js nao estiver na pagina.
-    // registrarPresencaPublica ja trata esse caso e simplesmente nao mede nada.
-    var realtimeDb = firebase.database ? firebase.database() : null;
-
     const DATA_CORTE_GRADE_NOVA = "2026-08-18";
     const HORARIOS_LEGADOS = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
     const HORARIOS_NOVOS = ["14:30","14:45","15:00","15:15","15:30","15:45","16:00","16:15","16:30","16:45"];
@@ -963,19 +952,6 @@
             }
         });
     } catch (_) {}
-
-    function registrarPresencaPublica() {
-        if (!METRICAS_ACESSO_PUBLICO_ATIVAS || !realtimeDb) return;
-        const conexaoRef = realtimeDb.ref("presenca_publica/conexoes").push();
-        realtimeDb.ref(".info/connected").on("value", snapshot => {
-            if (snapshot.val() !== true) return;
-            conexaoRef.onDisconnect().remove()
-                .then(() => conexaoRef.set({
-                    conectadoEm: firebase.database.ServerValue.TIMESTAMP
-                }))
-                .catch(erro => console.warn("Nao foi possivel registrar presenca publica.", erro));
-        }, erro => console.warn("Nao foi possivel observar a conexao publica.", erro));
-    }
 
     // Instante do servidor estimado a partir do relogio local. Toda decisao de
     // "que horas sao" no site publico passa por aqui.
@@ -3924,7 +3900,6 @@
     renderizarAvisosTaxa();
 
     (async function init() {
-        registrarPresencaPublica();
         // O fluxo comeca pela tela de dados: a digitacao acontece durante a
         // contagem regressiva e sai do caminho da disputa das 08:00. A grade de
         // datas so aparece depois de "Continuar". Ver docs/PLANO-agendar-em-um-toque.md.
@@ -3948,5 +3923,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+<!-- Contador de visitas: envia so depois do load, fora do caminho do agendamento. -->
+<script src="/visita.js" defer></script>
 </body>
 </html>
