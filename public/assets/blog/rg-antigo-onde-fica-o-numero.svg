@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="560" viewBox="0 0 640 560" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <title id="t">Onde fica o número do RG no modelo antigo</title>
+  <desc id="d">Desenho esquemático do verso de um RG no modelo antigo. O número aparece no alto, à esquerda, abaixo das palavras registro geral, ao lado da data de expedição. Mais abaixo pode aparecer o CPF, quando foi incluído, e o documento de origem, que traz os números da certidão e não o número do RG.</desc>
+  <rect width="640" height="560" fill="#f3f6f9"/>
+  <text x="40" y="40" font-size="18" font-weight="800" fill="#172033">VERSO DO RG ANTIGO</text>
+  <rect x="40" y="54" width="560" height="440" rx="12" fill="#ffffff" stroke="#b9c4d2" stroke-width="2"/>
+  <text x="320" y="86" text-anchor="middle" font-size="15" font-weight="700" fill="#566174">VÁLIDA EM TODO O TERRITÓRIO NACIONAL</text>
+
+  <rect x="58" y="102" width="270" height="84" rx="8" fill="#fff4d6" stroke="#f59e0b" stroke-width="4"/>
+  <text x="76" y="132" font-size="15" font-weight="700" fill="#78350f">REGISTRO GERAL</text>
+  <text x="76" y="166" font-size="24" font-weight="800" fill="#172033">12.345.678-9</text>
+  <circle cx="328" cy="102" r="22" fill="#f59e0b"/>
+  <text x="328" y="111" text-anchor="middle" font-size="24" font-weight="800" fill="#172033">1</text>
+  <text x="372" y="132" font-size="15" font-weight="700" fill="#566174">DATA DE EXPEDIÇÃO</text>
+  <text x="372" y="166" font-size="20" fill="#172033">10/05/2012</text>
+
+  <rect x="76" y="206" width="490" height="20" rx="5" fill="#e8edf3"/>
+  <rect x="76" y="236" width="490" height="20" rx="5" fill="#e8edf3"/>
+  <rect x="76" y="266" width="300" height="20" rx="5" fill="#e8edf3"/>
+
+  <rect x="58" y="304" width="524" height="64" rx="8" fill="#eaf3ff" stroke="#0056b3" stroke-width="4"/>
+  <text x="76" y="330" font-size="15" font-weight="700" fill="#003d82">CPF</text>
+  <text x="76" y="356" font-size="19" fill="#172033">123.456.789-09 (quando incluído)</text>
+  <circle cx="582" cy="304" r="22" fill="#0056b3"/>
+  <text x="582" y="313" text-anchor="middle" font-size="24" font-weight="800" fill="#ffffff">2</text>
+
+  <rect x="58" y="386" width="524" height="64" rx="8" fill="#fde8e8" stroke="#b42318" stroke-width="4" stroke-dasharray="10 6"/>
+  <text x="76" y="412" font-size="15" font-weight="700" fill="#7a271a">DOC. ORIGEM</text>
+  <text x="76" y="438" font-size="17" fill="#172033">Certidão: livro, folha e termo</text>
+  <circle cx="582" cy="386" r="22" fill="#b42318"/>
+  <text x="582" y="395" text-anchor="middle" font-size="24" font-weight="800" fill="#ffffff">3</text>
+
+  <text x="566" y="478" text-anchor="end" font-size="15" fill="#566174">Assinatura do diretor</text>
+  <text x="320" y="530" text-anchor="middle" font-size="15" fill="#566174">Desenho ilustrativo. Número fictício; o formato muda por estado.</text>
+</svg>
