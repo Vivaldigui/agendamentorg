@@ -41,6 +41,7 @@ const PAGINAS = {
   "/duvidas.html": { secao: "outros", titulo: "Dúvidas frequentes" },
   "/sobre/": { secao: "outros", titulo: "Sobre o Guia da CIN" },
   "/blog/": { secao: "blog", titulo: "Blog do RG (capa)" },
+  "/blog/onde-fica-o-numero-do-rg/": { secao: "blog", titulo: "Onde fica o número do RG" },
   "/blog/orgao-emissor-do-rg/": { secao: "blog", titulo: "Órgão emissor do RG" },
   "/blog/qual-certidao-levar-para-fazer-rg/": { secao: "blog", titulo: "Qual certidão levar para fazer o RG" },
   "/blog/rg-antigo-ainda-vale/": { secao: "blog", titulo: "RG antigo ainda vale?" },
