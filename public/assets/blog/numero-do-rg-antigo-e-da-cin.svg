@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="520" viewBox="0 0 640 520" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <title id="t">Número do RG antigo e número da Carteira de Identidade Nacional</title>
+  <desc id="d">Comparação entre os dois modelos. No RG antigo, o número é criado pelo estado, muda de formato de um estado para outro e a mesma pessoa podia ter um número em cada estado. Na Carteira de Identidade Nacional, o número do registro geral é o CPF, igual em todo o país.</desc>
+  <rect width="640" height="520" fill="#f3f6f9"/>
+
+  <rect x="40" y="24" width="560" height="210" rx="12" fill="#ffffff" stroke="#b9c4d2" stroke-width="2"/>
+  <text x="64" y="62" font-size="20" font-weight="800" fill="#172033">RG antigo</text>
+  <rect x="64" y="80" width="300" height="52" rx="8" fill="#fff4d6" stroke="#f59e0b" stroke-width="3"/>
+  <text x="82" y="114" font-size="24" font-weight="800" fill="#172033">12.345.678-9</text>
+  <g font-size="17" fill="#172033">
+    <text x="64" y="166">• número criado pelo estado</text>
+    <text x="64" y="192">• formato e quantidade de dígitos variam</text>
+    <text x="64" y="218">• podia haver um número por estado</text>
+  </g>
+
+  <rect x="40" y="254" width="560" height="210" rx="12" fill="#ffffff" stroke="#b9c4d2" stroke-width="2"/>
+  <text x="64" y="292" font-size="20" font-weight="800" fill="#172033">Carteira de Identidade Nacional</text>
+  <rect x="64" y="310" width="300" height="52" rx="8" fill="#eaf3ff" stroke="#0056b3" stroke-width="3"/>
+  <text x="82" y="344" font-size="24" font-weight="800" fill="#172033">123.456.789-09</text>
+  <g font-size="17" fill="#172033">
+    <text x="64" y="396">• o número do registro geral é o CPF</text>
+    <text x="64" y="422">• 11 dígitos, igual em todo o país</text>
+    <text x="64" y="448">• um número só por pessoa</text>
+  </g>
+  <text x="320" y="498" text-anchor="middle" font-size="15" fill="#566174">Números fictícios, usados só como exemplo.</text>
+</svg>
