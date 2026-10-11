@@ -7,8 +7,8 @@ titulo_seo: "Órgão emissor do RG: o que é, onde fica e como preencher"
 descricao: "Órgão emissor e órgão expedidor são a mesma coisa: a instituição do estado que fez seu RG. Veja onde ele aparece no documento e como preencher em formulários."
 resposta: "O órgão emissor, também chamado de órgão expedidor, é a instituição do estado que fez o seu RG. No modelo antigo, o nome dela aparece no alto da frente do documento, junto do estado. Em formulários, escreva a sigla do órgão, como SSP, e a sigla do estado no campo UF. Não use o nome da cidade nem o cartório da certidão."
 publicado: 2026-10-06
-atualizado: 2026-10-06
-conferido: 2026-10-06
+atualizado: 2026-10-11
+conferido: 2026-10-11
 cluster: dados-no-documento
 escopos: [nacional]
 fatos: []
@@ -76,9 +76,23 @@ Na maioria dos RGs no modelo antigo, não existe uma linha chamada "órgão emis
 
 *1: o órgão emissor e o estado, no cabeçalho da frente. 2: número do registro geral e data de expedição, no verso. 3: documento de origem. Desenho ilustrativo: o modelo muda conforme o estado e a época.*
 
+### O que é o "Doc. origem" (documento de origem)
+
 O campo 3 é o que mais confunde. "Doc. origem" mostra a certidão de nascimento ou de casamento usada para fazer o RG, com cartório, livro, folha e termo. Isso vem da própria lei, que manda o RG trazer de forma resumida os dados do registro de nascimento (artigo 3º, alínea "e"). **O cartório não é o órgão emissor.** O cartório registrou o seu nascimento; o órgão emissor fez a sua identidade.
 
 Se o cabeçalho trouxer só o nome por extenso, use a sigla correspondente. "Secretaria da Segurança Pública", por exemplo, vira "SSP".
+
+## Como saber o órgão emissor do seu RG
+
+Com o documento em mãos, siga esta ordem:
+
+1. **Olhe o cabeçalho da frente.** No RG antigo, o nome do estado e da secretaria ou do instituto que fez o documento ficam ali, acima da foto.
+2. **Confira se há uma sigla impressa.** Alguns modelos já trazem a sigla do órgão e a UF, como "SSP/XX". Se houver, é ela que vai no formulário.
+3. **Se só houver o nome por extenso, transforme em sigla.** "Secretaria da Segurança Pública" vira "SSP"; "Polícia Civil", "PC".
+4. **Separe a UF.** É a sigla do estado que aparece no cabeçalho, não a do estado onde você mora hoje.
+5. **Descarte o "Doc. origem".** O cartório que aparece ali registrou a sua certidão e não é o órgão emissor.
+
+Se o documento estiver ilegível ou perdido, o caminho é pedir a segunda via no órgão de identificação do estado onde o RG foi feito. Pela Lei nº 7.116, ela é emitida mediante simples solicitação do interessado (artigo 7º).
 
 ## Onde fica o órgão emissor na Carteira de Identidade Nacional
 

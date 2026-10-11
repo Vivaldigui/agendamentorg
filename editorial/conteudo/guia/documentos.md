@@ -23,7 +23,7 @@ fontes:
     url: "https://www.mg.gov.br/sites/default/files/servicos/arquivos/2022/Portaria_07_2022_0.pdf"
     consultado: 2026-09-11
 cta: agendar-com-documentos
-relacionados: [criancas-e-adolescentes, dia-do-atendimento, como-agendar, gratuidade-e-segunda-via]
+relacionados: [criancas-e-adolescentes, dia-do-atendimento, como-agendar, gratuidade-e-segunda-via, qual-certidao-levar-para-fazer-rg]
 imagem: /assets/cin/guia-social.png
 imagem_alt: "Guia da CIN — Câmara Municipal de Itanhandu: documentos, agendamento e atendimento"
 gerado_por_ia: true
