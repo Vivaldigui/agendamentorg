@@ -7,8 +7,8 @@ titulo_seo: "Qual certidão levar para fazer o RG: nascimento ou casamento"
 descricao: "Solteiro leva a certidão de nascimento; casado, divorciado e viúvo, a de casamento atualizada. Veja onde fica a averbação, a matrícula e como pedir a 2ª via."
 resposta: "Solteiros e pessoas em união estável levam a certidão de nascimento. Casados levam a certidão de casamento. Separados, divorciados e viúvos levam a certidão de casamento com a averbação ou a anotação que mostra a mudança. A lei pede só esse documento, em papel ou em formato digital, e ele precisa trazer o seu nome e o seu estado civil atuais."
 publicado: 2026-10-01
-atualizado: 2026-10-01
-conferido: 2026-10-01
+atualizado: 2026-10-11
+conferido: 2026-10-11
 cluster: casos-especificos
 escopos: [nacional]
 fatos: []
@@ -86,6 +86,12 @@ O número do documento passa a ser o CPF. Brasileiros naturalizados apresentam t
 Quem nunca se casou leva a certidão de nascimento. O mesmo vale para quem vive em união estável: a união não gera certidão de casamento. Quando registrada, ela fica no Livro E do cartório de registro civil, conforme o artigo 94-A da [Lei de Registros Públicos](https://www.planalto.gov.br/ccivil_03/leis/l6015compilada.htm).
 
 Há uma exceção. Desde 2022, quem tem união estável registrada pode incluir o sobrenome do companheiro, nas mesmas hipóteses das pessoas casadas (artigo 57, § 2º). Essa mudança é averbada no registro de nascimento. Se você fez isso, peça uma segunda via da certidão de nascimento, que já sairá com o nome novo.
+
+## Existe certidão de solteiro?
+
+Não existe um documento com esse nome no registro civil. Quem é solteiro comprova a situação com a **certidão de nascimento**. O motivo está na Lei de Registros Públicos: quando a pessoa se casa, o casamento é anotado no registro de nascimento dela (artigo 107). Uma certidão de nascimento atualizada, sem essa anotação, mostra que não há casamento registrado naquele assento.
+
+Por isso, se um órgão pedir "comprovante de estado civil" de alguém solteiro, a certidão de nascimento emitida recentemente é o documento que responde.
 
 ## Casado: certidão de casamento
 

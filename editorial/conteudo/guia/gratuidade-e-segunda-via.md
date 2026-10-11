@@ -27,7 +27,7 @@ fontes:
     url: "https://www.mg.gov.br/sites/default/files/servicos/arquivos/2022/Portaria_04_2022_0.pdf"
     consultado: 2026-09-11
 cta: agendar-com-documentos
-relacionados: [documentos]
+relacionados: [documentos, rg-antigo-ainda-vale]
 imagem: /assets/cin/guia-social.png
 imagem_alt: "Guia da CIN — Câmara Municipal de Itanhandu: documentos, agendamento e atendimento"
 gerado_por_ia: true
