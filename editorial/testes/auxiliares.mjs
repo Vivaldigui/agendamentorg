@@ -58,7 +58,6 @@ export async function projetoTemporario(documentos = []) {
     fs.mkdir(path.join(editorial, "conteudo", "guia"), { recursive: true }),
     fs.mkdir(path.join(editorial, "conteudo", "avisos"), { recursive: true }),
     fs.mkdir(path.join(editorial, "conteudo", "paginas"), { recursive: true }),
-    fs.mkdir(path.join(editorial, "conteudo", "blog"), { recursive: true }),
     fs.mkdir(path.join(editorial, "estilo"), { recursive: true }),
     fs.mkdir(publicDir, { recursive: true })
   ]);
@@ -74,7 +73,7 @@ export async function projetoTemporario(documentos = []) {
     fs.writeFile(path.join(editorial, "estilo", "guia.css"), css)
   ]);
   for (const [nome, dados, corpo] of documentos) {
-    const grupo = { aviso: "avisos", institucional: "paginas", artigo: "blog" }[dados.tipo] ?? "guia";
+    const grupo = { aviso: "avisos", institucional: "paginas" }[dados.tipo] ?? "guia";
     await fs.writeFile(path.join(editorial, "conteudo", grupo, nome), matter.stringify(corpo, dados), "utf8");
   }
   return { raizProjeto, editorial, publicDir };

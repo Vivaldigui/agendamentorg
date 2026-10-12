@@ -178,6 +178,11 @@ do aparelho: só contagens agregadas por dia, seção e página. A marca de "já
 contei hoje" fica no `localStorage` do próprio visitante e não é enviada. Vale
 mencionar o contador na página de privacidade quando ela for publicada.
 
+Atualização de 12/10/2026: o contador de visitas também foi removido. O site
+público não grava mais nenhuma métrica de acesso própria. As coleções
+`metricas_visitas` e `metricas_visitas_fragmentos` ficaram sem leitura nem
+gravação pelas regras e podem ser apagadas no console quando convier.
+
 ### 10. Sem procedimento para incidente de segurança — BAIXO
 
 O art. 48 exige comunicação à ANPD e aos titulares em caso de incidente com risco

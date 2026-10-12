@@ -10,9 +10,9 @@ test("lote aprovado tem metadados unicos, destinos existentes e nenhum marcador"
   const contexto = await bases();
   const documentos = await carregarDocumentos(RAIZ, contexto.servico, contexto.ctas);
   const aprovados = documentos.filter((doc) => doc.dados.status === "aprovado");
-  assert.equal(aprovados.length, 16);
-  assert.equal(new Set(aprovados.map((doc) => doc.dados.titulo_seo)).size, 16);
-  assert.equal(new Set(aprovados.map((doc) => doc.dados.descricao)).size, 16);
+  assert.equal(aprovados.length, 11);
+  assert.equal(new Set(aprovados.map((doc) => doc.dados.titulo_seo)).size, 11);
+  assert.equal(new Set(aprovados.map((doc) => doc.dados.descricao)).size, 11);
   for (const doc of aprovados) {
     const url = caminhoDocumento(doc);
     const html = await fs.readFile(path.join(contexto.publicDir, url, "index.html"), "utf8");
@@ -30,9 +30,9 @@ test("lote aprovado tem metadados unicos, destinos existentes e nenhum marcador"
   }
   await assert.rejects(() => fs.access(path.join(contexto.publicDir, "privacidade/index.html")));
   const sitemap = await fs.readFile(path.join(contexto.publicDir, "sitemap.xml"), "utf8");
-  assert.equal((sitemap.match(/<loc>/g) ?? []).length, 18);
+  assert.equal((sitemap.match(/<loc>/g) ?? []).length, 12);
   const datas = [...sitemap.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)].map((m) => m[1]);
-  assert.equal(datas.length, 17);
+  assert.equal(datas.length, 11);
   for (const data of datas) assert.match(data, /^\d{4}-\d{2}-\d{2}$/);
   assert.doesNotMatch(sitemap, /privacidade|avisos/);
 });

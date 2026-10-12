@@ -38,15 +38,11 @@ const {
   parametrosLeituraPublicaValidos
 } = require("./agenda-cache-publica");
 const { avisoPopupPublico } = require("./aviso-popup");
-const { criarContadorVisitas } = require("./visitas");
 
 initializeApp();
 
 const db = getFirestore();
 
-// Desliga a gravacao do contador de visitas sem deploy de hosting: com false,
-// /api/visita responde 204 sem tocar no Firestore.
-const contadorVisitasAtivo = defineBoolean("CONTADOR_VISITAS_ATIVO", { default: true });
 const avaliacaoGoogleAtiva = defineBoolean("AVALIACAO_GOOGLE_ATIVA", { default: false });
 const avaliacaoGoogleUrl = defineString("AVALIACAO_GOOGLE_URL", { default: "https://g.page/r/CfugOJBgujYPEBM/review" });
 const avaliacaoN8nUrl = defineSecret("AVALIACAO_N8N_WEBHOOK_URL");
@@ -113,13 +109,6 @@ const publicCallableOptions = {
   ...callableOptions,
   enforceAppCheck: true
 };
-
-const contadorVisitas = criarContadorVisitas({
-  db,
-  FieldValue,
-  hoje: hojeSaoPauloISO,
-  origensPermitidas: callableOptions.cors
-});
 
 // ATENCAO: esta env var NAO e mais o caminho do pre-aquecimento. Ela so tem
 // efeito num `firebase deploy`, que reconstroi conteineres e cria revisao nova
@@ -1018,26 +1007,6 @@ exports.carregarAgendaPublicaHttp = onRequest({
     res.set("Cache-Control", CACHE_SEM_ARMAZENAMENTO);
     res.status(status).json({ erro: err && err.message ? err.message : "Erro ao carregar agenda publica." });
   }
-});
-
-// Contador de visitas (public/visita.js -> /api/visita). Fora do caminho do
-// agendamento: funcao propria, sem App Check (sendBeacon nao leva cabecalho),
-// sem leitura e com uma unica gravacao por visita. Ver functions/visitas.js.
-exports.registrarVisita = onRequest({
-  region: REGIAO_PICO,
-  maxInstances: 10,
-  timeoutSeconds: 10,
-  memory: "256MiB"
-}, async (req, res) => {
-  await contadorVisitas.registrar(req, res, {
-    ativo: contadorVisitasAtivo.value(),
-    chaveCliente: fingerprintRequisicao({ rawRequest: req })
-  });
-});
-
-exports.consultarEstatisticasVisitas = onCall(callableOptions, async (request) => {
-  await assertAdmin(request);
-  return contadorVisitas.consolidar();
 });
 
 exports.verificarDisponibilidadeSlotCidadao = onCall(verificacaoSlotOptions, async (request) => {
@@ -2197,8 +2166,4 @@ exports.executarManutencaoDiaria = onSchedule({
 }, async () => {
   await limparDatasPassadasAgenda();
   await limparAuxiliaresExpirados();
-  // Fecha o dia no resumo mesmo que ninguem abra a aba Estatisticas.
-  await contadorVisitas.consolidar().catch((err) => {
-    console.error("Falha ao consolidar visitas.", err && err.message);
-  });
 });

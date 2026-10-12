@@ -15,7 +15,7 @@ O sistema tem duas faces, servidas como site estático pelo Firebase Hosting e a
 | Página | Quem usa | Função |
 |---|---|---|
 | [`public/index.html`](public/index.html) | Cidadão | Agendar, consultar e cancelar agendamento |
-| [`public/recepcao.html`](public/recepcao.html) | Recepção / Admin | Fila do dia, check-in, encaixes, remarcação, configuração da agenda, logs, backup e estatísticas de visitas |
+| [`public/recepcao.html`](public/recepcao.html) | Recepção / Admin | Fila do dia, check-in, encaixes, remarcação, configuração da agenda, logs e backup |
 
 O painel é aberto em **`/painel`** (`https://cin.itanhandu.cam.mg.gov.br/painel`). O arquivo continua sendo `public/recepcao.html`, servido por um rewrite em `firebase.json`; `/recepcao.html` e `/gestaov6.html` redirecionam (301) para `/painel`. Os cabeçalhos do painel (CSP sem `'unsafe-inline'`, `noindex`, sem cache) ficam no bloco `"/painel"`, porque o Hosting casa cabeçalhos pelo endereço pedido, não pelo arquivo servido.
 
@@ -93,19 +93,13 @@ Definidas em [`functions/index.js`](functions/index.js).
 | `remarcarAgendamentoAdmin` | Remarca data/horário |
 | `listarLogsAdmin` | Auditoria de ações administrativas |
 | `gerarBackupAdmin` | Exportação de dados |
-| `consultarEstatisticasVisitas` | Consolida e devolve o contador de visitas (aba **Estatísticas**) |
-
-### Contador de visitas (`onRequest`, público)
-| Função | Descrição |
-|---|---|
-| `registrarVisita` | Recebe `/api/visita` (rewrite do Hosting) e grava um incremento num fragmento do dia |
 
 ### Gatilho e tarefas agendadas
 | Função | Gatilho |
 |---|---|
 | `prepararAgendaSemanalAutomatica` | Cron de segunda às 07:50, 07:55 e 07:59 — prepara a semana, aquece a leitura e publica às 08:00 |
 | `anonimizarDadosAntigosLGPD` | Cron mensal `0 3 1 * *` — anonimiza dados com retenção > 6 meses |
-| `executarManutencaoDiaria` | Cron diário `0 2 * * *` — limpa agenda passada e auxiliares expirados e fecha o dia do contador de visitas |
+| `executarManutencaoDiaria` | Cron diário `0 2 * * *` — limpa agenda passada e auxiliares expirados |
 
 ---
 
@@ -123,8 +117,6 @@ Definidas em [`functions/index.js`](functions/index.js).
 | `configuracoes/agenda` | Dias, horários, avisos e pop-up configurados pela recepção |
 | `admins` | E-mails autorizados a acessar o painel |
 | `logs_admin` | Trilha de auditoria das ações administrativas |
-| `metricas_visitas_fragmentos` | Contador de visitas: doc `AAAA-MM-DD_N` (N de 0 a 9) com páginas vistas e visitas somadas por seção e página. Sem dado pessoal |
-| `metricas_visitas/resumo` | Contador consolidado: um registro por dia (últimos 60) mais o acumulado dos dias anteriores |
 
 O Realtime Database não é mais usado: a telemetria de presença (`presenca_publica`) foi removida em 07/10/2026 e as regras fecham leitura e escrita. Os dados antigos, se existirem, podem ser apagados pelo console.
 
@@ -202,7 +194,6 @@ Desde 24/08/2026 o caminho crítico do pico roda em **`southamerica-east1`**, ju
 | Função | Região | Por quê |
 |---|---|---|
 | `criarAgendamentoCidadao`, `verificarDisponibilidadeSlotCidadao`, `carregarAgendaPublicaHttp` | `southamerica-east1` | Ficam junto do Firestore. Medido antes e depois com cache furado de propósito: de ~0,89 s (instância quente) para ~0,46 s (instância fria) |
-| `registrarVisita` | `southamerica-east1` | Grava no Firestore a cada visita; fica junto do banco |
 | Agendadas e administrativas | `us-central1` | Rodam às 02:00 e 07:50, onde latência de rede é irrelevante. Duplicar região duplicaria os jobs do Cloud Scheduler, saindo da franquia de três |
 
 O site mantém **dois clientes de Functions** e roteia por nome (`clienteFunctions` em `public/index.html`). Chamar uma callable na região errada devolve `not-found` — erro que só apareceria às 08:00 de uma segunda-feira. Há trava automatizada comparando a lista do site com as funções que o backend de fato moveu.
@@ -288,18 +279,11 @@ Requer credenciais de aplicação (`GOOGLE_APPLICATION_CREDENTIALS`) com acesso 
 firebase functions:log --only criarAgendamentoCidadao --project agendamento-cin-itanhandu
 ```
 
-### Contador de visitas
+### Blog e contador de visitas (retirados em 12/10/2026)
 
-O painel tem a aba **Estatísticas**: visitas e páginas vistas de hoje, dos últimos 7 dias, dos últimos 30 dias e o total, separadas por área (agendamento, blog, guia da CIN, outras), com gráfico diário e as páginas mais lidas.
+O blog (`/blog/`) foi transferido para o portal Guia do RG, com autorização da Câmara. Os endereços antigos redirecionam com 301 para o artigo equivalente em `guiadorg.com.br` (regras `redirects` do [`firebase.json`](firebase.json)). Detalhes e registro da autorização em [`docs/RETIRADA-BLOG-E-CONTADOR.md`](docs/RETIRADA-BLOG-E-CONTADOR.md).
 
-- **Navegador:** [`public/visita.js`](public/visita.js) é carregado com `defer` na home, em `duvidas.html` e em todas as páginas aprovadas do editorial (blog, guia, sobre); a 404 e o painel não carregam. Depois do `load`, com a aba visível, ele manda `{ p: caminho, n, s }` por `sendBeacon` para `/api/visita`. `n` e `s` marcam a primeira visita do aparelho no dia e a primeira visita do dia à seção, guardadas em `localStorage` (`cin_visita`). Não usa cookie e não envia nada que identifique a pessoa.
-- **Não contam:** navegador automatizado (`navigator.webdriver`), robôs pelo user-agent e o navegador em que alguém entrou no painel (`cin_nao_contar_visita`).
-- **Servidor:** `registrarVisita` faz **uma gravação por visita**, sem leitura e sem transação: incrementa um de 10 fragmentos do dia, sorteado, para não encostar no limite de ~1 gravação/s por documento no minuto da abertura. É uma função separada do agendamento, com `maxInstances: 10`; erro nela responde 204 e nunca chega ao cidadão. O ranking de páginas usa uma lista fechada (`PAGINAS` em [`functions/visitas.js`](functions/visitas.js)): **ao publicar um post novo, acrescente o caminho e um título curto ali** e publique as functions junto. A trava `visitas.test.js` falha enquanto a lista não bater com `public/`. Página fora da lista conta na seção, só não entra no ranking.
-- **Consolidação:** `consultarEstatisticasVisitas` (admin) relê os fragmentos de ontem e de hoje (ou o intervalo desde a última consolidação, até 45 dias) e grava valores absolutos por dia em `metricas_visitas/resumo`. Rodar de novo não conta duas vezes. A manutenção diária também consolida, então nenhum job novo de Cloud Scheduler foi criado.
-- **Desligar sem deploy de hosting:** parâmetro `CONTADOR_VISITAS_ATIVO=false` nas functions. O endpoint passa a responder 204 sem gravar.
-- **Leitura dos números:** "visitas" é a soma de visitantes únicos de cada dia; quem volta em dias diferentes conta uma vez por dia. Sem `localStorage` disponível, a visita conta só como página vista.
-
-**Deploy desta mudança.** O primeiro `firebase deploy --only functions` depois da remoção da telemetria vai pedir para confirmar a exclusão de `registrarMetricasAcessoPublico` e `atualizarMetricasSaidaAcessoPublico`: confirme. O parâmetro novo `CONTADOR_VISITAS_ATIVO` pode ser perguntado na primeira vez; responda `true` ou deixe o padrão. Publique `firestore:rules` e `database` junto. A ordem segura é functions → regras → hosting: o hosting é que passa a chamar `/api/visita`.
+O contador de visitas (`public/visita.js`, `/api/visita`, `functions/visitas.js`) e a aba **Estatísticas** do painel foram removidos. O deploy das functions pede para confirmar a exclusão de `registrarVisita` e `consultarEstatisticasVisitas`.
 
 A atualização pública das 08:00 usa uma chave de cache comum por minuto. Assim, os navegadores recebem a agenda atualizada sem criar uma URL única por visitante e o CDN consegue compartilhar a mesma resposta durante o pico.
 
