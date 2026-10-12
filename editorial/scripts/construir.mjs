@@ -14,8 +14,6 @@ import { renderizarGuia } from "../modelos/guia.mjs";
 import { renderizarPilar } from "../modelos/pilar.mjs";
 import { renderizarAviso } from "../modelos/aviso.mjs";
 import { renderizarIndiceAvisos } from "../modelos/avisos.mjs";
-import { renderizarArtigo } from "../modelos/artigo.mjs";
-import { ordenarArtigos, renderizarIndiceBlog } from "../modelos/blog.mjs";
 import { renderizarInstitucional } from "../modelos/institucional.mjs";
 import { renderizarErro404 } from "../modelos/erro404.mjs";
 import { gerarPendencias } from "./pendencias.mjs";
@@ -109,7 +107,7 @@ function destinoDocumento(saida, documento) {
   return path.join(saida, caminho, "index.html");
 }
 
-function sitemap(config, documentos, temIndiceAvisos, temIndiceBlog) {
+function sitemap(config, documentos, temIndiceAvisos) {
   const entradas = [{ caminho: "/", atualizado: "" }];
   for (const documento of documentos) {
     entradas.push({ caminho: caminhoDocumento(documento), atualizado: dataISO(documento.dados.atualizado) });
@@ -117,10 +115,6 @@ function sitemap(config, documentos, temIndiceAvisos, temIndiceBlog) {
   if (temIndiceAvisos) {
     const maisRecente = documentos.filter((item) => item.dados.tipo === "aviso").map((item) => dataISO(item.dados.atualizado)).sort().at(-1) ?? "";
     entradas.push({ caminho: "/avisos/", atualizado: maisRecente });
-  }
-  if (temIndiceBlog) {
-    const maisRecente = documentos.filter((item) => item.dados.tipo === "artigo").map((item) => dataISO(item.dados.atualizado)).sort().at(-1) ?? "";
-    entradas.push({ caminho: "/blog/", atualizado: maisRecente });
   }
   entradas.sort((a, b) => a.caminho === "/" ? -1 : b.caminho === "/" ? 1 : a.caminho.localeCompare(b.caminho, "pt-BR"));
   const urls = entradas.map((entrada) => `  <url>\n    <loc>${urlAbsoluta(config.urlBase, entrada.caminho)}</loc>${entrada.atualizado ? `\n    <lastmod>${entrada.atualizado}</lastmod>` : ""}\n  </url>`).join("\n");
@@ -166,7 +160,6 @@ export async function construir({ raizEditorial = RAIZ_EDITORIAL, saida, incluir
   const linksInstitucionais = {
     cin: documentos.some((item) => item.pilar),
     avisos: documentos.some((item) => item.dados.tipo === "aviso"),
-    blog: documentos.some((item) => item.dados.tipo === "artigo"),
     sobre: documentos.some((item) => item.dados.tipo === "institucional" && item.dados.slug === "sobre"),
     privacidade: documentos.some((item) => item.dados.tipo === "institucional" && item.dados.slug === "privacidade")
   };
@@ -181,9 +174,7 @@ export async function construir({ raizEditorial = RAIZ_EDITORIAL, saida, incluir
         ? renderizarGuia(opcoes)
         : documento.dados.tipo === "aviso"
           ? renderizarAviso(opcoes)
-          : documento.dados.tipo === "artigo"
-            ? renderizarArtigo(opcoes)
-            : renderizarInstitucional(opcoes);
+          : renderizarInstitucional(opcoes);
     const arquivo = destinoDocumento(destino, documento);
     const bytes = await gravarTexto(arquivo, html);
     gerados.push({ caminho: caminhoDocumento(documento), arquivo, bytes, html });
@@ -197,17 +188,9 @@ export async function construir({ raizEditorial = RAIZ_EDITORIAL, saida, incluir
     gerados.push({ caminho: "/avisos/", arquivo, bytes, html });
   }
 
-  const artigos = ordenarArtigos(documentos.filter((item) => item.dados.tipo === "artigo"));
-  if (artigos.length) {
-    const html = renderizarIndiceBlog({ artigos, config, servico, linksInstitucionais });
-    const arquivo = path.join(destino, "blog", "index.html");
-    const bytes = await gravarTexto(arquivo, html);
-    gerados.push({ caminho: "/blog/", arquivo, bytes, html });
-  }
-
   const tecnicos = [
     ["/404.html", path.join(destino, "404.html"), renderizarErro404(servico, linksInstitucionais.cin)],
-    ["/sitemap.xml", path.join(destino, "sitemap.xml"), sitemap(config, documentos.filter((item) => item.dados.status === "aprovado"), avisos.some((item) => item.dados.status === "aprovado"), artigos.some((item) => item.dados.status === "aprovado"))],
+    ["/sitemap.xml", path.join(destino, "sitemap.xml"), sitemap(config, documentos.filter((item) => item.dados.status === "aprovado"), avisos.some((item) => item.dados.status === "aprovado"))],
     ["/robots.txt", path.join(destino, "robots.txt"), incluirRascunhos ? "User-agent: *\nDisallow: /" : `User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: ${urlAbsoluta(config.urlBase, "/sitemap.xml")}`]
   ];
   for (const [caminho, arquivo, conteudo] of tecnicos) {

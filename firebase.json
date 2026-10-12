@@ -35,6 +35,21 @@
         "source": "/recepcao.html",
         "destination": "/painel",
         "type": 301
+      },
+      {
+        "regex": "^/blog/?$",
+        "destination": "https://guiadorg.com.br/artigos/",
+        "type": 301
+      },
+      {
+        "regex": "^/blog/([a-z0-9-]+)/?$",
+        "destination": "https://guiadorg.com.br/artigos/:1/",
+        "type": 301
+      },
+      {
+        "regex": "^/assets/blog/([a-z0-9-]+\\.svg)$",
+        "destination": "https://guiadorg.com.br/imagens/blog/:1",
+        "type": 301
       }
     ],
     "rewrites": [
@@ -46,13 +61,6 @@
         "source": "/api/agenda-publica",
         "function": {
           "functionId": "carregarAgendaPublicaHttp",
-          "region": "southamerica-east1"
-        }
-      },
-      {
-        "source": "/api/visita",
-        "function": {
-          "functionId": "registrarVisita",
           "region": "southamerica-east1"
         }
       }
@@ -113,12 +121,6 @@
         "source": "**/*.html",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
-        ]
-      },
-      {
-        "source": "/visita.js",
-        "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
         ]
       },
       {

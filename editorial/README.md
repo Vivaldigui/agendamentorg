@@ -1,6 +1,6 @@
 # Guia da CIN — operação editorial
 
-O diretório `editorial/` transforma Markdown com frontmatter em páginas HTML estáticas. O agendamento continua isolado na home; as páginas do guia não carregam Firebase, App Check, reCAPTCHA, Font Awesome, Google Fonts nem recursos externos. A única exceção local é `/visita.js`, o contador de visitas do site (sem cookie), que o modelo base inclui nas páginas aprovadas e não inclui em rascunhos. Ao publicar um artigo novo, acrescente o caminho em `PAGINAS` de `functions/visitas.js` (a trava `npm --prefix functions test` cobra).
+O diretório `editorial/` transforma Markdown com frontmatter em páginas HTML estáticas. O agendamento continua isolado na home; as páginas do guia não carregam Firebase, App Check, reCAPTCHA, Font Awesome, Google Fonts nem recursos externos.
 
 ## Fluxo de publicação
 
@@ -71,14 +71,6 @@ A imagem social de 1200 × 630 px foi criada e revisada: `public/assets/cin/guia
 - Institucionais têm slugs limitados a `sobre` e `privacidade`; links de navegação só aparecem se o destino existe.
 - A FAQ continua descritiva e visível, mas não se promete resultado enriquecido: o Google descontinuou esse recurso em maio de 2026.
 
-## Blog do RG (`/blog/`)
+## Blog (retirado)
 
-Seção informativa **nacional** sobre o RG e a CIN, com o blog da Sucupira como modelo de layout: capa com chamada, grade de cartões, cabeçalho com tema e subtítulo, caixa "Sobre este conteúdo" e "Leia também" em cartões.
-
-- Fonte em `conteudo/blog/<slug>.md`, com `tipo: artigo`. Mesmo fluxo de aprovação, mesmo contrato de FAQ e de fontes do guia.
-- `escopos: [nacional]` é obrigatório; blocos `:::minas` e `:::local` são recusados. A ficha do posto não aparece.
-- `cluster` usa o vocabulário do blog: `entendendo-a-cin`, `dados-no-documento`, `casos-especificos`, `uso-e-seguranca`.
-- "Leia também" mostra até 3 cartões: primeiro os `relacionados`, depois artigos do mesmo cluster, depois os mais recentes.
-- O slug precisa ser único em todo o site (guia, avisos, blog e institucionais).
-- O índice `/blog/`, o link "Blog" no menu e a entrada no sitemap só aparecem quando existe ao menos um artigo aprovado.
-- CTA sugerido: `guia-cin`, que leva ao Guia da CIN sem tirar o foco nacional do texto.
+O blog que funcionava em `/blog/` foi transferido em 12/10/2026 para o portal Guia do RG (`guiadorg.com.br`), com autorização da Câmara. O tipo `artigo` deixou de existir no gerador: o validador recusa `tipo: artigo`. Os endereços antigos redirecionam com 301 pelo `firebase.json`; não crie páginas em `/blog/`, porque o redirecionamento tem prioridade sobre os arquivos.

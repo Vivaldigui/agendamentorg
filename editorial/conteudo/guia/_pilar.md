@@ -23,7 +23,7 @@ fontes:
     url: "https://www.gov.br/governodigital/pt-br/identidade/cin/perguntas-frequentes-sobre-a-cin/ate-quando-posso-ficar-com-a-minha-atual-identidade"
     consultado: 2026-09-11
 cta: ver-datas
-relacionados: [documentos, como-agendar, consultar-ou-cancelar, prazo-e-entrega, rg-antigo-ainda-vale]
+relacionados: [documentos, como-agendar, consultar-ou-cancelar, prazo-e-entrega]
 imagem: /assets/cin/guia-social.png
 imagem_alt: "Guia da CIN — Câmara Municipal de Itanhandu: documentos, agendamento e atendimento"
 gerado_por_ia: true
