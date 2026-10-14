@@ -77,7 +77,7 @@ As páginas desta seção organizam o que fazer antes de agendar, durante o agen
 
 **A CIN substitui o RG?**
 
-A CIN é o novo documento nacional de identidade. O RG no modelo antigo continua válido até 28 de fevereiro de 2032, mas a CIN pode ser solicitada antes desse prazo.
+A CIN é o novo documento nacional de identidade. O RG no modelo antigo continua válido até 28 de fevereiro de 2032, mas a CIN pode ser solicitada antes desse prazo. As situações em que o RG antigo pode ser recusado antes disso estão no artigo [RG antigo ainda vale?](https://guiadorg.com.br/artigos/rg-antigo-ainda-vale/), do Guia do RG.
 
 **É obrigatório agendar?**
 

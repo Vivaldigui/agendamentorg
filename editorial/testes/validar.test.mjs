@@ -54,6 +54,11 @@ test("links externos precisam ser oficiais ou declarados nas fontes", () => {
   assert.doesNotThrow(() => validarDocumento(documento(dados, "[site](https://example.com/pagina)"), contexto));
 });
 
+test("links para o Guia do RG são aceitos, só no domínio exato", () => {
+  assert.doesNotThrow(() => validarDocumento(documento(dadosValidos(), "[artigo](https://guiadorg.com.br/artigos/rg-antigo-ainda-vale/)"), contexto));
+  assert.throws(() => validarDocumento(documento(dadosValidos(), "[artigo](https://falso.guiadorg.com.br/)"), contexto), /link externo não permitido/);
+});
+
 test("link interno inexistente é recusado", () => {
   const doc = documento(dadosValidos({ status: "rascunho", conferido: undefined }), "[Outra página](/cin/inexistente/)");
   validarDocumento(doc, contexto);
