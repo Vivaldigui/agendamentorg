@@ -41,6 +41,8 @@ Pessoas solteiras apresentam a certidão de nascimento. Pessoas casadas, viúvas
 
 Em Minas Gerais, pessoas casadas sem mudança de nome também podem apresentar certidão de nascimento com averbação do casamento. Para divorciados, é aceita certidão de nascimento com averbação do divórcio. Os registros devem corresponder ao estado civil atual.
 
+União estável, separação e como achar a averbação na certidão estão explicados no artigo [Qual certidão levar para fazer o RG](https://guiadorg.com.br/artigos/qual-certidao-levar-para-fazer-rg/), do Guia do RG.
+
 ## Crianças e adolescentes: o que muda
 
 Menores de 16 anos vão com o pai, a mãe ou o representante legal. O acompanhante apresenta documento oficial com foto.

@@ -18,6 +18,8 @@ const STATUS = new Set(["rascunho", "revisao", "aprovado"]);
 const CLUSTERS = new Set(["antes-de-agendar", "agendamento", "atendimento-e-depois", "regras-e-contexto"]);
 const ESCOPOS = new Set(["nacional", "minas", "local"]);
 const DOMINIOS = ["gov.br", "mg.gov.br", "planalto.gov.br", "policiacivil.mg.gov.br", "pc.mg.gov.br", "itanhandu.cam.mg.gov.br"];
+// Portal que recebeu os artigos do antigo blog, com aval da Câmara (ver docs/RETIRADA-BLOG-E-CONTADOR.md).
+const PARCEIROS = ["guiadorg.com.br"];
 
 function erro(arquivo, campo, regra) {
   throw new Error(`${arquivo}: campo ${campo}: ${regra}`);
@@ -28,7 +30,7 @@ function texto(dados, arquivo, campo) {
 }
 
 function dominioPermitido(hostname) {
-  return DOMINIOS.some((dominio) => hostname === dominio || hostname.endsWith(`.${dominio}`));
+  return DOMINIOS.some((dominio) => hostname === dominio || hostname.endsWith(`.${dominio}`)) || PARCEIROS.includes(hostname);
 }
 
 export function validarDocumento(documento, contexto) {

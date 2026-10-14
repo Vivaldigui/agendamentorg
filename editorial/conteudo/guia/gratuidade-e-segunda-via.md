@@ -39,6 +39,8 @@ gerado_por_ia: true
 A primeira expedição da CIN é gratuita. A renovação por vencimento também é gratuita e é considerada continuidade da primeira expedição.
 :::
 
+O prazo de validade da CIN muda conforme a idade do titular. A tabela está no artigo [RG antigo ainda vale?](https://guiadorg.com.br/artigos/rg-antigo-ainda-vale/), do Guia do RG.
+
 ## Quando conta como segunda via
 
 Perda, extravio, alteração de dados solicitada pelo titular e emissão em estado diferente daquele da primeira via estão entre as hipóteses de segunda via.
