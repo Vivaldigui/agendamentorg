@@ -135,7 +135,7 @@ test("as janelas de impressao nao levam script nem onclick embutidos", () => {
 });
 
 test("impressao manual cancela o timer automatico antes de imprimir", () => {
-  const fonteHelper = extrairFuncaoAte("prepararJanelaImpressao", "fecharMenusAcoes");
+  const fonteHelper = extrairFuncaoAte("prepararJanelaImpressao", "definirCabecalhoTabela");
   const preparar = vm.runInNewContext(`(${fonteHelper})`);
   const ouvintes = {};
   const timers = [];
@@ -164,7 +164,7 @@ test("impressao manual cancela o timer automatico antes de imprimir", () => {
 });
 
 test("lista do dia nao agenda impressao automatica", () => {
-  const fonteHelper = extrairFuncaoAte("prepararJanelaImpressao", "fecharMenusAcoes");
+  const fonteHelper = extrairFuncaoAte("prepararJanelaImpressao", "definirCabecalhoTabela");
   const preparar = vm.runInNewContext(`(${fonteHelper})`);
   let timerCriado = false;
   let impressoes = 0;
@@ -223,6 +223,9 @@ test("os menus deixaram de depender de stopPropagation", () => {
   // funcao, em ordem explicita.
   const semComentarios = painelJs.replace(/\/\/[^\n]*/g, "");
   assert.equal(/\.stopPropagation\(\)/.test(semComentarios), false);
-  assert.match(painelJs, /if \(acao !== "menu-linha"\) fecharMenusAcoes\(\);/);
+  // O menu de acoes por linha saiu na reformulacao de 16/10/2026 (as acoes
+  // foram para a gaveta de detalhes); o menu do perfil entrou no lugar.
+  assert.match(painelJs, /if \(acao !== "menu-perfil"\) fecharMenuPerfil\(\);/);
+  assert.doesNotMatch(painelJs, /menu-linha/);
   assert.match(painelJs, /if \(acao !== "acoes-lista"\) fecharAcoesDaLista\(\);/);
 });
