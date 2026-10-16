@@ -8,7 +8,8 @@
   "scripts": {
     "construir": "node scripts/construir.mjs",
     "verificar": "node scripts/construir.mjs --verificar",
-    "test": "node --test testes/*.test.mjs"
+    "test": "node --test testes/*.test.mjs",
+    "posts-guiadorg": "node scripts/posts-guiadorg.mjs"
   },
   "dependencies": {
     "gray-matter": "4.0.3",

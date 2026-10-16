@@ -62,7 +62,7 @@ A imagem social de 1200 × 630 px foi criada e revisada: `public/assets/cin/guia
 - `[A CONFIRMAR: ...]` é permitido em rascunho e bloqueia conteúdo aprovado.
 - Fato com `status: a_confirmar` em `dados/servico.json` bloqueia conteúdo aprovado que o declare em `fatos`.
 - O HTML é determinístico e usa LF.
-- O guia aceita links externos somente para domínios oficiais permitidos ou fontes declaradas no frontmatter.
+- O guia aceita links externos somente para domínios oficiais permitidos, para o Guia do RG (`guiadorg.com.br`, que recebeu os artigos do antigo blog) ou para fontes declaradas no frontmatter. Link para o Guia do RG vai no meio do texto, onde o artigo aprofunda o assunto; nunca em menu, rodapé ou bloco repetido em todas as páginas. A única exceção, autorizada pela Câmara em 15/10/2026, são os três cards "Tire dúvidas sobre o RG no Guia do RG" logo abaixo da seção "Serviços e informações" da home: ficam em HTML estático entre os marcadores `posts-guiadorg` de `public/index.html` e são atualizados com `npm run posts-guiadorg`, que lê o feed `guiadorg.com.br/feed.xml`. Rode depois de publicar artigo novo no guiadorg e publique o hosting (`npm run posts-guiadorg -- --verificar` diz se a home está atrasada).
 - A FAQ precisa ter o heading exato `## Perguntas frequentes`, de três a seis perguntas em negrito e terminadas por `?`.
 
 - Frontmatter aceita somente delimitadores `---` sem linguagem e YAML seguro. Não há execução do engine JavaScript.
