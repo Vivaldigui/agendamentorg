@@ -60,16 +60,16 @@ test("so a criacao pede token de uso unico; as demais callables seguem com o tok
   assert.equal(chamadas.length, 2, "Chamada normal e a repeticao depois de renovar o token.");
 });
 
-test("consumo do token fica DESLIGADO ate a conta de servico ter o papel de verificador", () => {
-  // Publicado com consumeAppCheckToken: true em 16/10/2026, toda criacao voltou
-  // 401: a conta de servico das Functions nao tinha
-  // firebaseappcheck.appCheckTokens.verify. Revertido em minutos. Este teste
-  // falha de proposito se alguem religar sem rever o comentario em index.js.
+test("backend consome o token na criacao, e so nela", () => {
+  // Religado em 16/10/2026 depois de conceder roles/firebaseappcheck.tokenVerifier
+  // a conta de servico; sem o papel, toda criacao volta 401.
   const semComentarios = backend.replace(/\/\/[^\n]*/g, "");
-  assert.doesNotMatch(semComentarios, /consumeAppCheckToken/);
-  const inicio = backend.indexOf("const agendamentoPicoOptions = {");
-  const opcoes = backend.slice(inicio, backend.indexOf("};", inicio));
-  assert.match(opcoes, /roles\/firebaseappcheck\.tokenVerifier/, "O motivo precisa ficar escrito junto da opcao.");
+  const inicio = semComentarios.indexOf("const agendamentoPicoOptions = {");
+  const opcoes = semComentarios.slice(inicio, semComentarios.indexOf("};", inicio));
+  assert.match(opcoes, /consumeAppCheckToken: true/);
+  assert.equal((semComentarios.match(/consumeAppCheckToken: true/g) || []).length, 1, "Uso unico tem custo: so no ponto que reserva vaga.");
+  const comentario = backend.slice(backend.indexOf("const agendamentoPicoOptions = {"), backend.indexOf("consumeAppCheckToken: true\n};"));
+  assert.match(comentario, /roles\/firebaseappcheck\.tokenVerifier/, "A dependencia de IAM precisa ficar escrita junto da opcao.");
   assert.equal((backend.match(/onCall\(agendamentoPicoOptions/g) || []).length, 1, "agendamentoPicoOptions e exclusivo da criacao.");
   const criar = backend.slice(backend.indexOf("exports.criarAgendamentoCidadao"));
   assert.match(criar, /async \(request\) => \{\n  recusarTokenAppCheckReaproveitado\(request\);/, "A recusa vem antes de qualquer leitura.");
