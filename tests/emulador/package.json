@@ -1,0 +1,12 @@
+{
+  "name": "agendamento-cin-testes-emulador",
+  "private": true,
+  "description": "Regras do Firestore e transacoes reais contra o emulador local. Precisa de Java 11+ no PATH. Rode da raiz: npm --prefix tests/emulador test",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore --project demo-agendamento-cin \"node --test --test-concurrency=1\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "6.0.0",
+    "firebase": "13.0.0"
+  }
+}

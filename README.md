@@ -319,3 +319,19 @@ npm test
 ```
 
 Os cenários k6 para leitura da agenda e disputa simultânea pela mesma vaga estão documentados em [`tests/load/README.md`](tests/load/README.md). Execute-os somente em homologação ou emuladores.
+
+### Testes no emulador
+
+Os testes de `functions/` simulam o Firestore em memória e executam transações uma de cada vez. Os de [`tests/emulador/`](tests/emulador/) rodam contra o emulador local, sem tocar na nuvem (projeto `demo-agendamento-cin`):
+
+- `regras.test.js`: avalia `firestore.rules` de verdade, com admin ativo, inativo, de e-mail não verificado, estranho e anônimo;
+- `transacoes.test.js`: executa as próprias Cloud Functions com pedidos simultâneos. Por exemplo, 30 pessoas na mesma vaga e só uma leva; rajada do mesmo celular ou da mesma conexão; painel e cidadão disputando a mesma vaga.
+
+Precisam de Java 11 ou superior no PATH (ex.: `winget install Microsoft.OpenJDK.21`). Os arquivos rodam em sequência porque dividem o mesmo emulador:
+
+```bash
+npm --prefix tests/emulador install
+npm --prefix tests/emulador test
+```
+
+Rode antes de publicar qualquer mudança em `firestore.rules` ou nas transações.
