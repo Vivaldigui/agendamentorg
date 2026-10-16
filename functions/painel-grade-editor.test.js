@@ -82,15 +82,10 @@ test("o painel resolve horarios e vagas exatamente como o backend", () => {
   }
 });
 
-test("painel e backend usam os mesmos limites e os mesmos ids de vaga", () => {
+test("painel e backend usam os mesmos limites", () => {
   assert.equal(Number(constante("LIMITE_VAGAS_POR_HORARIO")), canonico.LIMITE_VAGAS_POR_HORARIO);
   assert.equal(Number(constante("LIMITE_HORARIOS_POR_DIA")), canonico.LIMITE_HORARIOS_POR_DIA);
   assert.equal(Number(constante("LIMITE_GRADES_ATENDIMENTO")), canonico.LIMITE_GRADES_ATENDIMENTO);
-  const ids = new Function(
-    `const LIMITE_VAGAS_POR_HORARIO = ${constante("LIMITE_VAGAS_POR_HORARIO")};
-     ${extrairFuncao(painelJs, "slotIdsDoHorarioPainel")}; return slotIdsDoHorarioPainel;`
-  )();
-  assert.deepEqual(ids("2026-09-29", "14:00"), canonico.slotIdsDoHorario("2026-09-29", "14:00"));
 });
 
 test("a nova grade comeca, por padrao, na proxima semana", () => {
@@ -121,10 +116,11 @@ test("so grade que ainda nao comecou pode ser excluida", () => {
   assert.match(excluir, /confirmarPainel\(/);
 });
 
-test("remarcacao pelo painel respeita as vagas do horario", () => {
+test("remarcacao pelo painel passa pela callable transacional", () => {
+  // Escolha de vaga e capacidade ficam no backend (remarcacao-painel.test.js).
   const remarcar = extrairFuncao(painelJs, "salvarRemarcacao");
-  assert.match(remarcar, /slotIdsDoHorarioPainel\(data, hora\)/);
-  assert.match(remarcar, /vagasDoHorarioPainel\(data, hora\)/);
+  assert.match(remarcar, /httpsCallable\("remarcarAgendamentoAdmin"\)/);
+  assert.doesNotMatch(remarcar, /db\.collection|\.delete\(|\.set\(/);
 });
 
 test("o editor antigo por dia da semana nao volta", () => {
