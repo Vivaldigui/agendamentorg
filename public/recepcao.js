@@ -3026,8 +3026,15 @@ async function carregarMetricasAbertura() {
                 <td data-label="Pico de tentativas">${r.pico ? `${textoSeguro(minutoMetricaLegivel(r.pico.minuto))} (${r.pico.quantidade})` : "—"}</td>
             </tr>`).join("");
     } catch (e) {
-        if (await encerrarSessaoPorAcessoRevogado(e)) return;
-        corpo.innerHTML = "<tr><td colspan='8'>Não foi possível carregar as métricas. Tente atualizar.</td></tr>";
+        // Metrica e opcional: uma recusa aqui nao pode encerrar a sessao. Na
+        // publicacao de 16/10/2026 o hosting subiu antes das regras que liberam
+        // metricas_abertura, o Firestore recusou a leitura e o painel tratou a
+        // recusa como acesso revogado, deslogando a recepcao. Acesso revogado
+        // de verdade continua detectado pelas leituras principais do painel.
+        console.warn("Metricas de abertura indisponiveis.", e);
+        corpo.innerHTML = erroDeAutorizacao(e)
+            ? "<tr><td colspan='8'>Métricas ainda indisponíveis para esta conta. O restante do painel segue funcionando.</td></tr>"
+            : "<tr><td colspan='8'>Não foi possível carregar as métricas. Tente atualizar.</td></tr>";
     }
 }
 

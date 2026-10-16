@@ -217,6 +217,14 @@ test("resumo da abertura: pico, primeiro e ultimo agendamento, recusados", () =>
   assert.deepEqual(r.pico, { minuto: "2026-10-19T08:00", quantidade: 30 });
 });
 
+test("REGRESSAO: recusa ao ler metricas nao encerra a sessao do painel", () => {
+  // 16/10/2026: com o hosting novo e as regras antigas, abrir Relatorios
+  // deslogava a recepcao com "acesso revogado".
+  const carregar = extrairFuncao(painelJs, "carregarMetricasAbertura");
+  assert.doesNotMatch(carregar, /encerrarSessaoPorAcessoRevogado|signOut/);
+  assert.match(carregar, /erroDeAutorizacao\(e\)/);
+});
+
 test("tabela do painel tem rotulo em cada celula para o celular", () => {
   const carregar = extrairFuncao(painelJs, "carregarMetricasAbertura");
   const linha = carregar.slice(carregar.indexOf(": `<tr>"), carregar.indexOf("</tr>`).join"));
