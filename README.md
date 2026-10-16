@@ -299,6 +299,15 @@ Requer credenciais de aplicação (`GOOGLE_APPLICATION_CREDENTIALS`) com acesso 
 firebase functions:log --only criarAgendamentoCidadao --project agendamento-cin-itanhandu
 ```
 
+Alertas por e-mail (Cloud Monitoring, criados em 16/10/2026; canal "E-mail do responsavel (agendamento CIN)"):
+
+| Política | Dispara quando |
+|---|---|
+| Agendamento CIN: erros 5xx nas Cloud Functions | Mais de 10 respostas 5xx em 5 minutos, somando todas as functions. Na abertura, alguns 5xx por disputa de transação são esperados; dezenas indicam problema |
+| Agendamento CIN: falha em tarefa agendada | Qualquer 5xx na abertura semanal, manutenção diária, anonimização ou convites de avaliação |
+
+O orçamento é o "spend cap" de R$ 10 criado pelo console do Firebase, com aviso aos administradores de faturamento em 50%, 80% e 100%. Existem dois idênticos na conta de faturamento.
+
 ### Blog e contador de visitas (retirados em 12/10/2026)
 
 O blog (`/blog/`) foi transferido para o portal Guia do RG, com autorização da Câmara. Os endereços antigos redirecionam com 301 para o artigo equivalente em `guiadorg.com.br` (regras `redirects` do [`firebase.json`](firebase.json)). Detalhes e registro da autorização em [`docs/RETIRADA-BLOG-E-CONTADOR.md`](docs/RETIRADA-BLOG-E-CONTADOR.md).
