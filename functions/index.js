@@ -557,10 +557,14 @@ async function assertAdmin(request) {
   return email;
 }
 
+// IP + User-Agent + extra. O IP vinha do PRIMEIRO X-Forwarded-For, que o
+// chamador escreve: trocar o cabecalho zerava qualquer limite (auditoria de
+// 16/10/2026, SEG-04). Agora e o IP que o balanceador acrescentou. O
+// User-Agent fica para espalhar a carga atras de CGNAT; quem o rotaciona
+// esbarra nos tetos por origem (aplicarRateLimitOrigem) onde eles existem.
 function fingerprintRequisicao(request, extra = "") {
   const raw = request.rawRequest || {};
-  const forwarded = String(raw.headers && raw.headers["x-forwarded-for"] || "").split(",")[0].trim();
-  const ip = forwarded || raw.ip || "sem-ip";
+  const ip = ipOrigemConfiavel(request);
   const userAgent = raw.headers && raw.headers["user-agent"] ? String(raw.headers["user-agent"]).slice(0, 120) : "";
   return crypto.createHash("sha256").update(`${ip}|${userAgent}|${extra}`).digest("hex");
 }
@@ -1066,6 +1070,32 @@ async function relancarConflitoComAgenda(err) {
   });
 }
 
+// Microcache por instancia da leitura publica (auditoria de 16/10/2026,
+// PERF-01). A URL da funcao responde tambem fora do CDN, e cada pedido ali
+// lia a agenda e todas as vagas futuras: um script em laco virava conta de
+// Firestore. Com o microcache, cada instancia le no maximo uma vez a cada
+// MICROCACHE_AGENDA_PUBLICA_MS, e pedidos simultaneos esperam a mesma
+// leitura. A copia nunca atravessa a virada do minuto: a publicacao das
+// 08:00 nao pode ficar presa numa resposta de 07:59. O CDN ja segura a
+// resposta por 2s na abertura, entao o atraso maximo continua da mesma ordem.
+// Quem perde a disputa por um horario segue recebendo leitura fresca:
+// relancarConflitoComAgenda chama carregarDisponibilidadePublica direto.
+const MICROCACHE_AGENDA_PUBLICA_MS = 2000;
+let microcacheAgendaPublica = null;
+
+function disponibilidadePublicaComMicrocache(agoraMs = Date.now(), minuto = agoraSaoPauloInput()) {
+  const atual = microcacheAgendaPublica;
+  if (atual && atual.minuto === minuto && atual.expiraMs > agoraMs) return atual.promessa;
+  const promessa = carregarDisponibilidadePublica();
+  const entrada = { minuto, expiraMs: agoraMs + MICROCACHE_AGENDA_PUBLICA_MS, promessa };
+  microcacheAgendaPublica = entrada;
+  // Falha nao fica guardada: o proximo pedido tenta de novo.
+  promessa.catch(() => {
+    if (microcacheAgendaPublica === entrada) microcacheAgendaPublica = null;
+  });
+  return promessa;
+}
+
 exports.carregarAgendaPublicaHttp = onRequest({
   cors: callableOptions.cors,
   region: REGIAO_PICO,
@@ -1086,17 +1116,16 @@ exports.carregarAgendaPublicaHttp = onRequest({
   }
 
   try {
-    // 600 e nao 240: com dois URLs ativos (com e sem a chave do minuto) e TTL
-    // de 5s na janela de virada, o envelope teorico de buscas na origem chega a
-    // ~240 por 10 min, encostando no limite antigo. A leitura e idempotente e
-    // fica atras do CDN, entao a folga custa pouco e evita 429 no pico.
-    await aplicarRateLimit({ rawRequest: req }, "carregar_agenda_publica_http", 600, 10 * 60 * 1000);
-    const { payload, cacheControl } = await carregarDisponibilidadePublica();
+    // Sem rate limit gravado no Firestore desde 16/10/2026 (PERF-01): ele
+    // custava uma transacao por pedido, era contornavel pelo X-Forwarded-For e
+    // nao protegia nada que o microcache nao proteja melhor. Quem chama a URL
+    // da funcao direto, sem o CDN, agora recebe a mesma copia de ate 2s.
+    const { payload, cacheControl } = await disponibilidadePublicaComMicrocache();
     // Cabecalho derivado do mesmo instante que montou o corpo.
     res.set("Cache-Control", cacheControl);
     res.status(200).json(payload);
   } catch (err) {
-    const status = err && err.code === "resource-exhausted" ? 429 : 500;
+    const status = 500;
     // Um erro gravado no CDN sob a chave do minuto da abertura seria tao
     // danoso quanto uma agenda fechada armazenada.
     res.set("Cache-Control", CACHE_SEM_ARMAZENAMENTO);
@@ -2079,6 +2108,176 @@ exports.cancelarAgendamentoAdmin = onCall(callableOptions, async (request) => {
     });
 
     retorno = { cancelado: true, jaEstavaCancelado: false, vagaLiberada };
+  });
+
+  return retorno;
+});
+
+// Status do atendimento e falta, pela recepcao, em transacao (auditoria de
+// 16/10/2026, SEG-02).
+//
+// O painel gravava direto em dados_cidadaos e bloqueios_agendamento, e o log
+// era escrito pelo proprio navegador depois, sem garantia e com o e-mail que
+// o cliente quisesse. Agora o servidor grava agendamento, bloqueio e log na
+// mesma transacao, com o e-mail do token. Corrige tambem um defeito antigo:
+// trocar "nao compareceu" por outro status nao desfazia o bloqueio, e o CPF
+// seguia bloqueado por seis meses mesmo com a falta corrigida.
+const STATUS_ATENDIMENTO_PAINEL = new Set(["agendado", "compareceu", "vai_voltar", "nao_compareceu"]);
+const BLOQUEIO_FALTA_MESES = 6;
+const MOTIVO_BLOQUEIO_FALTA = "Não comparecimento";
+
+exports.alterarStatusAdmin = onCall(callableOptions, async (request) => {
+  const adminEmail = await assertAdmin(request);
+  const agendamentoId = String(request.data && request.data.agendamentoId || "").trim();
+  const status = String(request.data && request.data.status || "");
+  if (!agendamentoId) {
+    throw new HttpsError("invalid-argument", "Agendamento invalido.");
+  }
+  if (!STATUS_ATENDIMENTO_PAINEL.has(status)) {
+    throw new HttpsError("invalid-argument", "Status invalido. Para cancelar, use o cancelamento.");
+  }
+
+  const agRef = db.collection("dados_cidadaos").doc(agendamentoId);
+  const agora = new Date().toISOString();
+  const hoje = hojeSaoPauloISO();
+  let retorno = null;
+
+  await db.runTransaction(async (t) => {
+    const agDoc = await t.get(agRef);
+    if (!agDoc.exists) {
+      throw new HttpsError("not-found", "Agendamento nao encontrado.");
+    }
+    const dados = agDoc.data();
+    const statusAnterior = String(dados.status || "agendado");
+    const cpfNum = cpfNumeros(dados.cpf || dados.bloqueioCpf);
+    const bloqueioRef = cpfNum.length === 11 ? db.collection("bloqueios_agendamento").doc(cpfNum) : null;
+    const bloqueioDoc = bloqueioRef ? await t.get(bloqueioRef) : null;
+
+    const atualizacao = {
+      status,
+      statusAtualizadoEm: agora,
+      statusAtualizadoPor: adminEmail,
+      alteradoPor: adminEmail
+    };
+    let bloqueadoAte = "";
+    let bloqueioDesfeito = false;
+
+    if (status === "nao_compareceu" && statusAnterior !== "nao_compareceu") {
+      bloqueadoAte = subtrairMesesISO(hoje, -BLOQUEIO_FALTA_MESES);
+      const dataFalta = `${dataBr(dados.dataISO)} ${dados.hora || ""}`.trim();
+      // Sem nome e telefone: a verificacao do bloqueio so precisa do CPF e da
+      // data, e a recepcao ve os dados da pessoa no proprio agendamento.
+      Object.assign(atualizacao, {
+        bloqueioAtivo: true,
+        bloqueioCpf: cpfNum,
+        bloqueioMotivo: MOTIVO_BLOQUEIO_FALTA,
+        bloqueioDataFalta: dataFalta,
+        bloqueadoAte,
+        bloqueioCriadoEm: agora,
+        bloqueioOrigem: "painel",
+        bloqueioLiberado: false
+      });
+      if (bloqueioRef) {
+        t.set(bloqueioRef, {
+          cpf: cpfNum,
+          agendamentoId,
+          motivo: MOTIVO_BLOQUEIO_FALTA,
+          dataFalta,
+          bloqueadoAte,
+          criadoEm: agora,
+          origem: "painel",
+          liberado: false
+        });
+      }
+    } else if (statusAnterior === "nao_compareceu" && status !== "nao_compareceu" && dados.bloqueioAtivo === true) {
+      // Falta registrada por engano: o bloqueio criado por ela sai junto. O
+      // registro dedicado so e apagado se for desta falta.
+      Object.assign(atualizacao, {
+        bloqueioAtivo: false,
+        bloqueioLiberado: true,
+        dataLiberacao: agora,
+        usuarioLiberacao: adminEmail,
+        motivoLiberacao: "status_corrigido"
+      });
+      const dedicado = bloqueioDoc && bloqueioDoc.exists ? bloqueioDoc.data() : null;
+      if (dedicado && (dedicado.agendamentoId === agendamentoId
+        || (!dedicado.agendamentoId && dedicado.bloqueadoAte === dados.bloqueadoAte))) {
+        t.delete(bloqueioRef);
+      }
+      bloqueioDesfeito = true;
+    }
+
+    t.set(agRef, atualizacao, { merge: true });
+    t.set(db.collection("logs_admin").doc(), {
+      acao: "alterar_status",
+      agendamentoId,
+      protocolo: dados.protocolo || "",
+      detalhes: { de: statusAnterior, para: status, bloqueadoAte, bloqueioDesfeito },
+      adminEmail,
+      criadoEm: FieldValue.serverTimestamp(),
+      criado: agora
+    });
+
+    retorno = { agendamentoId, status, bloqueadoAte, bloqueioDesfeito, atualizacao };
+  });
+
+  return retorno;
+});
+
+// Liberacao de bloqueio pela recepcao. Libera TODOS os bloqueios ativos do
+// CPF: a verificacao publica olha o registro dedicado e qualquer agendamento
+// com aquele bloqueioCpf, entao liberar so a linha clicada podia deixar o CPF
+// bloqueado por uma falta mais antiga.
+exports.liberarBloqueioAdmin = onCall(callableOptions, async (request) => {
+  const adminEmail = await assertAdmin(request);
+  const agendamentoId = String(request.data && request.data.agendamentoId || "").trim();
+  if (!agendamentoId) {
+    throw new HttpsError("invalid-argument", "Agendamento invalido.");
+  }
+
+  const agRef = db.collection("dados_cidadaos").doc(agendamentoId);
+  const agora = new Date().toISOString();
+  let retorno = null;
+
+  await db.runTransaction(async (t) => {
+    const agDoc = await t.get(agRef);
+    if (!agDoc.exists) {
+      throw new HttpsError("not-found", "Agendamento nao encontrado.");
+    }
+    const dados = agDoc.data();
+    const cpfNum = cpfNumeros(dados.bloqueioCpf || dados.cpf);
+    const bloqueioRef = cpfNum.length === 11 ? db.collection("bloqueios_agendamento").doc(cpfNum) : null;
+    const [bloqueioDoc, outrosSnap] = await Promise.all([
+      bloqueioRef ? t.get(bloqueioRef) : Promise.resolve(null),
+      cpfNum.length === 11
+        ? t.get(db.collection("dados_cidadaos").where("bloqueioCpf", "==", cpfNum).limit(20))
+        : Promise.resolve({ docs: [] })
+    ]);
+
+    const liberacao = {
+      bloqueioAtivo: false,
+      bloqueioLiberado: true,
+      dataLiberacao: agora,
+      usuarioLiberacao: adminEmail
+    };
+    const refs = new Map([[agRef.path, agRef]]);
+    outrosSnap.docs
+      .filter((doc) => doc.data().bloqueioAtivo !== false && doc.data().bloqueioLiberado !== true)
+      .forEach((doc) => refs.set(doc.ref.path, doc.ref));
+    refs.forEach((ref) => t.set(ref, liberacao, { merge: true }));
+    if (bloqueioDoc && bloqueioDoc.exists) t.delete(bloqueioRef);
+
+    t.set(db.collection("logs_admin").doc(), {
+      acao: "liberar_bloqueio",
+      agendamentoId,
+      protocolo: dados.protocolo || "",
+      detalhes: { registrosLiberados: refs.size, registroDedicadoRemovido: Boolean(bloqueioDoc && bloqueioDoc.exists) },
+      adminEmail,
+      criadoEm: FieldValue.serverTimestamp(),
+      criado: agora
+    });
+
+    retorno = { agendamentoId, registrosLiberados: refs.size, liberacao };
   });
 
   return retorno;

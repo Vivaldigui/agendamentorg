@@ -400,17 +400,21 @@ test("manutencao diaria chama a limpeza de bloqueios", () => {
 
 // ---- Painel -------------------------------------------------------------------------
 
-test("painel nao grava nome nem telefone no bloqueio dedicado", () => {
-  const gravar = extrairFuncao(painel, "tentarGravarBloqueioDedicado");
-  assert.doesNotMatch(gravar.replace(/\/\/[^\n]*/g, ""), /nome:|telefone:/);
+test("bloqueio por falta nao grava nome nem telefone, e o painel nao grava bloqueio", () => {
+  // Desde 16/10/2026 (SEG-02) o bloqueio nasce em alterarStatusAdmin.
+  const inicio = backend.indexOf("exports.alterarStatusAdmin");
+  const servidor = backend.slice(inicio, backend.indexOf("exports.liberarBloqueioAdmin", inicio)).replace(/\/\/[^\n]*/g, "");
+  assert.doesNotMatch(servidor, /bloqueioNome|bloqueioTelefone|\bnome:|\btelefone:/);
+  assert.doesNotMatch(painel, /collection\("bloqueios_agendamento"\)/);
 });
 
-test("logs do painel sobre bloqueio nao levam CPF", () => {
-  for (const acao of ["whatsapp_bloqueio", "liberar_bloqueio"]) {
-    const chamada = new RegExp(`registrarLog\\("${acao}", \\{([^}]*)\\}\\)`).exec(painel);
-    assert.ok(chamada, acao);
-    assert.doesNotMatch(chamada[1], /cpf/i, acao);
-  }
+test("logs sobre bloqueio nao levam CPF", () => {
+  const chamada = /registrarLog\("whatsapp_bloqueio", \{([^}]*)\}\)/.exec(painel);
+  assert.ok(chamada, "whatsapp_bloqueio");
+  assert.doesNotMatch(chamada[1], /cpf/i);
+  const inicio = backend.indexOf("exports.liberarBloqueioAdmin");
+  const log = backend.slice(backend.indexOf('acao: "liberar_bloqueio"', inicio), backend.indexOf("adminEmail,", backend.indexOf('acao: "liberar_bloqueio"', inicio)));
+  assert.doesNotMatch(log, /cpf/i);
 });
 
 test("script de saneamento roda em simulacao por padrao", () => {

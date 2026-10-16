@@ -93,6 +93,11 @@ Definidas em [`functions/index.js`](functions/index.js).
 | `criarEncaixeManual` | Encaixe manual fora da grade pública |
 | `atualizarObservacaoAdmin` | Observação interna no agendamento |
 | `remarcarAgendamentoAdmin` | Remarca data/horário |
+| `cancelarAgendamentoAdmin` | Cancela e libera a vaga só se ela ainda for do agendamento |
+| `alterarStatusAdmin` | Compareceu, vai voltar, não compareceu (cria o bloqueio de 6 meses) ou agendado; corrigir uma falta desfaz o bloqueio |
+| `liberarBloqueioAdmin` | Libera todos os bloqueios ativos do CPF |
+
+Desde 16/10/2026 o painel não grava em `dados_cidadaos`, `vagas_ocupadas`, `cpfs_agendados` nem `bloqueios_agendamento`: as regras só permitem leitura, e toda mudança passa por estas callables, em transação e com log gravado no servidor.
 | `listarLogsAdmin` | Auditoria de ações administrativas |
 | `gerarBackupAdmin` | Exportação de dados |
 
@@ -294,6 +299,15 @@ Requer credenciais de aplicação (`GOOGLE_APPLICATION_CREDENTIALS`) com acesso 
 firebase functions:log --only criarAgendamentoCidadao --project agendamento-cin-itanhandu
 ```
 
+Alertas por e-mail (Cloud Monitoring, criados em 16/10/2026; canal "E-mail do responsavel (agendamento CIN)"):
+
+| Política | Dispara quando |
+|---|---|
+| Agendamento CIN: erros 5xx nas Cloud Functions | Mais de 10 respostas 5xx em 5 minutos, somando todas as functions. Na abertura, alguns 5xx por disputa de transação são esperados; dezenas indicam problema |
+| Agendamento CIN: falha em tarefa agendada | Qualquer 5xx na abertura semanal, manutenção diária, anonimização ou convites de avaliação |
+
+O orçamento é o "spend cap" de R$ 10 criado pelo console do Firebase, com aviso aos administradores de faturamento em 50%, 80% e 100%. Existem dois idênticos na conta de faturamento.
+
 ### Blog e contador de visitas (retirados em 12/10/2026)
 
 O blog (`/blog/`) foi transferido para o portal Guia do RG, com autorização da Câmara. Os endereços antigos redirecionam com 301 para o artigo equivalente em `guiadorg.com.br` (regras `redirects` do [`firebase.json`](firebase.json)). Detalhes e registro da autorização em [`docs/RETIRADA-BLOG-E-CONTADOR.md`](docs/RETIRADA-BLOG-E-CONTADOR.md).
@@ -314,3 +328,19 @@ npm test
 ```
 
 Os cenários k6 para leitura da agenda e disputa simultânea pela mesma vaga estão documentados em [`tests/load/README.md`](tests/load/README.md). Execute-os somente em homologação ou emuladores.
+
+### Testes no emulador
+
+Os testes de `functions/` simulam o Firestore em memória e executam transações uma de cada vez. Os de [`tests/emulador/`](tests/emulador/) rodam contra o emulador local, sem tocar na nuvem (projeto `demo-agendamento-cin`):
+
+- `regras.test.js`: avalia `firestore.rules` de verdade, com admin ativo, inativo, de e-mail não verificado, estranho e anônimo;
+- `transacoes.test.js`: executa as próprias Cloud Functions com pedidos simultâneos. Por exemplo, 30 pessoas na mesma vaga e só uma leva; rajada do mesmo celular ou da mesma conexão; painel e cidadão disputando a mesma vaga.
+
+Precisam de Java 11 ou superior no PATH (ex.: `winget install Microsoft.OpenJDK.21`). Os arquivos rodam em sequência porque dividem o mesmo emulador:
+
+```bash
+npm --prefix tests/emulador install
+npm --prefix tests/emulador test
+```
+
+Rode antes de publicar qualquer mudança em `firestore.rules` ou nas transações.
