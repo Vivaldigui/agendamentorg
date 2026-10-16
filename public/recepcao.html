@@ -3,211 +3,264 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
     <title>Recepção CIN — Câmara de Itanhandu</title>
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
     <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <link href="/vendor/fontawesome/css/all.min.css" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/recepcao.css">
 </head>
-<body class="modo-escuro">
+<body>
+
+    <!-- Icone do WhatsApp em SVG: evita baixar a fonte fa-brands inteira
+         (~110 KB) por causa de um unico icone. -->
+    <svg xmlns="http://www.w3.org/2000/svg" hidden>
+        <symbol id="ico-whatsapp" viewBox="0 0 448 512"><path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/></symbol>
+    </svg>
 
     <div id="boot-splash">
-        <i class="fa-solid fa-spinner fa-spin"></i>
-        <span>Carregando painel...</span>
+        <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+        <span role="status">Carregando painel...</span>
     </div>
 
     <div id="login-screen">
-        <img src="/assets/header-logo.png" style="max-width:180px; margin-bottom:20px;">
-        <h2>Gestão Oficial CIN</h2>
-        <div class="input-group"><label for="email">E-mail:</label><input type="email" id="email" autocomplete="username"></div>
-        <div class="input-group"><label for="senha">Senha:</label><input type="password" id="senha" autocomplete="current-password"></div>
-        <div id="login-erro" class="login-erro" style="display:none;"></div>
-        <button class="btn-login" id="btn-login" data-acao="fazerLogin">ACESSAR PAINEL SEGURO</button>
+        <img class="login-logo" src="/assets/header-logo.png" alt="Câmara Municipal de Itanhandu">
+        <h2>Recepção CIN</h2>
+        <p class="login-sub">Acesso restrito à equipe do posto.</p>
+        <div class="input-group"><label for="email">E-mail</label><input type="email" id="email" autocomplete="username"></div>
+        <div class="input-group"><label for="senha">Senha</label><input type="password" id="senha" autocomplete="current-password"></div>
+        <div id="login-erro" class="login-erro" role="alert" style="display:none;"></div>
+        <button class="btn-login" id="btn-login" data-acao="fazerLogin">Entrar</button>
         <div id="verificacao-email" class="verificacao-email" style="display:none;">
             <p><strong>Confirme o e-mail desta conta para entrar.</strong></p>
             <p>A senha está certa, mas o painel só abre para contas com e-mail confirmado: <span id="verificacao-email-endereco"></span>.</p>
-            <button type="button" class="btn-login" id="btn-enviar-verificacao" data-acao="enviarVerificacaoEmail">ENVIAR LINK DE CONFIRMAÇÃO</button>
-            <button type="button" class="btn-login btn-secundario-login" data-acao="conferirEmailVerificado">JÁ CONFIRMEI</button>
+            <button type="button" class="btn-login" id="btn-enviar-verificacao" data-acao="enviarVerificacaoEmail">Enviar link de confirmação</button>
+            <button type="button" class="btn-login btn-secundario-login" data-acao="conferirEmailVerificado">Já confirmei</button>
             <button type="button" class="btn-link-login" data-acao="fazerLogout">Sair e entrar com outra conta</button>
             <p id="verificacao-email-status" class="verificacao-email-status" role="status" aria-live="polite"></p>
         </div>
     </div>
 
     <div id="painel-screen">
+        <a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
         <header class="topbar">
-            <div class="ident">
-                <img class="ident-brasao" src="/assets/header-logo.png" alt="">
-                <div class="ident-txt">
-                    <strong>Agendamento CIN &middot; Itanhandu</strong>
-                    <span>Câmara Municipal de Itanhandu &middot; Posto de atendimento</span>
+            <div class="topbar-in">
+                <div class="marca">
+                    <img class="marca-brasao" src="/assets/header-logo.png" alt="">
+                    <div>
+                        <strong>Recepção CIN</strong>
+                        <span>Câmara de Itanhandu</span>
+                    </div>
                 </div>
-                <div class="quem">
-                    <b id="quem-nome">Recepção</b>
-                    <span>Operador</span>
+                <nav class="nav" aria-label="Áreas do painel">
+                    <div class="nav-in" role="tablist">
+                        <button type="button" class="btn-vista ativo" id="btn-vista-hoje" role="tab" aria-selected="true" aria-controls="vista-hoje" data-acao="vista" data-vista="hoje"><i class="fa-solid fa-calendar-day" aria-hidden="true"></i><span class="nav-rotulo-longo">Atendimentos do dia</span><span class="nav-rotulo-curto">Hoje</span></button>
+                        <button type="button" class="btn-vista" id="btn-vista-lista" role="tab" aria-selected="false" aria-controls="vista-lista" data-acao="vista" data-vista="lista"><i class="fa-solid fa-table-list" aria-hidden="true"></i><span class="nav-rotulo-longo">Agendamentos</span><span class="nav-rotulo-curto">Agenda</span></button>
+                        <button type="button" class="btn-vista" id="btn-vista-config" role="tab" aria-selected="false" aria-controls="vista-config" data-acao="vista" data-vista="config"><i class="fa-solid fa-gear" aria-hidden="true"></i><span class="nav-rotulo-longo">Configuração</span><span class="nav-rotulo-curto">Ajustes</span></button>
+                        <button type="button" class="btn-vista" id="btn-vista-relatorios" role="tab" aria-selected="false" aria-controls="vista-relatorios" data-acao="vista" data-vista="relatorios"><i class="fa-solid fa-chart-column" aria-hidden="true"></i><span class="nav-rotulo-longo">Relatórios</span><span class="nav-rotulo-curto">Relatórios</span></button>
+                    </div>
+                </nav>
+                <div class="topbar-dir">
+                    <span class="topbar-data" id="topbar-data"></span>
+                    <div class="menu-perfil">
+                        <button type="button" class="btn-perfil" id="btn-perfil" aria-haspopup="true" aria-expanded="false" aria-controls="menu-perfil-lista" data-acao="menu-perfil">
+                            <span class="avatar" id="perfil-iniciais" aria-hidden="true">R</span>
+                            <span class="perfil-nome" id="quem-nome">Recepção</span>
+                            <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+                        </button>
+                        <div class="menu-acoes-lista" id="menu-perfil-lista" hidden>
+                            <div class="menu-perfil-email" id="perfil-email"></div>
+                            <button type="button" id="btn-tema" data-acao="alternarTema"><i class="fa-solid fa-moon" aria-hidden="true"></i> Tema escuro</button>
+                            <button type="button" data-acao="abrirAtalhos"><i class="fa-solid fa-keyboard" aria-hidden="true"></i> Atalhos de teclado</button>
+                            <button type="button" data-acao="fazerLogout"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i> Sair</button>
+                        </div>
+                    </div>
                 </div>
-                <button class="btn btn-tema" id="btn-tema" data-acao="alternarTema"><i class="fa-solid fa-moon"></i> Modo escuro</button>
-                <button class="btn btn-sair" data-acao="fazerLogout">Sair</button>
             </div>
-            <nav class="nav">
-                <div class="nav-in" role="tablist" aria-label="Áreas do painel">
-                    <button type="button" class="btn btn-vista ativo" id="btn-vista-hoje" role="tab" aria-selected="true" data-acao="vista" data-vista="hoje"><i class="fa-solid fa-calendar-day"></i> Fila de hoje</button>
-                    <button type="button" class="btn btn-vista" id="btn-vista-lista" role="tab" aria-selected="false" data-acao="vista" data-vista="lista"><i class="fa-solid fa-table-list"></i> Agendamentos</button>
-                    <span class="nav-sep" aria-hidden="true"></span>
-                    <button type="button" class="btn btn-vista" id="btn-vista-config" role="tab" aria-selected="false" data-acao="vista" data-vista="config"><i class="fa-solid fa-gears"></i> Configuração</button>
-                    <button type="button" class="btn btn-vista" id="btn-vista-relatorios" role="tab" aria-selected="false" data-acao="vista" data-vista="relatorios"><i class="fa-solid fa-chart-simple"></i> Relatórios</button>
-                </div>
-            </nav>
         </header>
 
+        <main class="conteudo" id="conteudo" tabindex="-1">
         <!-- Faixa de estado: mostra a recepcao o que esta publicado no site
              agora, sem precisar abrir a Configuracao. Preenchida por
              atualizarFaixaEstado(), que so le controles ja carregados na tela
              (nenhuma leitura extra no Firestore). -->
         <div class="faixa" id="faixa-estado"></div>
 
-        <section class="painel-fila ativo" id="vista-hoje">
-            <div class="fila-cabecalho">
-                <div class="fila-dia">
-                    <h2 id="fila-data-titulo">Hoje</h2>
-                    <p id="fila-data-detalhe">Carregando a fila do dia...</p>
+        <!-- O coracao do painel: a lista de atendimentos do dia. -->
+        <section id="vista-hoje" role="tabpanel" aria-labelledby="btn-vista-hoje">
+            <div class="vista-cabecalho">
+                <div>
+                    <div class="dia-nav">
+                        <button type="button" class="btn btn-fantasma btn-sm btn-icone" id="btn-dia-anterior" data-acao="dia-fila" data-passo="-1" aria-label="Dia anterior" title="Dia anterior (←)"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+                        <h1 id="fila-data-titulo">Hoje</h1>
+                        <button type="button" class="btn btn-fantasma btn-sm btn-icone" id="btn-dia-seguinte" data-acao="dia-fila" data-passo="1" aria-label="Próximo dia" title="Próximo dia (→)"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+                        <button type="button" class="btn btn-secundario btn-sm" id="btn-dia-hoje" data-acao="dia-fila" data-passo="0" aria-label="Voltar para hoje" title="Voltar para hoje (T)" hidden>Hoje</button>
+                    </div>
+                    <p id="fila-data-detalhe">Carregando a lista do dia...</p>
                 </div>
-                <div class="fila-progresso">
-                    <div class="fila-progresso-topo">
-                        <strong id="fila-contagem">0 de 0 atendidos hoje</strong>
-                        <span class="atualizado-em" id="fila-atualizado"><i class="fa-solid fa-rotate"></i> Aguardando atualização</span>
-                    </div>
-                    <div class="fila-barra" role="img" aria-label="Progresso do dia">
-                        <i class="fila-barra-ok" id="fila-barra-ok" style="width:0%"></i>
-                        <i class="fila-barra-falta" id="fila-barra-falta" style="width:0%"></i>
-                    </div>
+                <div class="vista-acoes">
+                    <span class="atualizado-em" id="fila-atualizado" aria-live="polite"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Aguardando atualização</span>
+                    <button type="button" class="btn btn-secundario btn-icone" data-acao="atualizarAgora" aria-label="Atualizar agora" title="Atualizar agora"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
+                    <button type="button" class="btn btn-secundario so-desktop" data-acao="imprimirListaHoje"><i class="fa-solid fa-print" aria-hidden="true"></i> Imprimir</button>
+                    <button type="button" class="btn btn-primario" data-acao="abrirModal"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Encaixe</button>
                 </div>
             </div>
-            <div class="fila-busca">
-                <label class="sr-only" for="busca-fila-hoje">Check-in por nome, CPF ou protocolo</label>
-                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-                <input id="busca-fila-hoje" type="search" placeholder="Check-in por nome, CPF ou protocolo" data-input="renderFilaHoje">
-                <kbd class="atalho-busca">/</kbd>
+
+            <div class="barra-dia">
+                <div class="resumo-dia" id="resumo-dia" role="group" aria-label="Filtrar por situação"></div>
+                <div class="campo-busca">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                    <label class="sr-only" for="busca-fila-hoje">Buscar por nome, CPF, telefone ou protocolo</label>
+                    <input id="busca-fila-hoje" type="search" autocomplete="off" placeholder="Nome, CPF, telefone ou protocolo" data-input="renderFilaHoje">
+                    <kbd aria-hidden="true">/</kbd>
+                </div>
             </div>
-            <div class="fila-cards" id="fila-hoje-cards"></div>
+            <div class="progresso">
+                <span id="fila-contagem">0 de 0 concluídos</span>
+                <div class="fila-barra" id="fila-barra" role="img" aria-label="Progresso do dia">
+                    <i class="fila-barra-ok" id="fila-barra-ok"></i>
+                    <i class="fila-barra-falta" id="fila-barra-falta"></i>
+                </div>
+            </div>
+
+            <div id="fila-aviso"></div>
+            <div id="fila-proximo"></div>
+
+            <div class="tabela-wrap">
+                <table class="tabela-dia">
+                    <caption class="sr-only" id="fila-legenda">Atendimentos do dia</caption>
+                    <thead><tr><th scope="col">Hora</th><th scope="col">Cidadão</th><th scope="col">Situação</th><th scope="col" class="th-acoes">Ações</th></tr></thead>
+                    <tbody id="fila-hoje-corpo"><tr><td colspan="4" class="td-vazio"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Carregando...</td></tr></tbody>
+                </table>
+            </div>
         </section>
 
-        <div id="vista-lista" style="display:none;">
-        <div class="controles">
-            <button class="btn btn-manual" data-acao="abrirModal"><i class="fa-solid fa-user-plus"></i> Inserir Encaixe Manual</button>
-            <div class="menu-acoes">
-                <button type="button" class="btn btn-secundario" id="btn-acoes-lista" aria-haspopup="true" aria-expanded="false" data-acao="acoes-lista">Ações <i class="fa-solid fa-chevron-down"></i></button>
-                <div class="menu-acoes-lista" id="acoes-lista-menu" hidden>
-                    <button type="button" data-acao="listarAgendamentos"><i class="fa-solid fa-rotate"></i> Atualizar lista</button>
-                    <button type="button" data-acao="exportarExcel"><i class="fa-solid fa-file-excel"></i> Exportar para Excel</button>
-                    <button type="button" data-acao="exportarExcelCompleto"><i class="fa-solid fa-user-shield"></i> Exportar com CPF e nascimento</button>
-                    <button type="button" data-acao="imprimirListaHoje"><i class="fa-solid fa-print"></i> Imprimir lista do dia</button>
-                    <button type="button" data-acao="enviarLembretesAmanha"><i class="fa-brands fa-whatsapp"></i> Lembretes de amanhã</button>
-                    <button type="button" data-acao="buscarHistoricoAgendamento"><i class="fa-solid fa-clock-rotate-left"></i> Buscar em todo o histórico</button>
+        <section id="vista-lista" role="tabpanel" aria-labelledby="btn-vista-lista" hidden>
+            <div class="vista-cabecalho">
+                <div>
+                    <h1>Agendamentos</h1>
+                    <p><span class="periodo-info" id="info-periodo-lista">Por padrão, o painel carrega apenas agendamentos de ontem em diante.</span></p>
+                </div>
+                <div class="vista-acoes">
+                    <span class="atualizado-em" id="lista-atualizado" aria-live="polite"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Aguardando atualização</span>
+                    <div class="menu-acoes">
+                        <button type="button" class="btn btn-secundario" id="btn-acoes-lista" aria-haspopup="true" aria-expanded="false" aria-controls="acoes-lista-menu" data-acao="acoes-lista">Mais ações <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
+                        <div class="menu-acoes-lista" id="acoes-lista-menu" hidden>
+                            <button type="button" data-acao="listarAgendamentos"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Atualizar lista</button>
+                            <button type="button" data-acao="exportarExcel"><i class="fa-solid fa-file-csv" aria-hidden="true"></i> Exportar planilha</button>
+                            <button type="button" data-acao="exportarExcelCompleto"><i class="fa-solid fa-user-shield" aria-hidden="true"></i> Exportar com CPF e nascimento</button>
+                            <button type="button" data-acao="imprimirListaHoje"><i class="fa-solid fa-print" aria-hidden="true"></i> Imprimir lista de hoje</button>
+                            <button type="button" data-acao="enviarLembretesAmanha"><svg class="icone-marca" aria-hidden="true"><use href="#ico-whatsapp"></use></svg> Lembretes de amanhã</button>
+                            <button type="button" data-acao="buscarHistoricoAgendamento"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Buscar em todo o histórico</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primario" data-acao="abrirModal"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Encaixe</button>
                 </div>
             </div>
-            <span class="atualizado-em" id="lista-atualizado"><i class="fa-solid fa-rotate"></i> Aguardando atualização</span>
-        </div>
-        <div class="cards-resumo">
-            <button type="button" class="card-kpi clicavel" data-acao="vista" data-vista="hoje"><span>Hoje</span><strong id="kpi-hoje">0</strong></button>
-            <button type="button" class="card-kpi clicavel" data-acao="filtro-rapido" data-tipo="amanha"><span>Amanhã</span><strong id="kpi-amanha">0</strong></button>
-            <button type="button" class="card-kpi clicavel" data-acao="irParaConfiguracaoAgenda"><span>Vagas Restantes</span><strong id="kpi-vagas">0</strong></button>
-            <button type="button" class="card-kpi clicavel" data-acao="irParaConfiguracaoAgenda"><span>Datas Lotadas</span><strong id="kpi-lotadas">0</strong></button>
-            <button type="button" class="card-kpi clicavel" data-acao="filtro-rapido" data-tipo="compareceram"><span>Atendimentos realizados</span><strong id="kpi-atendidos">0</strong></button>
-        </div>
-        <div class="painel-filtros">
-            <div class="filtros-linha">
-                <div class="input-group filtro-busca-campo">
-                    <label for="filtro-busca" class="sr-only">Buscar na lista</label>
-                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-                    <input id="filtro-busca" type="text" placeholder="Nome, CPF, telefone ou protocolo" data-input="renderTabelaAgendamentos">
-                </div>
-                <div class="input-group">
-                    <label for="consulta-inicio">Carregar de:</label>
-                    <input type="date" id="consulta-inicio">
-                </div>
-                <div class="input-group">
-                    <label for="consulta-fim">Até:</label>
-                    <input type="date" id="consulta-fim">
-                </div>
-                <button class="btn btn-atualizar" data-acao="listarAgendamentos"><i class="fa-solid fa-arrows-rotate"></i> Carregar período</button>
-                <button type="button" class="btn btn-secundario" id="btn-mais-filtros" aria-expanded="false" data-acao="alternarMaisFiltros">Mais filtros <i class="fa-solid fa-chevron-down"></i></button>
-                <button class="btn btn-sair" data-acao="limparFiltros"><i class="fa-solid fa-broom"></i> Limpar</button>
-            </div>
-            <div class="filtros-avancados" id="filtros-avancados" hidden>
-                <div class="input-group">
-                    <label for="filtro-data">Data exata:</label>
-                    <input id="filtro-data" type="date" data-change="renderTabelaAgendamentos">
-                </div>
-                <div class="input-group">
-                    <label>Status:</label>
-                    <select id="filtro-status" data-change="renderTabelaAgendamentos">
-                        <option value="">Todos</option>
-                        <option value="agendado">Agendado</option>
-                        <option value="compareceu">Compareceu</option>
-                        <option value="vai_voltar">Vai voltar depois</option>
-                        <option value="nao_compareceu">Não compareceu</option>
-                        <option value="cancelado">Cancelado</option>
-                        <option value="remarcado">Remarcado</option>
-                    </select>
-                </div>
-                <label class="filtro-check"><input type="checkbox" id="filtro-futuros" checked data-change="renderTabelaAgendamentos"> Ocultar passados</label>
-            </div>
-            <div class="filtros-rapidos">
-                <button type="button" data-acao="filtro-rapido" data-tipo="hoje">Hoje</button>
-                <button type="button" data-acao="filtro-rapido" data-tipo="amanha">Amanhã</button>
-                <button type="button" data-acao="filtro-rapido" data-tipo="semana">Esta semana</button>
-                <button type="button" data-acao="filtro-rapido" data-tipo="agendados">Agendados</button>
-                <button type="button" data-acao="filtro-rapido" data-tipo="compareceram">Compareceram</button>
-                <button type="button" data-acao="filtro-rapido" data-tipo="retornos">Vão voltar depois</button>
-                <button type="button" data-acao="filtro-rapido" data-tipo="faltaram">Não compareceram</button>
-                <button type="button" data-acao="filtro-rapido" data-tipo="cancelados">Cancelados</button>
-                <button type="button" data-acao="filtro-rapido" data-tipo="bloqueados">Bloqueados</button>
-                <button type="button" data-acao="filtro-rapido" data-tipo="manuais">Manuais</button>
-            </div>
-            <span class="periodo-info" id="info-periodo-lista">Por padrão, o painel carrega apenas agendamentos de ontem em diante.</span>
-        </div>
-        <div class="tabela-wrap">
-            <table>
-                <thead><tr><th>Data/Hora</th><th>Cidadão</th><th>CPF / Nasc</th><th>Contato</th><th>Status</th><th>Ações</th></tr></thead>
-                <tbody id="corpo-tabela"></tbody>
-            </table>
-        </div>
-        </div>
 
-        <div id="vista-config" style="display:none;">
+            <div class="stats">
+                <button type="button" class="card-kpi" data-acao="vista" data-vista="hoje"><span>Hoje</span><strong id="kpi-hoje">0</strong></button>
+                <button type="button" class="card-kpi" data-acao="filtro-rapido" data-tipo="amanha"><span>Amanhã</span><strong id="kpi-amanha">0</strong></button>
+                <button type="button" class="card-kpi" data-acao="irParaConfiguracaoAgenda"><span>Vagas restantes</span><strong id="kpi-vagas">0</strong></button>
+                <button type="button" class="card-kpi" data-acao="irParaConfiguracaoAgenda"><span>Datas lotadas</span><strong id="kpi-lotadas">0</strong></button>
+            </div>
+
+            <div class="painel-filtros cartao">
+                <div class="filtros-linha">
+                    <div class="campo-busca">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                        <label for="filtro-busca" class="sr-only">Buscar na lista</label>
+                        <input id="filtro-busca" type="search" autocomplete="off" placeholder="Nome, CPF, telefone ou protocolo" data-input="buscarNaLista">
+                        <kbd aria-hidden="true">/</kbd>
+                    </div>
+                    <button type="button" class="btn btn-fantasma" id="btn-mais-filtros" aria-expanded="false" aria-controls="filtros-avancados" data-acao="alternarMaisFiltros">Período e filtros <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
+                    <button type="button" class="btn btn-fantasma" data-acao="limparFiltros"><i class="fa-solid fa-xmark" aria-hidden="true"></i> Limpar</button>
+                </div>
+                <div class="filtros-avancados" id="filtros-avancados" hidden>
+                    <div class="input-group">
+                        <label for="consulta-inicio">Carregar de</label>
+                        <input type="date" id="consulta-inicio">
+                    </div>
+                    <div class="input-group">
+                        <label for="consulta-fim">Até</label>
+                        <input type="date" id="consulta-fim">
+                    </div>
+                    <button type="button" class="btn btn-secundario" data-acao="listarAgendamentos"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Carregar período</button>
+                    <span class="divisor-vertical" aria-hidden="true"></span>
+                    <div class="input-group">
+                        <label for="filtro-data">Data exata</label>
+                        <input id="filtro-data" type="date" data-change="renderTabelaAgendamentos">
+                    </div>
+                    <div class="input-group">
+                        <label for="filtro-status">Situação</label>
+                        <select id="filtro-status" data-change="renderTabelaAgendamentos">
+                            <option value="">Todas</option>
+                            <option value="agendado">Agendado</option>
+                            <option value="compareceu">Compareceu</option>
+                            <option value="vai_voltar">Vai voltar depois</option>
+                            <option value="nao_compareceu">Não compareceu</option>
+                            <option value="cancelado">Cancelado</option>
+                            <option value="remarcado">Remarcado</option>
+                        </select>
+                    </div>
+                    <label class="filtro-check"><input type="checkbox" id="filtro-futuros" checked data-change="renderTabelaAgendamentos"> Ocultar passados</label>
+                </div>
+                <div class="filtros-rapidos" role="group" aria-label="Filtros rápidos">
+                    <button type="button" data-acao="filtro-rapido" data-tipo="hoje">Hoje</button>
+                    <button type="button" data-acao="filtro-rapido" data-tipo="amanha">Amanhã</button>
+                    <button type="button" data-acao="filtro-rapido" data-tipo="semana">Esta semana</button>
+                    <button type="button" data-acao="filtro-rapido" data-tipo="agendados">Agendados</button>
+                    <button type="button" data-acao="filtro-rapido" data-tipo="compareceram">Compareceram</button>
+                    <button type="button" data-acao="filtro-rapido" data-tipo="retornos">Vão voltar depois</button>
+                    <button type="button" data-acao="filtro-rapido" data-tipo="faltaram">Não compareceram</button>
+                    <button type="button" data-acao="filtro-rapido" data-tipo="cancelados">Cancelados</button>
+                    <button type="button" data-acao="filtro-rapido" data-tipo="bloqueados">Bloqueados</button>
+                    <button type="button" data-acao="filtro-rapido" data-tipo="manuais">Manuais</button>
+                </div>
+            </div>
+
+            <div class="tabela-wrap">
+                <table>
+                    <caption class="sr-only">Agendamentos do período carregado</caption>
+                    <thead id="cabecalho-tabela"><tr><th scope="col">Data</th><th scope="col">Cidadão</th><th scope="col">Situação</th><th scope="col" class="th-acoes">Ações</th></tr></thead>
+                    <tbody id="corpo-tabela"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="vista-config" role="tabpanel" aria-labelledby="btn-vista-config" hidden>
             <div id="config-hub">
                 <div class="config-intro">
-                    <h2><i class="fa-solid fa-gears"></i> Configuração do atendimento</h2>
+                    <h1><i class="fa-solid fa-gear" aria-hidden="true"></i> Configuração do atendimento</h1>
                     <p>Tudo que muda o que o cidadão vê no site fica aqui, fora da tela de operação do dia.</p>
                 </div>
                 <div class="config-hub-grid">
                     <button type="button" class="cfg-tile" data-acao="abrir-config" data-painel="datas">
-                        <span class="cfg-ico"><i class="fa-solid fa-calendar-days"></i></span>
+                        <span class="cfg-ico"><i class="fa-solid fa-calendar-days" aria-hidden="true"></i></span>
                         <b>Datas de atendimento</b>
                         <span class="cfg-estado" id="est-datas">&nbsp;</span>
                         <small>Abrir, fechar ou programar a publicação de cada data e o aviso de novas vagas.</small>
                     </button>
                     <button type="button" class="cfg-tile" data-acao="abrir-config" data-painel="popup">
-                        <span class="cfg-ico"><i class="fa-solid fa-bullhorn"></i></span>
+                        <span class="cfg-ico"><i class="fa-solid fa-bullhorn" aria-hidden="true"></i></span>
                         <b>Pop-up de aviso</b>
                         <span class="cfg-estado" id="est-popup">&nbsp;</span>
                         <small>Recado exibido no site para quem for agendar.</small>
                     </button>
                     <button type="button" class="cfg-tile" data-acao="abrir-config" data-painel="automacao">
-                        <span class="cfg-ico"><i class="fa-solid fa-calendar-check"></i></span>
+                        <span class="cfg-ico"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i></span>
                         <b>Automação semanal</b>
                         <span class="cfg-estado" id="est-automacao">&nbsp;</span>
                         <small>Abertura automática da agenda, semanas pausadas, dias bloqueados e férias.</small>
                     </button>
                     <button type="button" class="cfg-tile" data-acao="abrir-config" data-painel="horarios">
-                        <span class="cfg-ico"><i class="fa-solid fa-clock"></i></span>
+                        <span class="cfg-ico"><i class="fa-solid fa-clock" aria-hidden="true"></i></span>
                         <b>Horários e vagas</b>
                         <span class="cfg-estado" id="est-horarios">&nbsp;</span>
                         <small>Horários, vagas por horário e a partir de quando valem.</small>
                     </button>
                     <button type="button" class="cfg-tile" data-acao="abrir-config" data-painel="preferencias">
-                        <span class="cfg-ico"><i class="fa-solid fa-sliders"></i></span>
+                        <span class="cfg-ico"><i class="fa-solid fa-sliders" aria-hidden="true"></i></span>
                         <b>Lembretes e responsável</b>
                         <span class="cfg-estado" id="est-preferencias">&nbsp;</span>
                         <small>Nome do responsável do posto e texto do lembrete de WhatsApp.</small>
@@ -216,372 +269,400 @@
             </div>
 
             <div class="config-pane" id="pane-datas" style="display:none;">
-                <button type="button" class="btn-voltar" data-acao="voltarConfigHub"><i class="fa-solid fa-arrow-left"></i> Configuração</button>
-        <div class="painel-config">
-            <h3><i class="fa-solid fa-calendar-days"></i> Datas de Atendimento</h3>
-            <div class="config-form">
-                <div class="input-group">
-                    <label>Nova data:</label>
-                    <input type="date" id="cfg-data">
+                <button type="button" class="btn-voltar" data-acao="voltarConfigHub"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Configuração</button>
+                <div class="painel-config">
+                    <h3><i class="fa-solid fa-calendar-days" aria-hidden="true"></i> Datas de atendimento</h3>
+                    <div class="config-form">
+                        <div class="input-group">
+                            <label for="cfg-data">Nova data</label>
+                            <input type="date" id="cfg-data">
+                        </div>
+                        <div class="input-group">
+                            <label for="cfg-disponibilidade-data">Disponibilizar</label>
+                            <select id="cfg-disponibilidade-data" data-change="alternarProgramacaoData">
+                                <option value="agora">Agora</option>
+                                <option value="programar">Em data/hora</option>
+                            </select>
+                        </div>
+                        <div class="input-group" id="box-cfg-publicar-em-data" style="display:none;">
+                            <label for="cfg-publicar-em-data">Liberar em</label>
+                            <input type="datetime-local" id="cfg-publicar-em-data">
+                        </div>
+                        <button type="button" class="btn btn-config" data-acao="adicionarDataAgenda"><i class="fa-solid fa-plus" aria-hidden="true"></i> Única</button>
+                        <button type="button" class="btn btn-lote" data-acao="abrirModalLoteFlex"><i class="fa-solid fa-calendar-days" aria-hidden="true"></i> Adicionar várias</button>
+                        <button type="button" class="btn btn-fantasma" data-acao="carregarAgendaGestao"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Recarregar datas</button>
+                    </div>
+                    <div class="lista-datas" id="lista-datas-agenda"></div>
+                    <div class="datas-encerradas-acoes" id="datas-encerradas-acoes"></div>
+                    <div class="config-form separador-form">
+                        <div class="input-group">
+                            <label for="cfg-data-novas-vagas">Novas vagas em</label>
+                            <input type="date" id="cfg-data-novas-vagas">
+                        </div>
+                        <div class="input-group">
+                            <label for="cfg-disponibilidade-aviso">Disponibilizar aviso</label>
+                            <select id="cfg-disponibilidade-aviso" data-change="alternarProgramacaoAviso">
+                                <option value="agora">Agora</option>
+                                <option value="programar">Em data/hora</option>
+                            </select>
+                        </div>
+                        <div class="input-group" id="box-cfg-publicar-em-aviso" style="display:none;">
+                            <label for="cfg-publicar-em-aviso">Exibir aviso em</label>
+                            <input type="datetime-local" id="cfg-publicar-em-aviso">
+                        </div>
+                        <button type="button" class="btn btn-config" data-acao="salvarAvisoNovasVagas"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Salvar aviso</button>
+                    </div>
                 </div>
-                <div class="input-group">
-                    <label>Disponibilizar:</label>
-                    <select id="cfg-disponibilidade-data" data-change="alternarProgramacaoData">
-                        <option value="agora">Agora</option>
-                        <option value="programar">Em data/hora</option>
-                    </select>
-                </div>
-                <div class="input-group" id="box-cfg-publicar-em-data" style="display:none;">
-                    <label>Liberar em:</label>
-                    <input type="datetime-local" id="cfg-publicar-em-data">
-                </div>
-                <button class="btn btn-config" data-acao="adicionarDataAgenda"><i class="fa-solid fa-plus"></i> Única</button>
-                <button type="button" class="btn btn-lote" data-acao="abrirModalLoteFlex"><i class="fa-solid fa-calendar-days"></i> Adicionar Múltiplas</button>
-                <button class="btn btn-atualizar" data-acao="carregarAgendaGestao"><i class="fa-solid fa-rotate"></i> Recarregar Datas</button>
-            </div>
-            <div class="lista-datas" id="lista-datas-agenda"></div>
-            <div class="datas-encerradas-acoes" id="datas-encerradas-acoes"></div>
-            <div class="config-form" style="margin-top:16px; padding-top:14px; border-top:1px solid #e2e8f0;">
-                <div class="input-group">
-                    <label>Novas vagas em:</label>
-                    <input type="date" id="cfg-data-novas-vagas">
-                </div>
-                <div class="input-group">
-                    <label>Disponibilizar aviso:</label>
-                    <select id="cfg-disponibilidade-aviso" data-change="alternarProgramacaoAviso">
-                        <option value="agora">Agora</option>
-                        <option value="programar">Em data/hora</option>
-                    </select>
-                </div>
-                <div class="input-group" id="box-cfg-publicar-em-aviso" style="display:none;">
-                    <label>Exibir aviso em:</label>
-                    <input type="datetime-local" id="cfg-publicar-em-aviso">
-                </div>
-                <button class="btn btn-config" data-acao="salvarAvisoNovasVagas"><i class="fa-solid fa-floppy-disk"></i> Salvar Aviso</button>
-            </div>
-        </div>
             </div>
 
             <div class="config-pane" id="pane-popup" style="display:none;">
-                <button type="button" class="btn-voltar" data-acao="voltarConfigHub"><i class="fa-solid fa-arrow-left"></i> Configuração</button>
-        <div class="painel-config">
-            <h3><i class="fa-solid fa-bullhorn"></i> Pop-up de aviso no site</h3>
-            <p style="margin:0 0 12px; font-size:0.85rem; color:#475569; line-height:1.5;">
-                A mensagem aparece em uma janela no site do cidadão assim que a página abre,
-                dentro do período configurado. Serve para recados como mudança de local,
-                feriado ou suspensão do atendimento.
-            </p>
-            <div id="popup-status" class="popup-status"></div>
-            <label class="filtro-check" style="margin-bottom:12px;">
-                <input type="checkbox" id="popup-ativo" data-change="atualizarPreviaAvisoPopup">
-                Exibir este pop-up no site
-            </label>
-            <div class="config-grid">
-                <div class="input-group">
-                    <label for="popup-inicio">Começa a aparecer em</label>
-                    <input type="datetime-local" id="popup-inicio" data-change="atualizarPreviaAvisoPopup">
+                <button type="button" class="btn-voltar" data-acao="voltarConfigHub"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Configuração</button>
+                <div class="painel-config">
+                    <h3><i class="fa-solid fa-bullhorn" aria-hidden="true"></i> Pop-up de aviso no site</h3>
+                    <p class="texto-ajuda">
+                        A mensagem aparece em uma janela no site do cidadão assim que a página abre,
+                        dentro do período configurado. Serve para recados como mudança de local,
+                        feriado ou suspensão do atendimento.
+                    </p>
+                    <div id="popup-status" class="popup-status"></div>
+                    <label class="filtro-check rotulo-bloco">
+                        <input type="checkbox" id="popup-ativo" data-change="atualizarPreviaAvisoPopup">
+                        Exibir este pop-up no site
+                    </label>
+                    <div class="config-grid">
+                        <div class="input-group">
+                            <label for="popup-inicio">Começa a aparecer em</label>
+                            <input type="datetime-local" id="popup-inicio" data-change="atualizarPreviaAvisoPopup">
+                        </div>
+                        <div class="input-group">
+                            <label for="popup-fim">Para de aparecer em</label>
+                            <input type="datetime-local" id="popup-fim" data-change="atualizarPreviaAvisoPopup">
+                        </div>
+                        <div class="input-group">
+                            <label for="popup-tipo">Aparência</label>
+                            <select id="popup-tipo" data-change="atualizarPreviaAvisoPopup">
+                                <option value="informacao">Informação (azul)</option>
+                                <option value="atencao">Atenção (amarelo)</option>
+                                <option value="urgente">Urgente (vermelho)</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="popup-repetir">Frequência</label>
+                            <select id="popup-repetir">
+                                <option value="uma-vez">Mostrar uma vez por aparelho</option>
+                                <option value="sempre">Mostrar em toda visita</option>
+                            </select>
+                        </div>
+                        <div class="input-group largura-total">
+                            <label for="popup-titulo">Título (opcional)</label>
+                            <input type="text" id="popup-titulo" maxlength="80" placeholder="Ex.: Atendimento suspenso na quinta" data-input="atualizarPreviaAvisoPopup">
+                        </div>
+                        <div class="input-group largura-total">
+                            <label for="popup-mensagem">Mensagem</label>
+                            <textarea id="popup-mensagem" rows="5" maxlength="600" placeholder="Escreva o recado como o cidadão deve ler." data-input="atualizarPreviaAvisoPopup"></textarea>
+                            <small id="popup-contador">0/600 caracteres</small>
+                        </div>
+                    </div>
+                    <strong class="rotulo-bloco">Prévia</strong>
+                    <div class="popup-previa" id="popup-previa"></div>
+                    <!-- A resposta publica fica ate ~15 minutos no CDN e 3 minutos no
+                         cache do navegador. Programar com antecedencia e a unica forma
+                         de o aviso entrar no ar no minuto exato. -->
+                    <p class="nota-aviso espaco-topo">
+                        <i class="fa-solid fa-clock" aria-hidden="true"></i>
+                        <strong>Um aviso criado para começar agora leva até 15 minutos para chegar a todos os visitantes</strong>,
+                        por causa do cache do site. Se a hora precisa ser exata, programe o início com pelo menos
+                        15 minutos de antecedência. A hora de encerrar é sempre exata.
+                        Cada vez que você salva, quem já fechou o aviso volta a vê-lo.
+                    </p>
+                    <div class="config-form espaco-topo">
+                        <button type="button" class="btn btn-config" data-acao="salvarAvisoPopup"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Salvar pop-up</button>
+                        <button type="button" class="btn btn-secundario" data-acao="desativarAvisoPopup"><i class="fa-solid fa-eye-slash" aria-hidden="true"></i> Desativar agora</button>
+                        <button type="button" class="btn btn-fantasma" data-acao="carregarAgendaGestao"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Recarregar</button>
+                    </div>
                 </div>
-                <div class="input-group">
-                    <label for="popup-fim">Para de aparecer em</label>
-                    <input type="datetime-local" id="popup-fim" data-change="atualizarPreviaAvisoPopup">
-                </div>
-                <div class="input-group">
-                    <label for="popup-tipo">Aparência</label>
-                    <select id="popup-tipo" data-change="atualizarPreviaAvisoPopup">
-                        <option value="informacao">Informação (azul)</option>
-                        <option value="atencao">Atenção (amarelo)</option>
-                        <option value="urgente">Urgente (vermelho)</option>
-                    </select>
-                </div>
-                <div class="input-group">
-                    <label for="popup-repetir">Frequência</label>
-                    <select id="popup-repetir">
-                        <option value="uma-vez">Mostrar uma vez por aparelho</option>
-                        <option value="sempre">Mostrar em toda visita</option>
-                    </select>
-                </div>
-                <div class="input-group" style="grid-column:1/-1;">
-                    <label for="popup-titulo">Título (opcional)</label>
-                    <input type="text" id="popup-titulo" maxlength="80" placeholder="Ex.: Atendimento suspenso na quinta" data-input="atualizarPreviaAvisoPopup">
-                </div>
-                <div class="input-group" style="grid-column:1/-1;">
-                    <label for="popup-mensagem">Mensagem</label>
-                    <textarea id="popup-mensagem" rows="5" maxlength="600" placeholder="Escreva o recado como o cidadão deve ler." data-input="atualizarPreviaAvisoPopup"></textarea>
-                    <small id="popup-contador">0/600 caracteres</small>
-                </div>
-            </div>
-            <strong style="display:block; margin-top:14px; color:var(--ink);">Prévia</strong>
-            <div class="popup-previa" id="popup-previa"></div>
-            <!-- A resposta publica fica ate ~15 minutos no CDN e 3 minutos no
-                 cache do navegador. Programar com antecedencia e a unica forma
-                 de o aviso entrar no ar no minuto exato. -->
-            <p style="margin:12px 0 0; padding:10px 12px; background:var(--warning-light, #fef3c7); border-left:4px solid var(--warning, #f59e0b); border-radius:6px; font-size:0.85rem; color:#92400e; line-height:1.45;">
-                <i class="fa-solid fa-clock"></i>
-                <strong>Um aviso criado para começar agora leva até 15 minutos para chegar a todos os visitantes</strong>,
-                por causa do cache do site. Se a hora precisa ser exata, programe o início com pelo menos
-                15 minutos de antecedência. A hora de encerrar é sempre exata.
-                Cada vez que você salva, quem já fechou o aviso volta a vê-lo.
-            </p>
-            <div class="config-form" style="margin-top:14px;">
-                <button type="button" class="btn btn-config" data-acao="salvarAvisoPopup"><i class="fa-solid fa-floppy-disk"></i> Salvar pop-up</button>
-                <button type="button" class="btn btn-sair" data-acao="desativarAvisoPopup"><i class="fa-solid fa-eye-slash"></i> Desativar agora</button>
-                <button type="button" class="btn btn-atualizar" data-acao="carregarAgendaGestao"><i class="fa-solid fa-rotate"></i> Recarregar</button>
-            </div>
-        </div>
             </div>
 
             <div class="config-pane" id="pane-automacao" style="display:none;">
-                <button type="button" class="btn-voltar" data-acao="voltarConfigHub"><i class="fa-solid fa-arrow-left"></i> Configuração</button>
+                <button type="button" class="btn-voltar" data-acao="voltarConfigHub"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Configuração</button>
                 <div class="painel-config">
-                    <h3><i class="fa-solid fa-calendar-check"></i> Abertura automática toda segunda-feira</h3>
-                <div class="config-grid">
-                    <label class="filtro-check" style="padding:0; align-self:end;">
-                        <input type="checkbox" id="cfg-auto-ativa" checked>
-                        Ativar abertura semanal automática
-                    </label>
-                    <!-- A automacao nao consegue distinguir um aviso automatico
-                         obsoleto de um que a recepcao programou a mao: os dois
-                         gravam o mesmo campo. Por isso o alerta em vez de
-                         limpeza automatica. -->
-                    <p style="grid-column:1/-1; margin:0; padding:10px 12px; background:var(--warning-light, #fef3c7); border-left:4px solid var(--warning, #f59e0b); border-radius:6px; font-size:0.85rem; color:#92400e; line-height:1.45;">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        <strong>Ao desativar a automação, confira também o aviso de novas vagas.</strong>
-                        O aviso programado pela última abertura continua valendo e o site pode
-                        seguir anunciando uma data que não vai mais acontecer. Ajuste em
-                        <em>Aviso de novas vagas</em>, no modo <em>Agora</em>.
-                    </p>
-                    <div class="input-group">
-                        <label for="cfg-auto-hora">Horário de abertura na segunda</label>
-                        <input type="time" id="cfg-auto-hora" value="08:00">
+                    <h3><i class="fa-solid fa-calendar-check" aria-hidden="true"></i> Abertura automática toda segunda-feira</h3>
+                    <div class="config-grid">
+                        <label class="filtro-check">
+                            <input type="checkbox" id="cfg-auto-ativa" checked>
+                            Ativar abertura semanal automática
+                        </label>
+                        <!-- A automacao nao consegue distinguir um aviso automatico
+                             obsoleto de um que a recepcao programou a mao: os dois
+                             gravam o mesmo campo. Por isso o alerta em vez de
+                             limpeza automatica. -->
+                        <p class="nota-aviso largura-total">
+                            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                            <strong>Ao desativar a automação, confira também o aviso de novas vagas.</strong>
+                            O aviso programado pela última abertura continua valendo e o site pode
+                            seguir anunciando uma data que não vai mais acontecer. Ajuste em
+                            <em>Aviso de novas vagas</em>, no modo <em>Agora</em>.
+                        </p>
+                        <div class="input-group">
+                            <label for="cfg-auto-hora">Horário de abertura na segunda</label>
+                            <input type="time" id="cfg-auto-hora" value="08:00">
+                        </div>
                     </div>
-                </div>
-                <strong style="display:block; margin-top:14px; color:var(--ink);">Dias normais de atendimento gerados em cada semana</strong>
-                <div class="automacao-dias" id="cfg-auto-dias">
-                    <label class="filtro-check"><input type="checkbox" value="1"> Segunda</label>
-                    <label class="filtro-check"><input type="checkbox" value="2" checked> Terça</label>
-                    <label class="filtro-check"><input type="checkbox" value="3" checked> Quarta</label>
-                    <label class="filtro-check"><input type="checkbox" value="4" checked> Quinta</label>
-                    <label class="filtro-check"><input type="checkbox" value="5" checked> Sexta</label>
-                </div>
+                    <strong class="rotulo-bloco">Dias normais de atendimento gerados em cada semana</strong>
+                    <div class="automacao-dias" id="cfg-auto-dias">
+                        <label class="filtro-check"><input type="checkbox" value="1"> Segunda</label>
+                        <label class="filtro-check"><input type="checkbox" value="2" checked> Terça</label>
+                        <label class="filtro-check"><input type="checkbox" value="3" checked> Quarta</label>
+                        <label class="filtro-check"><input type="checkbox" value="4" checked> Quinta</label>
+                        <label class="filtro-check"><input type="checkbox" value="5" checked> Sexta</label>
+                    </div>
 
-                <div class="automacao-excecao simples">
-                    <div class="input-group">
-                        <label for="cfg-auto-semana-pausada">Não abrir uma semana inteira</label>
-                        <input type="date" id="cfg-auto-semana-pausada">
+                    <div class="automacao-excecao simples">
+                        <div class="input-group">
+                            <label for="cfg-auto-semana-pausada">Não abrir uma semana inteira</label>
+                            <input type="date" id="cfg-auto-semana-pausada">
+                        </div>
+                        <button type="button" class="btn btn-secundario" data-acao="adicionarSemanaPausada"><i class="fa-solid fa-plus" aria-hidden="true"></i> Pular semana</button>
                     </div>
-                    <button type="button" class="btn btn-atualizar" data-acao="adicionarSemanaPausada"><i class="fa-solid fa-plus"></i> Pular semana</button>
-                </div>
-                <div class="lista-excecoes" id="lista-semanas-pausadas"></div>
+                    <div class="lista-excecoes" id="lista-semanas-pausadas"></div>
 
-                <div class="automacao-excecao simples">
-                    <div class="input-group">
-                        <label for="cfg-auto-data-bloqueada">Não atender em um dia específico</label>
-                        <input type="date" id="cfg-auto-data-bloqueada">
+                    <div class="automacao-excecao simples">
+                        <div class="input-group">
+                            <label for="cfg-auto-data-bloqueada">Não atender em um dia específico</label>
+                            <input type="date" id="cfg-auto-data-bloqueada">
+                        </div>
+                        <button type="button" class="btn btn-secundario" data-acao="adicionarDataBloqueada"><i class="fa-solid fa-plus" aria-hidden="true"></i> Bloquear dia</button>
                     </div>
-                    <button type="button" class="btn btn-atualizar" data-acao="adicionarDataBloqueada"><i class="fa-solid fa-plus"></i> Bloquear dia</button>
-                </div>
-                <div class="lista-excecoes" id="lista-datas-bloqueadas"></div>
+                    <div class="lista-excecoes" id="lista-datas-bloqueadas"></div>
 
-                <div class="automacao-excecao">
-                    <div class="input-group">
-                        <label for="cfg-auto-ferias-inicio">Férias/pausa: início</label>
-                        <input type="date" id="cfg-auto-ferias-inicio">
+                    <div class="automacao-excecao">
+                        <div class="input-group">
+                            <label for="cfg-auto-ferias-inicio">Férias/pausa: início</label>
+                            <input type="date" id="cfg-auto-ferias-inicio">
+                        </div>
+                        <div class="input-group">
+                            <label for="cfg-auto-ferias-fim">Fim</label>
+                            <input type="date" id="cfg-auto-ferias-fim">
+                        </div>
+                        <div class="input-group">
+                            <label for="cfg-auto-ferias-motivo">Motivo (opcional)</label>
+                            <input type="text" id="cfg-auto-ferias-motivo" maxlength="120" placeholder="Ex.: férias">
+                        </div>
+                        <button type="button" class="btn btn-secundario" data-acao="adicionarPeriodoBloqueado"><i class="fa-solid fa-plus" aria-hidden="true"></i> Adicionar pausa</button>
                     </div>
-                    <div class="input-group">
-                        <label for="cfg-auto-ferias-fim">Fim</label>
-                        <input type="date" id="cfg-auto-ferias-fim">
-                    </div>
-                    <div class="input-group">
-                        <label for="cfg-auto-ferias-motivo">Motivo (opcional)</label>
-                        <input type="text" id="cfg-auto-ferias-motivo" maxlength="120" placeholder="Ex.: férias">
-                    </div>
-                    <button type="button" class="btn btn-atualizar" data-acao="adicionarPeriodoBloqueado"><i class="fa-solid fa-plus"></i> Adicionar pausa</button>
-                </div>
-                <div class="lista-excecoes" id="lista-periodos-bloqueados"></div>
-                <small class="automacao-ajuda">As exceções vencem a regra automática. Datas cadastradas manualmente continuam sob controle da recepção. Para a semana seguinte, salve mudanças preferencialmente antes de segunda às 07:50.</small>
-                <button type="button" class="btn btn-config" id="btn-salvar-automacao" style="margin-top:12px;" data-acao="salvarAutomacaoSemanal"><i class="fa-solid fa-floppy-disk"></i> Salvar automação e exceções</button>
+                    <div class="lista-excecoes" id="lista-periodos-bloqueados"></div>
+                    <small class="automacao-ajuda espaco-topo">As exceções vencem a regra automática. Datas cadastradas manualmente continuam sob controle da recepção. Para a semana seguinte, salve mudanças preferencialmente antes de segunda às 07:50.</small>
+                    <button type="button" class="btn btn-config" id="btn-salvar-automacao" data-acao="salvarAutomacaoSemanal"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Salvar automação e exceções</button>
                 </div>
             </div>
 
             <div class="config-pane" id="pane-horarios" style="display:none;">
-                <button type="button" class="btn-voltar" data-acao="voltarConfigHub"><i class="fa-solid fa-arrow-left"></i> Configuração</button>
+                <button type="button" class="btn-voltar" data-acao="voltarConfigHub"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Configuração</button>
                 <div class="painel-config">
-                    <h3><i class="fa-solid fa-clock"></i> Horários e vagas de atendimento</h3>
-                <p class="automacao-ajuda">Defina os horários, quantas pessoas cada horário recebe e a partir de quando a grade vale. Datas anteriores ao início não mudam.</p>
-                <div id="grade-atendimento"></div>
+                    <h3><i class="fa-solid fa-clock" aria-hidden="true"></i> Horários e vagas de atendimento</h3>
+                    <p class="automacao-ajuda">Defina os horários, quantas pessoas cada horário recebe e a partir de quando a grade vale. Datas anteriores ao início não mudam.</p>
+                    <div id="grade-atendimento"></div>
                 </div>
             </div>
 
             <div class="config-pane" id="pane-preferencias" style="display:none;">
-                <button type="button" class="btn-voltar" data-acao="voltarConfigHub"><i class="fa-solid fa-arrow-left"></i> Configuração</button>
+                <button type="button" class="btn-voltar" data-acao="voltarConfigHub"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Configuração</button>
                 <div class="painel-config">
-                    <h3><i class="fa-solid fa-sliders"></i> Lembretes e responsável do posto</h3>
-                <div class="config-grid">
-                    <div class="input-group">
-                        <label for="cfg-responsavel-posto">Nome do responsável do posto</label>
-                        <input id="cfg-responsavel-posto" type="text" maxlength="120">
+                    <h3><i class="fa-solid fa-sliders" aria-hidden="true"></i> Lembretes e responsável do posto</h3>
+                    <div class="config-grid">
+                        <div class="input-group">
+                            <label for="cfg-responsavel-posto">Nome do responsável do posto</label>
+                            <input id="cfg-responsavel-posto" type="text" maxlength="120">
+                        </div>
+                        <div class="input-group">
+                            <label for="cfg-template-lembrete">Mensagem de lembrete WhatsApp</label>
+                            <textarea id="cfg-template-lembrete" rows="8" maxlength="2500"></textarea>
+                            <small>Variáveis disponíveis: {nome}, {data}, {hora}, {protocolo}</small>
+                        </div>
                     </div>
-                    <div class="input-group">
-                        <label for="cfg-template-lembrete">Mensagem de lembrete WhatsApp</label>
-                        <textarea id="cfg-template-lembrete" rows="8" maxlength="2500"></textarea>
-                        <small>Variáveis disponíveis: {nome}, {data}, {hora}, {protocolo}</small>
-                    </div>
-                </div>
-                <button type="button" class="btn btn-config" style="margin-top:12px;" data-acao="salvarPreferenciasOperacionais"><i class="fa-solid fa-floppy-disk"></i> Salvar preferências</button>
+                    <button type="button" class="btn btn-config espaco-topo" data-acao="salvarPreferenciasOperacionais"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Salvar preferências</button>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div id="vista-relatorios" style="display:none;">
+        <section id="vista-relatorios" role="tabpanel" aria-labelledby="btn-vista-relatorios" hidden>
+            <div class="vista-cabecalho">
+                <div>
+                    <h1>Relatórios</h1>
+                    <p>Carregados só quando esta área é aberta, para não pesar na abertura do painel.</p>
+                </div>
+            </div>
             <div class="painel-indicadores">
-                <h3><i class="fa-solid fa-chart-simple"></i> Indicadores históricos</h3>
-            <div class="indicadores-grid">
-                <div class="indicador-card"><span>CIN feitas</span><strong id="ind-total-cin">...</strong><small id="ind-cin-mes-top">Carregando...</small></div>
-                <div class="indicador-card"><span>Faltantes</span><strong id="ind-total-faltas">...</strong><small id="ind-faltas-mes-top">Carregando...</small></div>
-                <div class="indicador-card"><span>Taxa de ausência</span><strong id="ind-taxa-faltas">...</strong><small>Faltas sobre comparecimentos + faltas</small></div>
-                <div class="indicador-card"><span>Maior dia</span><strong id="ind-melhor-dia">...</strong><small id="ind-melhor-dia-data">Carregando...</small></div>
-                <div class="indicador-card"><span>Média por dia</span><strong id="ind-media-dia">...</strong><small>Dias com atendimento realizado</small></div>
-            </div>
-            <div class="indicadores-tabelas">
-                <div class="indicador-bloco">
-                    <h4>CIN feitas por mês</h4>
-                    <div class="serie-mensal" id="ind-cin-mes"></div>
+                <h3><i class="fa-solid fa-chart-column" aria-hidden="true"></i> Indicadores históricos</h3>
+                <div class="indicadores-grid">
+                    <div class="indicador-card"><span>CIN feitas</span><strong id="ind-total-cin">...</strong><small id="ind-cin-mes-top">Carregando...</small></div>
+                    <div class="indicador-card"><span>Faltantes</span><strong id="ind-total-faltas">...</strong><small id="ind-faltas-mes-top">Carregando...</small></div>
+                    <div class="indicador-card"><span>Taxa de ausência</span><strong id="ind-taxa-faltas">...</strong><small>Faltas sobre comparecimentos + faltas</small></div>
+                    <div class="indicador-card"><span>Maior dia</span><strong id="ind-melhor-dia">...</strong><small id="ind-melhor-dia-data">Carregando...</small></div>
+                    <div class="indicador-card"><span>Média por dia</span><strong id="ind-media-dia">...</strong><small>Dias com atendimento realizado</small></div>
                 </div>
-                <div class="indicador-bloco">
-                    <h4>Faltantes por mês</h4>
-                    <div class="serie-mensal serie-faltas" id="ind-faltas-mes"></div>
+                <div class="indicadores-tabelas">
+                    <div class="indicador-bloco">
+                        <h4>CIN feitas por mês</h4>
+                        <div class="serie-mensal" id="ind-cin-mes"></div>
+                    </div>
+                    <div class="indicador-bloco">
+                        <h4>Faltantes por mês</h4>
+                        <div class="serie-mensal serie-faltas" id="ind-faltas-mes"></div>
+                    </div>
                 </div>
-            </div>
             </div>
             <div class="painel-config painel-metricas">
-                <h3><i class="fa-solid fa-stopwatch"></i> Últimas aberturas</h3>
-                <p class="detalhe-pessoal">Pedidos de agendamento feitos pelo site em cada semana, contados pela segunda-feira da abertura. "Perderam o horário": outra pessoa concluiu primeiro. "Recusados": CPF já agendado, CPF bloqueado por falta ou limite de tentativas. Horários no fuso de Brasília.</p>
-                <div style="margin-bottom:10px;">
-                    <button type="button" class="btn btn-atualizar" data-acao="carregarMetricasAbertura"><i class="fa-solid fa-rotate"></i> Atualizar métricas</button>
+                <h3><i class="fa-solid fa-stopwatch" aria-hidden="true"></i> Últimas aberturas</h3>
+                <p class="texto-ajuda">Pedidos de agendamento feitos pelo site em cada semana, contados pela segunda-feira da abertura. "Perderam o horário": outra pessoa concluiu primeiro. "Recusados": CPF já agendado, CPF bloqueado por falta ou limite de tentativas. Horários no fuso de Brasília.</p>
+                <div class="acoes-bloco">
+                    <button type="button" class="btn btn-secundario" data-acao="carregarMetricasAbertura"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Atualizar métricas</button>
                 </div>
                 <div class="tabela-wrap">
                     <table class="tabela-metricas">
                         <thead>
-                            <tr><th>Abertura</th><th>Tentativas</th><th>Agendados</th><th>Perderam o horário</th><th>Recusados</th><th>Outros</th><th>1º → último agendamento</th><th>Pico de tentativas</th></tr>
+                            <tr><th scope="col">Abertura</th><th scope="col">Tentativas</th><th scope="col">Agendados</th><th scope="col">Perderam o horário</th><th scope="col">Recusados</th><th scope="col">Outros</th><th scope="col">1º → último agendamento</th><th scope="col">Pico de tentativas</th></tr>
                         </thead>
                         <tbody id="metricas-abertura-corpo"></tbody>
                     </table>
                 </div>
             </div>
             <div class="painel-config painel-logs">
-                <h3><i class="fa-solid fa-clock-rotate-left"></i> Histórico de ações de hoje</h3>
-                <div style="margin-bottom:10px;">
-                    <button type="button" class="btn btn-atualizar" data-acao="carregarLogsAdmin"><i class="fa-solid fa-rotate"></i> Atualizar histórico</button>
+                <h3><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Histórico de ações de hoje</h3>
+                <div class="acoes-bloco">
+                    <button type="button" class="btn btn-secundario" data-acao="carregarLogsAdmin"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Atualizar histórico</button>
                 </div>
                 <div class="logs-lista" id="logs-lista"></div>
             </div>
-        </div>
-
+        </section>
+        </main>
     </div>
 
-    <div id="modal-manual" class="modal">
+    <!-- Detalhes do atendimento: gaveta lateral preenchida por renderDetalhes(). -->
+    <div class="drawer-fundo" id="drawer-fundo" data-acao="fecharDetalhes" hidden></div>
+    <aside class="drawer" id="drawer-detalhes" role="dialog" aria-modal="true" aria-labelledby="drawer-titulo" tabindex="-1" hidden></aside>
+
+    <div id="modal-manual" class="modal" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-manual">
         <div class="modal-content">
-            <h3 style="margin-top:0; color:var(--primary-dark)">Inserir Encaixe Manual</h3>
+            <h3 id="titulo-modal-manual"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Inserir encaixe manual</h3>
             <div class="grid-2">
-                <div class="input-group"><label>Data: <span class="obrigatorio">*</span></label><input type="date" id="m-data" required></div>
-                <div class="input-group"><label>Hora: <span class="obrigatorio">*</span></label><input type="time" id="m-hora" required></div>
+                <div class="input-group"><label for="m-data">Data <span class="obrigatorio" aria-hidden="true">*</span></label><input type="date" id="m-data" required></div>
+                <div class="input-group"><label for="m-hora">Hora <span class="obrigatorio" aria-hidden="true">*</span></label><input type="time" id="m-hora" required></div>
             </div>
-            <div class="input-group"><label>Nome: <span class="obrigatorio">*</span></label><input type="text" id="m-nome" required></div>
+            <div class="input-group"><label for="m-nome">Nome <span class="obrigatorio" aria-hidden="true">*</span></label><input type="text" id="m-nome" required></div>
             <div class="grid-2">
-                <div class="input-group"><label>CPF:</label><input type="text" id="m-cpf" data-input="mascaraCPF" maxlength="14"></div>
-                <div class="input-group"><label>Nascimento:</label><input type="text" id="m-nasc" data-input="mascaraData" maxlength="10" placeholder="DD/MM/AAAA"></div>
+                <div class="input-group"><label for="m-cpf">CPF</label><input type="text" id="m-cpf" inputmode="numeric" data-input="mascaraCPF" maxlength="14"></div>
+                <div class="input-group"><label for="m-nasc">Nascimento</label><input type="text" id="m-nasc" inputmode="numeric" data-input="mascaraData" maxlength="10" placeholder="DD/MM/AAAA"></div>
             </div>
-            <div class="input-group"><label>Celular/WhatsApp:</label><input type="text" id="m-tel" data-input="mascaraTel" maxlength="15"></div>
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button class="btn btn-sair" style="flex:1" data-acao="fecharModal">Cancelar</button>
-                <button class="btn btn-atualizar" style="flex:2" id="btnSalvar" data-acao="salvarManual">Salvar Encaixe</button>
+            <div class="input-group"><label for="m-tel">Celular/WhatsApp</label><input type="text" id="m-tel" inputmode="tel" data-input="mascaraTel" maxlength="15"></div>
+            <div class="modal-rodape">
+                <button type="button" class="btn btn-fantasma" data-acao="fecharModal">Cancelar</button>
+                <button type="button" class="btn btn-primario" id="btnSalvar" data-acao="salvarManual">Salvar Encaixe</button>
             </div>
         </div>
     </div>
 
-    <div id="modal-remarcar" class="modal">
+    <div id="modal-remarcar" class="modal" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-remarcar">
         <div class="modal-content">
-            <h3 style="margin-top:0; color:var(--primary-dark)">Remarcação Manual</h3>
+            <h3 id="titulo-modal-remarcar"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i> Remarcar atendimento</h3>
             <input type="hidden" id="remarcar-id">
-            <div class="input-group"><label>Cidadão:</label><input type="text" id="remarcar-nome" disabled></div>
+            <div class="input-group"><label for="remarcar-nome">Cidadão</label><input type="text" id="remarcar-nome" disabled></div>
             <div class="grid-2">
-                <div class="input-group"><label>Nova data:</label><input type="date" id="remarcar-data"></div>
-                <div class="input-group"><label>Novo horário:</label><input type="time" id="remarcar-hora"></div>
+                <div class="input-group"><label for="remarcar-data">Nova data</label><input type="date" id="remarcar-data"></div>
+                <div class="input-group"><label for="remarcar-hora">Novo horário</label><input type="time" id="remarcar-hora"></div>
             </div>
-            <label class="filtro-check" style="padding:0; margin:8px 0 0;">
+            <label class="filtro-check">
                 <input type="checkbox" id="remarcar-contabiliza">
                 Ocupa vaga da agenda pública
             </label>
-            <div style="color:#64748b; font-size:0.82rem; margin-top:8px;">Deixe desmarcado para encaixe manual que não altera as vagas exibidas no site.</div>
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button class="btn btn-sair" style="flex:1" data-acao="fecharRemarcacao">Cancelar</button>
-                <button class="btn btn-atualizar" style="flex:2" id="btnSalvarRemarcacao" data-acao="salvarRemarcacao">Salvar Remarcação</button>
+            <p class="modal-ajuda">Deixe desmarcado para encaixe manual que não altera as vagas exibidas no site.</p>
+            <div class="modal-rodape">
+                <button type="button" class="btn btn-fantasma" data-acao="fecharRemarcacao">Cancelar</button>
+                <button type="button" class="btn btn-primario" id="btnSalvarRemarcacao" data-acao="salvarRemarcacao">Salvar Remarcação</button>
             </div>
         </div>
     </div>
 
-    <div id="modal-lote-flexivel" class="modal">
-        <div class="modal-content" style="max-width: 600px;">
-            <h3 style="margin-top:0; color:var(--primary-dark)"><i class="fa-solid fa-calendar-days"></i> Adicionar Múltiplas Datas</h3>
-            <p style="font-size: 0.85rem; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Gere um período de dias úteis e <strong>desmarque</strong> os dias em que NÃO haverá atendimento, como feriados ou expediente suspenso.</p>
+    <div id="modal-lote-flexivel" class="modal" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-lote">
+        <div class="modal-content largo">
+            <h3 id="titulo-modal-lote"><i class="fa-solid fa-calendar-days" aria-hidden="true"></i> Adicionar várias datas</h3>
+            <p class="texto-ajuda">Gere um período de dias úteis e <strong>desmarque</strong> os dias em que NÃO haverá atendimento, como feriados ou expediente suspenso.</p>
 
             <div class="grid-2">
-                <div class="input-group"><label>De:</label><input type="date" id="lote-flex-inicio"></div>
-                <div class="input-group"><label>Até:</label><input type="date" id="lote-flex-fim"></div>
+                <div class="input-group"><label for="lote-flex-inicio">De</label><input type="date" id="lote-flex-inicio"></div>
+                <div class="input-group"><label for="lote-flex-fim">Até</label><input type="date" id="lote-flex-fim"></div>
             </div>
 
-            <button class="btn btn-atualizar" style="width:100%; margin-bottom: 15px; justify-content:center;" data-acao="gerarPreviaLote"><i class="fa-solid fa-list-check"></i> 1. Gerar lista de datas</button>
+            <button type="button" class="btn btn-secundario btn-bloco" data-acao="gerarPreviaLote"><i class="fa-solid fa-list-check" aria-hidden="true"></i> 1. Gerar lista de datas</button>
 
-            <div id="box-previa-lote" style="display:none; max-height: 220px; overflow-y: auto; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 15px; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px;">
-            </div>
+            <div id="box-previa-lote" class="lote-previa espaco-topo" style="display:none;"></div>
 
-            <div class="grid-2" style="border-top: 1px solid #e2e8f0; padding-top: 15px;">
+            <div class="grid-2 separador-form">
                 <div class="input-group">
-                    <label>Disponibilizar ao público:</label>
+                    <label for="lote-flex-disp">Disponibilizar ao público</label>
                     <select id="lote-flex-disp" data-change="alternarProgLoteFlex">
                         <option value="agora">Imediatamente</option>
                         <option value="programar">Em data e hora futura</option>
                     </select>
                 </div>
                 <div class="input-group" id="box-lote-flex-pub" style="display:none;">
-                    <label>Liberar no site em: <span class="obrigatorio">*</span></label>
+                    <label for="lote-flex-pub-data">Liberar no site em <span class="obrigatorio" aria-hidden="true">*</span></label>
                     <input type="datetime-local" id="lote-flex-pub-data">
                 </div>
             </div>
 
-            <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn btn-sair" style="flex:1" data-acao="fecharModalLoteFlex">Cancelar</button>
-                <button class="btn btn-lote" style="flex:2" id="btnSalvarLoteFlex" data-acao="salvarLoteFlexivel"><i class="fa-solid fa-floppy-disk"></i> 2. Salvar Datas Marcadas</button>
+            <div class="modal-rodape">
+                <button type="button" class="btn btn-fantasma" data-acao="fecharModalLoteFlex">Cancelar</button>
+                <button type="button" class="btn btn-primario" id="btnSalvarLoteFlex" data-acao="salvarLoteFlexivel"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> 2. Salvar Datas Marcadas</button>
             </div>
         </div>
     </div>
 
-    <div id="modal-observacao" class="modal">
+    <div id="modal-observacao" class="modal" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-observacao">
         <div class="modal-content">
-            <h3 style="margin-top:0; color:var(--primary-dark)"><i class="fa-solid fa-note-sticky"></i> Observação interna</h3>
+            <h3 id="titulo-modal-observacao"><i class="fa-solid fa-note-sticky" aria-hidden="true"></i> Observação interna</h3>
             <input type="hidden" id="observacao-id">
-            <div class="input-group"><label>Cidadão:</label><input type="text" id="observacao-nome" disabled></div>
-            <div class="input-group"><label>Nota interna:</label><textarea id="observacao-texto" rows="6" maxlength="800" placeholder="Ex.: cidadão precisa apresentar certidão atualizada."></textarea></div>
+            <div class="input-group"><label for="observacao-nome">Cidadão</label><input type="text" id="observacao-nome" disabled></div>
+            <div class="input-group"><label for="observacao-texto">Nota interna</label><textarea id="observacao-texto" rows="6" maxlength="800" placeholder="Ex.: cidadão precisa apresentar certidão atualizada."></textarea></div>
             <div class="detalhe-pessoal" id="observacao-meta"></div>
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button class="btn btn-sair" style="flex:1" data-acao="fecharObservacao">Cancelar</button>
-                <button class="btn btn-atualizar" style="flex:2" id="btnSalvarObservacao" data-acao="salvarObservacao"><i class="fa-solid fa-floppy-disk"></i> Salvar observação</button>
+            <div class="modal-rodape">
+                <button type="button" class="btn btn-fantasma" data-acao="fecharObservacao">Cancelar</button>
+                <button type="button" class="btn btn-primario" id="btnSalvarObservacao" data-acao="salvarObservacao"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Salvar observação</button>
             </div>
         </div>
     </div>
 
-    <div id="modal-confirmacao" class="modal">
-        <div class="modal-content" style="max-width:460px;">
-            <h3 id="confirmacao-titulo" style="margin-top:0;"></h3>
-            <p id="confirmacao-mensagem" style="margin:0; color:#64748b; font-size:0.92rem; line-height:1.55; white-space:pre-line;"></p>
-            <div style="display:flex; gap:10px; margin-top:22px;">
-                <button type="button" class="btn btn-sair" style="flex:1" data-acao="confirmacao" data-valor="false">Voltar</button>
-                <button type="button" class="btn btn-atualizar" style="flex:1.4" id="btn-confirmacao-ok" data-acao="confirmacao" data-valor="true">Confirmar</button>
+    <div id="modal-confirmacao" class="modal" role="alertdialog" aria-modal="true" aria-labelledby="confirmacao-titulo" aria-describedby="confirmacao-mensagem">
+        <div class="modal-content estreito">
+            <h3 id="confirmacao-titulo"></h3>
+            <p id="confirmacao-mensagem" class="modal-texto"></p>
+            <div class="modal-rodape">
+                <button type="button" class="btn btn-fantasma" id="btn-confirmacao-voltar" data-acao="confirmacao" data-valor="false">Voltar</button>
+                <button type="button" class="btn btn-primario" id="btn-confirmacao-ok" data-acao="confirmacao" data-valor="true">Confirmar</button>
             </div>
         </div>
     </div>
 
-    <div class="toast-container" id="toast-container"></div>
+    <div id="modal-atalhos" class="modal" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-atalhos">
+        <div class="modal-content estreito">
+            <h3 id="titulo-modal-atalhos"><i class="fa-solid fa-keyboard" aria-hidden="true"></i> Atalhos de teclado</h3>
+            <dl class="lista-atalhos">
+                <dt><kbd>/</kbd></dt><dd>Buscar na lista</dd>
+                <dt><kbd>←</kbd><kbd>→</kbd></dt><dd>Dia anterior / próximo (atendimentos do dia)</dd>
+                <dt><kbd>T</kbd></dt><dd>Voltar para hoje</dd>
+                <dt><kbd>N</kbd></dt><dd>Novo encaixe</dd>
+                <dt><kbd>Esc</kbd></dt><dd>Fechar detalhes, menus e janelas</dd>
+                <dt><kbd>?</kbd></dt><dd>Mostrar esta lista</dd>
+            </dl>
+            <label class="filtro-check"><input type="checkbox" id="atalhos-ativos" data-change="alternarAtalhosTeclado" checked> Usar atalhos de uma tecla</label>
+            <p class="modal-ajuda">Desligue se os atalhos atrapalharem leitor de tela ou ditado. <kbd>Esc</kbd> continua funcionando.</p>
+            <div class="modal-rodape">
+                <button type="button" class="btn btn-primario" data-acao="fecharAtalhos">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-container" role="status" aria-live="polite"></div>
 
     <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-check-compat.js"></script>

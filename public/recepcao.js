@@ -1,8 +1,21 @@
 const APP_CHECK_RECAPTCHA_SITE_KEY = "6LdoYfcsAAAAALyCdBKewXtFLB1e9biRnXTWqNv0";
 var firebaseConfig = { apiKey: "AIzaSyBqmzQw8CtTD6O2C3fiXcm7_GBmkgite_c", authDomain: "agendamento-cin-itanhandu.firebaseapp.com", databaseURL: "https://agendamento-cin-itanhandu-default-rtdb.firebaseio.com", projectId: "agendamento-cin-itanhandu", storageBucket: "agendamento-cin-itanhandu.firebasestorage.app", messagingSenderId: "144820039253", appId: "1:144820039253:web:af179156ce8da4b73a6edc", measurementId: "G-KWKF7NCJHK" };
+// Modo emulador, so para desenvolvimento: em localhost com ?emulador na URL o
+// painel fala com os emuladores locais (Auth, Firestore, Functions) num
+// projeto demo-, com dados ficticios (scripts/painel-local.js).
+// Fora de localhost nada disso existe.
+const MODO_EMULADOR = ["localhost", "127.0.0.1"].includes(location.hostname)
+    && new URLSearchParams(location.search).has("emulador");
+if (MODO_EMULADOR) firebaseConfig = { ...firebaseConfig, projectId: "demo-agendamento-cin" };
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-if (firebase.appCheck) firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
+// O reCAPTCHA nao aceita localhost; os emuladores nao exigem App Check.
+if (firebase.appCheck && !MODO_EMULADOR) firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
 const db = firebase.firestore(); const auth = firebase.auth(); const functions = firebase.functions();
+if (MODO_EMULADOR) {
+    auth.useEmulator("http://127.0.0.1:9099", { disableWarnings: true });
+    db.useEmulator("127.0.0.1", 8080);
+    functions.useEmulator("127.0.0.1", 5001);
+}
 // Mantem o login salvo entre fechamentos do navegador.
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.warn("Persistencia de login indisponivel", e));
 const HORARIOS_LEGADOS = ["14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40"];
@@ -222,16 +235,23 @@ function atualizarBotaoTema() {
     if (!btn) return;
     const escuro = document.body.classList.contains("modo-escuro");
     btn.innerHTML = escuro
-        ? '<i class="fa-solid fa-sun"></i> Modo claro'
-        : '<i class="fa-solid fa-moon"></i> Modo escuro';
+        ? '<i class="fa-solid fa-sun" aria-hidden="true"></i> Tema claro'
+        : '<i class="fa-solid fa-moon" aria-hidden="true"></i> Tema escuro';
 }
 
+// Sem escolha salva, segue o tema do sistema operacional. A reformulacao de
+// 16/10/2026 trocou o padrao fixo (escuro) pelo claro da paleta nova; quem
+// escolheu o escuro no botao continua com ele.
 function aplicarTemaPreferido() {
-    let tema = "escuro";
+    let tema = "";
     try {
-        tema = localStorage.getItem("gestaov6-tema") || "escuro";
+        tema = localStorage.getItem("gestaov6-tema") || "";
     } catch (e) {}
-    document.body.classList.toggle("modo-escuro", tema !== "claro");
+    if (!tema) {
+        const sistemaEscuro = !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        tema = sistemaEscuro ? "escuro" : "claro";
+    }
+    document.body.classList.toggle("modo-escuro", tema === "escuro");
     atualizarBotaoTema();
 }
 
@@ -997,8 +1017,8 @@ function htmlGradesSalvas() {
                     <small>${textoSeguro(resumoItensGrade(grade.horarios))} por dia${personalizados.length ? ` · ${textoSeguro(personalizados.join(" · "))}` : ""}</small>
                 </div>
                 <div class="grade-item-acoes">
-                    <button type="button" class="btn btn-atualizar" data-acao="editarGradeSalva" data-inicio="${textoSeguro(grade.inicio)}"><i class="fa-solid fa-pen"></i> Usar como base</button>
-                    ${futura ? `<button type="button" class="btn btn-atualizar" data-acao="excluirGradeAtendimento" data-inicio="${textoSeguro(grade.inicio)}"><i class="fa-solid fa-trash"></i> Excluir</button>` : ""}
+                    <button type="button" class="btn btn-sm btn-secundario" data-acao="editarGradeSalva" data-inicio="${textoSeguro(grade.inicio)}"><i class="fa-solid fa-pen"></i> Usar como base</button>
+                    ${futura ? `<button type="button" class="btn btn-sm btn-perigo" data-acao="excluirGradeAtendimento" data-inicio="${textoSeguro(grade.inicio)}"><i class="fa-solid fa-trash"></i> Excluir</button>` : ""}
                 </div>
             </div>`;
     }).join("")}</div>`;
@@ -1111,7 +1131,7 @@ function renderGradeAtendimento() {
             ${htmlTotaisEdicaoGrade()}
             <div class="grade-acoes">
                 <button type="button" class="btn btn-config" data-acao="salvarGradeAtendimento"><i class="fa-solid fa-floppy-disk"></i> Salvar grade</button>
-                <button type="button" class="btn btn-atualizar" data-acao="descartarEdicaoGrade"><i class="fa-solid fa-rotate-left"></i> Descartar alterações</button>
+                <button type="button" class="btn btn-fantasma" data-acao="descartarEdicaoGrade"><i class="fa-solid fa-rotate-left"></i> Descartar alterações</button>
             </div>
             <small class="automacao-ajuda">Os dias da semana em que há atendimento continuam definidos em <strong>Automação semanal</strong>. Para a próxima semana, salve antes de segunda às 07:50.</small>
         </div>`;
@@ -1451,19 +1471,50 @@ function confirmarPainel(mensagem, opcoes = {}) {
         if (confirmacaoResolver) confirmacaoResolver(false);
         confirmacaoResolver = resolve;
         document.getElementById("confirmacao-titulo").innerHTML =
-            `<i class="fa-solid fa-triangle-exclamation" style="color:#d97706;"></i> ${textoSeguro(opcoes.titulo || "Confirmar ação")}`;
+            `<i class="fa-solid fa-triangle-exclamation icone-alerta" aria-hidden="true"></i> ${textoSeguro(opcoes.titulo || "Confirmar ação")}`;
         document.getElementById("confirmacao-mensagem").textContent = mensagem;
         const ok = document.getElementById("btn-confirmacao-ok");
         ok.textContent = opcoes.textoConfirmar || "Confirmar";
-        ok.style.background = opcoes.perigo ? "linear-gradient(135deg, #dc2626, #ef4444)" : "";
-        document.getElementById("modal-confirmacao").style.display = "flex";
+        ok.classList.toggle("btn-perigo-solido", !!opcoes.perigo);
+        // Em acao perigosa o foco comeca em "Voltar": um Enter distraido nao
+        // registra falta nem cancela.
+        abrirModalComFoco("modal-confirmacao", opcoes.perigo ? "btn-confirmacao-voltar" : "btn-confirmacao-ok");
     });
 }
 function resolverConfirmacao(valor) {
-    document.getElementById("modal-confirmacao").style.display = "none";
+    fecharModalComFoco("modal-confirmacao");
     const resolver = confirmacaoResolver;
     confirmacaoResolver = null;
     if (resolver) resolver(valor);
+}
+
+// Modais: guardam quem os abriu e devolvem o foco ao fechar (WCAG 2.4.3).
+const origemFocoModais = {};
+function abrirModalComFoco(id, idFoco) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    if (modal.style.display !== "flex") origemFocoModais[id] = document.activeElement;
+    modal.style.display = "flex";
+    const alvo = (idFoco && document.getElementById(idFoco))
+        || modal.querySelector("input:not([type=hidden]):not([disabled]), textarea, select, button");
+    if (alvo) alvo.focus();
+}
+function fecharModalComFoco(id) {
+    const modal = document.getElementById(id);
+    if (!modal || modal.style.display !== "flex") return;
+    modal.style.display = "none";
+    const origem = origemFocoModais[id];
+    origemFocoModais[id] = null;
+    if (elementoFocavelVisivel(origem)) origem.focus();
+    else {
+        if (modal.contains(document.activeElement)) document.activeElement.blur();
+        if (detalheAbertoId) focarDrawer();
+    }
+}
+
+function elementoFocavelVisivel(el) {
+    return !!el && el !== document.body && document.contains(el) && el.offsetParent !== null
+        && !el.disabled && typeof el.focus === "function";
 }
 
 // Todos os modais fecham com Esc ou clique fora da caixa.
@@ -1472,18 +1523,30 @@ const FECHADORES_MODAIS = {
     "modal-remarcar": () => fecharRemarcacao(),
     "modal-lote-flexivel": () => fecharModalLoteFlex(),
     "modal-observacao": () => fecharObservacao(),
+    "modal-atalhos": () => fecharAtalhos(),
     "modal-confirmacao": () => resolverConfirmacao(false)
 };
 Object.keys(FECHADORES_MODAIS).forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("click", e => { if (e.target === el) FECHADORES_MODAIS[id](); });
 });
+// Esc fecha so a camada de cima: a confirmacao (ultima da lista) antes do
+// modal que a chamou, e qualquer modal antes da gaveta de detalhes.
 document.addEventListener("keydown", e => {
     if (e.key !== "Escape") return;
-    Object.keys(FECHADORES_MODAIS).forEach(id => {
+    const abertos = Object.keys(FECHADORES_MODAIS).filter(id => {
         const el = document.getElementById(id);
-        if (el && el.style.display === "flex") FECHADORES_MODAIS[id]();
+        return el && el.style.display === "flex";
     });
+    if (abertos.length) {
+        FECHADORES_MODAIS[abertos[abertos.length - 1]]();
+        return;
+    }
+    if (menuPerfilAberto()) {
+        fecharMenuPerfil(true);
+        return;
+    }
+    if (detalheAbertoId) fecharDetalhes();
 });
 
 function destacarAtendimento(id) {
@@ -1881,14 +1944,14 @@ auth.onAuthStateChanged(async user => {
         listaAgendamentosCarregada = false;
         totalAtendimentosCarregado = false;
         totalAtendimentosIndisponivel = false;
-        document.getElementById("kpi-atendidos").textContent = "...";
+        relatoriosIniciados = false;
+        metricasAberturaCarregadas = false;
         marcarIndicadoresHistoricosCarregando();
+        preencherPerfil(user);
+        diaFila = hojeISO();
         await carregarAgendaGestao();
-        await Promise.all([listarAgendamentos(), carregarTotalAtendimentosRealizados()]);
-        await carregarLogsAdmin();
-        const apelido = String(user.email || "").split("@")[0];
-        const quem = document.getElementById("quem-nome");
-        if (quem && apelido) quem.textContent = apelido;
+        await listarAgendamentos();
+        // Indicadores historicos e historico de acoes: so ao abrir Relatorios.
         atualizarEstadoConfigHub();
         mostrarVistaPainel("hoje");
         agendarAtualizacaoAutomatica();
@@ -2000,10 +2063,16 @@ async function conferirEmailVerificado() {
 }
 
 function fazerLogout() { clearTimeout(timerAviso); clearTimeout(timerLogout); clearInterval(timerAtualizacaoAutomatica); pararMonitoramentoAcessos(); removerAvisoSessao(); auth.signOut(); }
-function abrirModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='flex'; }
-function fecharModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='none'; }
-function fecharRemarcacao() { document.getElementById('modal-remarcar').style.display='none'; }
-function fecharObservacao() { document.getElementById("modal-observacao").style.display = "none"; }
+function abrirModal() {
+    marcarErroManual([]);
+    // Encaixe aberto na tela do dia ja vem com o dia que esta na tela.
+    const campoData = document.getElementById("m-data");
+    if (campoData && !campoData.value && vistaPainelAtual === "hoje" && diaFila >= hojeISO()) campoData.value = diaFila;
+    abrirModalComFoco("modal-manual", "m-nome");
+}
+function fecharModal() { marcarErroManual([]); fecharModalComFoco("modal-manual"); }
+function fecharRemarcacao() { fecharModalComFoco("modal-remarcar"); }
+function fecharObservacao() { fecharModalComFoco("modal-observacao"); }
 
 function abrirObservacao(id) {
     const ag = buscarAgendamentoCache(id);
@@ -2014,8 +2083,7 @@ function abrirObservacao(id) {
     document.getElementById("observacao-meta").textContent = ag.dados.observacaoAtualizadaPor
         ? `Última atualização por ${ag.dados.observacaoAtualizadaPor}.`
         : "Sem observação registrada.";
-    document.getElementById("modal-observacao").style.display = "flex";
-    document.getElementById("observacao-texto").focus();
+    abrirModalComFoco("modal-observacao", "observacao-texto");
 }
 
 async function salvarObservacao() {
@@ -2391,8 +2459,8 @@ function marcarFalhaAtualizacaoLista() {
     ["fila-atualizado", "lista-atualizado"].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
-        el.style.color = "#b45309";
-        el.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Sem conexão; mantendo dados de ${textoSeguro(horaAnterior)}`;
+        el.classList.add("falha");
+        el.innerHTML = `<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Sem conexão; mantendo dados de ${textoSeguro(horaAnterior)}`;
     });
 }
 
@@ -2402,7 +2470,7 @@ async function listarAgendamentos(opcoes = {}) {
     const corpo = document.getElementById("corpo-tabela");
     const tinhaDadosVisiveis = listaAgendamentosCarregada || agendamentosCache.length > 0;
     if (!silencioso && !tinhaDadosVisiveis) {
-        corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Carregando...</td></tr>";
+        corpo.innerHTML = linhaVaziaTabela("Carregando...", "carregando");
         listaAgendamentosCarregada = false;
     }
     configurarPeriodoPadraoLista();
@@ -2454,7 +2522,7 @@ async function listarAgendamentos(opcoes = {}) {
             renderFilaHoje();
             if (!silencioso) avisoPainel("Falha de conexão. A lista anterior foi mantida e será atualizada automaticamente.");
         } else {
-            corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Sem conexão com o servidor. Tentando novamente...</td></tr>";
+            corpo.innerHTML = linhaVaziaTabela("Sem conexão com o servidor. Tentando novamente...", "erro");
             if (!silencioso) avisoPainel("Falha de conexão. Tentaremos novamente automaticamente.");
             setTimeout(() => {
                 if (auth.currentUser && !listaAgendamentosCarregada) {
@@ -2599,12 +2667,12 @@ async function carregarTotalAtendimentosRealizados() {
     const historicoAnteriorValido = totalAtendimentosCarregado && !totalAtendimentosIndisponivel;
     totalAtendimentosCarregado = false;
     totalAtendimentosIndisponivel = false;
-    document.getElementById("kpi-atendidos").textContent = "...";
     marcarIndicadoresHistoricosCarregando();
 
     const cache = lerStatsHistoricasCache();
     if (cache) {
         estatisticasHistoricas = cache;
+        aplicarStatusPendentesHistorico();
         totalAtendimentosRealizados = estatisticasHistoricas.cin.length;
         totalAtendimentosCarregado = true;
         totalAtendimentosIndisponivel = false;
@@ -2622,6 +2690,9 @@ async function carregarTotalAtendimentosRealizados() {
             cin: cinSnap.docs.map(doc => ({ id: doc.id, dados: doc.data() })),
             faltas: faltasSnap.docs.map(doc => ({ id: doc.id, dados: doc.data() }))
         };
+        // A leitura e do servidor e ja traz as mudancas; aplicar de novo e
+        // inocuo (mesmo id sai e entra) e esvazia a fila.
+        aplicarStatusPendentesHistorico();
         totalAtendimentosRealizados = estatisticasHistoricas.cin.length;
         totalAtendimentosCarregado = true;
         totalAtendimentosIndisponivel = false;
@@ -2642,13 +2713,17 @@ async function carregarTotalAtendimentosRealizados() {
         totalAtendimentosCarregado = false;
         totalAtendimentosIndisponivel = true;
         atualizarResumo();
-        document.getElementById("kpi-atendidos").textContent = "Indisponível";
         marcarIndicadoresHistoricosIndisponiveis();
     }
 }
 
-function atualizarEstatisticasLocalmente(id, novoStatus, dadosAtualizados) {
-    if (!totalAtendimentosCarregado) return;
+// Com os relatorios sob demanda, o historico pode ainda nao ter sido lido
+// quando a recepcao muda um status. A mudanca fica guardada aqui e entra nos
+// indicadores quando eles carregarem (inclusive pelo cache diario do
+// navegador, que nao a conhece).
+const statusPendentesHistorico = new Map();
+
+function moverNoHistorico(id, novoStatus, dadosAtualizados) {
     ["cin", "faltas"].forEach(bucket => {
         estatisticasHistoricas[bucket] = estatisticasHistoricas[bucket].filter(ag => ag.id !== id);
     });
@@ -2657,6 +2732,23 @@ function atualizarEstatisticasLocalmente(id, novoStatus, dadosAtualizados) {
     } else if (novoStatus === "nao_compareceu") {
         estatisticasHistoricas.faltas.push({ id, dados: dadosAtualizados });
     }
+}
+
+function aplicarStatusPendentesHistorico() {
+    if (!statusPendentesHistorico.size) return;
+    statusPendentesHistorico.forEach(({ novoStatus, dados }, id) => moverNoHistorico(id, novoStatus, dados));
+    statusPendentesHistorico.clear();
+    totalAtendimentosRealizados = estatisticasHistoricas.cin.length;
+    persistirStatsHistoricas();
+}
+
+function atualizarEstatisticasLocalmente(id, novoStatus, dadosAtualizados) {
+    if (!totalAtendimentosCarregado) {
+        statusPendentesHistorico.set(id, { novoStatus, dados: dadosAtualizados });
+        atualizarResumo();
+        return;
+    }
+    moverNoHistorico(id, novoStatus, dadosAtualizados);
     totalAtendimentosRealizados = estatisticasHistoricas.cin.length;
     persistirStatsHistoricas();
     renderIndicadoresHistoricos();
@@ -2675,7 +2767,7 @@ async function buscarHistoricoAgendamento() {
     }
     const geracao = ++geracaoConsultaAgendamentos;
     carregamentoListaEmAndamento = false;
-    corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Buscando histórico...</td></tr>";
+    corpo.innerHTML = linhaVaziaTabela("Buscando histórico...", "carregando");
     try {
         const consultas = [];
         if (cpf.length === 11) {
@@ -2710,7 +2802,7 @@ async function carregarBloqueadosAtivos() {
     const info = document.getElementById("info-periodo-lista");
     const geracao = ++geracaoConsultaAgendamentos;
     carregamentoListaEmAndamento = false;
-    corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Carregando bloqueios...</td></tr>";
+    corpo.innerHTML = linhaVaziaTabela("Carregando bloqueios...", "carregando");
     try {
         const consulta = db.collection("dados_cidadaos")
             .where("bloqueioAtivo", "==", true)
@@ -2744,7 +2836,7 @@ async function carregarRetornosPendentes() {
     const info = document.getElementById("info-periodo-lista");
     const geracao = ++geracaoConsultaAgendamentos;
     carregamentoListaEmAndamento = false;
-    corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Carregando lista de retorno...</td></tr>";
+    corpo.innerHTML = linhaVaziaTabela("Carregando lista de retorno...", "carregando");
     try {
         const consulta = db.collection("dados_cidadaos")
             .where("status", "==", "vai_voltar")
@@ -2772,14 +2864,17 @@ async function carregarRetornosPendentes() {
 
 function atualizarResumo() {
     if (!agendaGestaoCarregada || !listaAgendamentosCarregada) return;
+    // Busca historica, bloqueados e retornos nao representam o periodo: os
+    // contadores e o titulo da aba ficam com os numeros do periodo carregado.
+    if (origemAgendamentosCache !== "lista") {
+        renderFilaHoje();
+        return;
+    }
     const hoje = hojeISO();
     const amanha = amanhaISO();
     const ativos = agendamentosCache.filter(ag => statusValor(ag.dados) !== "cancelado");
     const totalHoje = ativos.filter(ag => ag.dados.dataISO === hoje).length;
     const totalAmanha = ativos.filter(ag => ag.dados.dataISO === amanha).length;
-    const atendimentosRealizados = totalAtendimentosCarregado
-        ? totalAtendimentosRealizados
-        : (totalAtendimentosIndisponivel ? "Indisponível" : "...");
     // diasAtivos ja filtra apenas datas >= hojeISO(), entao o KPI de vagas restantes ignora datas encerradas.
     const diasAtivos = agendaDias.filter(d => d >= hoje);
     // Um horario pode ter mais de uma vaga: soma as vagas da grade de cada data.
@@ -2793,7 +2888,6 @@ function atualizarResumo() {
     document.getElementById("kpi-amanha").textContent = totalAmanha;
     document.getElementById("kpi-vagas").textContent = vagasRestantes;
     document.getElementById("kpi-lotadas").textContent = lotadas;
-    document.getElementById("kpi-atendidos").textContent = atendimentosRealizados;
     atualizarTituloPainel(totalHoje, ativos.filter(ag => ag.dados.dataISO === hoje && statusValor(ag.dados) === "nao_compareceu").length);
     renderFilaHoje();
 }
@@ -2802,27 +2896,436 @@ function atualizarTituloPainel(totalHoje = 0, faltasHoje = 0) {
     document.title = `(${totalHoje} hoje | ${faltasHoje} faltaram) — Recepção CIN`;
 }
 
+// ---- Atendimentos do dia ------------------------------------------------
+// A tela principal do painel. Le so o que ja esta em agendamentosCache (o
+// periodo carregado em Agendamentos, de ontem em diante por padrao): trocar
+// de dia, filtrar ou buscar nao faz nenhuma leitura nova no Firestore.
+
+// Selo de situacao: icone + texto, para nao depender so da cor.
+const ICONES_STATUS = {
+    agendado: "fa-clock",
+    remarcado: "fa-calendar-check",
+    compareceu: "fa-circle-check",
+    vai_voltar: "fa-arrow-rotate-left",
+    nao_compareceu: "fa-circle-xmark",
+    cancelado: "fa-ban"
+};
+
+function seloStatus(status, title) {
+    const st = STATUS_LABELS[status] ? status : "agendado";
+    const dica = title ? ` title="${textoSeguro(title)}"` : "";
+    return `<span class="badge-status st-${st}"${dica}><i class="fa-solid ${ICONES_STATUS[st]}" aria-hidden="true"></i> ${textoSeguro(statusLabel(st))}</span>`;
+}
+
+function iconeWhatsApp() {
+    return '<svg class="icone-marca" aria-hidden="true"><use href="#ico-whatsapp"></use></svg>';
+}
+
+function linhaVaziaTabela(mensagem, tipo, colunas = 4, extra = "") {
+    const icone = tipo === "carregando"
+        ? '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>'
+        : (tipo === "erro" ? '<i class="fa-solid fa-wifi" aria-hidden="true"></i>' : '<i class="fa-solid fa-inbox" aria-hidden="true"></i>');
+    return `<tr><td colspan="${colunas}" class="td-vazio">${icone}<strong>${textoSeguro(mensagem)}</strong>${extra}</td></tr>`;
+}
+
+// Dia exibido na tela do dia. Navega so dentro do periodo ja carregado.
+let diaFila = "";
+let filtroSituacaoFila = "todos";
+
+function diaFilaAtual() {
+    if (!diaFila) diaFila = hojeISO();
+    return diaFila;
+}
+
+function limitesPeriodoCarregado() {
+    const inicio = (document.getElementById("consulta-inicio") || {}).value || ontemISO();
+    const fim = (document.getElementById("consulta-fim") || {}).value || fimPeriodoPadraoISO();
+    return { inicio, fim };
+}
+
+function mudarDiaFila(passo) {
+    const hoje = hojeISO();
+    const { inicio, fim } = limitesPeriodoCarregado();
+    const alvo = passo === 0 ? hoje : somarDiasISO(diaFilaAtual(), passo);
+    if (alvo < inicio || alvo > fim) {
+        avisoPainel(`Esse dia está fora do período carregado (${dataBrISO(inicio)} a ${dataBrISO(fim)}). Use Agendamentos para outro período.`);
+        return;
+    }
+    diaFila = alvo;
+    filtroSituacaoFila = "todos";
+    renderFilaHoje();
+}
+
+function situacaoFila(status) {
+    return ["agendado", "remarcado"].includes(status) ? "aguardando" : status;
+}
+
+// Proximo a ser chamado: o primeiro ainda aguardando cujo horario nao passou
+// ha mais de 20 minutos (quem chega um pouco atrasado continua sendo o
+// proximo).
+const TOLERANCIA_PROXIMO_MIN = 20;
 function horarioMaisProximoHoje(lista) {
     const agora = agoraSaoPauloInput().slice(11, 16);
+    const [h, m] = agora.split(":").map(Number);
+    const limiteMin = Math.max(0, h * 60 + m - TOLERANCIA_PROXIMO_MIN);
+    const limite = `${String(Math.floor(limiteMin / 60)).padStart(2, "0")}:${String(limiteMin % 60).padStart(2, "0")}`;
     return lista
-        .filter(ag => ["agendado", "remarcado"].includes(statusValor(ag.dados)) && String(ag.dados.hora || "") >= agora)
+        .filter(ag => ["agendado", "remarcado"].includes(statusValor(ag.dados)) && String(ag.dados.hora || "") >= limite)
         .sort((a, b) => String(a.dados.hora || "").localeCompare(String(b.dados.hora || "")))[0] || null;
 }
 
-function acoesStatusDiretas(ag) {
+function minutosAte(hora) {
+    const agora = agoraSaoPauloInput().slice(11, 16);
+    const paraMin = valor => { const [h, m] = String(valor || "").split(":").map(Number); return (h || 0) * 60 + (m || 0); };
+    return paraMin(hora) - paraMin(agora);
+}
+
+function textoRelativoHorario(hora) {
+    const diff = minutosAte(hora);
+    if (diff > 59) return `em ${Math.floor(diff / 60)} h ${diff % 60 ? `${diff % 60} min` : ""}`.trim();
+    if (diff > 0) return `em ${diff} min`;
+    if (diff === 0) return "agora";
+    return `${-diff} min de atraso`;
+}
+
+// Botoes de situacao com verbo. "Compareceu" e "Faltou" aparecem so para quem
+// ainda aguarda; quem vai voltar depois so precisa do atalho de conclusao.
+function acoesStatusDiretas(ag, opcoes = {}) {
     const status = statusValor(ag.dados);
     const id = textoSeguro(ag.id);
-    // Quem esta na lista de retorno so precisa do atalho de conclusao quando voltar.
+    const nome = textoSeguro(ag.dados.nome || "cidadão");
+    const botao = (classe, statusNovo, icone, rotulo, rotuloCurto) => `<button type="button" class="btn-situacao ${classe}" data-acao="alterar-status" data-id="${id}" data-status="${statusNovo}" aria-label="${rotulo}: ${nome}"><i class="fa-solid ${icone}" aria-hidden="true"></i> ${rotuloCurto ? `<span class="rotulo-longo">${rotulo}</span>` : rotulo}</button>`;
     if (status === "vai_voltar") {
-        return `<button type="button" class="btn-status-direto btn-status-ok" title="Voltou e foi atendido: marcar compareceu" data-acao="alterar-status" data-id="${id}" data-status="compareceu"><i class="fa-solid fa-check"></i></button>`;
+        return botao("s-compareceu", "compareceu", "fa-check", "Voltou e foi atendido");
     }
     if (!["agendado", "remarcado"].includes(status)) return "";
-    return `
-        <button type="button" class="btn-status-direto btn-status-ok" title="Marcar compareceu" data-acao="alterar-status" data-id="${id}" data-status="compareceu"><i class="fa-solid fa-check"></i></button>
-        <button type="button" class="btn-status-direto btn-status-voltar" title="Marcar que vai voltar depois" data-acao="alterar-status" data-id="${id}" data-status="vai_voltar"><i class="fa-solid fa-arrow-rotate-left"></i></button>
-        <button type="button" class="btn-status-direto btn-status-falta" title="Marcar não compareceu" data-acao="alterar-status" data-id="${id}" data-status="nao_compareceu"><i class="fa-solid fa-user-xmark"></i></button>
-    `;
+    const curto = opcoes.curto === true;
+    return [
+        botao("s-compareceu", "compareceu", "fa-check", "Compareceu"),
+        curto ? botao("s-voltar", "vai_voltar", "fa-arrow-rotate-left", "Volta depois", true) : botao("s-voltar", "vai_voltar", "fa-arrow-rotate-left", "Volta depois"),
+        curto ? botao("s-falta", "nao_compareceu", "fa-user-xmark", "Faltou", true) : botao("s-falta", "nao_compareceu", "fa-user-xmark", "Faltou")
+    ].join("");
 }
+
+function botaoDetalhes(ag) {
+    return `<button type="button" class="btn btn-fantasma btn-sm btn-icone btn-detalhes" data-acao="abrir-detalhes" data-id="${textoSeguro(ag.id)}" aria-label="Detalhes de ${textoSeguro(ag.dados.nome || "cidadão")}" title="Detalhes"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>`;
+}
+
+// Nome (abre os detalhes) + protocolo + etiquetas. Sem CPF, telefone ou
+// e-mail na lista: esses ficam nos detalhes, um clique adiante.
+function celulaCidadao(ag, opcoes = {}) {
+    const d = ag.dados;
+    const etiquetas = [];
+    if (opcoes.atrasado) etiquetas.push('<span class="etiqueta atraso"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i> Atrasado</span>');
+    if (d.insercaoManual) etiquetas.push('<span class="etiqueta">Manual</span>');
+    if (d.observacaoInterna) etiquetas.push('<span class="etiqueta nota" title="Tem observação interna"><i class="fa-solid fa-note-sticky" aria-hidden="true"></i> Nota</span>');
+    if (bloqueioAtivo(d)) etiquetas.push(`<span class="etiqueta alerta"><i class="fa-solid fa-lock" aria-hidden="true"></i> Bloqueado até ${textoSeguro(dataBrISO(d.bloqueadoAte))}</span>`);
+    return `
+        <button type="button" class="ld-nome" data-acao="abrir-detalhes" data-id="${textoSeguro(ag.id)}">${textoSeguro(d.nome || d.bloqueioNome || "Sem nome")}</button>
+        <div class="ld-meta"><span class="protocolo">${textoSeguro(d.protocolo || "sem protocolo")}</span>${etiquetas.join("")}</div>`;
+}
+
+function renderResumoDia(contagens) {
+    const box = document.getElementById("resumo-dia");
+    if (!box) return;
+    const chips = [
+        ["todos", "Todos", "", contagens.todos],
+        ["aguardando", "Aguardando", "fa-clock c-aguardando", contagens.aguardando],
+        ["compareceu", "Compareceram", "fa-circle-check c-compareceu", contagens.compareceu],
+        ["vai_voltar", "Voltam depois", "fa-arrow-rotate-left c-vai_voltar", contagens.vai_voltar],
+        ["nao_compareceu", "Faltaram", "fa-circle-xmark c-nao_compareceu", contagens.nao_compareceu]
+    ];
+    if (contagens.cancelado) chips.push(["cancelado", "Cancelados", "fa-ban c-cancelado", contagens.cancelado]);
+    box.innerHTML = chips.map(([chave, rotulo, icone, total]) => `
+        <button type="button" class="chip-situacao" data-acao="filtro-situacao" data-situacao="${chave}" aria-pressed="${filtroSituacaoFila === chave ? "true" : "false"}">
+            ${icone ? `<i class="fa-solid ${icone}" aria-hidden="true"></i>` : ""}${rotulo} <b>${total}</b>
+        </button>`).join("");
+}
+
+function renderProximoAtendimento(proximo) {
+    const box = document.getElementById("fila-proximo");
+    if (!box) return;
+    if (!proximo) {
+        box.innerHTML = "";
+        return;
+    }
+    const d = proximo.dados;
+    box.innerHTML = `
+        <section class="proximo" aria-label="Próximo atendimento">
+            <div class="proximo-quando">
+                <span class="proximo-rotulo">Próximo</span>
+                <span class="proximo-hora">${textoSeguro(d.hora || "--:--")}</span>
+                <span class="proximo-relativo">${textoSeguro(textoRelativoHorario(d.hora))}</span>
+            </div>
+            <div class="proximo-pessoa">${celulaCidadao(proximo)}</div>
+            <div class="proximo-acoes">${acoesStatusDiretas(proximo)}</div>
+        </section>`;
+}
+
+function renderAvisoFila() {
+    const box = document.getElementById("fila-aviso");
+    if (!box) return false;
+    // Busca historica, bloqueados e retornos trocam o cache inteiro: a lista
+    // do dia ficaria com so uma fatia, sem avisar. Melhor dizer e oferecer a
+    // volta ao periodo.
+    if (listaAgendamentosCarregada && origemAgendamentosCache !== "lista") {
+        box.innerHTML = `<div class="aviso-lista" role="status"><span><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Agendamentos está mostrando uma busca específica, então esta lista ficou incompleta.</span><button type="button" class="btn btn-secundario btn-sm" data-acao="listarAgendamentos">Recarregar o período</button></div>`;
+        return true;
+    }
+    box.innerHTML = "";
+    return false;
+}
+
+function renderFilaHoje() {
+    const corpo = document.getElementById("fila-hoje-corpo");
+    if (!corpo) return;
+    const hoje = hojeISO();
+    const dia = diaFilaAtual();
+    const ehHoje = dia === hoje;
+    const busca = String(document.getElementById("busca-fila-hoje").value || "").trim().toLowerCase();
+    const doDia = agendamentosCache
+        .filter(ag => ag.dados.dataISO === dia)
+        .sort((a, b) => String(a.dados.hora || "").localeCompare(String(b.dados.hora || "")));
+    const contagens = { todos: 0, aguardando: 0, compareceu: 0, vai_voltar: 0, nao_compareceu: 0, cancelado: 0 };
+    doDia.forEach(ag => {
+        const situacao = situacaoFila(statusValor(ag.dados));
+        contagens[situacao] = (contagens[situacao] || 0) + 1;
+        if (situacao !== "cancelado") contagens.todos++;
+    });
+    if (filtroSituacaoFila === "cancelado" && !contagens.cancelado) filtroSituacaoFila = "todos";
+
+    atualizarCabecalhoFila(contagens.todos, contagens.compareceu, contagens.nao_compareceu, contagens.vai_voltar);
+    renderResumoDia(contagens);
+    const avisoAtivo = renderAvisoFila();
+
+    const ativos = doDia.filter(ag => statusValor(ag.dados) !== "cancelado");
+    const proximo = ehHoje && !avisoAtivo ? horarioMaisProximoHoje(ativos) : null;
+    renderProximoAtendimento(filtroSituacaoFila === "todos" || filtroSituacaoFila === "aguardando" ? proximo : null);
+
+    const filtrados = doDia.filter(ag => {
+        const situacao = situacaoFila(statusValor(ag.dados));
+        if (filtroSituacaoFila === "todos" ? situacao === "cancelado" : situacao !== filtroSituacaoFila) return false;
+        return !busca || textoBusca(ag).includes(busca);
+    });
+
+    const legenda = document.getElementById("fila-legenda");
+    if (legenda) legenda.textContent = `Atendimentos de ${dataBrISO(dia)}: ${filtrados.length} exibido(s)`;
+
+    if (!listaAgendamentosCarregada && !agendamentosCache.length) {
+        corpo.innerHTML = linhaVaziaTabela("Carregando...", "carregando");
+        renderDetalhesAbertos();
+        return;
+    }
+    if (!filtrados.length) {
+        let mensagem = ehHoje ? "Nenhum agendamento para hoje." : "Nenhum agendamento neste dia.";
+        let extra = "";
+        if (busca) {
+            mensagem = `Nada encontrado para "${busca}".`;
+            extra = '<span>Para buscar em outras datas, use Agendamentos › Buscar em todo o histórico.</span>';
+        } else if (doDia.length) {
+            mensagem = "Nenhum atendimento nesta situação.";
+            extra = '<button type="button" class="btn btn-secundario btn-sm" data-acao="filtro-situacao" data-situacao="todos">Mostrar todos</button>';
+        }
+        corpo.innerHTML = linhaVaziaTabela(mensagem, "vazio", 4, extra);
+        renderDetalhesAbertos();
+        return;
+    }
+
+    const agora = agoraSaoPauloInput().slice(11, 16);
+    corpo.innerHTML = filtrados.map(ag => {
+        const d = ag.dados;
+        const status = statusValor(d);
+        const atrasado = ehHoje && ["agendado", "remarcado"].includes(status) && String(d.hora || "") < agora && !(proximo && proximo.id === ag.id);
+        const classe = proximo && proximo.id === ag.id ? ' class="proximo-linha"' : "";
+        return `
+            <tr id="fila-ag-${textoSeguro(ag.id)}" data-status="${status}"${classe}>
+                <td class="td-hora">${textoSeguro(d.hora || "--:--")}</td>
+                <td class="td-pessoa">${celulaCidadao(ag, { atrasado })}</td>
+                <td class="td-situacao">${seloStatus(status)}</td>
+                <td class="td-acoes"><div class="acoes-linha">${acoesStatusDiretas(ag, { curto: true })}${botaoDetalhes(ag)}</div></td>
+            </tr>`;
+    }).join("");
+    renderDetalhesAbertos();
+}
+
+// ---- Detalhes de um atendimento (gaveta lateral) ------------------------
+let detalheAbertoId = "";
+let origemFocoDetalhes = null;
+
+function abrirDetalhes(id, gatilho) {
+    const ag = buscarAgendamentoCache(id);
+    if (!ag) return avisoPainel("Agendamento não encontrado.");
+    if (!detalheAbertoId) origemFocoDetalhes = gatilho || document.activeElement;
+    detalheAbertoId = id;
+    renderDetalhes();
+    document.getElementById("drawer-fundo").hidden = false;
+    document.getElementById("drawer-detalhes").hidden = false;
+    focarDrawer();
+}
+
+function focarDrawer() {
+    const drawer = document.getElementById("drawer-detalhes");
+    const fechar = drawer && drawer.querySelector("[data-acao='fecharDetalhes']");
+    if (fechar) fechar.focus(); else if (drawer) drawer.focus();
+}
+
+function fecharDetalhes() {
+    if (!detalheAbertoId) return;
+    detalheAbertoId = "";
+    document.getElementById("drawer-fundo").hidden = true;
+    const drawer = document.getElementById("drawer-detalhes");
+    drawer.hidden = true;
+    drawer.innerHTML = "";
+    const origem = origemFocoDetalhes;
+    origemFocoDetalhes = null;
+    // A linha pode ter sido redesenhada: devolve o foco ao botao equivalente.
+    if (origem && document.contains(origem)) origem.focus();
+    else if (origem && origem.dataset && origem.dataset.id) {
+        const equivalente = document.querySelector(`[data-acao="abrir-detalhes"][data-id="${CSS.escape(origem.dataset.id)}"]`);
+        if (equivalente) equivalente.focus();
+    }
+}
+
+function renderDetalhesAbertos() {
+    if (detalheAbertoId) renderDetalhes();
+}
+
+function linhaDado(rotulo, valor, copiar) {
+    const texto = String(valor || "").trim();
+    const conteudo = texto ? textoSeguro(texto) : '<span class="texto-vazio">Não informado</span>';
+    const botaoCopiar = texto && copiar
+        ? `<button type="button" class="btn-copiar-contato" title="Copiar ${textoSeguro(rotulo.toLowerCase())}" aria-label="Copiar ${textoSeguro(rotulo.toLowerCase())}" data-rotulo="${textoSeguro(rotulo)}" data-copia="${encodeURIComponent(texto)}" data-acao="copiar-contato"><i class="fa-solid fa-copy" aria-hidden="true"></i></button>`
+        : "";
+    return `<dt>${textoSeguro(rotulo)}</dt><dd>${conteudo}${botaoCopiar}</dd>`;
+}
+
+function renderDetalhes() {
+    const drawer = document.getElementById("drawer-detalhes");
+    const ag = buscarAgendamentoCache(detalheAbertoId);
+    if (!drawer) return;
+    if (!ag) {
+        // Saiu do cache (lista recarregada com outro periodo): fecha sem erro.
+        fecharDetalhes();
+        return;
+    }
+    const d = ag.dados;
+    const id = textoSeguro(ag.id);
+    const status = statusValor(d);
+    const focoAntes = document.activeElement && drawer.contains(document.activeElement)
+        ? (document.activeElement.dataset.acao || "") + "|" + (document.activeElement.dataset.status || "")
+        : "";
+    const alteradoPor = d.alteradoPor || d.statusAtualizadoPor || "";
+    const alteradoEm = d.statusAtualizadoEm ? new Date(d.statusAtualizadoEm) : null;
+    const quandoAlterado = alteradoEm && !Number.isNaN(alteradoEm.getTime())
+        ? alteradoEm.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+        : "";
+    const diaSemana = d.dataISO ? new Date(`${d.dataISO}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "long" }) : "";
+    const opcoesStatus = STATUS_ORDEM.map(s => `<option value="${s}" ${s === status ? "selected" : ""}>${statusLabel(s)}</option>`).join("");
+    const acoes = acoesStatusDiretas(ag);
+    const telefone = d.telefone || d.bloqueioTelefone || "";
+
+    drawer.innerHTML = `
+        <div class="drawer-topo">
+            <div>
+                <span class="drawer-quando">${textoSeguro(diaSemana)} · ${textoSeguro(dataBrISO(d.dataISO))} às ${textoSeguro(d.hora || "--:--")}</span>
+                <h2 id="drawer-titulo">${textoSeguro(d.nome || d.bloqueioNome || "Sem nome")}</h2>
+                ${seloStatus(status, alteradoPor ? `Última alteração por ${alteradoPor}` : "")}
+            </div>
+            <button type="button" class="btn btn-fantasma btn-icone" data-acao="fecharDetalhes" aria-label="Fechar detalhes" title="Fechar (Esc)"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+        </div>
+        <div class="drawer-corpo">
+            ${bloqueioAtivo(d) ? `<div class="alerta-bloqueio"><span><i class="fa-solid fa-lock" aria-hidden="true"></i> CPF bloqueado até <b>${textoSeguro(dataBrISO(d.bloqueadoAte))}</b> por falta.</span><button type="button" class="btn btn-sm btn-secundario" data-acao="liberarBloqueio" data-id="${id}"><i class="fa-solid fa-unlock" aria-hidden="true"></i> Liberar bloqueio</button></div>` : ""}
+            ${acoes ? `<div class="drawer-acoes">${acoes}</div>` : ""}
+
+            <section class="drawer-secao">
+                <h3>Contato</h3>
+                <dl class="dados">
+                    ${linhaDado("Telefone", telefone, true)}
+                    ${linhaDado("E-mail", d.email, true)}
+                </dl>
+                ${d.telefone
+                    ? `<div class="lista-botoes espaco-topo"><button type="button" class="btn btn-sm btn-lembrete" data-acao="abrirZapLembrete" data-id="${id}">${iconeWhatsApp()} Enviar lembrete no WhatsApp</button></div>`
+                    : (telefone ? `<div class="lista-botoes espaco-topo"><button type="button" class="btn btn-sm btn-lembrete" data-acao="abrirZapBloqueio" data-id="${id}">${iconeWhatsApp()} Chamar no WhatsApp</button></div>` : "")}
+            </section>
+
+            <section class="drawer-secao">
+                <h3>Identificação</h3>
+                <dl class="dados">
+                    ${linhaDado("Protocolo", d.protocolo, true)}
+                    ${linhaDado("CPF", cpfFormatado(d.cpf || d.bloqueioCpf), false)}
+                    ${linhaDado("Nascimento", dataNascBR(d.dataNasc), false)}
+                </dl>
+            </section>
+
+            <section class="drawer-secao">
+                <h3>Observação interna</h3>
+                ${d.observacaoInterna ? `<div class="nota-interna">${textoSeguro(d.observacaoInterna)}</div>` : '<p class="texto-vazio">Nenhuma observação.</p>'}
+                <button type="button" class="btn btn-sm btn-secundario espaco-topo" data-acao="abrirObservacao" data-id="${id}"><i class="fa-solid fa-pen" aria-hidden="true"></i> ${d.observacaoInterna ? "Editar observação" : "Adicionar observação"}</button>
+            </section>
+
+            <section class="drawer-secao">
+                <h3>Documentos</h3>
+                <div class="lista-botoes">
+                    <button type="button" class="btn btn-sm btn-secundario" data-acao="emitirComprovanteDaLista" data-id="${id}"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Comprovante</button>
+                    <button type="button" class="btn btn-sm btn-secundario" data-acao="emitirDeclaracaoComparecimentoDaLista" data-id="${id}"><i class="fa-solid fa-file-signature" aria-hidden="true"></i> Declaração de comparecimento</button>
+                </div>
+            </section>
+
+            <section class="drawer-secao">
+                <h3>Agendamento</h3>
+                <div class="lista-botoes">
+                    <button type="button" class="btn btn-sm btn-secundario" data-acao="abrirRemarcacao" data-id="${id}"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i> Remarcar</button>
+                    ${status !== "cancelado" ? `<button type="button" class="btn btn-sm btn-perigo" data-acao="cancelarAgendamentoPainel" data-id="${id}"><i class="fa-solid fa-ban" aria-hidden="true"></i> Cancelar agendamento</button>` : ""}
+                </div>
+                <label class="rotulo-bloco" for="drawer-status">Corrigir situação</label>
+                <div class="corrigir-situacao">
+                    <select id="drawer-status">${opcoesStatus}</select>
+                    <button type="button" class="btn btn-secundario" data-acao="aplicar-status" data-id="${id}">Aplicar</button>
+                </div>
+                <p class="modal-ajuda">Use para desfazer um clique errado. Falta e cancelamento pedem confirmação.</p>
+            </section>
+
+            <p class="drawer-rodape">
+                ${d.insercaoManual ? "Encaixe manual. " : ""}${alteradoPor ? `Última alteração por ${textoSeguro(alteradoPor)}${quandoAlterado ? ` em ${textoSeguro(quandoAlterado)}` : ""}.` : "Sem alteração registrada."}
+            </p>
+        </div>`;
+
+    if (focoAntes) {
+        const [acao, statusFoco] = focoAntes.split("|");
+        const alvo = drawer.querySelector(`[data-acao="${CSS.escape(acao)}"]${statusFoco ? `[data-status="${CSS.escape(statusFoco)}"]` : ""}`);
+        if (alvo) alvo.focus(); else focarDrawer();
+    }
+}
+
+function aplicarStatusDetalhes(id) {
+    const campo = document.getElementById("drawer-status");
+    const ag = buscarAgendamentoCache(id);
+    if (!campo || !ag) return;
+    if (campo.value === statusValor(ag.dados)) return mostrarToast("A situação já é essa.", "aviso");
+    return alterarStatus(id, campo.value);
+}
+
+// Mantem o Tab dentro da gaveta enquanto ela esta aberta (aria-modal).
+document.addEventListener("keydown", evento => {
+    if (evento.key !== "Tab" || !detalheAbertoId) return;
+    const algumModal = Object.keys(FECHADORES_MODAIS).some(id => {
+        const el = document.getElementById(id);
+        return el && el.style.display === "flex";
+    });
+    if (algumModal) return;
+    const drawer = document.getElementById("drawer-detalhes");
+    const focaveis = [...drawer.querySelectorAll("button:not([disabled]), select, input, a[href]")].filter(el => el.offsetParent !== null);
+    if (!focaveis.length) return;
+    const primeiro = focaveis[0];
+    const ultimo = focaveis[focaveis.length - 1];
+    if (evento.shiftKey && (document.activeElement === primeiro || !drawer.contains(document.activeElement))) {
+        evento.preventDefault();
+        ultimo.focus();
+    } else if (!evento.shiftKey && (document.activeElement === ultimo || !drawer.contains(document.activeElement))) {
+        evento.preventDefault();
+        primeiro.focus();
+    }
+});
 
 async function copiarContatoFila(botao) {
     const valor = decodeURIComponent(String(botao && botao.dataset && botao.dataset.copia || ""));
@@ -2848,55 +3351,6 @@ async function copiarContatoFila(botao) {
     }
 }
 
-function renderFilaHoje() {
-    const box = document.getElementById("fila-hoje-cards");
-    if (!box) return;
-    const busca = String(document.getElementById("busca-fila-hoje").value || "").trim().toLowerCase();
-    const listaHoje = agendamentosCache
-        .filter(ag => ag.dados.dataISO === hojeISO() && statusValor(ag.dados) !== "cancelado")
-        .sort((a, b) => String(a.dados.hora || "").localeCompare(String(b.dados.hora || "")));
-    const atendidos = listaHoje.filter(ag => statusValor(ag.dados) === "compareceu").length;
-    const faltas = listaHoje.filter(ag => statusValor(ag.dados) === "nao_compareceu").length;
-    const retornos = listaHoje.filter(ag => statusValor(ag.dados) === "vai_voltar").length;
-    const aguardando = Math.max(0, listaHoje.length - atendidos - faltas - retornos);
-    document.getElementById("fila-contagem").textContent =
-        `${atendidos} atendido${atendidos === 1 ? "" : "s"} · ${faltas} falta${faltas === 1 ? "" : "s"} · ${retornos} volta${retornos === 1 ? "" : "m"} depois · ${aguardando} aguardando`;
-    atualizarCabecalhoFila(listaHoje.length, atendidos, faltas);
-    const proximo = horarioMaisProximoHoje(listaHoje);
-    const filtrados = busca ? listaHoje.filter(ag => textoBusca(ag).includes(busca)) : listaHoje;
-    if (!filtrados.length) {
-        box.innerHTML = '<div class="fila-card"><strong>Nenhum agendamento encontrado na fila de hoje.</strong></div>';
-        return;
-    }
-    box.innerHTML = filtrados.map(ag => {
-        const d = ag.dados;
-        const status = statusValor(d);
-        const proximoClass = proximo && proximo.id === ag.id ? " proximo" : "";
-        const observacao = d.observacaoInterna
-            ? `<i class="fa-solid fa-note-sticky observacao-icone" title="${textoSeguro(d.observacaoInterna)}"></i>`
-            : "";
-        return `
-            <article class="fila-card ${textoSeguro(status)}${proximoClass}" id="fila-ag-${textoSeguro(ag.id)}">
-                <div class="fila-card-topo">
-                    <span class="fila-hora">${textoSeguro(d.hora || "--:--")}</span>
-                    <span class="badge-status st-${textoSeguro(status)}">${textoSeguro(statusLabel(status))}</span>
-                </div>
-                <div class="fila-nome">${textoSeguro(d.nome)}${observacao}</div>
-                <div class="fila-detalhe"><i class="fa-solid fa-id-card"></i> ${textoSeguro(cpfFormatado(d.cpf) || "CPF não informado")}</div>
-                <div class="fila-detalhe-linha">
-                    <div class="fila-detalhe"><i class="fa-solid fa-phone"></i> ${textoSeguro(d.telefone || "Sem telefone")}</div>
-                    ${d.telefone ? `<button type="button" class="btn-copiar-contato" title="Copiar telefone" aria-label="Copiar telefone" data-rotulo="Telefone" data-copia="${encodeURIComponent(String(d.telefone))}" data-acao="copiar-contato"><i class="fa-regular fa-copy"></i></button>` : ""}
-                </div>
-                ${d.email ? `<div class="fila-detalhe-linha"><div class="fila-detalhe"><i class="fa-solid fa-envelope"></i> ${textoSeguro(d.email)}</div><button type="button" class="btn-copiar-contato" title="Copiar e-mail" aria-label="Copiar e-mail" data-rotulo="E-mail" data-copia="${encodeURIComponent(String(d.email))}" data-acao="copiar-contato"><i class="fa-regular fa-copy"></i></button></div>` : ""}
-                <div class="fila-acoes">
-                    ${acoesStatusDiretas(ag)}
-                    <button type="button" class="btn-status-direto btn-status-obs" title="Observação interna" data-acao="abrirObservacao" data-id="${textoSeguro(ag.id)}"><i class="fa-solid fa-note-sticky"></i></button>
-                </div>
-            </article>
-        `;
-    }).join("");
-}
-
 // Quatro areas: duas de operacao diaria (hoje/lista) e duas de uso
 // eventual (config/relatorios). As credenciais de estacionamento sairam em
 // 16/10/2026. A configuracao saiu da lista para que
@@ -2904,12 +3358,11 @@ function renderFilaHoje() {
 const VISTAS_PAINEL = ["hoje", "lista", "config", "relatorios"];
 
 function mostrarVistaPainel(vista) {
+    const anterior = vistaPainelAtual;
     vistaPainelAtual = VISTAS_PAINEL.includes(vista) ? vista : "hoje";
-    document.getElementById("vista-hoje").classList.toggle("ativo", vistaPainelAtual === "hoje");
     VISTAS_PAINEL.forEach(nome => {
-        if (nome === "hoje") return;
         const alvo = document.getElementById("vista-" + nome);
-        if (alvo) alvo.style.display = vistaPainelAtual === nome ? "block" : "none";
+        if (alvo) alvo.hidden = vistaPainelAtual !== nome;
     });
     VISTAS_PAINEL.forEach(nome => {
         const btn = document.getElementById("btn-vista-" + nome);
@@ -2920,8 +3373,22 @@ function mostrarVistaPainel(vista) {
     });
     if (vistaPainelAtual === "hoje") renderFilaHoje();
     if (vistaPainelAtual === "config") atualizarEstadoConfigHub();
-    if (vistaPainelAtual === "relatorios" && !metricasAberturaCarregadas) carregarMetricasAbertura();
+    if (vistaPainelAtual === "relatorios") iniciarRelatorios();
+    if (anterior !== vistaPainelAtual) window.scrollTo({ top: 0 });
     atualizarFaixaEstado();
+}
+
+// Relatorios sob demanda (reformulacao de 16/10/2026). A abertura do painel
+// lia todo o historico de compareceu/nao_compareceu (655 documentos em
+// 16/10/2026, crescendo toda semana) e o historico de acoes, que so aparecem
+// aqui. Agora a leitura acontece na primeira vez que a area e aberta.
+let relatoriosIniciados = false;
+function iniciarRelatorios() {
+    if (!metricasAberturaCarregadas) carregarMetricasAbertura();
+    if (relatoriosIniciados) return;
+    relatoriosIniciados = true;
+    carregarTotalAtendimentosRealizados();
+    carregarLogsAdmin();
 }
 
 // ---- Relatorios: metricas de cada abertura ----------------------------
@@ -3077,6 +3544,9 @@ function atualizarFaixaEstado() {
     const faixa = document.getElementById("faixa-estado");
     if (!faixa) return;
     const sinais = [];
+    // Na tela do dia a faixa so aparece para alertas: o espaco vertical ali e
+    // da lista de atendimentos.
+    const soAlertas = vistaPainelAtual === "hoje";
 
     const autoAtiva = !!(document.getElementById("cfg-auto-ativa") || {}).checked;
     const hora = (document.getElementById("cfg-auto-hora") || {}).value || "08:00";
@@ -3090,6 +3560,10 @@ function atualizarFaixaEstado() {
         sinais.push(`<span class="sinal warn"><i class="dot"></i> Pop-up publicado no site${fim ? " até <b>" + textoSeguro(fim) + "</b>" : ""} <button type="button" class="sinal-link" data-acao="abrir-config" data-painel="popup">ver</button></span>`);
     }
 
+    if (soAlertas) {
+        faixa.innerHTML = sinais.filter(sinal => sinal.includes('class="sinal warn"')).join("");
+        return;
+    }
     const vagas = String((document.getElementById("kpi-vagas") || {}).textContent || "0");
     const lotadas = String((document.getElementById("kpi-lotadas") || {}).textContent || "0");
     sinais.push(`<span class="sinal info"><i class="dot"></i> Vagas abertas: <b>${textoSeguro(vagas)}</b>${Number(lotadas) > 0 ? " · " + textoSeguro(lotadas) + " data(s) lotada(s)" : ""}</span>`);
@@ -3106,8 +3580,8 @@ function alternarMaisFiltros() {
     if (abrindo) box.removeAttribute("hidden"); else box.setAttribute("hidden", "");
     btn.setAttribute("aria-expanded", abrindo ? "true" : "false");
     btn.innerHTML = abrindo
-        ? 'Menos filtros <i class="fa-solid fa-chevron-up"></i>'
-        : 'Mais filtros <i class="fa-solid fa-chevron-down"></i>';
+        ? 'Período e filtros <i class="fa-solid fa-chevron-up" aria-hidden="true"></i>'
+        : 'Período e filtros <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>';
 }
 
 function alternarAcoesDaLista() {
@@ -3128,36 +3602,153 @@ function fecharAcoesDaLista() {
     }
 }
 
+// ---- Menu do perfil (topo) ----------------------------------------------
+function preencherPerfil(user) {
+    const email = String(user && user.email || "");
+    const apelido = email.split("@")[0];
+    const quem = document.getElementById("quem-nome");
+    if (quem && apelido) quem.textContent = apelido;
+    const iniciais = document.getElementById("perfil-iniciais");
+    if (iniciais && apelido) iniciais.textContent = apelido.slice(0, 1);
+    const caixaEmail = document.getElementById("perfil-email");
+    if (caixaEmail) caixaEmail.textContent = email;
+    atualizarDataTopo();
+}
+
+function atualizarDataTopo() {
+    const el = document.getElementById("topbar-data");
+    if (!el) return;
+    const texto = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Sao_Paulo" });
+    el.textContent = texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+function menuPerfilAberto() {
+    const lista = document.getElementById("menu-perfil-lista");
+    return !!lista && !lista.hasAttribute("hidden");
+}
+
+function alternarMenuPerfil() {
+    const lista = document.getElementById("menu-perfil-lista");
+    const btn = document.getElementById("btn-perfil");
+    if (!lista || !btn) return;
+    const abrindo = lista.hasAttribute("hidden");
+    if (abrindo) lista.removeAttribute("hidden"); else lista.setAttribute("hidden", "");
+    btn.setAttribute("aria-expanded", abrindo ? "true" : "false");
+    if (abrindo) {
+        const primeiro = lista.querySelector("button");
+        if (primeiro) primeiro.focus();
+    }
+}
+
+function fecharMenuPerfil(devolverFoco) {
+    if (!menuPerfilAberto()) return;
+    document.getElementById("menu-perfil-lista").setAttribute("hidden", "");
+    const btn = document.getElementById("btn-perfil");
+    if (btn) {
+        btn.setAttribute("aria-expanded", "false");
+        if (devolverFoco) btn.focus();
+    }
+}
+
+// ---- Atalhos de teclado ---------------------------------------------------
+// Atalhos de uma tecla podem ser desligados (WCAG 2.1.4). Esc fica sempre.
+let atalhosTecladoAtivos = true;
+try {
+    atalhosTecladoAtivos = localStorage.getItem("painel-atalhos") !== "off";
+} catch (e) {}
+
+function abrirAtalhos() {
+    const campo = document.getElementById("atalhos-ativos");
+    if (campo) campo.checked = atalhosTecladoAtivos;
+    abrirModalComFoco("modal-atalhos", "atalhos-ativos");
+}
+
+function fecharAtalhos() {
+    fecharModalComFoco("modal-atalhos");
+}
+
+function alternarAtalhosTeclado(campo) {
+    atalhosTecladoAtivos = !!campo.checked;
+    try { localStorage.setItem("painel-atalhos", atalhosTecladoAtivos ? "on" : "off"); } catch (e) {}
+}
+
+function camadaSobrepostaAberta() {
+    if (detalheAbertoId) return true;
+    return Object.keys(FECHADORES_MODAIS).some(id => {
+        const el = document.getElementById(id);
+        return el && el.style.display === "flex";
+    });
+}
+
 document.addEventListener("keydown", evento => {
     if (evento.key === "Escape") fecharAcoesDaLista();
-    if (evento.key !== "/" || evento.ctrlKey || evento.altKey || evento.metaKey) return;
+    if (!atalhosTecladoAtivos || evento.ctrlKey || evento.altKey || evento.metaKey) return;
     const foco = document.activeElement;
-    if (foco && /^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName)) return;
-    const alvo = vistaPainelAtual === "hoje"
-        ? document.getElementById("busca-fila-hoje")
-        : document.getElementById("filtro-busca");
-    if (alvo && alvo.offsetParent !== null) {
+    if (foco && (/^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName) || foco.isContentEditable)) return;
+    const painel = document.getElementById("painel-screen");
+    if (!painel || painel.style.display !== "block" || camadaSobrepostaAberta()) return;
+    const tecla = evento.key;
+    if (tecla === "/") {
+        const alvo = vistaPainelAtual === "hoje"
+            ? document.getElementById("busca-fila-hoje")
+            : document.getElementById("filtro-busca");
+        if (alvo && alvo.offsetParent !== null) {
+            evento.preventDefault();
+            alvo.focus();
+        }
+        return;
+    }
+    if (tecla === "?") {
         evento.preventDefault();
-        alvo.focus();
+        abrirAtalhos();
+        return;
+    }
+    if (tecla === "n" || tecla === "N") {
+        evento.preventDefault();
+        abrirModal();
+        return;
+    }
+    if (vistaPainelAtual !== "hoje") return;
+    if (tecla === "ArrowLeft" || tecla === "ArrowRight") {
+        evento.preventDefault();
+        mudarDiaFila(tecla === "ArrowLeft" ? -1 : 1);
+    } else if (tecla === "t" || tecla === "T") {
+        evento.preventDefault();
+        mudarDiaFila(0);
     }
 });
 
-// ---- Cabecalho da fila de hoje ---------------------------------------
-function atualizarCabecalhoFila(total, atendidos, faltas) {
+// ---- Cabecalho da lista do dia ------------------------------------------
+function atualizarCabecalhoFila(total, atendidos, faltas, retornos = 0) {
     const titulo = document.getElementById("fila-data-titulo");
     const detalhe = document.getElementById("fila-data-detalhe");
+    const barra = document.getElementById("fila-barra");
     const barraOk = document.getElementById("fila-barra-ok");
     const barraFalta = document.getElementById("fila-barra-falta");
-    const hoje = new Date();
+    const contagem = document.getElementById("fila-contagem");
+    const hoje = hojeISO();
+    const dia = diaFilaAtual();
     if (titulo) {
-        const texto = hoje.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
-        titulo.textContent = texto.charAt(0).toUpperCase() + texto.slice(1);
+        const texto = new Date(`${dia}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+        const prefixo = dia === hoje ? "Hoje, " : (dia === amanhaISO() ? "Amanhã, " : (dia === ontemISO() ? "Ontem, " : ""));
+        titulo.textContent = prefixo ? prefixo + texto : texto.charAt(0).toUpperCase() + texto.slice(1);
     }
     if (detalhe) {
+        const aguardando = Math.max(0, total - atendidos - faltas - retornos);
         detalhe.textContent = total
-            ? `${total} agendamento${total === 1 ? "" : "s"} na agenda de hoje`
-            : "Nenhum agendamento para hoje";
+            ? `${total} agendamento${total === 1 ? "" : "s"} · ${aguardando} aguardando`
+            : (dia === hoje ? "Nenhum agendamento para hoje" : "Nenhum agendamento neste dia");
     }
+    const { inicio, fim } = limitesPeriodoCarregado();
+    const anterior = document.getElementById("btn-dia-anterior");
+    const seguinte = document.getElementById("btn-dia-seguinte");
+    const voltar = document.getElementById("btn-dia-hoje");
+    if (anterior) anterior.disabled = somarDiasISO(dia, -1) < inicio;
+    if (seguinte) seguinte.disabled = somarDiasISO(dia, 1) > fim;
+    if (voltar) voltar.hidden = dia === hoje;
+    const concluidos = atendidos + faltas;
+    if (contagem) contagem.textContent = `${concluidos} de ${total} concluídos`;
+    if (barra) barra.setAttribute("aria-label", `Progresso do dia: ${atendidos} compareceram e ${faltas} faltaram, de ${total}`);
     const base = total || 1;
     if (barraOk) barraOk.style.width = `${Math.round((atendidos / base) * 100)}%`;
     if (barraFalta) barraFalta.style.width = `${Math.round((faltas / base) * 100)}%`;
@@ -3170,8 +3761,8 @@ function marcarAtualizacaoLista() {
     ["fila-atualizado", "lista-atualizado"].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            el.style.color = "";
-            el.innerHTML = `<i class="fa-solid fa-check"></i> Atualizado às ${textoSeguro(hora)}`;
+            el.classList.remove("falha");
+            el.innerHTML = `<i class="fa-solid fa-check" aria-hidden="true"></i> Atualizado às ${textoSeguro(hora)}`;
         }
     });
 }
@@ -3244,6 +3835,17 @@ document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && listaDesatualizada) atualizarPainelAoReconectar();
 });
 
+// Botao de atualizar da tela do dia: hoje e amanha usam a releitura leve
+// (so esses dois dias); outro dia ou outra origem recarregam o periodo.
+function atualizarAgora() {
+    const dia = diaFilaAtual();
+    if (origemAgendamentosCache === "lista" && (dia === hojeISO() || dia === amanhaISO())) {
+        atualizarDiasVisiveisSilencioso();
+    } else {
+        listarAgendamentos({ preservarFiltros: true });
+    }
+}
+
 function agendamentosFiltrados() {
     const busca = document.getElementById("filtro-busca").value.trim().toLowerCase();
     const data = document.getElementById("filtro-data").value;
@@ -3267,32 +3869,6 @@ function agendamentosFiltrados() {
         if (soFuturos && d.dataISO < hoje && !["bloqueados", "retornos"].includes(filtroRapidoAtual)) return false;
         return true;
     });
-}
-
-function menuAcoes(ag) {
-    const id = textoSeguro(ag.id);
-    const liberar = bloqueioAtivo(ag.dados)
-        ? `<button type="button" data-acao="liberarBloqueio" data-id="${id}"><i class="fa-solid fa-unlock"></i> Liberar bloqueio</button>`
-        : "";
-    return `
-        <div class="acoes-menu-wrap">
-            <button type="button" class="btn-pequeno btn-acoes" data-acao="menu-linha" data-id="${id}">
-                <i class="fa-solid fa-ellipsis-vertical"></i> Ações
-            </button>
-            <div class="acoes-menu" id="menu-acoes-${id}">
-                <button type="button" data-acao="abrirZapLembrete" data-id="${id}"><i class="fa-brands fa-whatsapp"></i> Enviar lembrete</button>
-                <button type="button" data-acao="emitirComprovanteDaLista" data-id="${id}"><i class="fa-solid fa-file-pdf"></i> Gerar comprovante</button>
-                <button type="button" data-acao="emitirDeclaracaoComparecimentoDaLista" data-id="${id}"><i class="fa-solid fa-file-signature"></i> Declaracao comparecimento</button>
-                <button type="button" data-acao="abrirRemarcacao" data-id="${id}"><i class="fa-solid fa-pen-to-square"></i> Remarcar</button>
-                <button type="button" data-acao="abrirObservacao" data-id="${id}"><i class="fa-solid fa-note-sticky"></i> Observação interna</button>
-                <button type="button" data-acao="alterar-status" data-id="${id}" data-status="compareceu"><i class="fa-solid fa-check"></i> Marcar compareceu</button>
-                <button type="button" data-acao="alterar-status" data-id="${id}" data-status="vai_voltar"><i class="fa-solid fa-arrow-rotate-left"></i> Marcar que vai voltar depois</button>
-                <button type="button" data-acao="alterar-status" data-id="${id}" data-status="nao_compareceu"><i class="fa-solid fa-user-xmark"></i> Marcar não compareceu</button>
-                ${liberar}
-                <button type="button" class="perigo" data-acao="cancelarAgendamentoPainel" data-id="${id}"><i class="fa-solid fa-ban"></i> Cancelar</button>
-            </div>
-        </div>
-    `;
 }
 
 // As janelas de comprovante, declaracao e lista do dia sao documentos de
@@ -3320,88 +3896,95 @@ function prepararJanelaImpressao(janela, opcoes = {}) {
     }
 }
 
-function fecharMenusAcoes() {
-    document.querySelectorAll(".acoes-menu.aberto").forEach(menu => menu.classList.remove("aberto"));
+
+
+
+
+
+function definirCabecalhoTabela(modo) {
+    // O cabecalho muda com o modo da lista: bloqueados mostram a data da falta.
+    const cabecalho = document.getElementById("cabecalho-tabela");
+    if (!cabecalho || cabecalho.dataset.modo === modo) return;
+    cabecalho.dataset.modo = modo;
+    const colunas = modo === "bloqueados"
+        ? ["Falta", "Cidadão", "Motivo", "Ações"]
+        : ["Data", "Cidadão", "Situação", "Ações"];
+    cabecalho.innerHTML = `<tr>${colunas.map((nome, i) => `<th scope="col"${i === 3 ? ' class="th-acoes"' : ""}>${nome}</th>`).join("")}</tr>`;
 }
 
-function alternarMenuAcoes(id) {
-    const menu = document.getElementById(`menu-acoes-${id}`);
-    if (!menu) return;
-    const aberto = menu.classList.contains("aberto");
-    fecharMenusAcoes();
-    if (!aberto) menu.classList.add("aberto");
+// Lista de agendamentos: 4 colunas. O menu de 10 itens por linha e o seletor
+// de status sairam (reformulacao de 16/10/2026); as mesmas acoes ficam na
+// gaveta de detalhes, aberta pelo nome ou pela seta.
+// toLocaleDateString custa caro: com 900 linhas era a maior parte do tempo
+// de cada redesenho da lista. Ha poucas datas distintas, entao memoriza.
+const cacheDiaSemanaCurto = new Map();
+function diaSemanaCurto(dataISO) {
+    if (!dataISO) return "";
+    if (!cacheDiaSemanaCurto.has(dataISO)) {
+        cacheDiaSemanaCurto.set(dataISO, new Date(`${dataISO}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", ""));
+    }
+    return cacheDiaSemanaCurto.get(dataISO);
 }
-
 
 function renderTabelaAgendamentos() {
     const corpo = document.getElementById("corpo-tabela");
     if (filtroRapidoAtual === "bloqueados") {
         renderTabelaBloqueados(corpo);
+        renderDetalhesAbertos();
         return;
     }
+    definirCabecalhoTabela("lista");
     const lista = agendamentosFiltrados();
-    corpo.innerHTML = "";
     if (!lista.length) {
         corpo.innerHTML = filtroRapidoAtual === "retornos"
-            ? "<tr><td colspan='6'>Ninguém marcado para voltar depois.</td></tr>"
-            : "<tr><td colspan='6'>Nenhum agendamento encontrado para os filtros atuais.</td></tr>";
+            ? linhaVaziaTabela("Ninguém marcado para voltar depois.", "vazio")
+            : linhaVaziaTabela("Nenhum agendamento encontrado para os filtros atuais.", "vazio", 4,
+                '<button type="button" class="btn btn-secundario btn-sm" data-acao="limparFiltros">Limpar filtros</button>');
+        renderDetalhesAbertos();
         return;
     }
 
-    const linhas = lista.map(ag => {
+    const hoje = hojeISO();
+    corpo.innerHTML = lista.map(ag => {
         const d = ag.dados;
-        const dataBr = dataBrISO(d.dataISO);
-        const manual = d.insercaoManual ? '<br><span class="badge-manual">MANUAL</span>' : '';
         const status = statusValor(d);
-        const statusOptions = STATUS_ORDEM.map(s => `<option value="${s}" ${s === status ? "selected" : ""}>${statusLabel(s)}</option>`).join("");
-        const bloqueado = bloqueioAtivo(d) ? `<span class="bloqueio-badge">Bloqueado até ${textoSeguro(dataBrISO(d.bloqueadoAte))}</span>` : "";
-        const bloqueioStatus = bloqueioAtivo(d) ? '<br><span class="bloqueio-badge"><i class="fa-solid fa-lock"></i> Bloqueio aplicado</span>' : "";
-        const observacao = d.observacaoInterna ? `<i class="fa-solid fa-note-sticky observacao-icone" title="${textoSeguro(d.observacaoInterna)}"></i>` : "";
         const alteradoPor = d.alteradoPor || d.statusAtualizadoPor || "";
         const statusTitle = alteradoPor ? `Última alteração por ${alteradoPor}${d.statusAtualizadoEm ? ` em ${d.statusAtualizadoEm}` : ""}` : "Sem informação de última alteração";
+        const rotuloDia = d.dataISO === hoje ? "hoje" : diaSemanaCurto(d.dataISO);
         return `
-            <tr id="row-ag-${textoSeguro(ag.id)}">
-                <td data-label="Data/Hora"><strong>${textoSeguro(dataBr)}</strong><br>${textoSeguro(d.hora)}${manual}</td>
-                <td data-label="Cidadão" style="font-weight:700;">${textoSeguro(d.nome)}${observacao}<span class="detalhe-pessoal">${textoSeguro(d.protocolo || "sem protocolo")}</span>${bloqueado}</td>
-                <td data-label="CPF / Nasc">${textoSeguro(d.cpf || "CPF não informado")}<span class="detalhe-pessoal">${textoSeguro(dataNascBR(d.dataNasc) || "Nascimento não informado")}</span></td>
-                <td data-label="Contato">${textoSeguro(d.telefone || "Sem telefone")}<span class="detalhe-pessoal">${textoSeguro(d.email || "")}</span></td>
-                <td data-label="Status">
-                    <span class="badge-status st-${textoSeguro(status)}" title="${textoSeguro(statusTitle)}">${textoSeguro(statusLabel(status))}</span>${bloqueioStatus}<br>
-                    <select class="select-status" data-change="status-select" data-id="${textoSeguro(ag.id)}">
-                        ${statusOptions}
-                    </select>
-                </td>
-                <td data-label="Ações"><div class="acoes-linha-rapida">${acoesStatusDiretas(ag)}${menuAcoes(ag)}</div></td>
-            </tr>
-        `;
-    });
-    corpo.innerHTML = linhas.join("");
+            <tr id="row-ag-${textoSeguro(ag.id)}" data-status="${status}">
+                <td class="td-data"><strong>${textoSeguro(dataBrISO(d.dataISO))}</strong><span>${textoSeguro(d.hora || "--:--")} · ${textoSeguro(rotuloDia)}</span></td>
+                <td class="td-pessoa">${celulaCidadao(ag)}</td>
+                <td class="td-situacao">${seloStatus(status, statusTitle)}</td>
+                <td class="td-acoes"><div class="acoes-linha">${acoesStatusDiretas(ag, { curto: true })}${botaoDetalhes(ag)}</div></td>
+            </tr>`;
+    }).join("");
+    renderDetalhesAbertos();
 }
 
 function renderTabelaBloqueados(corpo) {
+    definirCabecalhoTabela("bloqueados");
     const lista = agendamentosFiltrados().sort((a, b) => String(a.dados.bloqueadoAte || "").localeCompare(String(b.dados.bloqueadoAte || "")));
-    corpo.innerHTML = "";
     if (!lista.length) {
-        corpo.innerHTML = "<tr><td colspan='6'>Nenhum CPF bloqueado ativo encontrado.</td></tr>";
+        corpo.innerHTML = linhaVaziaTabela("Nenhum CPF bloqueado ativo encontrado.", "vazio");
         return;
     }
     corpo.innerHTML = lista.map(ag => {
         const d = ag.dados;
+        const id = textoSeguro(ag.id);
         return `
-            <tr>
-                <td data-label="Data da falta"><strong>${textoSeguro(d.bloqueioDataFalta || dataHoraAtendimento(d))}</strong></td>
-                <td data-label="Cidadão" style="font-weight:700;">${textoSeguro(d.bloqueioNome || d.nome)}<span class="bloqueio-badge">Bloqueado até ${textoSeguro(dataBrISO(d.bloqueadoAte))}</span></td>
-                <td data-label="CPF">${textoSeguro(d.bloqueioCpf || cpfNumeros(d.cpf) || "CPF não informado")}</td>
-                <td data-label="Telefone">${textoSeguro(d.bloqueioTelefone || d.telefone || "Sem telefone")}</td>
-                <td data-label="Motivo"><span class="badge-status st-nao_compareceu">${textoSeguro(d.bloqueioMotivo || "Não comparecimento")}</span></td>
-                <td data-label="Ações">
+            <tr id="row-ag-${id}">
+                <td class="td-data"><strong>${textoSeguro(d.bloqueioDataFalta || dataHoraAtendimento(d))}</strong></td>
+                <td class="td-pessoa">${celulaCidadao(ag)}</td>
+                <td class="td-situacao"><span class="badge-status st-nao_compareceu"><i class="fa-solid fa-lock" aria-hidden="true"></i> ${textoSeguro(d.bloqueioMotivo || "Não comparecimento")}</span></td>
+                <td class="td-acoes">
                     <div class="acoes-linha">
-                        <button type="button" class="btn-pequeno btn-lembrete" data-acao="abrirZapBloqueio" data-id="${textoSeguro(ag.id)}"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
-                        <button type="button" class="btn-pequeno btn-atualizar" data-acao="liberarBloqueio" data-id="${textoSeguro(ag.id)}"><i class="fa-solid fa-unlock"></i> Liberar bloqueio</button>
+                        <button type="button" class="btn-pequeno btn-lembrete" data-acao="abrirZapBloqueio" data-id="${id}">${iconeWhatsApp()} WhatsApp</button>
+                        <button type="button" class="btn-pequeno btn-atualizar" data-acao="liberarBloqueio" data-id="${id}"><i class="fa-solid fa-unlock" aria-hidden="true"></i> Liberar</button>
+                        ${botaoDetalhes(ag)}
                     </div>
                 </td>
-            </tr>
-        `;
+            </tr>`;
     }).join("");
 }
 
@@ -3461,7 +4044,7 @@ function abrirRemarcacao(id) {
     document.getElementById("remarcar-data").value = ag.dados.dataISO || "";
     document.getElementById("remarcar-hora").value = ag.dados.hora || "";
     document.getElementById("remarcar-contabiliza").checked = !ag.dados.insercaoManual;
-    document.getElementById("modal-remarcar").style.display = "flex";
+    abrirModalComFoco("modal-remarcar", "remarcar-data");
 }
 
 async function salvarRemarcacao() {
@@ -3521,6 +4104,40 @@ async function salvarRemarcacao() {
     }
     btn.disabled = false;
     btn.innerText = "Salvar Remarcação";
+}
+
+// Trava contra clique duplo: enquanto a chamada de um atendimento nao volta,
+// os botoes dele (na lista, no bloco do proximo e nos detalhes) ficam
+// desabilitados e um segundo clique e ignorado.
+const operacoesEmAndamento = new Set();
+function marcarOperacao(id, ativa) {
+    if (ativa) operacoesEmAndamento.add(id); else operacoesEmAndamento.delete(id);
+    document.querySelectorAll(`button[data-id="${CSS.escape(id)}"]`).forEach(botao => {
+        if (["abrir-detalhes", "copiar-contato"].includes(botao.dataset.acao)) return;
+        botao.disabled = ativa;
+        if (ativa) botao.setAttribute("aria-busy", "true"); else botao.removeAttribute("aria-busy");
+    });
+}
+async function comTravaDeAtendimento(id, executar) {
+    if (!id || operacoesEmAndamento.has(id)) return;
+    marcarOperacao(id, true);
+    try {
+        await executar();
+    } finally {
+        marcarOperacao(id, false);
+        restaurarFocoAposAcao(id);
+    }
+}
+
+// O botao clicado some ao redesenhar (ou fica desabilitado durante a
+// chamada) e o foco caia no body. Devolve para a gaveta, se aberta, ou para
+// o nome do cidadao na lista visivel.
+function restaurarFocoAposAcao(id) {
+    if (elementoFocavelVisivel(document.activeElement)) return;
+    if (detalheAbertoId) return focarDrawer();
+    const vista = document.getElementById(`vista-${vistaPainelAtual}`);
+    const alvo = vista && vista.querySelector(`.ld-nome[data-id="${CSS.escape(id)}"]`);
+    if (alvo) alvo.focus();
 }
 
 async function alterarStatus(id, status) {
@@ -3904,23 +4521,32 @@ const ACOES_CLIQUE = {
     enviarVerificacaoEmail, conferirEmailVerificado,
     carregarMetricasAbertura,
     vista: el => mostrarVistaPainel(el.dataset.vista),
+    "menu-perfil": () => alternarMenuPerfil(),
+    abrirAtalhos, fecharAtalhos,
+
+    // Atendimentos do dia
+    "dia-fila": el => mudarDiaFila(Number(el.dataset.passo)),
+    "filtro-situacao": el => { filtroSituacaoFila = el.dataset.situacao || "todos"; renderFilaHoje(); },
+    atualizarAgora,
 
     // Lista de agendamentos
     listarAgendamentos, exportarExcel, exportarExcelCompleto, imprimirListaHoje, enviarLembretesAmanha,
     buscarHistoricoAgendamento, limparFiltros, alternarMaisFiltros,
     "filtro-rapido": el => filtroRapidoPainel(el.dataset.tipo),
     "acoes-lista": () => alternarAcoesDaLista(),
-    "menu-linha": el => alternarMenuAcoes(el.dataset.id),
 
     // Acoes sobre um agendamento
-    "alterar-status": el => alterarStatus(el.dataset.id, el.dataset.status),
+    "alterar-status": el => comTravaDeAtendimento(el.dataset.id, () => alterarStatus(el.dataset.id, el.dataset.status)),
+    "abrir-detalhes": el => abrirDetalhes(el.dataset.id, el),
+    fecharDetalhes,
+    "aplicar-status": el => comTravaDeAtendimento(el.dataset.id, () => aplicarStatusDetalhes(el.dataset.id)),
     "copiar-contato": el => copiarContatoFila(el),
     abrirObservacao: el => abrirObservacao(el.dataset.id),
     abrirRemarcacao: el => abrirRemarcacao(el.dataset.id),
     abrirZapLembrete: el => abrirZapLembrete(el.dataset.id),
     abrirZapBloqueio: el => abrirZapBloqueio(el.dataset.id),
-    liberarBloqueio: el => liberarBloqueio(el.dataset.id),
-    cancelarAgendamentoPainel: el => cancelarAgendamentoPainel(el.dataset.id),
+    liberarBloqueio: el => comTravaDeAtendimento(el.dataset.id, () => liberarBloqueio(el.dataset.id)),
+    cancelarAgendamentoPainel: el => comTravaDeAtendimento(el.dataset.id, () => cancelarAgendamentoPainel(el.dataset.id)),
     emitirComprovanteDaLista: el => emitirComprovanteDaLista(el.dataset.id),
     emitirDeclaracaoComparecimentoDaLista: el => emitirDeclaracaoComparecimentoDaLista(el.dataset.id),
 
@@ -3958,8 +4584,17 @@ const ACOES_CLIQUE = {
 // Campos de formulario seguem a mesma regra: data-input e data-change em vez
 // de oninput/onchange embutidos. As duas chaves saem do mesmo registro porque
 // a mesma acao aparece nos dois eventos, conforme o tipo do campo.
+// Busca de Agendamentos: com o periodo cheio (ate 900 linhas) cada redesenho
+// leva ~45 ms; esperar 150 ms sem digitar evita redesenhar a cada tecla. A
+// lista do dia tem poucas dezenas de linhas e continua instantanea.
+let timerBuscaLista = null;
+function buscarNaLista() {
+    clearTimeout(timerBuscaLista);
+    timerBuscaLista = setTimeout(renderTabelaAgendamentos, agendamentosCache.length > 150 ? 150 : 0);
+}
+
 const ACOES_CAMPO = {
-    renderFilaHoje, renderTabelaAgendamentos, atualizarPreviaAvisoPopup,
+    renderFilaHoje, renderTabelaAgendamentos, buscarNaLista, atualizarPreviaAvisoPopup,
     alternarProgramacaoData, alternarProgramacaoAviso, alternarProgLoteFlex,
     alterarVigenciaGrade: el => alterarVigenciaGrade(el),
     alterarDataInicioGrade: el => alterarDataInicioGrade(el),
@@ -3968,7 +4603,7 @@ const ACOES_CAMPO = {
     mascaraCPF: el => mascaraCPF(el),
     mascaraTel: el => mascaraTel(el),
     mascaraData: el => mascaraData(el),
-    "status-select": el => alterarStatus(el.dataset.id, el.value)
+    alternarAtalhosTeclado: el => alternarAtalhosTeclado(el)
 };
 
 function despacharCampo(evento, atributo) {
@@ -3995,7 +4630,7 @@ document.addEventListener("click", evento => {
     // menu. Antes isso vinha de event.stopPropagation() no onclick; agora a
     // ordem e explicita, o que tambem evita depender da ordem de registro dos
     // ouvintes.
-    if (acao !== "menu-linha") fecharMenusAcoes();
+    if (acao !== "menu-perfil") fecharMenuPerfil();
     if (acao !== "acoes-lista") fecharAcoesDaLista();
 
     if (!gatilho) return;

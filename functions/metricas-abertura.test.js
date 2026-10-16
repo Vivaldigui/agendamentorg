@@ -232,5 +232,8 @@ test("tabela do painel tem rotulo em cada celula para o celular", () => {
   assert.equal((linha.match(/<td>/g) || []).length, 0);
   assert.match(painelHtml, /<tbody id="metricas-abertura-corpo"><\/tbody>/);
   assert.match(painelHtml, /data-acao="carregarMetricasAbertura"/);
-  assert.match(painelJs, /if \(vistaPainelAtual === "relatorios" && !metricasAberturaCarregadas\) carregarMetricasAbertura\(\);/);
+  // Relatorios carregam sob demanda: a primeira abertura da area dispara as
+  // metricas (uma vez) junto com os indicadores e o historico de acoes.
+  assert.match(painelJs, /if \(vistaPainelAtual === "relatorios"\) iniciarRelatorios\(\);/);
+  assert.match(extrairFuncao(painelJs, "iniciarRelatorios"), /if \(!metricasAberturaCarregadas\) carregarMetricasAbertura\(\);/);
 });

@@ -52,11 +52,11 @@ test("o status existe nas duas pontas e o painel oferece o botao", () => {
   assert.match(painel, /STATUS_ORDEM = \[[^\]]*"vai_voltar"/);
   // O painel deixou de usar onclick embutido: o gatilho agora e data-acao mais
   // os argumentos em data-*, resolvidos pela delegacao de cliques.
-  assert.match(
-    painel,
-    /data-acao="alterar-status" data-id="\$\{id\}" data-status="vai_voltar"/,
-    "Falta o botao direto na fila de hoje."
-  );
+  // Desde a reformulacao de 16/10/2026 os botoes saem de um gerador unico
+  // (verbo + icone), usado na lista do dia, no bloco do proximo e nos detalhes.
+  const acoes = painel.slice(painel.indexOf("function acoesStatusDiretas("), painel.indexOf("function botaoDetalhes("));
+  assert.match(acoes, /data-acao="alterar-status" data-id="\$\{id\}" data-status="\$\{statusNovo\}"/);
+  assert.match(acoes, /"s-voltar", "vai_voltar"/, "Falta o botao direto na lista do dia.");
   assert.match(backend, /const STATUS_VALIDOS = \[[^\]]*"vai_voltar"/, "respostaPublica rebaixaria o status para agendado.");
 });
 
