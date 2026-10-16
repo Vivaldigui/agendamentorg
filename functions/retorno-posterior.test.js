@@ -34,14 +34,15 @@ function extrairFuncao(codigo, nome) {
 }
 
 test("marcar retorno posterior nunca bloqueia o CPF", () => {
+  // Desde 16/10/2026 o bloqueio e criado no servidor (alterarStatusAdmin);
+  // status-bloqueio-painel.test.js exercita a transacao.
+  const inicio = backend.indexOf("exports.alterarStatusAdmin");
+  const servidor = backend.slice(inicio, backend.indexOf("exports.liberarBloqueioAdmin", inicio));
+  const geracoes = servidor.match(/bloqueioAtivo: true/g) || [];
+  assert.equal(geracoes.length, 1, "Ha mais de um caminho gerando bloqueio.");
+  const ramo = servidor.slice(servidor.indexOf('if (status === "nao_compareceu" && statusAnterior !== "nao_compareceu")'));
+  assert.ok(ramo.indexOf("bloqueioAtivo: true") > 0, "Somente nao_compareceu pode gerar bloqueio de CPF.");
   const corpo = extrairFuncao(painel, "alterarStatus");
-  assert.match(
-    corpo,
-    /if \(status === "nao_compareceu"\) \{\s*dadosBloqueio = criarDadosBloqueio/,
-    "Somente nao_compareceu pode gerar bloqueio de CPF."
-  );
-  const geracoesDeBloqueio = corpo.match(/criarDadosBloqueio\(/g) || [];
-  assert.equal(geracoesDeBloqueio.length, 1, "Ha mais de um caminho gerando bloqueio em alterarStatus.");
   const confirmacoes = corpo.match(/statusValor\(ag\.dados\) !== "nao_compareceu"/g) || [];
   assert.equal(confirmacoes.length, 1, "A confirmacao de falta deve seguir exclusiva do nao comparecimento.");
 });

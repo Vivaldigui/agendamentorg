@@ -2084,6 +2084,176 @@ exports.cancelarAgendamentoAdmin = onCall(callableOptions, async (request) => {
   return retorno;
 });
 
+// Status do atendimento e falta, pela recepcao, em transacao (auditoria de
+// 16/10/2026, SEG-02).
+//
+// O painel gravava direto em dados_cidadaos e bloqueios_agendamento, e o log
+// era escrito pelo proprio navegador depois, sem garantia e com o e-mail que
+// o cliente quisesse. Agora o servidor grava agendamento, bloqueio e log na
+// mesma transacao, com o e-mail do token. Corrige tambem um defeito antigo:
+// trocar "nao compareceu" por outro status nao desfazia o bloqueio, e o CPF
+// seguia bloqueado por seis meses mesmo com a falta corrigida.
+const STATUS_ATENDIMENTO_PAINEL = new Set(["agendado", "compareceu", "vai_voltar", "nao_compareceu"]);
+const BLOQUEIO_FALTA_MESES = 6;
+const MOTIVO_BLOQUEIO_FALTA = "Não comparecimento";
+
+exports.alterarStatusAdmin = onCall(callableOptions, async (request) => {
+  const adminEmail = await assertAdmin(request);
+  const agendamentoId = String(request.data && request.data.agendamentoId || "").trim();
+  const status = String(request.data && request.data.status || "");
+  if (!agendamentoId) {
+    throw new HttpsError("invalid-argument", "Agendamento invalido.");
+  }
+  if (!STATUS_ATENDIMENTO_PAINEL.has(status)) {
+    throw new HttpsError("invalid-argument", "Status invalido. Para cancelar, use o cancelamento.");
+  }
+
+  const agRef = db.collection("dados_cidadaos").doc(agendamentoId);
+  const agora = new Date().toISOString();
+  const hoje = hojeSaoPauloISO();
+  let retorno = null;
+
+  await db.runTransaction(async (t) => {
+    const agDoc = await t.get(agRef);
+    if (!agDoc.exists) {
+      throw new HttpsError("not-found", "Agendamento nao encontrado.");
+    }
+    const dados = agDoc.data();
+    const statusAnterior = String(dados.status || "agendado");
+    const cpfNum = cpfNumeros(dados.cpf || dados.bloqueioCpf);
+    const bloqueioRef = cpfNum.length === 11 ? db.collection("bloqueios_agendamento").doc(cpfNum) : null;
+    const bloqueioDoc = bloqueioRef ? await t.get(bloqueioRef) : null;
+
+    const atualizacao = {
+      status,
+      statusAtualizadoEm: agora,
+      statusAtualizadoPor: adminEmail,
+      alteradoPor: adminEmail
+    };
+    let bloqueadoAte = "";
+    let bloqueioDesfeito = false;
+
+    if (status === "nao_compareceu" && statusAnterior !== "nao_compareceu") {
+      bloqueadoAte = subtrairMesesISO(hoje, -BLOQUEIO_FALTA_MESES);
+      const dataFalta = `${dataBr(dados.dataISO)} ${dados.hora || ""}`.trim();
+      // Sem nome e telefone: a verificacao do bloqueio so precisa do CPF e da
+      // data, e a recepcao ve os dados da pessoa no proprio agendamento.
+      Object.assign(atualizacao, {
+        bloqueioAtivo: true,
+        bloqueioCpf: cpfNum,
+        bloqueioMotivo: MOTIVO_BLOQUEIO_FALTA,
+        bloqueioDataFalta: dataFalta,
+        bloqueadoAte,
+        bloqueioCriadoEm: agora,
+        bloqueioOrigem: "painel",
+        bloqueioLiberado: false
+      });
+      if (bloqueioRef) {
+        t.set(bloqueioRef, {
+          cpf: cpfNum,
+          agendamentoId,
+          motivo: MOTIVO_BLOQUEIO_FALTA,
+          dataFalta,
+          bloqueadoAte,
+          criadoEm: agora,
+          origem: "painel",
+          liberado: false
+        });
+      }
+    } else if (statusAnterior === "nao_compareceu" && status !== "nao_compareceu" && dados.bloqueioAtivo === true) {
+      // Falta registrada por engano: o bloqueio criado por ela sai junto. O
+      // registro dedicado so e apagado se for desta falta.
+      Object.assign(atualizacao, {
+        bloqueioAtivo: false,
+        bloqueioLiberado: true,
+        dataLiberacao: agora,
+        usuarioLiberacao: adminEmail,
+        motivoLiberacao: "status_corrigido"
+      });
+      const dedicado = bloqueioDoc && bloqueioDoc.exists ? bloqueioDoc.data() : null;
+      if (dedicado && (dedicado.agendamentoId === agendamentoId
+        || (!dedicado.agendamentoId && dedicado.bloqueadoAte === dados.bloqueadoAte))) {
+        t.delete(bloqueioRef);
+      }
+      bloqueioDesfeito = true;
+    }
+
+    t.set(agRef, atualizacao, { merge: true });
+    t.set(db.collection("logs_admin").doc(), {
+      acao: "alterar_status",
+      agendamentoId,
+      protocolo: dados.protocolo || "",
+      detalhes: { de: statusAnterior, para: status, bloqueadoAte, bloqueioDesfeito },
+      adminEmail,
+      criadoEm: FieldValue.serverTimestamp(),
+      criado: agora
+    });
+
+    retorno = { agendamentoId, status, bloqueadoAte, bloqueioDesfeito, atualizacao };
+  });
+
+  return retorno;
+});
+
+// Liberacao de bloqueio pela recepcao. Libera TODOS os bloqueios ativos do
+// CPF: a verificacao publica olha o registro dedicado e qualquer agendamento
+// com aquele bloqueioCpf, entao liberar so a linha clicada podia deixar o CPF
+// bloqueado por uma falta mais antiga.
+exports.liberarBloqueioAdmin = onCall(callableOptions, async (request) => {
+  const adminEmail = await assertAdmin(request);
+  const agendamentoId = String(request.data && request.data.agendamentoId || "").trim();
+  if (!agendamentoId) {
+    throw new HttpsError("invalid-argument", "Agendamento invalido.");
+  }
+
+  const agRef = db.collection("dados_cidadaos").doc(agendamentoId);
+  const agora = new Date().toISOString();
+  let retorno = null;
+
+  await db.runTransaction(async (t) => {
+    const agDoc = await t.get(agRef);
+    if (!agDoc.exists) {
+      throw new HttpsError("not-found", "Agendamento nao encontrado.");
+    }
+    const dados = agDoc.data();
+    const cpfNum = cpfNumeros(dados.bloqueioCpf || dados.cpf);
+    const bloqueioRef = cpfNum.length === 11 ? db.collection("bloqueios_agendamento").doc(cpfNum) : null;
+    const [bloqueioDoc, outrosSnap] = await Promise.all([
+      bloqueioRef ? t.get(bloqueioRef) : Promise.resolve(null),
+      cpfNum.length === 11
+        ? t.get(db.collection("dados_cidadaos").where("bloqueioCpf", "==", cpfNum).limit(20))
+        : Promise.resolve({ docs: [] })
+    ]);
+
+    const liberacao = {
+      bloqueioAtivo: false,
+      bloqueioLiberado: true,
+      dataLiberacao: agora,
+      usuarioLiberacao: adminEmail
+    };
+    const refs = new Map([[agRef.path, agRef]]);
+    outrosSnap.docs
+      .filter((doc) => doc.data().bloqueioAtivo !== false && doc.data().bloqueioLiberado !== true)
+      .forEach((doc) => refs.set(doc.ref.path, doc.ref));
+    refs.forEach((ref) => t.set(ref, liberacao, { merge: true }));
+    if (bloqueioDoc && bloqueioDoc.exists) t.delete(bloqueioRef);
+
+    t.set(db.collection("logs_admin").doc(), {
+      acao: "liberar_bloqueio",
+      agendamentoId,
+      protocolo: dados.protocolo || "",
+      detalhes: { registrosLiberados: refs.size, registroDedicadoRemovido: Boolean(bloqueioDoc && bloqueioDoc.exists) },
+      adminEmail,
+      criadoEm: FieldValue.serverTimestamp(),
+      criado: agora
+    });
+
+    retorno = { agendamentoId, registrosLiberados: refs.size, liberacao };
+  });
+
+  return retorno;
+});
+
 exports.listarLogsAdmin = onCall(callableOptions, async (request) => {
   await assertAdmin(request);
   const limite = Math.min(Math.max(Number(request.data && request.data.limite) || 80, 10), 200);
