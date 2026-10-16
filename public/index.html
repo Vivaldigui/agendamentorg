@@ -335,6 +335,18 @@
         .secao.ativa { display: block; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .servicos-publicos.posts-guiadorg { margin-top: 24px; }
+                .posts-guiadorg-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+        .posts-guiadorg-lista li { display: flex; }
+        .post-guiadorg { width: 100%; display: flex; flex-direction: column; gap: 5px; padding: 14px 16px; border: 1px solid var(--gray-200); border-radius: 14px; background: #fff; color: var(--gray-800); text-decoration: none; transition: border-color 0.2s, box-shadow 0.2s; }
+        .post-guiadorg:hover { border-color: #93c5fd; box-shadow: var(--shadow-hover); }
+        .post-guiadorg:focus-visible { outline: 3px solid #0f172a; outline-offset: 3px; }
+        .post-guiadorg-categoria { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gray-600); }
+        .post-guiadorg-titulo { font-size: 0.98rem; line-height: 1.35; color: var(--primary-dark); }
+        .post-guiadorg-resumo { font-size: 0.86rem; line-height: 1.45; color: var(--gray-600); }
+        .post-guiadorg-ler { margin-top: auto; padding-top: 4px; font-size: 0.85rem; font-weight: 800; color: var(--primary); }
+        .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+        @media (min-width: 720px) { .posts-guiadorg-lista { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
         .servicos-publicos { max-width: 700px; margin: 34px auto 0; padding: 0 10px; }
         .servicos-titulo { margin: 0 0 12px; color: var(--gray-800); font-size: 1.1rem; font-weight: 900; }
         .grade-servicos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -686,6 +698,32 @@
         </a>
     </div>
 </section>
+
+<!-- posts-guiadorg:inicio -->
+<section class="servicos-publicos posts-guiadorg" aria-labelledby="titulo-posts-guiadorg">
+    <h2 class="servicos-titulo" id="titulo-posts-guiadorg">Tire dúvidas sobre o RG no Guia do RG</h2>
+    <ul class="posts-guiadorg-lista">
+        <li><a class="post-guiadorg" href="https://guiadorg.com.br/artigos/rg-e-cpf-e-a-mesma-coisa/" target="_blank" rel="noopener">
+            <span class="post-guiadorg-categoria">Carteira de Identidade Nacional</span>
+            <strong class="post-guiadorg-titulo">RG, CPF e CIN: é tudo a mesma coisa?</strong>
+            <span class="post-guiadorg-resumo">RG e CPF são registros diferentes, mas na Carteira de Identidade Nacional, o novo RG, o número da identidade é o próprio CPF. Veja o que mudou e o que informar em cada campo.</span>
+            <span class="post-guiadorg-ler">Ler no Guia do RG <span aria-hidden="true">↗</span><span class="sr-only"> (abre em nova aba)</span></span>
+        </a></li>
+        <li><a class="post-guiadorg" href="https://guiadorg.com.br/artigos/documentos-para-emitir-a-cin/" target="_blank" rel="noopener">
+            <span class="post-guiadorg-categoria">Documentação</span>
+            <strong class="post-guiadorg-titulo">Quais documentos levar para emitir a Carteira de Identidade Nacional</strong>
+            <span class="post-guiadorg-resumo">Pela regra nacional, basta a certidão de nascimento ou de casamento. Veja o que muda para casados, divorciados, naturalizados e crianças, e o que cada estado pede a mais.</span>
+            <span class="post-guiadorg-ler">Ler no Guia do RG <span aria-hidden="true">↗</span><span class="sr-only"> (abre em nova aba)</span></span>
+        </a></li>
+        <li><a class="post-guiadorg" href="https://guiadorg.com.br/artigos/data-de-expedicao-do-rg/" target="_blank" rel="noopener">
+            <span class="post-guiadorg-categoria">Dados do documento</span>
+            <strong class="post-guiadorg-titulo">Data de expedição e de emissão são a mesma coisa? RG e CIN</strong>
+            <span class="post-guiadorg-resumo">Sim, é o mesmo dia. Mas cada via do RG tem a sua data, e a errada faz o cadastro não bater. Veja onde ela fica no RG antigo e na CIN e qual usar.</span>
+            <span class="post-guiadorg-ler">Ler no Guia do RG <span aria-hidden="true">↗</span><span class="sr-only"> (abre em nova aba)</span></span>
+        </a></li>
+    </ul>
+</section>
+<!-- posts-guiadorg:fim -->
 
 <section class="servicos-publicos" aria-labelledby="titulo-servico-cin" style="margin-top:16px;">
     <div style="padding:14px 20px;background:#fffbeb;border:1px solid #fde68a;border-radius:var(--radius);text-align:center;">
