@@ -7,7 +7,7 @@ titulo_seo: "Privacidade no agendamento da CIN em Itanhandu"
 descricao: "Entenda quais dados são usados no agendamento da CIN em Itanhandu, para que servem, por quanto tempo ficam guardados e quais informações ainda serão definidas."
 resposta: "O agendamento usa nome, CPF, data de nascimento, telefone e e-mail opcional para administrar o atendimento. Uma rotina mensal remove identificadores de registros elegíveis com pelo menos seis meses, com exceções descritas abaixo. A Secretaria recebe solicitações pelo e-mail secretaria@itanhandu.cam.mg.gov.br enquanto a Câmara implanta suas rotinas de proteção de dados."
 publicado: 2026-09-11
-atualizado: 2026-09-11
+atualizado: 2026-10-16
 conferido_por: "OpenAI Codex (rascunho não conferido)"
 cluster: regras-e-contexto
 escopos: [local]
@@ -36,9 +36,9 @@ Os dados são usados para organizar a agenda do Posto de Identificação, confir
 
 ## Retenção
 
-Uma rotina programada para o primeiro dia de cada mês, às 03h no horário de São Paulo, remove nome, CPF, telefone, e-mail e nascimento de registros elegíveis cuja data de atendimento tem pelo menos seis meses. Abrange comparecimentos, retornos, faltas e cancelamentos previstos no sistema; registros ainda agendados não são tratados por essa rotina. O processamento tem limite por execução, portanto não ocorre necessariamente no dia em que cada registro completa seis meses.
+Uma rotina programada para o primeiro dia de cada mês, às 03h no horário de São Paulo, remove nome, CPF, telefone, e-mail, nascimento e observações internas de todos os registros cuja data de atendimento tem pelo menos seis meses, qualquer que seja a situação do registro. O processamento tem limite por execução e continua na execução seguinte de onde parou, portanto não ocorre necessariamente no dia em que cada registro completa seis meses.
 
-Em casos de falta com data de bloqueio registrada, o CPF pode ser preservado em um registro separado para controle do bloqueio. Essa rotina não comprova exclusão integral de dados pessoais de todas as coleções, registros de operação e cópias de segurança.
+Em casos de falta, enquanto o bloqueio para novo agendamento estiver valendo, o CPF e a data de liberação ficam em um registro separado para controle do bloqueio. Esse registro é apagado por uma rotina diária quando o bloqueio vence ou é liberado pela recepção. Essas rotinas não comprovam exclusão integral de dados pessoais de todas as coleções, registros de operação e cópias de segurança.
 
 ## Base legal e direitos do titular
 

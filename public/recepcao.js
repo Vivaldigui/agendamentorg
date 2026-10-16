@@ -145,6 +145,14 @@ async function validarAdministradorAtivo(user) {
         erro.code = "unauthenticated";
         throw erro;
     }
+    // As regras do Firestore e as callables exigem e-mail verificado. Conferir
+    // aqui antes evita a leitura de admins, que seria recusada, e permite
+    // oferecer a confirmacao em vez de um "acesso revogado" enganoso.
+    if (user.emailVerified !== true) {
+        const erro = new Error("E-mail da conta ainda nao confirmado.");
+        erro.code = "email-nao-verificado";
+        throw erro;
+    }
     const doc = await db.collection("admins").doc(email).get({ source: "server" });
     if (!doc.exists || doc.data().ativo !== true) {
         const erro = new Error("Administrador inativo.");
@@ -886,17 +894,6 @@ function vagasDaData(dataISO) {
     return gradeDetalhadaParaDataPainel(dataISO).reduce((total, item) => total + item.vagas, 0);
 }
 
-function vagasDoHorarioPainel(dataISO, hora) {
-    const item = gradeDetalhadaParaDataPainel(dataISO).find(h => h.hora === hora);
-    return item ? item.vagas : 0;
-}
-
-// Mesmo esquema de ids do backend: a primeira vaga do horario mantem o id de
-// sempre, as demais ganham sufixo _2, _3...
-function slotIdsDoHorarioPainel(dataISO, hora) {
-    return Array.from({ length: LIMITE_VAGAS_POR_HORARIO }, (_, i) => (i === 0 ? `${dataISO}_${hora}` : `${dataISO}_${hora}_${i + 1}`));
-}
-
 function totalVagasItens(itens) {
     return itens.reduce((total, item) => total + item.vagas, 0);
 }
@@ -1425,15 +1422,6 @@ function criarDadosBloqueio(dados) {
     };
 }
 
-async function gerarCpfDocId(cpf) {
-    const limpo = cpfNumeros(cpf);
-    if (!limpo) return "";
-    if (!window.crypto || !window.crypto.subtle) return limpo;
-    const bytes = new TextEncoder().encode(limpo);
-    const hash = await crypto.subtle.digest("SHA-256", bytes);
-    return "cpf_" + Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
 function statusValor(dados) {
     const status = dados.status;
     if (status === "cancelado_cidadao" || status === "cancelado_camara") return "cancelado";
@@ -1883,6 +1871,12 @@ auth.onAuthStateChanged(async user => {
             await validarAdministradorAtivo(user);
         } catch (e) {
             if (splash) splash.style.display = 'none';
+            if (e && e.code === "email-nao-verificado") {
+                // Continua logado: o envio da confirmacao precisa da sessao.
+                // Sem o e-mail verificado as regras recusam qualquer dado.
+                mostrarVerificacaoEmail(user);
+                return;
+            }
             if (await encerrarSessaoPorAcessoRevogado(e)) return;
             try { await auth.signOut(); } catch (erroLogout) { console.warn("Falha ao reiniciar login", erroLogout); }
             document.getElementById('login-screen').style.display='block';
@@ -1890,6 +1884,7 @@ auth.onAuthStateChanged(async user => {
             return;
         }
         if (splash) splash.style.display = 'none';
+        esconderVerificacaoEmail();
         document.getElementById('login-screen').style.display='none';
         document.getElementById('painel-screen').style.display='block';
         resetarTimerInatividade();
@@ -1932,6 +1927,7 @@ auth.onAuthStateChanged(async user => {
         clearInterval(timerAtualizacaoAutomatica);
         agendaGestaoCarregada = false;
         definirMutacoesAgendaHabilitadas(false);
+        esconderVerificacaoEmail();
         document.getElementById('login-screen').style.display='block';
         document.getElementById('painel-screen').style.display='none';
         document.title = "Recepção CIN — Câmara de Itanhandu";
@@ -1972,6 +1968,63 @@ async function fazerLogin() {
 ["email", "senha"].forEach(id => document.getElementById(id).addEventListener("keydown", e => {
     if (e.key === "Enter") fazerLogin();
 }));
+// Conta com senha certa mas e-mail ainda nao confirmado. A sessao fica aberta
+// so para pedir e conferir a confirmacao; o banco recusa qualquer dado ate la.
+function mostrarVerificacaoEmail(user) {
+    document.getElementById('painel-screen').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'block';
+    document.getElementById('login-screen').classList.add('aguardando-verificacao');
+    document.getElementById('verificacao-email-endereco').textContent = String(user && user.email || "");
+    document.getElementById('verificacao-email').style.display = 'block';
+    document.getElementById('login-erro').style.display = 'none';
+}
+
+function esconderVerificacaoEmail() {
+    document.getElementById('login-screen').classList.remove('aguardando-verificacao');
+    document.getElementById('verificacao-email').style.display = 'none';
+    document.getElementById('verificacao-email-status').textContent = "";
+}
+
+function statusVerificacaoEmail(mensagem) {
+    document.getElementById('verificacao-email-status').textContent = mensagem;
+}
+
+async function enviarVerificacaoEmail() {
+    const user = auth.currentUser;
+    if (!user) return;
+    const btn = document.getElementById('btn-enviar-verificacao');
+    btn.disabled = true;
+    try {
+        await user.sendEmailVerification();
+        statusVerificacaoEmail(`Enviamos o link para ${user.email}. Abra o e-mail, toque no link e depois volte aqui e toque em "Já confirmei". Confira também a caixa de spam.`);
+    } catch (e) {
+        const codigo = (e && e.code) || "";
+        statusVerificacaoEmail(codigo === "auth/too-many-requests"
+            ? "Já enviamos vários links há pouco. Aguarde alguns minutos antes de pedir outro."
+            : "Não foi possível enviar o e-mail agora. Verifique a conexão e tente novamente.");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function conferirEmailVerificado() {
+    const user = auth.currentUser;
+    if (!user) return;
+    try {
+        await user.reload();
+        if (!auth.currentUser.emailVerified) {
+            statusVerificacaoEmail("O e-mail ainda não aparece como confirmado. Toque no link recebido e tente de novo.");
+            return;
+        }
+        // Token novo com email_verified: o antigo segue valendo por ate uma
+        // hora e as regras continuariam recusando.
+        await auth.currentUser.getIdToken(true);
+        window.location.reload();
+    } catch (e) {
+        statusVerificacaoEmail("Não foi possível conferir agora. Verifique a conexão e tente novamente.");
+    }
+}
+
 function fazerLogout() { clearTimeout(timerAviso); clearTimeout(timerLogout); clearInterval(timerAtualizacaoAutomatica); pararMonitoramentoAcessos(); removerAvisoSessao(); auth.signOut(); }
 function abrirModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='flex'; }
 function fecharModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='none'; }
@@ -2893,7 +2946,96 @@ function mostrarVistaPainel(vista) {
     if (vistaPainelAtual === "hoje") renderFilaHoje();
     if (vistaPainelAtual === "credenciais" && !credenciaisCarregadas) carregarCredenciais();
     if (vistaPainelAtual === "config") atualizarEstadoConfigHub();
+    if (vistaPainelAtual === "relatorios" && !metricasAberturaCarregadas) carregarMetricasAbertura();
     atualizarFaixaEstado();
+}
+
+// ---- Relatorios: metricas de cada abertura ----------------------------
+// Contadores gravados por criarAgendamentoCidadao em
+// metricas_abertura/{segunda}/fragmentos (functions/metricas-abertura.js).
+// A soma espelha somarFragmentos de la; ha teste de equivalencia.
+const MOTIVOS_METRICA_ABERTURA = ["sucesso", "conflitoHorario", "cpfJaAgendado", "cpfBloqueado", "limiteExcedido", "muitasTentativas", "horarioIndisponivel", "dadosInvalidos", "erro"];
+const ABERTURAS_NO_RELATORIO = 4;
+let metricasAberturaCarregadas = false;
+
+function somarFragmentosMetricas(fragmentos) {
+    const total = { tentativas: 0, tentativasPorMinuto: {}, sucessosPorMinuto: {} };
+    MOTIVOS_METRICA_ABERTURA.forEach(motivo => { total[motivo] = 0; });
+    for (const dados of fragmentos) {
+        if (!dados || typeof dados !== "object") continue;
+        total.tentativas += Number(dados.tentativas) || 0;
+        MOTIVOS_METRICA_ABERTURA.forEach(motivo => { total[motivo] += Number(dados[motivo]) || 0; });
+        for (const mapa of ["tentativasPorMinuto", "sucessosPorMinuto"]) {
+            const origem = dados[mapa] && typeof dados[mapa] === "object" ? dados[mapa] : {};
+            for (const [minuto, valor] of Object.entries(origem)) {
+                total[mapa][minuto] = (total[mapa][minuto] || 0) + (Number(valor) || 0);
+            }
+        }
+    }
+    return total;
+}
+
+// "2026-10-19T08:03" -> "19/10 08:03"
+function minutoMetricaLegivel(minuto) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})$/.exec(String(minuto || ""));
+    return m ? `${m[3]}/${m[2]} ${m[4]}` : "—";
+}
+
+function resumoAbertura(segunda, total) {
+    const comSucesso = Object.keys(total.sucessosPorMinuto).filter(m => total.sucessosPorMinuto[m] > 0).sort();
+    let pico = null;
+    for (const [minuto, quantidade] of Object.entries(total.tentativasPorMinuto)) {
+        if (!pico || quantidade > pico.quantidade || (quantidade === pico.quantidade && minuto < pico.minuto)) pico = { minuto, quantidade };
+    }
+    return {
+        segunda,
+        tentativas: total.tentativas,
+        agendados: total.sucesso,
+        perderamHorario: total.conflitoHorario,
+        recusados: total.cpfJaAgendado + total.cpfBloqueado + total.limiteExcedido + total.muitasTentativas,
+        limiteExcedido: total.limiteExcedido,
+        outros: total.horarioIndisponivel + total.dadosInvalidos + total.erro,
+        primeiroAgendamento: comSucesso[0] || "",
+        ultimoAgendamento: comSucesso[comSucesso.length - 1] || "",
+        pico
+    };
+}
+
+async function carregarMetricasAbertura() {
+    const corpo = document.getElementById("metricas-abertura-corpo");
+    if (!corpo) return;
+    corpo.innerHTML = "<tr><td colspan='8'><i class='fa-solid fa-spinner fa-spin'></i> Carregando...</td></tr>";
+    try {
+        const segundaAtual = segundaDaSemanaPainel(hojeISO());
+        const segundas = Array.from({ length: ABERTURAS_NO_RELATORIO }, (_, i) => somarDiasISO(segundaAtual, -7 * i));
+        const resumos = await Promise.all(segundas.map(async segunda => {
+            const snap = await db.collection("metricas_abertura").doc(segunda).collection("fragmentos").get({ source: "server" });
+            return resumoAbertura(segunda, somarFragmentosMetricas(snap.docs.map(doc => doc.data())));
+        }));
+        metricasAberturaCarregadas = true;
+        corpo.innerHTML = resumos.map(r => r.tentativas === 0
+            ? `<tr><td data-label="Abertura">${textoSeguro(dataBrISO(r.segunda))}</td><td colspan='7' class='detalhe-pessoal'>Sem registro (as métricas começam a contar a partir desta versão).</td></tr>`
+            : `<tr>
+                <td data-label="Abertura">${textoSeguro(dataBrISO(r.segunda))}</td>
+                <td data-label="Tentativas">${r.tentativas}</td>
+                <td data-label="Agendados">${r.agendados}</td>
+                <td data-label="Perderam o horário">${r.perderamHorario}</td>
+                <td data-label="Recusados">${r.recusados}${r.limiteExcedido ? ` <small>(${r.limiteExcedido} por limite)</small>` : ""}</td>
+                <td data-label="Outros">${r.outros}</td>
+                <td data-label="1º → último agendamento">${textoSeguro(minutoMetricaLegivel(r.primeiroAgendamento))} → ${textoSeguro(minutoMetricaLegivel(r.ultimoAgendamento))}</td>
+                <td data-label="Pico de tentativas">${r.pico ? `${textoSeguro(minutoMetricaLegivel(r.pico.minuto))} (${r.pico.quantidade})` : "—"}</td>
+            </tr>`).join("");
+    } catch (e) {
+        // Metrica e opcional: uma recusa aqui nao pode encerrar a sessao. Na
+        // publicacao de 16/10/2026 o hosting subiu antes das regras que liberam
+        // metricas_abertura, o Firestore recusou a leitura e o painel tratou a
+        // recusa como acesso revogado, deslogando a recepcao. Acesso revogado
+        // de verdade continua detectado pelas leituras principais do painel.
+        console.warn("Metricas de abertura indisponiveis.", e);
+        corpo.innerHTML = erroDeAutorizacao(e)
+            ? "<tr><td colspan='8'>Métricas ainda indisponíveis para esta conta. O restante do painel segue funcionando.</td></tr>"
+            : "<tr><td colspan='8'>Não foi possível carregar as métricas. Tente atualizar.</td></tr>";
+    }
 }
 
 // ---- Configuracao: hub de icones e paineis de detalhe -----------------
@@ -3362,70 +3504,46 @@ async function salvarRemarcacao() {
     btn.disabled = true;
     btn.innerText = "Remarcando...";
     try {
-        const slotAntigo = ag.dados.slotId || `${ag.dados.dataISO}_${ag.dados.hora}`;
-        let novoSlot = `${data}_${hora}`;
-        if (contabilizaVaga) {
-            // O horario pode ter mais de uma vaga: usa a primeira livre, ou
-            // mantem a vaga que o agendamento ja ocupa neste mesmo horario.
-            const ids = slotIdsDoHorarioPainel(data, hora);
-            if (ids.includes(slotAntigo)) {
-                novoSlot = slotAntigo;
-            } else {
-                const docs = await Promise.all(ids.map(id => db.collection("vagas_ocupadas").doc(id).get()));
-                const capacidade = Math.max(1, vagasDoHorarioPainel(data, hora));
-                const livre = docs.find(doc => !doc.exists);
-                if (docs.filter(doc => doc.exists).length >= capacidade || !livre) {
-                    throw new Error("Este horário já está ocupado. Escolha outro horário.");
-                }
-                novoSlot = livre.id;
-            }
-        }
-        if (slotAntigo && slotAntigo !== novoSlot) {
-            await db.collection("vagas_ocupadas").doc(slotAntigo).delete().catch(() => {});
-        }
-        if (contabilizaVaga) {
-            await db.collection("vagas_ocupadas").doc(novoSlot).set({
-                dataISO: data,
-                hora,
-                agendamentoId: id,
-                origem: "gestaov6_remarcacao",
-                atualizadoEm: new Date().toISOString()
-            }, { merge: true });
-        }
-
-        const atualizacao = {
-            dataISO: data,
-            hora,
-            slotId: contabilizaVaga ? novoSlot : null,
-            insercaoManual: !contabilizaVaga,
-            status: "remarcado",
-            // Remarcar reativa: o agendamento continua valendo na nova data.
+        // Passa pela callable transacional. A versao anterior escrevia direto no
+        // Firestore: lia as vagas fora de transacao e gravava com merge (um
+        // cidadao que reservasse a vaga no intervalo era sobrescrito) e apagava
+        // a vaga antiga sem conferir o dono (com a lista desatualizada, sumia a
+        // vaga de quem tinha reservado depois). O backend escolhe a vaga, confere
+        // a grade e grava o log com o e-mail do token.
+        const remarcar = functions.httpsCallable("remarcarAgendamentoAdmin");
+        const resposta = await remarcar({ agendamentoId: id, data, hora, contabilizaVaga });
+        const novo = (resposta && resposta.data && resposta.data.agendamento) || {};
+        Object.assign(ag.dados, {
+            dataISO: novo.dataISO || data,
+            hora: novo.hora || hora,
+            slotId: novo.slotId || null,
+            insercaoManual: novo.insercaoManual === true,
+            status: novo.status || "remarcado",
             ativo: true,
-            remarcadoEm: new Date().toISOString(),
-            remarcadoPor: auth.currentUser ? auth.currentUser.email : "",
-            statusAtualizadoEm: new Date().toISOString(),
-            statusAtualizadoPor: auth.currentUser ? auth.currentUser.email : "",
-            alteradoPor: auth.currentUser ? auth.currentUser.email : ""
-        };
-        await db.collection("dados_cidadaos").doc(id).set(atualizacao, { merge: true });
-        const cpfId = await gerarCpfDocId(ag.dados.cpf);
-        if (cpfId) {
-            await db.collection("cpfs_agendados").doc(cpfId).set({
-                agendamentoId: id,
-                dataISO: data,
-                hora,
-                atualizadoEm: new Date().toISOString()
-            }, { merge: true });
-        }
-        Object.assign(ag.dados, atualizacao);
+            remarcadoEm: novo.remarcadoEm || new Date().toISOString(),
+            remarcadoPor: novo.remarcadoPor || "",
+            statusAtualizadoEm: novo.remarcadoEm || new Date().toISOString(),
+            statusAtualizadoPor: novo.remarcadoPor || "",
+            alteradoPor: novo.remarcadoPor || ""
+        });
         fecharRemarcacao();
-        await registrarLog("remarcacao_painel", { agendamentoId: id, dataISO: data, hora, contabilizaVaga });
         atualizarResumo();
         renderTabelaAgendamentos();
         renderFilaHoje();
-        mostrarToast("Agendamento remarcado.");
+        mostrarToast(novo.reativado ? "Agendamento reativado e remarcado." : "Agendamento remarcado.");
     } catch (e) {
-        avisoPainel(e.message || "Erro ao remarcar.");
+        const codigo = String((e && e.code) || "").replace(/^functions\//, "");
+        if (["already-exists", "failed-precondition", "invalid-argument"].includes(codigo)) {
+            avisoPainel(e.message || "Não foi possível remarcar.");
+        } else if (codigo === "not-found") {
+            avisoPainel("Agendamento não encontrado. A lista foi atualizada.");
+            listarAgendamentos();
+        } else if (codigo === "permission-denied" || codigo === "unauthenticated") {
+            avisoPainel("Sessão sem permissão para remarcar. Entre novamente.");
+        } else {
+            avisoPainel("Erro ao remarcar. A lista foi atualizada; confira antes de tentar de novo.");
+            listarAgendamentos();
+        }
     }
     btn.disabled = false;
     btn.innerText = "Salvar Remarcação";
@@ -3435,10 +3553,10 @@ async function tentarGravarBloqueioDedicado(dadosBloqueio) {
     const cpf = dadosBloqueio.bloqueioCpf;
     if (cpf.length !== 11) return;
     try {
+        // Sem nome e telefone: a verificacao do bloqueio so precisa do CPF e da
+        // data, e a recepcao ve os dados da pessoa no proprio agendamento.
         await db.collection("bloqueios_agendamento").doc(cpf).set({
             cpf,
-            nome: dadosBloqueio.bloqueioNome,
-            telefone: dadosBloqueio.bloqueioTelefone,
             motivo: dadosBloqueio.bloqueioMotivo,
             dataFalta: dadosBloqueio.bloqueioDataFalta,
             bloqueadoAte: dadosBloqueio.bloqueadoAte,
@@ -3829,7 +3947,8 @@ async function abrirZapBloqueio(id) {
     const telLimpo = cpfNumeros(d.bloqueioTelefone || d.telefone);
     if (telLimpo.length < 10) return avisoPainel("Telefone inválido para WhatsApp.");
     const msg = `Olá, ${d.bloqueioNome || d.nome}! Precisamos falar sobre seu agendamento de RG/CIN na Câmara Municipal de Itanhandu. Por favor, entre em contato com a recepção.`;
-    await registrarLog("whatsapp_bloqueio", { agendamentoId: id, cpf: d.bloqueioCpf || cpfNumeros(d.cpf) });
+    // O log identifica pelo agendamento; CPF em log nunca era anonimizado.
+    await registrarLog("whatsapp_bloqueio", { agendamentoId: id });
     window.open(`https://wa.me/55${telLimpo}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
 }
 
@@ -3848,7 +3967,7 @@ async function liberarBloqueio(id) {
         await db.collection("dados_cidadaos").doc(id).set(liberacao, { merge: true });
         if (cpf.length === 11) await db.collection("bloqueios_agendamento").doc(cpf).delete().catch(() => {});
         Object.assign(ag.dados, liberacao);
-        await registrarLog("liberar_bloqueio", { agendamentoId: id, cpf });
+        await registrarLog("liberar_bloqueio", { agendamentoId: id });
         renderTabelaAgendamentos();
         renderFilaHoje();
         mostrarToast("Bloqueio liberado.");
@@ -4034,6 +4153,8 @@ function exportarExcel() {
 const ACOES_CLIQUE = {
     // Sessao e navegacao
     fazerLogin, fazerLogout, alternarTema,
+    enviarVerificacaoEmail, conferirEmailVerificado,
+    carregarMetricasAbertura,
     vista: el => mostrarVistaPainel(el.dataset.vista),
 
     // Lista de agendamentos

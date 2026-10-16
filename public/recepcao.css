@@ -1050,6 +1050,20 @@ body.modo-escuro .barra-serie {
 .toast-sessao { color:#78350f; background:#fffbeb; border-color:#fbbf24; }
 .login-erro { margin:0 0 14px; padding:10px 12px; border-radius:9px; background:#fef2f2; border:1px solid #fca5a5; color:#b91c1c; font-size:0.85rem; font-weight:700; text-align:left; }
 body.modo-escuro .login-erro { background:#450a0a; border-color:#991b1b; color:#fecaca; }
+#login-screen.aguardando-verificacao .input-group,
+#login-screen.aguardando-verificacao #btn-login { display:none; }
+.verificacao-email { text-align:left; font-size:0.9rem; line-height:1.5; }
+.verificacao-email p { margin:0 0 10px; }
+#verificacao-email-endereco { font-weight:900; word-break:break-all; }
+.verificacao-email .btn-login { margin-top:8px; }
+.btn-secundario-login { background:white !important; color:var(--primary); border-color:var(--primary) !important; box-shadow:none; }
+.btn-link-login { display:block; margin:12px auto 0; background:none; border:none; color:var(--primary); font-weight:700; text-decoration:underline; cursor:pointer; padding:8px; }
+.verificacao-email-status { margin-top:12px; font-weight:700; }
+.verificacao-email-status:empty { display:none; }
+body.modo-escuro .btn-secundario-login { background:transparent !important; }
+.painel-metricas { margin-top:14px; }
+@media (min-width: 761px) { .tabela-metricas { min-width:760px; } }
+.tabela-metricas td small { color:#64748b; font-weight:700; }
 .toast-sessao button { margin-left:auto; border:1px solid #92400e; background:white; color:#78350f; border-radius:7px; padding:5px 9px; font-weight:900; cursor:pointer; }
 .painel-horarios, .painel-preferencias, .painel-automacao, .painel-logs { margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
 details > summary { cursor:pointer; color:var(--primary-dark); font-weight:900; }

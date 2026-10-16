@@ -2081,6 +2081,26 @@
             && texto.includes("cpf");
     }
 
+    // Teto por celular ou por conexao (functions/limites-agendamento.js). Vem
+    // como resource-exhausted, mas nao e "muitas tentativas": esperar nao muda
+    // nada, entao a pessoa precisa saber o que fazer.
+    function erroLimiteAgendamento(erroObj) {
+        const tipo = erroObj && erroObj.details && erroObj.details.tipo;
+        return codigoErroFunctions(erroObj) === "resource-exhausted"
+            && (tipo === "limite-telefone" || tipo === "limite-origem");
+    }
+
+    function mensagemLimiteAgendamento(erroObj) {
+        const detalhes = (erroObj && erroObj.details) || {};
+        const contato = "fale com a Câmara pelo WhatsApp (35) 3504-0397.";
+        if (detalhes.tipo === "limite-telefone") {
+            const teto = Number(detalhes.teto) || 0;
+            const quantos = teto === 1 ? "1 agendamento ativo" : `${teto} agendamentos ativos`;
+            return `Este celular já está em ${teto ? quantos : "agendamentos ativos"}.\n\nPara agendar outra pessoa da família, use outro número de celular ou ${contato}`;
+        }
+        return `Esta conexão já fez o número máximo de agendamentos de hoje.\n\nSe você está agendando para várias pessoas, ${contato}`;
+    }
+
     function erroCpfBloqueado(erroObj) {
         const texto = normalizarErroTexto(erroObj);
         return texto.includes("ausencia em atendimento anterior")
@@ -3386,7 +3406,12 @@
 
         const e = ultimoErro;
         const codigoFinal = codigoErroFunctions(e);
-        if (erroHorarioOcupado(e)) {
+        if (erroLimiteAgendamento(e)) {
+            definirCamposOperacaoBloqueados(false);
+            operacaoAgendamentoPendente = null;
+            erro(mensagemLimiteAgendamento(e));
+        }
+        else if (erroHorarioOcupado(e)) {
             marcarSlotIndisponivelLocalmente(dataOperacao, horaOperacao);
             definirCamposOperacaoBloqueados(false);
             operacaoAgendamentoPendente = null;

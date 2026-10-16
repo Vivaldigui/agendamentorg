@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const { initializeApp } = require("firebase-admin/app");
-const { FieldValue, Timestamp, getFirestore } = require("firebase-admin/firestore");
+const { FieldPath, FieldValue, Timestamp, getFirestore } = require("firebase-admin/firestore");
 const { HttpsError, onCall, onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineBoolean, defineString, defineSecret } = require("firebase-functions/params");
@@ -38,6 +38,20 @@ const {
   parametrosLeituraPublicaValidos
 } = require("./agenda-cache-publica");
 const { avisoPopupPublico } = require("./aviso-popup");
+const {
+  TIPO_LIMITE_TELEFONE,
+  TIPO_LIMITE_ORIGEM,
+  normalizarLimitesAgendamento,
+  chaveOrigemLimite,
+  limiteOrigemDocId,
+  telefoneDocId,
+  agendamentosQueContamNoTelefone,
+  excedeTeto,
+  mensagemLimiteTelefone,
+  mensagemLimiteOrigem,
+  expiracaoAposData
+} = require("./limites-agendamento");
+const { criarRegistradorMetricas, comMetricaAbertura } = require("./metricas-abertura");
 
 initializeApp();
 
@@ -49,6 +63,7 @@ const avaliacaoN8nUrl = defineSecret("AVALIACAO_N8N_WEBHOOK_URL");
 const avaliacaoN8nToken = defineSecret("AVALIACAO_N8N_TOKEN");
 const avaliacaoDestinatarioChave = defineSecret("AVALIACAO_DESTINATARIO_CHAVE");
 const servicoAvaliacaoGoogle = criarServicoAvaliacao({ db, Timestamp });
+const registrarMetricaAbertura = criarRegistradorMetricas({ db, FieldValue });
 
 exports.enviarAvaliacoesGooglePendentes = onSchedule({
   schedule: "0 17 * * *",
@@ -79,14 +94,6 @@ const STATUS_VALIDOS = [
   "cancelado_camara",
   "remarcado"
 ];
-const STATUS_ANONIMIZAR_LGPD = new Set([
-  "compareceu",
-  "vai_voltar",
-  "nao_compareceu",
-  "cancelado",
-  "cancelado_cidadao",
-  "cancelado_camara"
-]);
 const LGPD_RETENCAO_MESES = 6;
 const LGPD_MAX_LEITURAS_POR_EXECUCAO = 5000;
 const LGPD_TAMANHO_PAGINA = 250;
@@ -412,16 +419,17 @@ function validarIdadeMinimaAgendamento(nascimentoISO, dataISO) {
   // Permite que menores de 3 anos possam marcar pelo sistema.
 }
 
+// Dia fica no ultimo dia do mes de destino quando ele nao existe la: 31/08
+// menos seis meses e 28/02, e nao 03/03 (setMonth transbordava para marco).
 function subtrairMesesISO(dataISO, meses) {
   const partes = String(dataISO || "").split("-").map(Number);
   if (partes.length !== 3 || partes.some((n) => !Number.isFinite(n))) return hojeSaoPauloISO();
-  const data = new Date(partes[0], partes[1] - 1, partes[2]);
-  data.setMonth(data.getMonth() - meses);
-  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
-}
-
-function statusParaAnonimizar(status) {
-  return STATUS_ANONIMIZAR_LGPD.has(String(status || ""));
+  const indiceMes = partes[0] * 12 + (partes[1] - 1) - meses;
+  const ano = Math.floor(indiceMes / 12);
+  const mes = indiceMes - ano * 12;
+  const ultimoDia = new Date(Date.UTC(ano, mes + 1, 0)).getUTCDate();
+  const dia = Math.min(partes[2], ultimoDia);
+  return `${String(ano).padStart(4, "0")}-${String(mes + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
 }
 
 function cpfNumeros(valor) {
@@ -533,9 +541,13 @@ function mensagemCpfBloqueado(bloqueio) {
   return `Nao foi possivel realizar novo agendamento.\n\nConsta ausencia em atendimento anterior.\nNovo agendamento permitido a partir de ${bloqueio.dataLiberacao}.\n\nEm caso de justificativa, entre em contato com a Camara Municipal.`;
 }
 
+// Mesma regra de isAdmin() em firestore.rules: e-mail presente, VERIFICADO e
+// cadastrado como admin ativo. Sem a verificacao, quem criasse uma conta com
+// um e-mail listado em admins herdaria o acesso.
 async function assertAdmin(request) {
-  const email = String(request.auth && request.auth.token && request.auth.token.email || "").trim().toLowerCase();
-  if (!email) {
+  const token = (request.auth && request.auth.token) || {};
+  const email = String(token.email || "").trim().toLowerCase();
+  if (!email || token.email_verified !== true) {
     throw new HttpsError("permission-denied", "Acesso administrativo negado.");
   }
   const adminDoc = await db.collection("admins").doc(email).get();
@@ -644,22 +656,61 @@ async function aplicarRateLimitOrigem(request, acao, limite, janelaMs, extra = "
   );
 }
 
+// Anonimizacao mensal (LGPD). Revista em 16/10/2026 a partir da auditoria:
+//
+//   - LGPD-01: todo registro com atendimento ha mais de seis meses e tratado,
+//     qualquer que seja o status. Antes, "agendado" e "remarcado" ficavam de
+//     fora -- quem a recepcao nao marcou depois do atendimento, e todo
+//     remarcado pelo painel, guardava nome, CPF, nascimento e telefone para
+//     sempre. Seis meses depois da data nao ha uso operacional para nenhum.
+//   - LGPD-02: a consulta comecava sempre do registro mais antigo e nao
+//     excluia os ja anonimizados. Com o teto de leituras por execucao, quando
+//     o historico passasse dele a rotina leria sempre os mesmos documentos e
+//     nunca chegaria aos novos. Agora ela continua de onde parou, pelo cursor
+//     em configuracoes/lgpd.proximaDataISO (datas anteriores ja tratadas).
+//     Para reprocessar tudo, apague esse campo.
+//   - O indice de CPF so e apagado se ainda apontar para o registro
+//     anonimizado. Apagar sempre removia tambem o indice de um agendamento
+//     NOVO do mesmo CPF, e a criacao, que confere duplicidade por ele, passava
+//     a aceitar um segundo agendamento ativo.
+//   - A observacao interna sai junto: e texto livre da recepcao e pode citar
+//     dados da pessoa.
+//   - O bloqueio por falta so e copiado para bloqueios_agendamento se ainda
+//     estiver valendo, e sem nome nem telefone.
+const LGPD_CURSOR_REF = () => db.collection("configuracoes").doc("lgpd");
+
 async function anonimizarDadosAntigosLGPD() {
   const corte = subtrairMesesISO(hojeSaoPauloISO(), LGPD_RETENCAO_MESES);
+  const cursorDoc = await LGPD_CURSOR_REF().get();
+  const cursorSalvo = cursorDoc.exists ? cursorDoc.data().proximaDataISO : "";
+  const inicio = dataISOValida(cursorSalvo) && cursorSalvo <= corte ? cursorSalvo : "";
   let ultimoDoc = null;
+  let ultimaDataLida = "";
+  let concluiu = false;
   let totalLidos = 0;
   let totalAnonimizados = 0;
   let totalCpfMapsRemovidos = 0;
+  let totalCpfMapsPreservados = 0;
+  let totalBloqueiosPreservados = 0;
 
-  while (totalLidos < LGPD_MAX_LEITURAS_POR_EXECUCAO) {
-    let query = db.collection("dados_cidadaos")
-      .where("dataISO", "<=", corte)
+  if (cursorSalvo && dataISOValida(cursorSalvo) && cursorSalvo > corte) {
+    // Tudo ate o corte ja foi tratado numa execucao anterior.
+    concluiu = true;
+  }
+
+  while (!concluiu && totalLidos < LGPD_MAX_LEITURAS_POR_EXECUCAO) {
+    let query = db.collection("dados_cidadaos").where("dataISO", "<=", corte);
+    if (inicio) query = query.where("dataISO", ">=", inicio);
+    query = query
       .orderBy("dataISO")
       .limit(Math.min(LGPD_TAMANHO_PAGINA, LGPD_MAX_LEITURAS_POR_EXECUCAO - totalLidos));
     if (ultimoDoc) query = query.startAfter(ultimoDoc);
 
     const snap = await query.get();
-    if (snap.empty) break;
+    if (snap.empty) {
+      concluiu = true;
+      break;
+    }
     totalLidos += snap.size;
     ultimoDoc = snap.docs[snap.docs.length - 1];
 
@@ -675,10 +726,12 @@ async function anonimizarDadosAntigosLGPD() {
 
     for (const doc of snap.docs) {
       const dados = doc.data();
-      if (dados.anonimizadoLGPD === true || !statusParaAnonimizar(dados.status)) continue;
+      ultimaDataLida = String(dados.dataISO || ultimaDataLida);
+      if (dados.anonimizadoLGPD === true) continue;
 
-      const cpfNum = cpfNumeros(dados.cpf);
-      if (dados.status === "nao_compareceu" && cpfNum.length === 11 && dados.bloqueadoAte) {
+      const cpfNum = cpfNumeros(dados.cpf || dados.bloqueioCpf);
+      const bloqueio = bloqueioAtivoDeDoc(dados);
+      if (bloqueio && cpfNum.length === 11) {
         batch.set(
           db.collection("bloqueios_agendamento").doc(cpfNum),
           {
@@ -691,6 +744,7 @@ async function anonimizarDadosAntigosLGPD() {
           { merge: true }
         );
         operacoes += 1;
+        totalBloqueiosPreservados += 1;
       }
       batch.set(doc.ref, {
         nome: "ANONIMIZADO",
@@ -699,6 +753,7 @@ async function anonimizarDadosAntigosLGPD() {
         email: FieldValue.delete(),
         dataNasc: FieldValue.delete(),
         nascimento: FieldValue.delete(),
+        observacaoInterna: FieldValue.delete(),
         bloqueioCpf: FieldValue.delete(),
         bloqueioNome: FieldValue.delete(),
         bloqueioTelefone: FieldValue.delete(),
@@ -709,10 +764,19 @@ async function anonimizarDadosAntigosLGPD() {
       operacoes += 1;
 
       if (cpfNum.length === 11) {
-        batch.delete(db.collection("cpfs_agendados").doc(cpfDocId(cpfNum)));
-        batch.delete(db.collection("cpfs_agendados").doc(cpfNum));
-        operacoes += 2;
-        totalCpfMapsRemovidos += 2;
+        const indices = [cpfDocId(cpfNum), cpfNum].map((id) => db.collection("cpfs_agendados").doc(id));
+        const snapsIndice = await db.getAll(...indices);
+        snapsIndice.forEach((snapIndice, posicao) => {
+          if (!snapIndice.exists) return;
+          const apontaPara = snapIndice.data().agendamentoId;
+          if (!apontaPara || apontaPara === doc.id) {
+            batch.delete(indices[posicao]);
+            operacoes += 1;
+            totalCpfMapsRemovidos += 1;
+          } else {
+            totalCpfMapsPreservados += 1;
+          }
+        });
       }
 
       totalAnonimizados += 1;
@@ -720,8 +784,24 @@ async function anonimizarDadosAntigosLGPD() {
     }
 
     await commitSeNecessario(true);
-    if (snap.size < LGPD_TAMANHO_PAGINA) break;
+    if (snap.size < LGPD_TAMANHO_PAGINA) {
+      concluiu = true;
+      break;
+    }
   }
+
+  // Concluiu: tudo ate o corte foi tratado e a proxima execucao comeca no dia
+  // seguinte a ele. Parou no teto: recomeca na data do ultimo registro lido,
+  // que pode ter irmaos ainda nao lidos (os ja tratados sao pulados).
+  const proximaDataISO = concluiu
+    ? somarDiasISO(corte, 1)
+    : (ultimaDataLida || inicio || "");
+  await LGPD_CURSOR_REF().set({
+    proximaDataISO,
+    ultimoCorte: corte,
+    concluiuAteCorte: concluiu,
+    atualizadoEm: new Date().toISOString()
+  }, { merge: true });
 
   if (totalAnonimizados > 0) {
     await db.collection("configuracoes").doc("estatisticas").set({
@@ -735,9 +815,14 @@ async function anonimizarDadosAntigosLGPD() {
     detalhes: {
       corte,
       mesesRetencao: LGPD_RETENCAO_MESES,
+      inicio,
+      proximaDataISO,
+      concluiuAteCorte: concluiu,
       totalLidos,
       totalAnonimizados,
       totalCpfMapsRemovidos,
+      totalCpfMapsPreservados,
+      totalBloqueiosPreservados,
       totalAtendimentosHistorico: totalAnonimizados
     },
     adminEmail: "sistema",
@@ -745,7 +830,17 @@ async function anonimizarDadosAntigosLGPD() {
     criado: new Date().toISOString()
   });
 
-  return { corte, totalLidos, totalAnonimizados, totalCpfMapsRemovidos };
+  return {
+    corte,
+    inicio,
+    proximaDataISO,
+    concluiuAteCorte: concluiu,
+    totalLidos,
+    totalAnonimizados,
+    totalCpfMapsRemovidos,
+    totalCpfMapsPreservados,
+    totalBloqueiosPreservados
+  };
 }
 
 // `agora` e `hoje` sao parametros para que a leitura publica use um unico
@@ -1204,7 +1299,9 @@ function resolverResultadoOperacaoAgendamento(dados, payloadHash) {
   }
 }
 
-exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request) => {
+// Cada pedido entra nas metricas da abertura (metricas-abertura.js), fora da
+// transacao e sem poder atrasar ou derrubar o agendamento.
+exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, comMetricaAbertura(registrarMetricaAbertura, async (request) => {
   const dadosRequisicao = request.data || {};
   const nome = normalizarTexto(dadosRequisicao.nome, "o nome completo", 5, 120);
   const cpfNum = normalizarCpf(dadosRequisicao.cpf);
@@ -1267,6 +1364,15 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
   const bloqueioRef = db.collection("bloqueios_agendamento").doc(cpfNum);
   const agendaRef = AGENDA_REF();
   const expiraEmOperacao = Timestamp.fromMillis(Date.now() + OPERACAO_AGENDAMENTO_TTL_MS);
+  // Tetos por telefone e por origem (limites-agendamento.js). A origem usa o IP
+  // acrescentado pelo balanceador, nao o primeiro X-Forwarded-For do cliente.
+  // Sem IP utilizavel o teto de origem nao se aplica.
+  const hojeLimites = hojeSaoPauloISO();
+  const telefoneRef = db.collection("telefones_agendados").doc(telefoneDocId(telefoneCanonico(telefone)));
+  const chaveOrigem = chaveOrigemLimite(ipOrigemConfiavel(request));
+  const origemRef = chaveOrigem
+    ? db.collection("limites_origem").doc(limiteOrigemDocId(chaveOrigem, hojeLimites))
+    : null;
 
   const resultadoTransacao = await db.runTransaction(async (t) => {
     const operacaoDoc = await t.get(operacaoRef);
@@ -1274,11 +1380,13 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
       return resolverResultadoOperacaoAgendamento(operacaoDoc.data(), payloadHash);
     }
 
-    const [cpfDoc, cpfLegadoDoc, bloqueioDoc, agendaDoc] = await Promise.all([
+    const [cpfDoc, cpfLegadoDoc, bloqueioDoc, agendaDoc, telefoneDoc, origemDoc] = await Promise.all([
       t.get(cpfRef),
       t.get(cpfLegadoRef),
       t.get(bloqueioRef),
-      t.get(agendaRef)
+      t.get(agendaRef),
+      t.get(telefoneRef),
+      origemRef ? t.get(origemRef) : Promise.resolve(null)
     ]);
 
     const bloqueioRevalidado = bloqueioDoc.exists ? bloqueioAtivoDeDoc(bloqueioDoc.data()) : null;
@@ -1366,6 +1474,30 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
       );
     }
 
+    // Tetos conferidos dentro da transacao: uma rajada em paralelo do mesmo
+    // telefone ou da mesma origem colide aqui e nao passa inteira. Ficam depois
+    // da vaga e do CPF para que os erros mais especificos continuem saindo antes.
+    const limites = normalizarLimitesAgendamento(agendaDoc.exists ? agendaDoc.data().limitesAgendamento : null);
+    const idsTelefone = telefoneDoc.exists && Array.isArray(telefoneDoc.data().agendamentoIds)
+      ? [...new Set(telefoneDoc.data().agendamentoIds.filter((id) => typeof id === "string" && id))].slice(0, 20)
+      : [];
+    const docsTelefone = idsTelefone.length
+      ? await t.getAll(...idsTelefone.map((id) => db.collection("dados_cidadaos").doc(id)))
+      : [];
+    const contamNoTelefone = agendamentosQueContamNoTelefone(docsTelefone, hojeLimites, agendamentoEstaAtivo);
+    if (excedeTeto(contamNoTelefone.length, limites.porTelefone)) {
+      console.warn("Agendamento recusado pelo teto por telefone.", { tipo: TIPO_LIMITE_TELEFONE, teto: limites.porTelefone });
+      throw new HttpsError("resource-exhausted", mensagemLimiteTelefone(limites.porTelefone), { tipo: TIPO_LIMITE_TELEFONE, teto: limites.porTelefone });
+    }
+    const dadosOrigem = origemDoc && origemDoc.exists ? origemDoc.data() : {};
+    const usadosOrigem = dadosOrigem.dataISO === hojeLimites && Number.isInteger(dadosOrigem.contagem)
+      ? dadosOrigem.contagem
+      : 0;
+    if (origemRef && excedeTeto(usadosOrigem, limites.porOrigemDia)) {
+      console.warn("Agendamento recusado pelo teto por origem.", { tipo: TIPO_LIMITE_ORIGEM, teto: limites.porOrigemDia });
+      throw new HttpsError("resource-exhausted", mensagemLimiteOrigem(), { tipo: TIPO_LIMITE_ORIGEM, teto: limites.porOrigemDia });
+    }
+
     let agendamentoSubstituido = null;
     if (agendamentoAtivoExistente && substituirAnterior) {
       const slotAntigoId = agendamentoAtivoExistente.slotId || `${agendamentoAtivoExistente.dataISO}_${agendamentoAtivoExistente.hora}`;
@@ -1428,11 +1560,29 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
       expiraEm: expiraEmOperacao
     });
 
+    // Contadores so andam quando a reserva grava. Indice do telefone guarda so
+    // os ids que ainda contam; a limpeza diaria apaga o doc depois da ultima data.
+    const contamDepois = [...contamNoTelefone, { id: agendamentoRef.id, dataISO }];
+    const ultimaDataTelefone = contamDepois.map((item) => item.dataISO).sort().pop();
+    t.set(telefoneRef, {
+      agendamentoIds: contamDepois.map((item) => item.id),
+      atualizado: criado,
+      expiraEm: Timestamp.fromMillis(expiracaoAposData(ultimaDataTelefone))
+    });
+    if (origemRef) {
+      t.set(origemRef, {
+        dataISO: hojeLimites,
+        contagem: usadosOrigem + 1,
+        atualizado: criado,
+        expiraEm: Timestamp.fromMillis(expiracaoAposData(hojeLimites))
+      });
+    }
+
     return resultado;
   }).catch(relancarConflitoComAgenda);
 
   return resultadoTransacao;
-});
+}));
 
 exports.prepararCancelamentoCidadao = onCall(publicCallableOptions, async (request) => {
   await aplicarRateLimit(request, "preparar_cancelamento", 6, 10 * 60 * 1000, digitosCpf(request.data && request.data.cpf));
@@ -1645,16 +1795,29 @@ exports.atualizarObservacaoAdmin = onCall(callableOptions, async (request) => {
   return { ok: true };
 });
 
+// Remarcacao pela recepcao, em transacao.
+//
+// O painel fazia isto direto no Firestore, e com dois defeitos:
+//   - lia as vagas do horario FORA de transacao e gravava depois com merge: um
+//     cidadao que reservasse aquela vaga no intervalo tinha o agendamentoId
+//     sobrescrito, e duas pessoas ficavam no mesmo horario;
+//   - apagava a vaga antiga de forma INCONDICIONAL. Com a lista desatualizada
+//     (remarcar A, B reservar o horario antigo de A, remarcar A de novo pela
+//     linha velha), a vaga de B sumia e o horario voltava a ser oferecido.
+// E a mesma falha B5 ja fechada no cancelamento. Aqui vale a mesma regra: todas
+// as leituras antes de qualquer escrita, e so se apaga ou se reaproveita a vaga
+// que AINDA aponta para este agendamento.
 exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
   const adminEmail = await assertAdmin(request);
-  const agendamentoId = String(request.data.agendamentoId || "").trim();
-  const dataISO = normalizarData(request.data.data, "data do agendamento");
-  const hora = normalizarHora(request.data.hora);
-  const contabilizaVaga = request.data.contabilizaVaga === true;
-
+  const dadosRequisicao = request.data || {};
+  const agendamentoId = String(dadosRequisicao.agendamentoId || "").trim();
   if (!agendamentoId) {
     throw new HttpsError("invalid-argument", "Agendamento invalido.");
   }
+  const dataISO = normalizarData(dadosRequisicao.data, "data do agendamento");
+  const hora = normalizarHora(dadosRequisicao.hora);
+  const contabilizaVaga = dadosRequisicao.contabilizaVaga === true;
+
   if (dataISO < hojeSaoPauloISO()) {
     throw new HttpsError("failed-precondition", "Nao e possivel remarcar para data passada.");
   }
@@ -1664,28 +1827,74 @@ exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
   let retorno = null;
 
   await db.runTransaction(async (t) => {
+    // ---- Leituras ----------------------------------------------------------
     const agDoc = await t.get(agRef);
     if (!agDoc.exists) {
       throw new HttpsError("not-found", "Agendamento nao encontrado.");
     }
-
     const dados = agDoc.data();
-    const slotAntigoId = dados.slotId || `${dados.dataISO}_${dados.hora}`;
-    const slotAntigoRef = slotAntigoId ? db.collection("vagas_ocupadas").doc(slotAntigoId) : null;
+    // Substituido pelo proprio cidadao: o agendamento que vale e o novo.
+    if (dados.remarcadoParaAgendamentoId || dados.canceladoPor === "cidadao_substituicao") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Este agendamento foi substituido por outro do mesmo cidadao. Remarque o agendamento atual."
+      );
+    }
+    const estavaAtivo = agendamentoEstaAtivo(dados);
+
+    const slotAntigoId = dados.slotId || (dados.dataISO && dados.hora ? `${dados.dataISO}_${dados.hora}` : "");
+    const slotAntigoRef = slotAntigoId && slotAntigoId !== "undefined_undefined"
+      ? db.collection("vagas_ocupadas").doc(slotAntigoId)
+      : null;
+    const cpfNum = String(dados.cpf || "").replace(/\D/g, "");
+    const cpfRefs = cpfNum.length === 11
+      ? [...new Set([cpfDocId(cpfNum), cpfNum])].map((id) => db.collection("cpfs_agendados").doc(id))
+      : [];
+
+    const [slotAntigoDoc, cpfDocs, agendaDoc, posicoes] = await Promise.all([
+      slotAntigoRef ? t.get(slotAntigoRef) : Promise.resolve(null),
+      Promise.all(cpfRefs.map((ref) => t.get(ref))),
+      contabilizaVaga ? t.get(AGENDA_REF()) : Promise.resolve(null),
+      contabilizaVaga ? lerVagasDoHorario((refs) => t.getAll(...refs), dataISO, hora) : Promise.resolve([])
+    ]);
+
+    // Reativar um agendamento cancelado nao pode criar um segundo agendamento
+    // ativo para o mesmo CPF.
+    const outrosIdsNoIndice = [...new Set(cpfDocs
+      .filter((doc) => doc.exists && doc.data().agendamentoId && doc.data().agendamentoId !== agendamentoId)
+      .map((doc) => doc.data().agendamentoId))];
+    const outrosAgendamentos = await Promise.all(
+      outrosIdsNoIndice.map((id) => t.get(db.collection("dados_cidadaos").doc(id)))
+    );
+    const cpfTemOutroAtivo = outrosAgendamentos.some((doc) => doc.exists && agendamentoEstaAtivo(doc.data()));
+    if (!estavaAtivo && cpfTemOutroAtivo) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Este CPF ja tem outro agendamento ativo. Remarque ou cancele o agendamento atual."
+      );
+    }
+
+    // A vaga antiga so e deste agendamento se ainda apontar para ele.
+    const slotAntigoEhProprio = Boolean(slotAntigoDoc && slotAntigoDoc.exists
+      && slotAntigoDoc.data().agendamentoId === agendamentoId);
 
     // Vaga contabilizada: a primeira livre do horario, respeitando quantas
     // vagas a grade daquela data oferece. Se o agendamento ja ocupa uma vaga
     // deste mesmo horario, ele a mantem.
     let novoSlotId = `manual_${agendamentoId}`;
     if (contabilizaVaga) {
-      const [agendaDoc, posicoes] = await Promise.all([
-        t.get(AGENDA_REF()),
-        lerVagasDoHorario((refs) => t.getAll(...refs), dataISO, hora)
-      ]);
-      const agendaTransacao = processarAgenda(agendaDoc.exists ? agendaDoc.data() : {});
-      const capacidade = Math.max(1, vagasDoHorario(agendaTransacao, dataISO, hora));
-      const propria = posicoes.find((posicao) => posicao.ref.id === slotAntigoId);
-      const ocupadasPorOutros = posicoes.filter((posicao) => posicao.ocupada && posicao.ref.id !== slotAntigoId);
+      const agendaTransacao = processarAgenda(agendaDoc && agendaDoc.exists ? agendaDoc.data() : {});
+      // Sem Math.max(1, ...): horario fora da grade tem zero vagas e e recusado.
+      // Para atender fora da grade a recepcao desmarca "contar vaga" (encaixe).
+      const capacidade = vagasDoHorario(agendaTransacao, dataISO, hora);
+      if (capacidade < 1) {
+        throw new HttpsError(
+          "failed-precondition",
+          `Nao ha horario ${hora} na grade de ${dataBr(dataISO)}. Escolha um horario da grade ou desmarque "contar vaga" para fazer um encaixe.`
+        );
+      }
+      const propria = posicoes.find((posicao) => posicao.agendamentoDoc && posicao.agendamentoDoc.id === agendamentoId);
+      const ocupadasPorOutros = posicoes.filter((posicao) => posicao.ocupada && posicao !== propria);
       const livre = posicoes.find((posicao) => !posicao.ocupada);
       if (!propria && (ocupadasPorOutros.length >= capacidade || !livre)) {
         throw new HttpsError("already-exists", "Este horario ja esta ocupado. Escolha outro horario.");
@@ -1694,17 +1903,22 @@ exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
     }
     const novoSlotRef = db.collection("vagas_ocupadas").doc(novoSlotId);
 
-    if (slotAntigoRef && slotAntigoId !== novoSlotId) {
+    // ---- Escritas ----------------------------------------------------------
+    const vagaAntigaLiberada = Boolean(slotAntigoEhProprio && slotAntigoId !== novoSlotId);
+    if (vagaAntigaLiberada) {
       t.delete(slotAntigoRef);
     }
 
+    // set sem merge: a vaga escolhida esta livre (inexistente ou de agendamento
+    // inativo) ou ja e deste agendamento. Nada de outra pessoa sobrevive nela.
     t.set(novoSlotRef, {
       dataISO,
       hora,
       contabilizaVaga,
       origem: contabilizaVaga ? "admin_remarcacao" : "manual",
-      agendamentoId
-    }, { merge: true });
+      agendamentoId,
+      atualizadoEm: agora
+    });
 
     const remarcacao = {
       deDataISO: dados.dataISO || "",
@@ -1712,24 +1926,38 @@ exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
       paraDataISO: dataISO,
       paraHora: hora,
       contabilizaVaga,
+      reativado: !estavaAtivo,
+      vagaAntigaLiberada,
       adminEmail,
       criado: agora
     };
 
-    t.set(agRef, {
+    const atualizacao = {
       dataISO,
       hora,
       slotId: novoSlotId,
       insercaoManual: !contabilizaVaga,
+      status: "remarcado",
+      // Remarcar reativa: o agendamento continua valendo na nova data.
+      ativo: true,
       remarcadoEm: agora,
       remarcadoPor: adminEmail,
+      statusAtualizadoEm: agora,
+      statusAtualizadoPor: adminEmail,
+      alteradoPor: adminEmail,
       remarcacoes: FieldValue.arrayUnion(remarcacao)
-    }, { merge: true });
+    };
+    t.set(agRef, atualizacao, { merge: true });
 
-    const cpfNum = String(dados.cpf || "").replace(/\D/g, "");
-    if (cpfNum.length === 11) {
-      t.set(db.collection("cpfs_agendados").doc(cpfDocId(cpfNum)), { agendamentoId, slotId: novoSlotId, atualizado: agora }, { merge: true });
-      t.set(db.collection("cpfs_agendados").doc(cpfNum), { agendamentoId, slotId: novoSlotId, atualizado: agora }, { merge: true });
+    // Indice de CPF: aponta para este agendamento, salvo quando ja aponta para
+    // outro agendamento ativo do mesmo CPF. O indice legado (CPF em texto) so e
+    // atualizado se ja existir: nao se cria documento novo com CPF no id.
+    if (!cpfTemOutroAtivo) {
+      cpfRefs.forEach((ref, indice) => {
+        const ehHash = indice === 0;
+        if (!ehHash && !cpfDocs[indice].exists) return;
+        t.set(ref, { agendamentoId, slotId: novoSlotId, atualizado: agora }, { merge: true });
+      });
     }
 
     t.set(db.collection("logs_admin").doc(), {
@@ -1748,7 +1976,13 @@ exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
       dataBR: dataBr(dataISO),
       hora,
       slotId: novoSlotId,
-      insercaoManual: !contabilizaVaga
+      insercaoManual: !contabilizaVaga,
+      status: "remarcado",
+      ativo: true,
+      remarcadoEm: agora,
+      remarcadoPor: adminEmail,
+      vagaAntigaLiberada,
+      reativado: !estavaAtivo
     };
   });
 
@@ -2129,13 +2363,17 @@ async function limparAuxiliaresExpirados() {
   let rateLimits = 0;
   let cancelamentos = 0;
   let operacoesAgendamento = 0;
+  let limitesOrigem = 0;
+  let telefonesAgendados = 0;
   try {
     rateLimits = await limparColecaoExpirada("rate_limits", agora);
     cancelamentos = await limparColecaoExpirada("cancelamentos_pendentes", agora);
     operacoesAgendamento = await limparColecaoExpirada("operacoes_agendamento", agora);
+    limitesOrigem = await limparColecaoExpirada("limites_origem", agora);
+    telefonesAgendados = await limparColecaoExpirada("telefones_agendados", agora);
     await db.collection("logs_admin").add({
       acao: "limpeza_auxiliares_expirados",
-      detalhes: { rateLimits, cancelamentos, operacoesAgendamento },
+      detalhes: { rateLimits, cancelamentos, operacoesAgendamento, limitesOrigem, telefonesAgendados },
       adminEmail: "sistema",
       criadoEm: FieldValue.serverTimestamp(),
       criado: new Date().toISOString()
@@ -2143,12 +2381,73 @@ async function limparAuxiliaresExpirados() {
   } catch (err) {
     await db.collection("logs_admin").add({
       acao: "erro_limpeza_auxiliares",
-      detalhes: { mensagem: err.message, rateLimits, cancelamentos, operacoesAgendamento },
+      detalhes: { mensagem: err.message, rateLimits, cancelamentos, operacoesAgendamento, limitesOrigem, telefonesAgendados },
       adminEmail: "sistema",
       criadoEm: FieldValue.serverTimestamp(),
       criado: new Date().toISOString()
     }).catch(() => {});
   }
+}
+
+// bloqueios_agendamento nao tinha limpeza: bloqueio vencido ou liberado ficava
+// para sempre, com CPF no id e, nos gravados pelo painel, nome e telefone.
+// Vencido ou liberado sai; o que ainda vale perde nome e telefone, que a
+// verificacao do bloqueio nunca usou. A colecao e pequena (uma entrada por
+// falta), entao a leitura integral diaria custa pouco.
+const BLOQUEIOS_PAGINA = 300;
+const BLOQUEIOS_MAX_LEITURAS = 5000;
+const CAMPOS_PESSOAIS_BLOQUEIO = ["nome", "telefone"];
+
+async function limparBloqueiosVencidos() {
+  let lidos = 0;
+  let removidos = 0;
+  let saneados = 0;
+  let ultimo = null;
+  try {
+    while (lidos < BLOQUEIOS_MAX_LEITURAS) {
+      let query = db.collection("bloqueios_agendamento").orderBy(FieldPath.documentId()).limit(BLOQUEIOS_PAGINA);
+      if (ultimo) query = query.startAfter(ultimo);
+      const snap = await query.get();
+      if (snap.empty) break;
+      lidos += snap.size;
+      ultimo = snap.docs[snap.docs.length - 1];
+      const batch = db.batch();
+      let operacoes = 0;
+      for (const doc of snap.docs) {
+        const dados = doc.data();
+        if (!bloqueioAtivoDeDoc(dados)) {
+          batch.delete(doc.ref);
+          removidos += 1;
+          operacoes += 1;
+          continue;
+        }
+        const presentes = CAMPOS_PESSOAIS_BLOQUEIO.filter((campo) => dados[campo] !== undefined);
+        if (presentes.length) {
+          batch.update(doc.ref, Object.fromEntries(presentes.map((campo) => [campo, FieldValue.delete()])));
+          saneados += 1;
+          operacoes += 1;
+        }
+      }
+      if (operacoes) await batch.commit();
+      if (snap.size < BLOQUEIOS_PAGINA) break;
+    }
+    await db.collection("logs_admin").add({
+      acao: "limpeza_bloqueios_vencidos",
+      detalhes: { lidos, removidos, saneados },
+      adminEmail: "sistema",
+      criadoEm: FieldValue.serverTimestamp(),
+      criado: new Date().toISOString()
+    });
+  } catch (err) {
+    await db.collection("logs_admin").add({
+      acao: "erro_limpeza_bloqueios",
+      detalhes: { mensagem: err.message, lidos, removidos, saneados },
+      adminEmail: "sistema",
+      criadoEm: FieldValue.serverTimestamp(),
+      criado: new Date().toISOString()
+    }).catch(() => {});
+  }
+  return { lidos, removidos, saneados };
 }
 
 // Um unico job diario substitui os tres agendamentos de limpeza. Junto da
@@ -2166,4 +2465,5 @@ exports.executarManutencaoDiaria = onSchedule({
 }, async () => {
   await limparDatasPassadasAgenda();
   await limparAuxiliaresExpirados();
+  await limparBloqueiosVencidos();
 });

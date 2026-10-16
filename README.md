@@ -56,7 +56,9 @@ agendamentorg/
 └── scripts/
     ├── preaquecer-ligar.ps1     # Sobe instâncias quentes antes de um pico
     ├── preaquecer-desligar.ps1  # Volta ao repouso após o pico
-    └── migrar-dados-cidadaos.js # Migração pontual de dados legados
+    ├── verificar-admins.js      # Diagnóstico das contas admin (e-mail verificado) antes do deploy
+    ├── migrar-dados-cidadaos.js # Migração pontual de dados legados
+    └── sanear-dados-lgpd.js     # Saneamento pontual: CPF em logs e observações de anonimizados
 ```
 
 ---
@@ -98,8 +100,8 @@ Definidas em [`functions/index.js`](functions/index.js).
 | Função | Gatilho |
 |---|---|
 | `prepararAgendaSemanalAutomatica` | Cron de segunda às 07:50, 07:55 e 07:59 — prepara a semana, aquece a leitura e publica às 08:00 |
-| `anonimizarDadosAntigosLGPD` | Cron mensal `0 3 1 * *` — anonimiza dados com retenção > 6 meses |
-| `executarManutencaoDiaria` | Cron diário `0 2 * * *` — limpa agenda passada e auxiliares expirados |
+| `anonimizarDadosAntigosLGPD` | Cron mensal `0 3 1 * *` — anonimiza todo registro com atendimento há mais de 6 meses, continuando de onde parou (`configuracoes/lgpd.proximaDataISO`) |
+| `executarManutencaoDiaria` | Cron diário `0 2 * * *` — limpa agenda passada, auxiliares expirados e bloqueios vencidos ou liberados |
 
 ---
 
@@ -111,9 +113,12 @@ Definidas em [`functions/index.js`](functions/index.js).
 | `dados_cidadaos` | Agendamentos (nome, CPF, contato, data/hora, status) |
 | `vagas_ocupadas` | Slots ocupados, doc id `AAAA-MM-DD_HH:MM` — fonte da verdade da disponibilidade |
 | `cpfs_agendados` | Índice CPF → agendamento ativo (chave por hash SHA-256 do CPF) |
-| `bloqueios_agendamento` | CPFs bloqueados temporariamente (ex.: ausência em atendimento anterior) |
+| `bloqueios_agendamento` | CPFs bloqueados temporariamente (ex.: ausência em atendimento anterior); só CPF, motivo e data, apagado ao vencer ou ser liberado |
 | `cancelamentos_pendentes` | Tokens de cancelamento com expiração |
 | `rate_limits` | Contadores de limitação por ação/fingerprint |
+| `telefones_agendados` | Índice celular (hash SHA-256) → agendamentos que contam no teto por celular |
+| `limites_origem` | Agendamentos criados por conexão no dia (chave em hash) |
+| `metricas_abertura` | Contadores de cada abertura, sem dado pessoal (subcoleção `fragmentos`) |
 | `configuracoes/agenda` | Dias, horários, avisos e pop-up configurados pela recepção |
 | `admins` | E-mails autorizados a acessar o painel |
 | `logs_admin` | Trilha de auditoria das ações administrativas |
@@ -126,11 +131,13 @@ O Realtime Database não é mais usado: a telemetria de presença (`presenca_pub
 
 - **Validação de CPF** com dígitos verificadores, no frontend e no backend.
 - **App Check obrigatório** (`enforceAppCheck: true`) em todas as funções públicas.
+- **Admin só com e-mail verificado**: `isAdmin()` nas regras, `assertAdmin` nas callables e o login do painel exigem `email_verified`. Quem entra com e-mail ainda não confirmado vê a opção de receber o link de confirmação no próprio painel.
 - **Rate limiting** por fingerprint (IP + User-Agent + ação/CPF), em transação.
+- **Tetos de criação** conferidos dentro da transação da reserva: no máximo 2 agendamentos ativos por celular e 4 agendamentos criados por dia a partir da mesma conexão (IP informado pelo balanceador; IPv6 conta pelo prefixo /64). Só reservas gravadas contam. A recepção ajusta os valores sem deploy em `configuracoes/agenda.limitesAgendamento` (`{ "porTelefone": 2, "porOrigemDia": 4 }`; `0` desliga). Regra em [`functions/limites-agendamento.js`](functions/limites-agendamento.js).
 - **Transações atômicas** para criar/cancelar/remarcar — disponibilidade, bloqueio de CPF e duplicidade são revalidados *dentro* da transação (sem janelas de corrida).
 - **Substituição por CPF**: ao agendar com um CPF que já tem agendamento ativo, o anterior é cancelado e o novo criado na mesma transação, mediante confirmação do cidadão.
 - **Retry com backoff exponencial** no backend (leituras auxiliares) e no frontend (envio do agendamento).
-- **LGPD**: anonimização automática de dados após 6 meses.
+- **LGPD**: anonimização mensal de todo registro com atendimento há mais de 6 meses (nome, CPF, telefone, e-mail, nascimento e observação interna), com cursor para não reler o histórico; o índice de CPF só é apagado se ainda apontar para o registro anonimizado. Bloqueios vencidos são apagados diariamente, e logs do painel não guardam CPF. Saneamento dos dados anteriores a 16/10/2026: [`scripts/sanear-dados-lgpd.js`](scripts/sanear-dados-lgpd.js) (simulação por padrão).
 - **Pré-aquecimento** por mínimo de serviço do Cloud Run, ligado e desligado pelos scripts em `scripts/`, sem deploy.
 
 ---
@@ -151,6 +158,8 @@ npm install
 ## Deploy
 
 > O frontend deve ir ao ar **antes** das functions quando há mudanças de contrato, para que o cliente novo já esteja disponível.
+
+> **Antes de publicar regras ou functions que exigem e-mail verificado (16/10/2026)**, rode `node scripts/verificar-admins.js` (só leitura). Ele lista cada admin com a situação da conta no Firebase Auth e termina com código 2 se algum admin ativo ficaria fora do painel ou se há e-mail em `admins` sem conta. Resolva antes do deploy: confirmação pelo link no painel (publique o hosting primeiro) ou, com aprovação da Câmara, `--marcar-verificado=EMAIL`. E-mail em `admins` sem conta deve ser removido ou ter a conta criada pela Câmara. Recomendado também desativar o cadastro de contas pelo cliente em Authentication → Configurações → Ações do usuário (disponível com Identity Platform).
 
 ```bash
 # Frontend (Hosting)
@@ -239,6 +248,12 @@ Desde 28/09/2026, para quem perdia a vaga tentando horário atrás de horário. 
 - **Sem atalho "Primeiro horário livre".** Ele apontava o mesmo horário em todos os celulares e juntava a abertura inteira numa vaga só.
 - **Horário preenchido mostra o que ainda está livre.** Quando a transação recusa o horário, `criarAgendamentoCidadao` devolve no próprio erro (`details.agenda`) a agenda pública lida naquele instante do Firestore, sem CDN. O site mostra os horários livres daquele dia com botões "Agendar às HH:MM": um toque agenda, sem segundo modal. Outros dias só abrem a grade. Se a leitura falhar ou passar de 2,5 s, o erro sai como antes e o site volta à grade.
 - **Grade a cada 2 s nos 5 minutos após cada publicação.** A resposta pública traz `atualizacaoRapidaAte`, e o cache curto do CDN caiu de 5 s para 2 s. A grade é atualizada no lugar, sem redesenhar nem esconder os horários de quem está escolhendo. A atualização para com a aba oculta, durante o envio do agendamento, na tela de sucesso e quando as vagas acabam. A atualização de 3 minutos também passou a atualizar no lugar.
+
+### Métricas de cada abertura
+
+Desde 16/10/2026, cada pedido a `criarAgendamentoCidadao` soma um contador em `metricas_abertura/{segunda}/fragmentos/{0..19}`, pela segunda-feira da semana do pedido: tentativas, agendados, perderam o horário, CPF já agendado, CPF bloqueado, limite excedido, muitas tentativas, horário indisponível, dados inválidos e erros, mais um histograma por minuto (fuso de Brasília). Não há dado pessoal. A recepção vê as quatro últimas aberturas em **Relatórios → Últimas aberturas**: quantas pessoas tentaram, quantas conseguiram, o primeiro e o último agendamento e o minuto de pico.
+
+Os contadores ficam em 20 fragmentos para não criar um documento disputado por todos os pedidos do pico, e a gravação acontece fora da transação da reserva, com prazo de 400 ms e erro engolido: métrica nunca atrasa nem derruba um agendamento. Pedidos recusados pelo App Check não chegam à função e não entram na conta; uma retentativa de rede do mesmo pedido conta de novo. Regra em [`functions/metricas-abertura.js`](functions/metricas-abertura.js).
 
 ### Pop-up de aviso no site
 

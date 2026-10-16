@@ -18,6 +18,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const grade = require("./agenda-grade");
+const limites = require("./limites-agendamento");
 const {
   HORARIOS_SEIS,
   LIMITE_VAGAS_POR_HORARIO,
@@ -277,7 +278,17 @@ function montarCriar(docs, { leituraPublica = async () => ({ payload: AGENDA_FRE
     OPERACAO_AGENDAMENTO_VERSAO: 1,
     FieldValue: { serverTimestamp: () => "TS" },
     TIPO_CONFLITO_HORARIO_PREENCHIDO: "horario-preenchido",
-    relancarConflitoComAgenda: montarRelancarConflito(leituraPublica, limiteMs)
+    relancarConflitoComAgenda: montarRelancarConflito(leituraPublica, limiteMs),
+    // Tetos por telefone e origem: testados em limites-agendamento.test.js.
+    // Aqui cada pessoa tem o proprio celular e a origem fica sem IP (teto off).
+    ...limites,
+    hojeSaoPauloISO: () => "2026-09-28",
+    telefoneCanonico: (v) => String(v),
+    ipOrigemConfiavel: () => "sem-ip",
+    console: { warn: () => {} },
+    // Metricas da abertura: testadas em metricas-abertura.test.js.
+    registrarMetricaAbertura: async () => {},
+    comMetricaAbertura: (_registrar, handler) => handler
   };
   new Function(...Object.keys(dependencias), extrairExport(backend, "criarAgendamentoCidadao"))(
     ...Object.values(dependencias)
@@ -285,7 +296,7 @@ function montarCriar(docs, { leituraPublica = async () => ({ payload: AGENDA_FRE
   assert.ok(handler, "Handler nao capturado.");
   let operacao = 0;
   return (cpf, hora = "14:00", data = "2026-09-29") => handler({
-    data: { nome: `Pessoa ${cpf}`, cpf, telefone: "35999999999", nascimento: "1990-01-01", data, hora, operationId: `op${++operacao}` }
+    data: { nome: `Pessoa ${cpf}`, cpf, telefone: `359${cpf.slice(-8)}`, nascimento: "1990-01-01", data, hora, operationId: `op${++operacao}` }
   });
 }
 

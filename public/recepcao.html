@@ -24,6 +24,14 @@
         <div class="input-group"><label for="senha">Senha:</label><input type="password" id="senha" autocomplete="current-password"></div>
         <div id="login-erro" class="login-erro" style="display:none;"></div>
         <button class="btn-login" id="btn-login" data-acao="fazerLogin">ACESSAR PAINEL SEGURO</button>
+        <div id="verificacao-email" class="verificacao-email" style="display:none;">
+            <p><strong>Confirme o e-mail desta conta para entrar.</strong></p>
+            <p>A senha está certa, mas o painel só abre para contas com e-mail confirmado: <span id="verificacao-email-endereco"></span>.</p>
+            <button type="button" class="btn-login" id="btn-enviar-verificacao" data-acao="enviarVerificacaoEmail">ENVIAR LINK DE CONFIRMAÇÃO</button>
+            <button type="button" class="btn-login btn-secundario-login" data-acao="conferirEmailVerificado">JÁ CONFIRMEI</button>
+            <button type="button" class="btn-link-login" data-acao="fazerLogout">Sair e entrar com outra conta</button>
+            <p id="verificacao-email-status" class="verificacao-email-status" role="status" aria-live="polite"></p>
+        </div>
     </div>
 
     <div id="painel-screen">
@@ -444,6 +452,21 @@
                     <div class="serie-mensal serie-faltas" id="ind-faltas-mes"></div>
                 </div>
             </div>
+            </div>
+            <div class="painel-config painel-metricas">
+                <h3><i class="fa-solid fa-stopwatch"></i> Últimas aberturas</h3>
+                <p class="detalhe-pessoal">Pedidos de agendamento feitos pelo site em cada semana, contados pela segunda-feira da abertura. "Perderam o horário": outra pessoa concluiu primeiro. "Recusados": CPF já agendado, CPF bloqueado por falta ou limite de tentativas. Horários no fuso de Brasília.</p>
+                <div style="margin-bottom:10px;">
+                    <button type="button" class="btn btn-atualizar" data-acao="carregarMetricasAbertura"><i class="fa-solid fa-rotate"></i> Atualizar métricas</button>
+                </div>
+                <div class="tabela-wrap">
+                    <table class="tabela-metricas">
+                        <thead>
+                            <tr><th>Abertura</th><th>Tentativas</th><th>Agendados</th><th>Perderam o horário</th><th>Recusados</th><th>Outros</th><th>1º → último agendamento</th><th>Pico de tentativas</th></tr>
+                        </thead>
+                        <tbody id="metricas-abertura-corpo"></tbody>
+                    </table>
+                </div>
             </div>
             <div class="painel-config painel-logs">
                 <h3><i class="fa-solid fa-clock-rotate-left"></i> Histórico de ações de hoje</h3>
