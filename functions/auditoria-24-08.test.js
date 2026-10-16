@@ -199,10 +199,11 @@ test("o fingerprint de origem realmente ignora o User-Agent", () => {
 });
 
 test("o caminho quente do pico mantem o User-Agent, de proposito", () => {
-  // criar_agendamento e verificar_bloqueio_cpf sao caminho quente de verdade.
+  // criar_agendamento e caminho quente de verdade (verificar_bloqueio_cpf saiu
+  // com a callable em 16/10/2026, SEG-05).
   // Tirar o User-Agent deles concentraria a contencao no pico -- e o problema
   // que o proprio projeto documenta em agenda-cache-publica.js.
-  for (const acao of ["criar_agendamento", "verificar_bloqueio_cpf"]) {
+  for (const acao of ["criar_agendamento"]) {
     const i = backend.indexOf(`"${acao}"`);
     const chamada = backend.slice(backend.lastIndexOf("await", i), backend.indexOf(";", i));
     assert.match(chamada, /aplicarRateLimit\(/, `${acao} deve seguir no limite com User-Agent.`);

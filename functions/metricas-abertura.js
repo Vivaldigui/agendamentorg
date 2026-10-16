@@ -44,6 +44,7 @@ function motivoMetricaAgendamento(err) {
   const mensagem = String(err.message || "").toLowerCase();
   if (tipo === "horario-preenchido") return "conflitoHorario";
   if (tipo === "cpf-ja-agendado") return "cpfJaAgendado";
+  if (tipo === "cpf-bloqueado") return "cpfBloqueado";
   if (tipo.startsWith("limite-")) return "limiteExcedido";
   if (codigo === "resource-exhausted") return "muitasTentativas";
   if (codigo === "invalid-argument") return "dadosInvalidos";
