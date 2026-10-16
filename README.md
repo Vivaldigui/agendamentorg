@@ -114,6 +114,8 @@ Definidas em [`functions/index.js`](functions/index.js).
 | `bloqueios_agendamento` | CPFs bloqueados temporariamente (ex.: ausência em atendimento anterior) |
 | `cancelamentos_pendentes` | Tokens de cancelamento com expiração |
 | `rate_limits` | Contadores de limitação por ação/fingerprint |
+| `telefones_agendados` | Índice celular (hash SHA-256) → agendamentos que contam no teto por celular |
+| `limites_origem` | Agendamentos criados por conexão no dia (chave em hash) |
 | `configuracoes/agenda` | Dias, horários, avisos e pop-up configurados pela recepção |
 | `admins` | E-mails autorizados a acessar o painel |
 | `logs_admin` | Trilha de auditoria das ações administrativas |
@@ -127,6 +129,7 @@ O Realtime Database não é mais usado: a telemetria de presença (`presenca_pub
 - **Validação de CPF** com dígitos verificadores, no frontend e no backend.
 - **App Check obrigatório** (`enforceAppCheck: true`) em todas as funções públicas.
 - **Rate limiting** por fingerprint (IP + User-Agent + ação/CPF), em transação.
+- **Tetos de criação** conferidos dentro da transação da reserva: no máximo 2 agendamentos ativos por celular e 4 agendamentos criados por dia a partir da mesma conexão (IP informado pelo balanceador; IPv6 conta pelo prefixo /64). Só reservas gravadas contam. A recepção ajusta os valores sem deploy em `configuracoes/agenda.limitesAgendamento` (`{ "porTelefone": 2, "porOrigemDia": 4 }`; `0` desliga). Regra em [`functions/limites-agendamento.js`](functions/limites-agendamento.js).
 - **Transações atômicas** para criar/cancelar/remarcar — disponibilidade, bloqueio de CPF e duplicidade são revalidados *dentro* da transação (sem janelas de corrida).
 - **Substituição por CPF**: ao agendar com um CPF que já tem agendamento ativo, o anterior é cancelado e o novo criado na mesma transação, mediante confirmação do cidadão.
 - **Retry com backoff exponencial** no backend (leituras auxiliares) e no frontend (envio do agendamento).

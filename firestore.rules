@@ -53,6 +53,15 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Tetos de criacao por origem e por telefone: so as Functions leem e gravam.
+    match /limites_origem/{documentId} {
+      allow read, write: if false;
+    }
+
+    match /telefones_agendados/{documentId} {
+      allow read, write: if false;
+    }
+
     match /pedidos_avaliacao_google/{documentId} {
       allow read, write: if false;
     }
