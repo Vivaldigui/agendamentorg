@@ -81,7 +81,6 @@ Definidas em [`functions/index.js`](functions/index.js).
 |---|---|
 | `carregarAgendaPublica` | Datas e horários disponíveis (callable) |
 | `carregarAgendaPublicaHttp` | Mesma agenda via HTTP, exposta em `/api/agenda-publica` com cache de CDN |
-| `verificarBloqueioCpf` | Informa se um CPF está temporariamente bloqueado |
 | `consultarAgendamentoCidadao` | Localiza agendamento por CPF + data de nascimento |
 | `criarAgendamentoCidadao` | Cria o agendamento (transação atômica; suporta substituição do agendamento anterior do mesmo CPF) |
 | `prepararCancelamentoCidadao` | Gera token temporário para cancelamento |

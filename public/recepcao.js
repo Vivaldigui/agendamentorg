@@ -4054,40 +4054,70 @@ function imprimirListaHoje() {
     registrarLog("imprimir_lista_dia", { dataISO: hojeISO(), quantidade: lista.length });
 }
 
-function exportarExcel() {
-    const lista = agendamentosFiltrados();
-    let csv = "\uFEFFSemana;Mes;Data;Hora;Status;Protocolo;Nome;CPF;Nascimento;Telefone;Email;Manual;Bloqueado Ate;Alterado Por;Observacao Interna\n";
+// Exportacao da lista (auditoria de 16/10/2026, LGPD-05). O CSV levava nome,
+// CPF, nascimento, telefone e e-mail de todo mundo filtrado, e o arquivo sai
+// do controle do sistema (Downloads, pen drive, e-mail). O padrao agora vai
+// sem CPF, nascimento e e-mail, que a rotina da recepcao nao usa; a versao
+// completa pede confirmacao e fica registrada no log.
+const COLUNAS_EXPORTACAO = [
+    ["Semana", d => semanaAno(d.dataISO)],
+    ["Mes", d => String(d.dataISO || "").slice(0, 7)],
+    ["Data", d => dataBrISO(d.dataISO)],
+    ["Hora", d => d.hora],
+    ["Status", d => statusLabel(statusValor(d))],
+    ["Protocolo", d => d.protocolo || ""],
+    ["Nome", d => d.nome],
+    ["CPF", d => d.cpf, "completo"],
+    ["Nascimento", d => dataNascBR(d.dataNasc), "completo"],
+    ["Telefone", d => d.telefone],
+    ["Email", d => d.email || "", "completo"],
+    ["Manual", d => (d.insercaoManual ? "Sim" : "Não")],
+    ["Bloqueado Ate", d => (d.bloqueadoAte ? dataBrISO(d.bloqueadoAte) : "")],
+    ["Alterado Por", d => d.alteradoPor || d.statusAtualizadoPor || ""],
+    ["Observacao Interna", d => d.observacaoInterna || ""]
+];
+
+function gerarCsvAgendamentos(lista, completo) {
+    const colunas = COLUNAS_EXPORTACAO.filter(([, , so]) => completo || so !== "completo");
+    const linhas = [colunas.map(([nome]) => nome).join(";")];
     lista.forEach(ag => {
-        const d = ag.dados;
-        csv += [
-            semanaAno(d.dataISO),
-            String(d.dataISO || "").slice(0, 7),
-            dataBrISO(d.dataISO),
-            d.hora,
-            statusLabel(statusValor(d)),
-            d.protocolo || "",
-            d.nome,
-            d.cpf,
-            dataNascBR(d.dataNasc),
-            d.telefone,
-            d.email || "",
-            d.insercaoManual ? "Sim" : "Não",
-            d.bloqueadoAte ? dataBrISO(d.bloqueadoAte) : "",
-            d.alteradoPor || d.statusAtualizadoPor || "",
-            d.observacaoInterna || ""
-        ].map(csvCampo).join(";") + "\n";
+        linhas.push(colunas.map(([, valor]) => csvCampo(valor(ag.dados))).join(";"));
     });
     const contar = status => lista.filter(ag => statusValor(ag.dados) === status).length;
-    csv += `\n${csvCampo("TOTALIZADORES")}\n`;
-    csv += `${csvCampo("Total visível")};${lista.length}\n`;
-    csv += `${csvCampo("Agendados")};${contar("agendado")}\n`;
-    csv += `${csvCampo("Compareceram")};${contar("compareceu")}\n`;
-    csv += `${csvCampo("Vão voltar depois")};${contar("vai_voltar")}\n`;
-    csv += `${csvCampo("Não compareceram")};${contar("nao_compareceu")}\n`;
+    linhas.push("");
+    linhas.push(csvCampo("TOTALIZADORES"));
+    linhas.push(`${csvCampo("Total visível")};${lista.length}`);
+    linhas.push(`${csvCampo("Agendados")};${contar("agendado")}`);
+    linhas.push(`${csvCampo("Compareceram")};${contar("compareceu")}`);
+    linhas.push(`${csvCampo("Vão voltar depois")};${contar("vai_voltar")}`);
+    linhas.push(`${csvCampo("Não compareceram")};${contar("nao_compareceu")}`);
+    // BOM para o Excel reconhecer UTF-8.
+    return String.fromCharCode(0xFEFF) + linhas.join(String.fromCharCode(10)) + String.fromCharCode(10);
+}
+
+function baixarCsvAgendamentos(csv, nomeArquivo) {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-    link.download = "Agendamentos_Filtrados_Recepcao_CIN.csv"; link.click();
-    registrarLog("exportar_excel", { quantidade: lista.length });
+    link.download = nomeArquivo;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1500);
+}
+
+function exportarExcel() {
+    const lista = agendamentosFiltrados();
+    baixarCsvAgendamentos(gerarCsvAgendamentos(lista, false), "Agendamentos_Filtrados_Recepcao_CIN.csv");
+    registrarLog("exportar_excel", { quantidade: lista.length, completo: false });
+}
+
+async function exportarExcelCompleto() {
+    const lista = agendamentosFiltrados();
+    const confirmar = await confirmarPainel(
+        `O arquivo terá CPF, data de nascimento e e-mail de ${lista.length} pessoa(s). Use só quando for indispensável (por exemplo, conferência com o Instituto de Identificação), guarde em local protegido e apague depois do uso. A exportação fica registrada no histórico.`,
+        { titulo: "Exportar com dados pessoais", perigo: true, textoConfirmar: "Exportar completo" }
+    );
+    if (!confirmar) return;
+    baixarCsvAgendamentos(gerarCsvAgendamentos(lista, true), "Agendamentos_COMPLETO_dados_pessoais_CIN.csv");
+    registrarLog("exportar_excel", { quantidade: lista.length, completo: true });
 }
 
 
@@ -4112,7 +4142,7 @@ const ACOES_CLIQUE = {
     vista: el => mostrarVistaPainel(el.dataset.vista),
 
     // Lista de agendamentos
-    listarAgendamentos, exportarExcel, imprimirListaHoje, enviarLembretesAmanha,
+    listarAgendamentos, exportarExcel, exportarExcelCompleto, imprimirListaHoje, enviarLembretesAmanha,
     buscarHistoricoAgendamento, limparFiltros, alternarMaisFiltros,
     "filtro-rapido": el => filtroRapidoPainel(el.dataset.tipo),
     "acoes-lista": () => alternarAcoesDaLista(),

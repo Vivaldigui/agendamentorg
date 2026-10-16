@@ -159,6 +159,10 @@ function montarRotinas(docs, { hoje = "2026-10-16", maxLeituras = 5000, pagina =
     subtrairMesesISO: subtrair,
     cpfNumeros,
     cpfDocId: (cpf) => `cpf_hash_${cpf}`,
+    hashNascimentoBloqueio: new Function(
+      "crypto",
+      `${extrairFuncao(backend, "hashNascimentoBloqueio")}; return hashNascimentoBloqueio;`
+    )(require("node:crypto")),
     bloqueioAtivoDeDoc,
     dataISOValida,
     somarDiasISO,
@@ -285,7 +289,8 @@ test("falta com bloqueio valendo: so CPF, motivo e data vao para o registro sepa
   await montarRotinas(docs).anonimizarDadosAntigosLGPD();
   const bloqueio = docs["bloqueios_agendamento/52998224725"];
   assert.ok(bloqueio, "O bloqueio ainda valendo precisa sobreviver a anonimizacao.");
-  assert.deepEqual(Object.keys(bloqueio).sort(), ["bloqueadoAte", "cpf", "criadoEm", "migradoDeAnonimizacao", "motivoBloqueio"]);
+  // nascimentoHash (SEG-05): confere o nascimento sem guardar a data.
+  assert.deepEqual(Object.keys(bloqueio).sort(), ["bloqueadoAte", "cpf", "criadoEm", "migradoDeAnonimizacao", "motivoBloqueio", "nascimentoHash"]);
   assert.equal(bloqueio.bloqueadoAte, "2026-11-30");
   assert.ok(anonimizado(docs["dados_cidadaos/F"]));
   assert.equal(docs["dados_cidadaos/F"].bloqueioNome, undefined);

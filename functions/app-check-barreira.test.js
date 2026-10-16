@@ -274,7 +274,8 @@ test("renovacao forcada de token tambem passa pela barreira", () => {
 
 test("toda callable chamada pelo site exige App Check no backend", () => {
   const chamadasDoSite = [...sitePublico.matchAll(/chamarFuncao\("([\w]+)"/g)].map((m) => m[1]);
-  assert.ok(chamadasDoSite.length >= 6, "esperado ao menos as seis callables publicas.");
+  // Cinco desde 16/10/2026: verificarBloqueioCpf saiu (SEG-05).
+  assert.ok(chamadasDoSite.length >= 5, "esperado ao menos as cinco callables publicas.");
 
   // Opcoes que herdam publicCallableOptions e, com ele, enforceAppCheck: true.
   const opcoesComAppCheck = ["publicCallableOptions", "agendamentoPicoOptions", "verificacaoSlotOptions"];

@@ -2021,56 +2021,6 @@
         return null;
     }
 
-    async function verificarBloqueioCPF(cpf) {
-        const cpfLimpo = limparCPF(cpf);
-        if (cpfLimpo.length !== 11) return { bloqueado: false };
-
-        const MAX_TENTATIVAS = 2;
-        let ultimoErro = null;
-
-        for (let tentativa = 0; tentativa < MAX_TENTATIVAS; tentativa++) {
-            try {
-                if (tentativa > 0) await new Promise(r => setTimeout(r, 1500 * tentativa));
-                const resposta = await chamarFuncao("verificarBloqueioCpf", { cpf: cpfLimpo });
-                const dados = resposta.data || {};
-                if (!dados.bloqueado) return { bloqueado: false };
-                return {
-                    bloqueado: true,
-                    dataLiberacao: dados.dataLiberacao || "",
-                    mensagem: dados.mensagem || "Não foi possível realizar novo agendamento. Consta ausência em atendimento anterior."
-                };
-            } catch (e) {
-                ultimoErro = e;
-                console.warn(`Tentativa ${tentativa + 1}/${MAX_TENTATIVAS} de verificar bloqueio falhou:`, e);
-                const codigo = codigoErroFunctions(e);
-                // Erros que não devem ser retentados
-                if (codigo === "invalid-argument") break;
-            }
-        }
-
-        console.error("Erro ao consultar bloqueio de CPF após tentativas:", ultimoErro);
-        const codigoErro = codigoErroFunctions(ultimoErro);
-        let mensagemErro;
-        if (codigoErro === "resource-exhausted") {
-            mensagemErro = "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.";
-        } else if (codigoErro === "unauthenticated" || codigoErro === "permission-denied") {
-            mensagemErro = "Não foi possível verificar a segurança da requisição. Tente novamente em alguns instantes.";
-        } else {
-            mensagemErro = "Não foi possível validar o CPF no momento. Tente novamente em alguns instantes ou entre em contato com a Câmara.";
-        }
-
-        return {
-            bloqueado: false,
-            erro: true,
-            mensagem: mensagemErro
-        };
-    }
-
-    function abrirWhatsAppContatoBloqueio() {
-        const msg = "Olá! Preciso de orientação sobre bloqueio de agendamento de RG/CIN por ausência anterior.";
-        window.open(`https://wa.me/553535040397?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
-    }
-
     function exibirBloqueioCPF(resultado) {
         modal({
             icone: '<i class="fa-solid fa-calendar-xmark" style="color:var(--danger);"></i>',
@@ -2140,6 +2090,10 @@
     }
 
     function erroCpfBloqueado(erroObj) {
+        // A data de liberacao so vem para quem informou o nascimento do
+        // registro da falta (SEG-05); os demais recebem a recusa generica,
+        // marcada por details.tipo.
+        if (erroObj && erroObj.details && erroObj.details.tipo === "cpf-bloqueado") return true;
         const texto = normalizarErroTexto(erroObj);
         return texto.includes("ausencia em atendimento anterior")
             || texto.includes("novo agendamento permitido a partir");
