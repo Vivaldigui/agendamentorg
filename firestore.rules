@@ -16,8 +16,15 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.ativo == true;
     }
 
+    // Cada conta le so o proprio documento (o painel confere se esta ativa) e
+    // ninguem grava pelo navegador: admins sao cadastrados pelo console ou pelo
+    // Admin SDK. Antes, qualquer admin logado podia criar outro admin ou se
+    // reativar (auditoria de 16/10/2026, SEG-01).
     match /admins/{adminEmail} {
-      allow get, list, create, update, delete: if isAdmin();
+      allow get: if isSignedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() == adminEmail;
+      allow list, write: if false;
     }
 
     // Agendamentos, vagas, indices de CPF e bloqueios so mudam pelas Functions,
