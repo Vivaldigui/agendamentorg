@@ -46,14 +46,17 @@ function memoriaLocal() {
   };
 }
 
-function montarPersistencia(localStorage) {
-  const corpo = ["guardarAgendamentoLocalmente", "lerAgendamentoLocal"]
+// "Hoje" fixo: os agendamentos dos testes sao de 25/08/2026.
+const HOJE_PADRAO = "2026-08-20";
+
+function montarPersistencia(localStorage, hoje = HOJE_PADRAO) {
+  const corpo = ["guardarAgendamentoLocalmente", "esquecerAgendamentoLocal", "dataISODoAgendamentoLocal", "lerAgendamentoLocal"]
     .map((n) => extrairFuncao(sitePublico, n)).join("\n");
   const chave = (sitePublico.match(/const CHAVE_ULTIMO_AGENDAMENTO = "([^"]+)"/) || [])[1];
   assert.ok(chave, "CHAVE_ULTIMO_AGENDAMENTO nao encontrada.");
-  return new Function("localStorage", "CHAVE_ULTIMO_AGENDAMENTO",
-    `${corpo}; return { guardar: guardarAgendamentoLocalmente, ler: lerAgendamentoLocal };`
-  )(localStorage, chave);
+  return new Function("localStorage", "CHAVE_ULTIMO_AGENDAMENTO", "hojeISO",
+    `${corpo}; return { guardar: guardarAgendamentoLocalmente, ler: lerAgendamentoLocal, esquecer: esquecerAgendamentoLocal };`
+  )(localStorage, chave, () => hoje);
 }
 
 test("o site nao promete mais entrega automatica do comprovante", () => {
@@ -126,11 +129,13 @@ test("quem volta ao site reencontra o proprio codigo", () => {
   montarPersistencia(ls).guardar({ protocolo: "CIN-ABC12345", dataBR: "25/08/2026", hora: "14:30" });
   const alvo = { innerHTML: "", style: {} };
   const chave = (sitePublico.match(/const CHAVE_ULTIMO_AGENDAMENTO = "([^"]+)"/) || [])[1];
-  const fn = new Function("document", "localStorage", "CHAVE_ULTIMO_AGENDAMENTO", "textoSeguro",
-    [extrairFuncao(sitePublico, "lerAgendamentoLocal"),
+  const fn = new Function("document", "localStorage", "CHAVE_ULTIMO_AGENDAMENTO", "textoSeguro", "hojeISO",
+    [extrairFuncao(sitePublico, "esquecerAgendamentoLocal"),
+     extrairFuncao(sitePublico, "dataISODoAgendamentoLocal"),
+     extrairFuncao(sitePublico, "lerAgendamentoLocal"),
      extrairFuncao(sitePublico, "mostrarLembreteProtocoloSalvo"),
      "return mostrarLembreteProtocoloSalvo;"].join("\n")
-  )({ getElementById: (id) => (id === "lembrete-protocolo" ? alvo : null) }, ls, chave, (t) => String(t));
+  )({ getElementById: (id) => (id === "lembrete-protocolo" ? alvo : null) }, ls, chave, (t) => String(t), () => HOJE_PADRAO);
 
   fn();
   assert.match(alvo.innerHTML, /CIN-ABC12345/);
@@ -141,11 +146,13 @@ test("quem volta ao site reencontra o proprio codigo", () => {
 test("sem nada guardado, o lembrete nao aparece", () => {
   const alvo = { innerHTML: "", style: { display: "none" } };
   const chave = (sitePublico.match(/const CHAVE_ULTIMO_AGENDAMENTO = "([^"]+)"/) || [])[1];
-  const fn = new Function("document", "localStorage", "CHAVE_ULTIMO_AGENDAMENTO", "textoSeguro",
-    [extrairFuncao(sitePublico, "lerAgendamentoLocal"),
+  const fn = new Function("document", "localStorage", "CHAVE_ULTIMO_AGENDAMENTO", "textoSeguro", "hojeISO",
+    [extrairFuncao(sitePublico, "esquecerAgendamentoLocal"),
+     extrairFuncao(sitePublico, "dataISODoAgendamentoLocal"),
+     extrairFuncao(sitePublico, "lerAgendamentoLocal"),
      extrairFuncao(sitePublico, "mostrarLembreteProtocoloSalvo"),
      "return mostrarLembreteProtocoloSalvo;"].join("\n")
-  )({ getElementById: (id) => (id === "lembrete-protocolo" ? alvo : null) }, memoriaLocal(), chave, (t) => String(t));
+  )({ getElementById: (id) => (id === "lembrete-protocolo" ? alvo : null) }, memoriaLocal(), chave, (t) => String(t), () => HOJE_PADRAO);
 
   fn();
   assert.equal(alvo.innerHTML, "");
