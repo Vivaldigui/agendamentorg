@@ -13,10 +13,10 @@ const raiz = path.resolve(__dirname, "..");
 const sitePublico = fs.readFileSync(path.join(raiz, "public", "index.html"), "utf8");
 
 const SDKS_ESPERADOS = [
-  "firebase-analytics.js",
-  "firebase-app-check.js",
-  "firebase-app.js",
-  "firebase-functions.js"
+  "firebase-analytics-compat.js",
+  "firebase-app-check-compat.js",
+  "firebase-app-compat.js",
+  "firebase-functions-compat.js"
 ];
 
 test("site publico carrega apenas os SDKs do Firebase que usa", () => {

@@ -31,6 +31,13 @@ function extrairFuncao(codigo, nome) {
   throw new Error(`Fim da funcao ${nome} nao encontrado.`);
 }
 
+// Opcoes por callable, lidas do proprio site (token de App Check de uso unico
+// na criacao, auditoria de 16/10/2026, CON-02).
+const OPCOES_CALLABLE_SITE = new Function(
+  "return " + ((sitePublico.match(/var OPCOES_CALLABLE = (\{[\s\S]*?\n    \});/) || [])[1]
+    || assert.fail("OPCOES_CALLABLE nao encontrada no site."))
+)();
+
 function montarBarreira({ chave = "chave-de-teste", getTokenFalha = false, falharPrimeiroToken = false } = {}) {
   const corpo = ["appCheckConfigurado", "prepararAppCheck", "garantirAppCheckPronto", "clienteFunctions", "chamarFuncao"]
     .map((nome) => extrairFuncao(sitePublico, nome))
@@ -52,9 +59,9 @@ function montarBarreira({ chave = "chave-de-teste", getTokenFalha = false, falha
   // que prova o roteamento -- chamar na regiao errada devolve not-found, e so
   // apareceria no dia do pico.
   const clienteFalso = (regiao) => ({
-    httpsCallable: (nome) => (dados) => {
+    httpsCallable: (nome, opcoes) => (dados) => {
       // Registra quantos tokens ja haviam sido emitidos quando a chamada saiu.
-      registro.chamadas.push({ nome, dados, regiao, tokensQuandoSaiu: registro.getToken });
+      registro.chamadas.push({ nome, dados, regiao, opcoes, tokensQuandoSaiu: registro.getToken });
       return Promise.resolve({ data: { ok: true } });
     }
   });
@@ -72,6 +79,7 @@ function montarBarreira({ chave = "chave-de-teste", getTokenFalha = false, falha
     "functions",
     "functionsPico",
     "CALLABLES_REGIAO_PICO",
+    "OPCOES_CALLABLE",
     "console",
     `
       let appCheckAtivado = false;
@@ -84,7 +92,7 @@ function montarBarreira({ chave = "chave-de-teste", getTokenFalha = false, falha
       };
     `
   );
-  return { api: fabrica(chave, firebase, functions, functionsPico, listaPico, consoleFalso), registro };
+  return { api: fabrica(chave, firebase, functions, functionsPico, listaPico, OPCOES_CALLABLE_SITE, consoleFalso), registro };
 }
 
 // ---------------------------------------------------------------------------
@@ -190,7 +198,7 @@ test("httpsCallable so aparece dentro de chamarFuncao", () => {
   assert.match(chamar, /await garantirAppCheckPronto\(\)/);
   // clienteFunctions escolhe a regiao pelo nome da callable: o caminho
   // critico foi para southamerica-east1 e o resto ficou em us-central1.
-  assert.match(chamar, /clienteFunctions\(nome\)\.httpsCallable\(nome\)\(dados\)/);
+  assert.match(chamar, /clienteFunctions\(nome\)\.httpsCallable\(nome, OPCOES_CALLABLE\[nome\]\)\(dados\)/);
   // A barreira precisa vir antes da chamada dentro da propria funcao.
   assert.ok(
     chamar.indexOf("garantirAppCheckPronto") < chamar.indexOf("httpsCallable"),

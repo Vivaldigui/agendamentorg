@@ -64,21 +64,28 @@ const erroTransiente = new Function(
   `${extrairFuncao(sitePublico, "erroTransiente")}; return erroTransiente;`
 )(codigoErroFunctions);
 
+// Opcoes por callable, lidas do proprio site (token de App Check de uso unico
+// na criacao, auditoria de 16/10/2026, CON-02).
+const OPCOES_CALLABLE_SITE = new Function(
+  "return " + ((sitePublico.match(/var OPCOES_CALLABLE = (\{[\s\S]*?\n    \});/) || [])[1]
+    || assert.fail("OPCOES_CALLABLE nao encontrada no site."))
+)();
+
 // Monta chamarFuncao com dependencias controladas, para exercitar o caminho de
 // recuperacao de verdade em vez de so olhar o texto do arquivo.
 function montarChamarFuncao({ respostas }) {
   const chamadas = [];
   let refreshes = 0;
   const clienteFake = (regiao) => ({
-    httpsCallable: (nome) => (dados) => {
-      chamadas.push({ nome, dados, regiao });
+    httpsCallable: (nome, opcoes) => (dados) => {
+      chamadas.push({ nome, dados, regiao, opcoes });
       const proxima = respostas.shift();
       if (proxima instanceof Error) return Promise.reject(proxima);
       return Promise.resolve(proxima);
     }
   });
   const fn = new Function(
-    "functions", "functionsPico", "CALLABLES_REGIAO_PICO",
+    "functions", "functionsPico", "CALLABLES_REGIAO_PICO", "OPCOES_CALLABLE",
     "garantirAppCheckPronto", "tentarRefreshAppCheck", "erroDeAppCheck",
     "registrarRecusaAppCheck", "console",
     [
@@ -91,6 +98,7 @@ function montarChamarFuncao({ respostas }) {
     clienteFake("us-central1"),
     clienteFake("southamerica-east1"),
     LISTA_REGIAO_PICO,
+    OPCOES_CALLABLE_SITE,
     async () => true,
     async () => { refreshes += 1; },
     erroDeAppCheck,

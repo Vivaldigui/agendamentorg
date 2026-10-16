@@ -46,7 +46,7 @@ function erroAppCheck() {
 // Monta chamarFuncao com um cliente controlavel e conta modais/refreshes.
 function montar({ respostas }) {
   const estado = { modais: 0, refreshes: 0, chamadas: 0 };
-  // Espelha o formato real: clienteFunctions(nome).httpsCallable(nome)(dados).
+  // Espelha o formato real: clienteFunctions(nome).httpsCallable(nome, OPCOES_CALLABLE[nome])(dados).
   const cliente = (_nome) => ({
     httpsCallable: (_n) => (dados) => {
       estado.chamadas += 1;
@@ -67,7 +67,7 @@ function montar({ respostas }) {
   ].join("\n");
   const fn = new Function(
     "clienteFunctions", "garantirAppCheckPronto", "tentarRefreshAppCheck",
-    "codigoErroFunctions", "mostrarAlertaAppCheckPersistente", "console",
+    "codigoErroFunctions", "mostrarAlertaAppCheckPersistente", "console", "OPCOES_CALLABLE",
     corpo
   )(
     cliente,
@@ -75,7 +75,8 @@ function montar({ respostas }) {
     async () => { estado.refreshes += 1; },
     codigoErroFunctions,
     () => { estado.modais += 1; },
-    { warn() {} }
+    { warn() {} },
+    {}
   );
   return { chamar: fn.chamarFuncao, estado, contador: fn.estado };
 }
