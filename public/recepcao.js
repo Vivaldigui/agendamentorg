@@ -100,9 +100,6 @@ let totalAtendimentosRealizados = null;
 let totalAtendimentosCarregado = false;
 let totalAtendimentosIndisponivel = false;
 let estatisticasHistoricas = { cin: [], faltas: [] };
-let credenciaisCache = [];
-let credenciaisCarregadas = false;
-let filtroCredencialAtual = "ativas";
 const INATIVIDADE_AVISO_MS = 7 * 60 * 60 * 1000 + 55 * 60 * 1000; // 7h55min
 const INATIVIDADE_LOGOUT_MS = 8 * 60 * 60 * 1000; // 8h (jornada completa)
 const ATUALIZACAO_AUTOMATICA_MS = 2 * 60 * 1000;
@@ -2900,10 +2897,11 @@ function renderFilaHoje() {
     }).join("");
 }
 
-// Cinco areas: tres de operacao diaria (hoje/lista/credenciais) e duas de
-// uso eventual (config/relatorios). A configuracao saiu da lista para que
+// Quatro areas: duas de operacao diaria (hoje/lista) e duas de uso
+// eventual (config/relatorios). As credenciais de estacionamento sairam em
+// 16/10/2026. A configuracao saiu da lista para que
 // a tela de operacao nao carregue mais dez blocos numa rolagem so.
-const VISTAS_PAINEL = ["hoje", "lista", "credenciais", "config", "relatorios"];
+const VISTAS_PAINEL = ["hoje", "lista", "config", "relatorios"];
 
 function mostrarVistaPainel(vista) {
     vistaPainelAtual = VISTAS_PAINEL.includes(vista) ? vista : "hoje";
@@ -2921,7 +2919,6 @@ function mostrarVistaPainel(vista) {
         btn.setAttribute("aria-selected", ativa ? "true" : "false");
     });
     if (vistaPainelAtual === "hoje") renderFilaHoje();
-    if (vistaPainelAtual === "credenciais" && !credenciaisCarregadas) carregarCredenciais();
     if (vistaPainelAtual === "config") atualizarEstadoConfigHub();
     if (vistaPainelAtual === "relatorios" && !metricasAberturaCarregadas) carregarMetricasAbertura();
     atualizarFaixaEstado();
@@ -3624,239 +3621,6 @@ async function cancelarAgendamentoPainel(id) {
     }
 }
 
-function credencialTipoLabel(tipo) {
-    return tipo === "deficiente" ? "Pessoa com deficiência" : "Idoso";
-}
-
-function credencialStatusLabel(status) {
-    return ({ ativa: "Em produção", pronta: "Pronta para entrega", entregue: "Entregue" })[status] || "Em produção";
-}
-
-function mensagemCredencialPronta(cred) {
-    const tipoTexto = cred.tipo === "deficiente" ? "pessoa com deficiência" : "idoso";
-    const primeiroNome = String(cred.nome || "").trim().split(/\s+/)[0] || "";
-    const saudacao = primeiroNome ? `${primeiroNome}, ` : "";
-    return `Olá, ${saudacao}aqui é da Câmara Municipal de Itanhandu. Sua credencial de estacionamento (${tipoTexto}) já está pronta para retirada. Por favor, compareça à Câmara para retirar o documento. Atendimento de segunda a sexta, das 12h às 18h.`;
-}
-
-function dataHoraBrTimestamp(iso) {
-    if (!iso) return "";
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "";
-    return d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-async function carregarCredenciais() {
-    const corpo = document.getElementById("corpo-credenciais");
-    const info = document.getElementById("info-credenciais");
-    if (corpo) corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'><i class='fa-solid fa-spinner fa-spin'></i> Carregando credenciais...</td></tr>";
-    try {
-        const snap = await db.collection("credenciais_estacionamento").orderBy("criadoEm", "desc").limit(500).get();
-        credenciaisCache = snap.docs.map(doc => ({ id: doc.id, dados: doc.data() }));
-        credenciaisCarregadas = true;
-        if (info) info.textContent = `${credenciaisCache.length} credencial(is) registrada(s) no total.`;
-        renderCredenciais();
-    } catch (e) {
-        console.warn("Erro ao carregar credenciais", e);
-        if (corpo) corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;color:#b91c1c;'>Erro ao carregar credenciais. Tente novamente.</td></tr>";
-        if (info) info.textContent = "Erro ao carregar credenciais.";
-    }
-}
-
-function filtroCredenciais(tipo) {
-    filtroCredencialAtual = tipo;
-    ["ativas", "prontas", "entregues", "todas"].forEach(t => {
-        const btn = document.getElementById(`btn-cred-${t}`);
-        if (btn) btn.classList.toggle("ativo", t === tipo);
-    });
-    renderCredenciais();
-}
-
-function credenciaisFiltradas() {
-    return credenciaisCache.filter(c => {
-        const status = c.dados.status || "ativa";
-        if (filtroCredencialAtual === "ativas") return status === "ativa";
-        if (filtroCredencialAtual === "prontas") return status === "pronta";
-        if (filtroCredencialAtual === "entregues") return status === "entregue";
-        return true;
-    });
-}
-
-function renderCredenciais() {
-    const corpo = document.getElementById("corpo-credenciais");
-    if (!corpo) return;
-    const lista = credenciaisFiltradas();
-    if (!lista.length) {
-        corpo.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Nenhuma credencial neste filtro.</td></tr>";
-        return;
-    }
-    corpo.innerHTML = lista.map(c => {
-        const d = c.dados;
-        const id = textoSeguro(c.id);
-        const status = d.status || "ativa";
-        const telFmt = textoSeguro(d.telefone || "");
-        const acoes = [];
-        if (status === "ativa") {
-            acoes.push(`<button type="button" class="btn-pequeno btn-atualizar" data-acao="marcarCredencialPronta" data-id="${id}"><i class="fa-solid fa-check"></i> Marcar pronta</button>`);
-        }
-        if (status === "pronta") {
-            acoes.push(`<button type="button" class="btn-pequeno btn-lembrete" data-acao="abrirZapCredencial" data-id="${id}"><i class="fa-brands fa-whatsapp"></i> Avisar WhatsApp</button>`);
-            acoes.push(`<button type="button" class="btn-pequeno btn-atualizar" data-acao="marcarCredencialEntregue" data-id="${id}"><i class="fa-solid fa-handshake"></i> Entregue</button>`);
-        }
-        if (status === "entregue") {
-            acoes.push(`<button type="button" class="btn-pequeno btn-lembrete" data-acao="reabrirCredencial" data-id="${id}"><i class="fa-solid fa-rotate-left"></i> Reabrir</button>`);
-        }
-        acoes.push(`<button type="button" class="btn-pequeno" style="background:#b91c1c;" data-acao="removerCredencial" data-id="${id}"><i class="fa-solid fa-trash"></i> Remover</button>`);
-        return `
-            <tr>
-                <td data-label="Nome" style="font-weight:700;">${textoSeguro(d.nome || "Sem nome")}</td>
-                <td data-label="Tipo">${textoSeguro(credencialTipoLabel(d.tipo))}</td>
-                <td data-label="Telefone">${telFmt || "Sem telefone"}</td>
-                <td data-label="Cadastrada em">${textoSeguro(dataHoraBrTimestamp(d.criado))}</td>
-                <td data-label="Status"><span class="badge-status st-${status === "entregue" ? "compareceu" : (status === "pronta" ? "agendado" : "remarcado")}">${textoSeguro(credencialStatusLabel(status))}</span>${d.avisadoEm ? `<br><small>Aviso enviado em ${textoSeguro(dataHoraBrTimestamp(d.avisadoEm))}</small>` : ""}</td>
-                <td data-label="Ações"><div class="acoes-linha-rapida">${acoes.join("")}</div></td>
-            </tr>
-        `;
-    }).join("");
-}
-
-async function salvarCredencial() {
-    const nome = document.getElementById("cred-nome").value.trim();
-    const tipo = document.getElementById("cred-tipo").value;
-    const telBruto = document.getElementById("cred-tel").value;
-    const telLimpo = String(telBruto).replace(/\D/g, "");
-    if (nome.length < 3) return avisoPainel("Informe o nome completo do requerente.");
-    if (!["idoso", "deficiente"].includes(tipo)) return avisoPainel("Selecione o tipo da credencial.");
-    if (telLimpo.length < 10) return avisoPainel("Informe um telefone válido com DDD.");
-    const agora = new Date().toISOString();
-    const dados = {
-        nome,
-        tipo,
-        telefone: telBruto,
-        telefoneLimpo: telLimpo,
-        status: "ativa",
-        criado: agora,
-        criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
-        criadoPor: auth.currentUser ? auth.currentUser.email : ""
-    };
-    try {
-        const ref = await db.collection("credenciais_estacionamento").add(dados);
-        credenciaisCache.unshift({ id: ref.id, dados: { ...dados, criadoEm: null } });
-        document.getElementById("cred-nome").value = "";
-        document.getElementById("cred-tel").value = "";
-        document.getElementById("cred-tipo").value = "idoso";
-        filtroCredencialAtual = "ativas";
-        filtroCredenciais("ativas");
-        await registrarLog("credencial_cadastrar", { credencialId: ref.id, nome, tipo });
-        mostrarToast(`Credencial de ${nome} cadastrada.`);
-        const info = document.getElementById("info-credenciais");
-        if (info) info.textContent = `${credenciaisCache.length} credencial(is) registrada(s) no total.`;
-    } catch (e) {
-        console.error("Erro ao salvar credencial", e);
-        avisoPainel("Erro ao salvar credencial. Tente novamente.");
-    }
-}
-
-async function marcarCredencialPronta(id) {
-    const cred = credenciaisCache.find(c => c.id === id);
-    if (!cred) return;
-    try {
-        const agora = new Date().toISOString();
-        await db.collection("credenciais_estacionamento").doc(id).set({
-            status: "pronta",
-            prontaEm: agora,
-            prontaPor: auth.currentUser ? auth.currentUser.email : ""
-        }, { merge: true });
-        cred.dados.status = "pronta";
-        cred.dados.prontaEm = agora;
-        await registrarLog("credencial_pronta", { credencialId: id, nome: cred.dados.nome });
-        renderCredenciais();
-        mostrarToast(`Credencial de ${cred.dados.nome} marcada como pronta.`);
-    } catch (e) {
-        console.error("Erro ao marcar como pronta", e);
-        avisoPainel("Erro ao marcar como pronta.");
-    }
-}
-
-async function abrirZapCredencial(id) {
-    const cred = credenciaisCache.find(c => c.id === id);
-    if (!cred) return;
-    const telLimpo = String(cred.dados.telefoneLimpo || cred.dados.telefone || "").replace(/\D/g, "");
-    if (telLimpo.length < 10) return avisoPainel("Telefone inválido para WhatsApp.");
-    try {
-        const agora = new Date().toISOString();
-        await db.collection("credenciais_estacionamento").doc(id).set({
-            avisadoEm: agora,
-            avisadoPor: auth.currentUser ? auth.currentUser.email : ""
-        }, { merge: true });
-        cred.dados.avisadoEm = agora;
-        await registrarLog("credencial_aviso_whatsapp", { credencialId: id, nome: cred.dados.nome });
-        renderCredenciais();
-    } catch (e) {
-        console.warn("Não foi possível registrar o aviso", e);
-    }
-    window.open(`https://wa.me/55${telLimpo}?text=${encodeURIComponent(mensagemCredencialPronta(cred.dados))}`, "_blank", "noopener,noreferrer");
-}
-
-async function marcarCredencialEntregue(id) {
-    const cred = credenciaisCache.find(c => c.id === id);
-    if (!cred) return;
-    if (!(await confirmarPainel(`Confirmar entrega da credencial de ${cred.dados.nome}?`, { titulo: "Entregar credencial", textoConfirmar: "Confirmar entrega" }))) return;
-    try {
-        const agora = new Date().toISOString();
-        await db.collection("credenciais_estacionamento").doc(id).set({
-            status: "entregue",
-            entregueEm: agora,
-            entreguePor: auth.currentUser ? auth.currentUser.email : ""
-        }, { merge: true });
-        cred.dados.status = "entregue";
-        cred.dados.entregueEm = agora;
-        await registrarLog("credencial_entregue", { credencialId: id, nome: cred.dados.nome });
-        renderCredenciais();
-        mostrarToast(`Credencial de ${cred.dados.nome} marcada como entregue.`);
-    } catch (e) {
-        console.error("Erro ao marcar como entregue", e);
-        avisoPainel("Erro ao marcar como entregue.");
-    }
-}
-
-async function reabrirCredencial(id) {
-    const cred = credenciaisCache.find(c => c.id === id);
-    if (!cred) return;
-    if (!(await confirmarPainel(`Reabrir a credencial de ${cred.dados.nome}? Ela voltará para "Pronta para entrega".`, { titulo: "Reabrir credencial", textoConfirmar: "Reabrir" }))) return;
-    try {
-        await db.collection("credenciais_estacionamento").doc(id).set({
-            status: "pronta",
-            entregueEm: firebase.firestore.FieldValue.delete()
-        }, { merge: true });
-        cred.dados.status = "pronta";
-        delete cred.dados.entregueEm;
-        await registrarLog("credencial_reabrir", { credencialId: id, nome: cred.dados.nome });
-        renderCredenciais();
-    } catch (e) {
-        console.error("Erro ao reabrir credencial", e);
-        avisoPainel("Erro ao reabrir credencial.");
-    }
-}
-
-async function removerCredencial(id) {
-    const cred = credenciaisCache.find(c => c.id === id);
-    if (!cred) return;
-    if (!(await confirmarPainel(`Remover permanentemente a credencial de ${cred.dados.nome}?`, { titulo: "Remover credencial", perigo: true, textoConfirmar: "Remover" }))) return;
-    try {
-        await db.collection("credenciais_estacionamento").doc(id).delete();
-        credenciaisCache = credenciaisCache.filter(c => c.id !== id);
-        await registrarLog("credencial_remover", { credencialId: id, nome: cred.dados.nome });
-        renderCredenciais();
-        const info = document.getElementById("info-credenciais");
-        if (info) info.textContent = `${credenciaisCache.length} credencial(is) registrada(s) no total.`;
-        mostrarToast(`Credencial de ${cred.dados.nome} removida.`);
-    } catch (e) {
-        console.error("Erro ao remover credencial", e);
-        avisoPainel("Erro ao remover credencial.");
-    }
-}
-
 async function abrirZapLembrete(id) {
     const ag = buscarAgendamentoCache(id);
     if (!ag) return;
@@ -4166,15 +3930,6 @@ const ACOES_CLIQUE = {
     fecharObservacao, salvarObservacao,
     confirmacao: el => resolverConfirmacao(el.dataset.valor === "true"),
     resetarTimerInatividade,
-
-    // Credenciais de estacionamento
-    carregarCredenciais, salvarCredencial,
-    "filtro-credenciais": el => filtroCredenciais(el.dataset.tipo),
-    marcarCredencialPronta: el => marcarCredencialPronta(el.dataset.id),
-    marcarCredencialEntregue: el => marcarCredencialEntregue(el.dataset.id),
-    abrirZapCredencial: el => abrirZapCredencial(el.dataset.id),
-    reabrirCredencial: el => reabrirCredencial(el.dataset.id),
-    removerCredencial: el => removerCredencial(el.dataset.id),
 
     // Configuracao
     irParaConfiguracaoAgenda, voltarConfigHub,

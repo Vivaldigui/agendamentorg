@@ -53,7 +53,6 @@
                 <div class="nav-in" role="tablist" aria-label="Áreas do painel">
                     <button type="button" class="btn btn-vista ativo" id="btn-vista-hoje" role="tab" aria-selected="true" data-acao="vista" data-vista="hoje"><i class="fa-solid fa-calendar-day"></i> Fila de hoje</button>
                     <button type="button" class="btn btn-vista" id="btn-vista-lista" role="tab" aria-selected="false" data-acao="vista" data-vista="lista"><i class="fa-solid fa-table-list"></i> Agendamentos</button>
-                    <button type="button" class="btn btn-vista" id="btn-vista-credenciais" role="tab" aria-selected="false" data-acao="vista" data-vista="credenciais"><i class="fa-solid fa-square-parking"></i> Credenciais</button>
                     <span class="nav-sep" aria-hidden="true"></span>
                     <button type="button" class="btn btn-vista" id="btn-vista-config" role="tab" aria-selected="false" data-acao="vista" data-vista="config"><i class="fa-solid fa-gears"></i> Configuração</button>
                     <button type="button" class="btn btn-vista" id="btn-vista-relatorios" role="tab" aria-selected="false" data-acao="vista" data-vista="relatorios"><i class="fa-solid fa-chart-simple"></i> Relatórios</button>
@@ -478,43 +477,6 @@
             </div>
         </div>
 
-        <div id="vista-credenciais" style="display:none;">
-            <div class="painel-config">
-                <h3><i class="fa-solid fa-square-parking"></i> Nova credencial de estacionamento</h3>
-                <div class="config-form">
-                    <div class="input-group" style="flex:2; min-width:240px;">
-                        <label>Nome completo: <span class="obrigatorio">*</span></label>
-                        <input type="text" id="cred-nome" placeholder="Nome do requerente">
-                    </div>
-                    <div class="input-group" style="min-width:180px;">
-                        <label>Tipo: <span class="obrigatorio">*</span></label>
-                        <select id="cred-tipo">
-                            <option value="idoso">Idoso</option>
-                            <option value="deficiente">Pessoa com deficiência</option>
-                        </select>
-                    </div>
-                    <div class="input-group" style="min-width:180px;">
-                        <label>Telefone/WhatsApp: <span class="obrigatorio">*</span></label>
-                        <input type="text" id="cred-tel" data-input="mascaraTel" maxlength="15" placeholder="(00) 00000-0000">
-                    </div>
-                    <button type="button" class="btn btn-atualizar" data-acao="salvarCredencial"><i class="fa-solid fa-plus"></i> Cadastrar credencial</button>
-                </div>
-                <span class="periodo-info" id="info-credenciais">Carregando credenciais...</span>
-            </div>
-            <div class="controles">
-                <button type="button" class="btn btn-vista ativo" id="btn-cred-ativas" data-acao="filtro-credenciais" data-tipo="ativas">Em produção</button>
-                <button type="button" class="btn btn-vista" id="btn-cred-prontas" data-acao="filtro-credenciais" data-tipo="prontas">Prontas para entrega</button>
-                <button type="button" class="btn btn-vista" id="btn-cred-entregues" data-acao="filtro-credenciais" data-tipo="entregues">Entregues</button>
-                <button type="button" class="btn btn-vista" id="btn-cred-todas" data-acao="filtro-credenciais" data-tipo="todas">Todas</button>
-                <button type="button" class="btn btn-atualizar" data-acao="carregarCredenciais"><i class="fa-solid fa-rotate"></i> Atualizar</button>
-            </div>
-            <div class="tabela-wrap">
-                <table>
-                    <thead><tr><th>Nome</th><th>Tipo</th><th>Telefone</th><th>Cadastrada em</th><th>Status</th><th>Ações</th></tr></thead>
-                    <tbody id="corpo-credenciais"></tbody>
-                </table>
-            </div>
-        </div>
     </div>
 
     <div id="modal-manual" class="modal">

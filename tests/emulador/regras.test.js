@@ -98,11 +98,13 @@ test("nem o admin grava agendamento, vaga, indice de CPF ou bloqueio pelo navega
   await assertFails(deleteDoc(doc(db, "bloqueios_agendamento", "52998224725")));
 });
 
-test("admin segue configurando a agenda e as credenciais", async () => {
+test("admin segue configurando a agenda; credenciais de estacionamento fechadas", async () => {
   const db = admin();
   await assertSucceeds(setDoc(doc(db, "configuracoes", "agenda"), { dias: ["2026-10-20"] }, { merge: true }));
-  await assertSucceeds(addDoc(collection(db, "credenciais_estacionamento"), { nome: "Teste" }));
   await assertFails(setDoc(doc(estranho(), "configuracoes", "agenda"), { dias: [] }));
+  // Retiradas do painel em 16/10/2026.
+  await assertFails(addDoc(collection(db, "credenciais_estacionamento"), { nome: "Teste" }));
+  await assertFails(getDocs(collection(db, "credenciais_estacionamento")));
 });
 
 // ---- SEG-01: admins ------------------------------------------------------------
