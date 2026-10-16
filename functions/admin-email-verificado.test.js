@@ -106,6 +106,17 @@ test("isAdmin() nas regras exige email_verified", () => {
   assert.match(isAdmin, /exists\(\/databases\/\$\(database\)\/documents\/admins\/\$\(request\.auth\.token\.email\)\)/);
 });
 
+test("SEG-01: admins so le o proprio documento e ninguem grava pelo navegador", () => {
+  const inicio = regras.indexOf("match /admins/{adminEmail} {");
+  const bloco = regras.slice(inicio, regras.indexOf("\n    }", inicio));
+  assert.match(bloco, /allow get: if isSignedIn\(\)[\s\S]*email_verified == true[\s\S]*request\.auth\.token\.email\.lower\(\) == adminEmail;/);
+  assert.match(bloco, /allow list, write: if false;/);
+  assert.doesNotMatch(bloco, /allow (create|update|delete)|isAdmin\(\)/);
+  // O painel so le o documento do proprio e-mail, ja em minusculas.
+  assert.match(painelJs, /const email = String\(user && user\.email \|\| ""\)\.trim\(\)\.toLowerCase\(\);/);
+  assert.doesNotMatch(painelJs, /collection\("admins"\)\.(add|doc\([^)]*\)\.(set|update|delete))/);
+});
+
 // ---- Painel ---------------------------------------------------------------------------
 
 function montarValidacao(admins) {
