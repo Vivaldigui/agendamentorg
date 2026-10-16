@@ -1645,16 +1645,29 @@ exports.atualizarObservacaoAdmin = onCall(callableOptions, async (request) => {
   return { ok: true };
 });
 
+// Remarcacao pela recepcao, em transacao.
+//
+// O painel fazia isto direto no Firestore, e com dois defeitos:
+//   - lia as vagas do horario FORA de transacao e gravava depois com merge: um
+//     cidadao que reservasse aquela vaga no intervalo tinha o agendamentoId
+//     sobrescrito, e duas pessoas ficavam no mesmo horario;
+//   - apagava a vaga antiga de forma INCONDICIONAL. Com a lista desatualizada
+//     (remarcar A, B reservar o horario antigo de A, remarcar A de novo pela
+//     linha velha), a vaga de B sumia e o horario voltava a ser oferecido.
+// E a mesma falha B5 ja fechada no cancelamento. Aqui vale a mesma regra: todas
+// as leituras antes de qualquer escrita, e so se apaga ou se reaproveita a vaga
+// que AINDA aponta para este agendamento.
 exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
   const adminEmail = await assertAdmin(request);
-  const agendamentoId = String(request.data.agendamentoId || "").trim();
-  const dataISO = normalizarData(request.data.data, "data do agendamento");
-  const hora = normalizarHora(request.data.hora);
-  const contabilizaVaga = request.data.contabilizaVaga === true;
-
+  const dadosRequisicao = request.data || {};
+  const agendamentoId = String(dadosRequisicao.agendamentoId || "").trim();
   if (!agendamentoId) {
     throw new HttpsError("invalid-argument", "Agendamento invalido.");
   }
+  const dataISO = normalizarData(dadosRequisicao.data, "data do agendamento");
+  const hora = normalizarHora(dadosRequisicao.hora);
+  const contabilizaVaga = dadosRequisicao.contabilizaVaga === true;
+
   if (dataISO < hojeSaoPauloISO()) {
     throw new HttpsError("failed-precondition", "Nao e possivel remarcar para data passada.");
   }
@@ -1664,28 +1677,74 @@ exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
   let retorno = null;
 
   await db.runTransaction(async (t) => {
+    // ---- Leituras ----------------------------------------------------------
     const agDoc = await t.get(agRef);
     if (!agDoc.exists) {
       throw new HttpsError("not-found", "Agendamento nao encontrado.");
     }
-
     const dados = agDoc.data();
-    const slotAntigoId = dados.slotId || `${dados.dataISO}_${dados.hora}`;
-    const slotAntigoRef = slotAntigoId ? db.collection("vagas_ocupadas").doc(slotAntigoId) : null;
+    // Substituido pelo proprio cidadao: o agendamento que vale e o novo.
+    if (dados.remarcadoParaAgendamentoId || dados.canceladoPor === "cidadao_substituicao") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Este agendamento foi substituido por outro do mesmo cidadao. Remarque o agendamento atual."
+      );
+    }
+    const estavaAtivo = agendamentoEstaAtivo(dados);
+
+    const slotAntigoId = dados.slotId || (dados.dataISO && dados.hora ? `${dados.dataISO}_${dados.hora}` : "");
+    const slotAntigoRef = slotAntigoId && slotAntigoId !== "undefined_undefined"
+      ? db.collection("vagas_ocupadas").doc(slotAntigoId)
+      : null;
+    const cpfNum = String(dados.cpf || "").replace(/\D/g, "");
+    const cpfRefs = cpfNum.length === 11
+      ? [...new Set([cpfDocId(cpfNum), cpfNum])].map((id) => db.collection("cpfs_agendados").doc(id))
+      : [];
+
+    const [slotAntigoDoc, cpfDocs, agendaDoc, posicoes] = await Promise.all([
+      slotAntigoRef ? t.get(slotAntigoRef) : Promise.resolve(null),
+      Promise.all(cpfRefs.map((ref) => t.get(ref))),
+      contabilizaVaga ? t.get(AGENDA_REF()) : Promise.resolve(null),
+      contabilizaVaga ? lerVagasDoHorario((refs) => t.getAll(...refs), dataISO, hora) : Promise.resolve([])
+    ]);
+
+    // Reativar um agendamento cancelado nao pode criar um segundo agendamento
+    // ativo para o mesmo CPF.
+    const outrosIdsNoIndice = [...new Set(cpfDocs
+      .filter((doc) => doc.exists && doc.data().agendamentoId && doc.data().agendamentoId !== agendamentoId)
+      .map((doc) => doc.data().agendamentoId))];
+    const outrosAgendamentos = await Promise.all(
+      outrosIdsNoIndice.map((id) => t.get(db.collection("dados_cidadaos").doc(id)))
+    );
+    const cpfTemOutroAtivo = outrosAgendamentos.some((doc) => doc.exists && agendamentoEstaAtivo(doc.data()));
+    if (!estavaAtivo && cpfTemOutroAtivo) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Este CPF ja tem outro agendamento ativo. Remarque ou cancele o agendamento atual."
+      );
+    }
+
+    // A vaga antiga so e deste agendamento se ainda apontar para ele.
+    const slotAntigoEhProprio = Boolean(slotAntigoDoc && slotAntigoDoc.exists
+      && slotAntigoDoc.data().agendamentoId === agendamentoId);
 
     // Vaga contabilizada: a primeira livre do horario, respeitando quantas
     // vagas a grade daquela data oferece. Se o agendamento ja ocupa uma vaga
     // deste mesmo horario, ele a mantem.
     let novoSlotId = `manual_${agendamentoId}`;
     if (contabilizaVaga) {
-      const [agendaDoc, posicoes] = await Promise.all([
-        t.get(AGENDA_REF()),
-        lerVagasDoHorario((refs) => t.getAll(...refs), dataISO, hora)
-      ]);
-      const agendaTransacao = processarAgenda(agendaDoc.exists ? agendaDoc.data() : {});
-      const capacidade = Math.max(1, vagasDoHorario(agendaTransacao, dataISO, hora));
-      const propria = posicoes.find((posicao) => posicao.ref.id === slotAntigoId);
-      const ocupadasPorOutros = posicoes.filter((posicao) => posicao.ocupada && posicao.ref.id !== slotAntigoId);
+      const agendaTransacao = processarAgenda(agendaDoc && agendaDoc.exists ? agendaDoc.data() : {});
+      // Sem Math.max(1, ...): horario fora da grade tem zero vagas e e recusado.
+      // Para atender fora da grade a recepcao desmarca "contar vaga" (encaixe).
+      const capacidade = vagasDoHorario(agendaTransacao, dataISO, hora);
+      if (capacidade < 1) {
+        throw new HttpsError(
+          "failed-precondition",
+          `Nao ha horario ${hora} na grade de ${dataBr(dataISO)}. Escolha um horario da grade ou desmarque "contar vaga" para fazer um encaixe.`
+        );
+      }
+      const propria = posicoes.find((posicao) => posicao.agendamentoDoc && posicao.agendamentoDoc.id === agendamentoId);
+      const ocupadasPorOutros = posicoes.filter((posicao) => posicao.ocupada && posicao !== propria);
       const livre = posicoes.find((posicao) => !posicao.ocupada);
       if (!propria && (ocupadasPorOutros.length >= capacidade || !livre)) {
         throw new HttpsError("already-exists", "Este horario ja esta ocupado. Escolha outro horario.");
@@ -1694,17 +1753,22 @@ exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
     }
     const novoSlotRef = db.collection("vagas_ocupadas").doc(novoSlotId);
 
-    if (slotAntigoRef && slotAntigoId !== novoSlotId) {
+    // ---- Escritas ----------------------------------------------------------
+    const vagaAntigaLiberada = Boolean(slotAntigoEhProprio && slotAntigoId !== novoSlotId);
+    if (vagaAntigaLiberada) {
       t.delete(slotAntigoRef);
     }
 
+    // set sem merge: a vaga escolhida esta livre (inexistente ou de agendamento
+    // inativo) ou ja e deste agendamento. Nada de outra pessoa sobrevive nela.
     t.set(novoSlotRef, {
       dataISO,
       hora,
       contabilizaVaga,
       origem: contabilizaVaga ? "admin_remarcacao" : "manual",
-      agendamentoId
-    }, { merge: true });
+      agendamentoId,
+      atualizadoEm: agora
+    });
 
     const remarcacao = {
       deDataISO: dados.dataISO || "",
@@ -1712,24 +1776,38 @@ exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
       paraDataISO: dataISO,
       paraHora: hora,
       contabilizaVaga,
+      reativado: !estavaAtivo,
+      vagaAntigaLiberada,
       adminEmail,
       criado: agora
     };
 
-    t.set(agRef, {
+    const atualizacao = {
       dataISO,
       hora,
       slotId: novoSlotId,
       insercaoManual: !contabilizaVaga,
+      status: "remarcado",
+      // Remarcar reativa: o agendamento continua valendo na nova data.
+      ativo: true,
       remarcadoEm: agora,
       remarcadoPor: adminEmail,
+      statusAtualizadoEm: agora,
+      statusAtualizadoPor: adminEmail,
+      alteradoPor: adminEmail,
       remarcacoes: FieldValue.arrayUnion(remarcacao)
-    }, { merge: true });
+    };
+    t.set(agRef, atualizacao, { merge: true });
 
-    const cpfNum = String(dados.cpf || "").replace(/\D/g, "");
-    if (cpfNum.length === 11) {
-      t.set(db.collection("cpfs_agendados").doc(cpfDocId(cpfNum)), { agendamentoId, slotId: novoSlotId, atualizado: agora }, { merge: true });
-      t.set(db.collection("cpfs_agendados").doc(cpfNum), { agendamentoId, slotId: novoSlotId, atualizado: agora }, { merge: true });
+    // Indice de CPF: aponta para este agendamento, salvo quando ja aponta para
+    // outro agendamento ativo do mesmo CPF. O indice legado (CPF em texto) so e
+    // atualizado se ja existir: nao se cria documento novo com CPF no id.
+    if (!cpfTemOutroAtivo) {
+      cpfRefs.forEach((ref, indice) => {
+        const ehHash = indice === 0;
+        if (!ehHash && !cpfDocs[indice].exists) return;
+        t.set(ref, { agendamentoId, slotId: novoSlotId, atualizado: agora }, { merge: true });
+      });
     }
 
     t.set(db.collection("logs_admin").doc(), {
@@ -1748,7 +1826,13 @@ exports.remarcarAgendamentoAdmin = onCall(callableOptions, async (request) => {
       dataBR: dataBr(dataISO),
       hora,
       slotId: novoSlotId,
-      insercaoManual: !contabilizaVaga
+      insercaoManual: !contabilizaVaga,
+      status: "remarcado",
+      ativo: true,
+      remarcadoEm: agora,
+      remarcadoPor: adminEmail,
+      vagaAntigaLiberada,
+      reativado: !estavaAtivo
     };
   });
 

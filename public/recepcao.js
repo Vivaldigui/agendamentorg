@@ -886,17 +886,6 @@ function vagasDaData(dataISO) {
     return gradeDetalhadaParaDataPainel(dataISO).reduce((total, item) => total + item.vagas, 0);
 }
 
-function vagasDoHorarioPainel(dataISO, hora) {
-    const item = gradeDetalhadaParaDataPainel(dataISO).find(h => h.hora === hora);
-    return item ? item.vagas : 0;
-}
-
-// Mesmo esquema de ids do backend: a primeira vaga do horario mantem o id de
-// sempre, as demais ganham sufixo _2, _3...
-function slotIdsDoHorarioPainel(dataISO, hora) {
-    return Array.from({ length: LIMITE_VAGAS_POR_HORARIO }, (_, i) => (i === 0 ? `${dataISO}_${hora}` : `${dataISO}_${hora}_${i + 1}`));
-}
-
 function totalVagasItens(itens) {
     return itens.reduce((total, item) => total + item.vagas, 0);
 }
@@ -1423,15 +1412,6 @@ function criarDadosBloqueio(dados) {
         bloqueioOrigem: "gestaov6",
         bloqueioLiberado: false
     };
-}
-
-async function gerarCpfDocId(cpf) {
-    const limpo = cpfNumeros(cpf);
-    if (!limpo) return "";
-    if (!window.crypto || !window.crypto.subtle) return limpo;
-    const bytes = new TextEncoder().encode(limpo);
-    const hash = await crypto.subtle.digest("SHA-256", bytes);
-    return "cpf_" + Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
 function statusValor(dados) {
@@ -3362,70 +3342,46 @@ async function salvarRemarcacao() {
     btn.disabled = true;
     btn.innerText = "Remarcando...";
     try {
-        const slotAntigo = ag.dados.slotId || `${ag.dados.dataISO}_${ag.dados.hora}`;
-        let novoSlot = `${data}_${hora}`;
-        if (contabilizaVaga) {
-            // O horario pode ter mais de uma vaga: usa a primeira livre, ou
-            // mantem a vaga que o agendamento ja ocupa neste mesmo horario.
-            const ids = slotIdsDoHorarioPainel(data, hora);
-            if (ids.includes(slotAntigo)) {
-                novoSlot = slotAntigo;
-            } else {
-                const docs = await Promise.all(ids.map(id => db.collection("vagas_ocupadas").doc(id).get()));
-                const capacidade = Math.max(1, vagasDoHorarioPainel(data, hora));
-                const livre = docs.find(doc => !doc.exists);
-                if (docs.filter(doc => doc.exists).length >= capacidade || !livre) {
-                    throw new Error("Este horário já está ocupado. Escolha outro horário.");
-                }
-                novoSlot = livre.id;
-            }
-        }
-        if (slotAntigo && slotAntigo !== novoSlot) {
-            await db.collection("vagas_ocupadas").doc(slotAntigo).delete().catch(() => {});
-        }
-        if (contabilizaVaga) {
-            await db.collection("vagas_ocupadas").doc(novoSlot).set({
-                dataISO: data,
-                hora,
-                agendamentoId: id,
-                origem: "gestaov6_remarcacao",
-                atualizadoEm: new Date().toISOString()
-            }, { merge: true });
-        }
-
-        const atualizacao = {
-            dataISO: data,
-            hora,
-            slotId: contabilizaVaga ? novoSlot : null,
-            insercaoManual: !contabilizaVaga,
-            status: "remarcado",
-            // Remarcar reativa: o agendamento continua valendo na nova data.
+        // Passa pela callable transacional. A versao anterior escrevia direto no
+        // Firestore: lia as vagas fora de transacao e gravava com merge (um
+        // cidadao que reservasse a vaga no intervalo era sobrescrito) e apagava
+        // a vaga antiga sem conferir o dono (com a lista desatualizada, sumia a
+        // vaga de quem tinha reservado depois). O backend escolhe a vaga, confere
+        // a grade e grava o log com o e-mail do token.
+        const remarcar = functions.httpsCallable("remarcarAgendamentoAdmin");
+        const resposta = await remarcar({ agendamentoId: id, data, hora, contabilizaVaga });
+        const novo = (resposta && resposta.data && resposta.data.agendamento) || {};
+        Object.assign(ag.dados, {
+            dataISO: novo.dataISO || data,
+            hora: novo.hora || hora,
+            slotId: novo.slotId || null,
+            insercaoManual: novo.insercaoManual === true,
+            status: novo.status || "remarcado",
             ativo: true,
-            remarcadoEm: new Date().toISOString(),
-            remarcadoPor: auth.currentUser ? auth.currentUser.email : "",
-            statusAtualizadoEm: new Date().toISOString(),
-            statusAtualizadoPor: auth.currentUser ? auth.currentUser.email : "",
-            alteradoPor: auth.currentUser ? auth.currentUser.email : ""
-        };
-        await db.collection("dados_cidadaos").doc(id).set(atualizacao, { merge: true });
-        const cpfId = await gerarCpfDocId(ag.dados.cpf);
-        if (cpfId) {
-            await db.collection("cpfs_agendados").doc(cpfId).set({
-                agendamentoId: id,
-                dataISO: data,
-                hora,
-                atualizadoEm: new Date().toISOString()
-            }, { merge: true });
-        }
-        Object.assign(ag.dados, atualizacao);
+            remarcadoEm: novo.remarcadoEm || new Date().toISOString(),
+            remarcadoPor: novo.remarcadoPor || "",
+            statusAtualizadoEm: novo.remarcadoEm || new Date().toISOString(),
+            statusAtualizadoPor: novo.remarcadoPor || "",
+            alteradoPor: novo.remarcadoPor || ""
+        });
         fecharRemarcacao();
-        await registrarLog("remarcacao_painel", { agendamentoId: id, dataISO: data, hora, contabilizaVaga });
         atualizarResumo();
         renderTabelaAgendamentos();
         renderFilaHoje();
-        mostrarToast("Agendamento remarcado.");
+        mostrarToast(novo.reativado ? "Agendamento reativado e remarcado." : "Agendamento remarcado.");
     } catch (e) {
-        avisoPainel(e.message || "Erro ao remarcar.");
+        const codigo = String((e && e.code) || "").replace(/^functions\//, "");
+        if (["already-exists", "failed-precondition", "invalid-argument"].includes(codigo)) {
+            avisoPainel(e.message || "Não foi possível remarcar.");
+        } else if (codigo === "not-found") {
+            avisoPainel("Agendamento não encontrado. A lista foi atualizada.");
+            listarAgendamentos();
+        } else if (codigo === "permission-denied" || codigo === "unauthenticated") {
+            avisoPainel("Sessão sem permissão para remarcar. Entre novamente.");
+        } else {
+            avisoPainel("Erro ao remarcar. A lista foi atualizada; confira antes de tentar de novo.");
+            listarAgendamentos();
+        }
     }
     btn.disabled = false;
     btn.innerText = "Salvar Remarcação";
