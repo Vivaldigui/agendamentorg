@@ -76,5 +76,7 @@ test("o retorno mantem a vaga do dia ocupada e continua sujeito a anonimizacao L
     `${extrairFuncao(backend, "agendamentoEstaAtivo")}; return agendamentoEstaAtivo;`
   )();
   assert.equal(agendamentoEstaAtivo({ status: "vai_voltar" }), true);
-  assert.match(backend, /STATUS_ANONIMIZAR_LGPD = new Set\(\[[^\]]*"vai_voltar"/);
+  // Desde 16/10/2026 a anonimizacao nao filtra por status: todo registro com
+  // mais de seis meses e tratado (retencao-lgpd.test.js exercita o retorno).
+  assert.doesNotMatch(backend, /STATUS_ANONIMIZAR_LGPD|statusParaAnonimizar/);
 });

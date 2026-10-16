@@ -3435,10 +3435,10 @@ async function tentarGravarBloqueioDedicado(dadosBloqueio) {
     const cpf = dadosBloqueio.bloqueioCpf;
     if (cpf.length !== 11) return;
     try {
+        // Sem nome e telefone: a verificacao do bloqueio so precisa do CPF e da
+        // data, e a recepcao ve os dados da pessoa no proprio agendamento.
         await db.collection("bloqueios_agendamento").doc(cpf).set({
             cpf,
-            nome: dadosBloqueio.bloqueioNome,
-            telefone: dadosBloqueio.bloqueioTelefone,
             motivo: dadosBloqueio.bloqueioMotivo,
             dataFalta: dadosBloqueio.bloqueioDataFalta,
             bloqueadoAte: dadosBloqueio.bloqueadoAte,
@@ -3829,7 +3829,8 @@ async function abrirZapBloqueio(id) {
     const telLimpo = cpfNumeros(d.bloqueioTelefone || d.telefone);
     if (telLimpo.length < 10) return avisoPainel("Telefone inválido para WhatsApp.");
     const msg = `Olá, ${d.bloqueioNome || d.nome}! Precisamos falar sobre seu agendamento de RG/CIN na Câmara Municipal de Itanhandu. Por favor, entre em contato com a recepção.`;
-    await registrarLog("whatsapp_bloqueio", { agendamentoId: id, cpf: d.bloqueioCpf || cpfNumeros(d.cpf) });
+    // O log identifica pelo agendamento; CPF em log nunca era anonimizado.
+    await registrarLog("whatsapp_bloqueio", { agendamentoId: id });
     window.open(`https://wa.me/55${telLimpo}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
 }
 
@@ -3848,7 +3849,7 @@ async function liberarBloqueio(id) {
         await db.collection("dados_cidadaos").doc(id).set(liberacao, { merge: true });
         if (cpf.length === 11) await db.collection("bloqueios_agendamento").doc(cpf).delete().catch(() => {});
         Object.assign(ag.dados, liberacao);
-        await registrarLog("liberar_bloqueio", { agendamentoId: id, cpf });
+        await registrarLog("liberar_bloqueio", { agendamentoId: id });
         renderTabelaAgendamentos();
         renderFilaHoje();
         mostrarToast("Bloqueio liberado.");
