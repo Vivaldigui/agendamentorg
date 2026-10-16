@@ -437,10 +437,6 @@ function idadeEmAnosNaData(nascimentoISO, referenciaISO) {
   return idade;
 }
 
-function validarIdadeMinimaAgendamento(nascimentoISO, dataISO) {
-  // Permite que menores de 3 anos possam marcar pelo sistema.
-}
-
 // Dia fica no ultimo dia do mes de destino quando ele nao existe la: 31/08
 // menos seis meses e 28/02, e nao 03/03 (setMonth transbordava para marco).
 function subtrairMesesISO(dataISO, meses) {
@@ -1025,8 +1021,22 @@ async function carregarDisponibilidadePublica() {
   // uma vaga (documentos AAAA-MM-DD_HH:MM, AAAA-MM-DD_HH:MM_2...), entao conta.
   const ocupados = new Map();
 
+  // Mesma regra da transacao (slotRepresentaOcupacaoAtual): vaga cujo
+  // agendamento foi cancelado conta como livre. Antes a contagem publica
+  // contava todo documento de vaga, e um dado inconsistente mostrava
+  // "esgotado" num horario que ainda aceitava reserva (auditoria de
+  // 16/10/2026, BUG-02). Leituras extras limitadas pelo microcache.
+  const idsAgendamento = [...new Set(vagasSnap.docs.map((doc) => doc.data().agendamentoId).filter(Boolean))];
+  const agendamentos = idsAgendamento.length
+    ? await db.getAll(...idsAgendamento.map((id) => db.collection("dados_cidadaos").doc(id)))
+    : [];
+  const agendamentoPorId = new Map(agendamentos.map((doc) => [doc.id, doc]));
+
   vagasSnap.docs.forEach((doc) => {
     const vaga = doc.data();
+    const agDoc = vaga.agendamentoId ? agendamentoPorId.get(vaga.agendamentoId) : null;
+    const agExiste = Boolean(agDoc && agDoc.exists);
+    if (!slotRepresentaOcupacaoAtual(true, vaga, agExiste, agExiste ? agDoc.data() : null)) return;
     if (vagaContaNoSite(vaga) && agenda.dias.includes(vaga.dataISO) && horariosParaData(agenda, vaga.dataISO).includes(vaga.hora)) {
       const chave = `${vaga.dataISO}_${vaga.hora}`;
       ocupados.set(chave, (ocupados.get(chave) || 0) + 1);
@@ -1378,8 +1388,16 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, comMetricaAbert
   const telefone = normalizarTelefone(dadosRequisicao.telefone);
   const email = normalizarEmail(dadosRequisicao.email);
   const dataNasc = normalizarData(dadosRequisicao.nascimento);
+  // Nascimento no futuro ou antes de 1900 e erro de digitacao, e entraria
+  // gravado no agendamento (auditoria de 16/10/2026, BUG-04).
+  if (dataNasc > hojeSaoPauloISO() || dataNasc < "1900-01-01") {
+    throw new HttpsError("invalid-argument", "Informe a data de nascimento corretamente.");
+  }
   const dataISO = normalizarData(dadosRequisicao.data, "data do agendamento");
   const hora = normalizarHora(dadosRequisicao.hora);
+  // Convite para avaliar o atendimento: consentimento proprio, opcional, e so
+  // faz sentido com e-mail (LGPD-04).
+  const consentimentoAvaliacao = dadosRequisicao.aceiteAvaliacao === true && Boolean(email);
   // CONTENCAO B4. O booleano vinha do cliente e nada ligava quem chamava ao CPF
   // informado: com substituirAnterior=true bastava conhecer um CPF para liberar a
   // vaga da vitima, inativar o agendamento dela e criar outro com dados proprios.
@@ -1391,7 +1409,6 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, comMetricaAbert
   const operationId = operationIdInformado
     ? normalizarOperationIdPublico(dadosRequisicao.operationId)
     : crypto.randomBytes(16).toString("hex");
-  validarIdadeMinimaAgendamento(dataNasc, dataISO);
 
   const payloadHash = hashPayloadAgendamento({
     operationId,
@@ -1621,7 +1638,8 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, comMetricaAbert
       protocolo,
       status: "agendado",
       criado,
-      statusAtualizadoEm: criado
+      statusAtualizadoEm: criado,
+      ...(consentimentoAvaliacao ? { consentimentoAvaliacao: true, consentimentoAvaliacaoEm: criado } : {})
     });
     t.create(operacaoRef, {
       tipo: "criar_agendamento",
