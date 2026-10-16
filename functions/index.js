@@ -153,13 +153,15 @@ const agendamentoPicoOptions = {
   region: REGIAO_PICO,
   maxInstances: 80,
   minInstances: PICO_MIN_INSTANCES,
-  timeoutSeconds: 300,
+  timeoutSeconds: 300
   // Protecao contra replay do token de App Check (auditoria de 16/10/2026,
-  // CON-02). O site pede um token de uso unico a cada criacao; aqui o token e
-  // consumido, e um token ja usado chega com request.app.alreadyConsumed.
-  // Custa uma ida ao App Check por pedido, aceitavel no unico ponto que
-  // reserva vaga.
-  consumeAppCheckToken: true
+  // CON-02): o site ja pede um token de uso unico a cada criacao. Consumir o
+  // token aqui (consumeAppCheckToken: true) exige que a conta de servico das
+  // Functions tenha o papel "Firebase App Check Token Verifier"
+  // (roles/firebaseappcheck.tokenVerifier). Publicado sem ele em 16/10/2026,
+  // TODA criacao voltou 401 ("permission 'firebaseappcheck.appCheckTokens.
+  // verify' denied") e foi revertido em minutos. Religar so depois de
+  // conceder o papel e conferir com um pedido real no site.
 };
 
 // Token reaproveitado: recusa antes de qualquer leitura. "unauthenticated"
