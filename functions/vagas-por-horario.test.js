@@ -277,7 +277,10 @@ function montarCriar(docs, { leituraPublica = async () => ({ payload: AGENDA_FRE
     OPERACAO_AGENDAMENTO_VERSAO: 1,
     FieldValue: { serverTimestamp: () => "TS" },
     TIPO_CONFLITO_HORARIO_PREENCHIDO: "horario-preenchido",
-    relancarConflitoComAgenda: montarRelancarConflito(leituraPublica, limiteMs)
+    relancarConflitoComAgenda: montarRelancarConflito(leituraPublica, limiteMs),
+    // Metricas da abertura: testadas em metricas-abertura.test.js.
+    registrarMetricaAbertura: async () => {},
+    comMetricaAbertura: (_registrar, handler) => handler
   };
   new Function(...Object.keys(dependencias), extrairExport(backend, "criarAgendamentoCidadao"))(
     ...Object.values(dependencias)

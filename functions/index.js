@@ -38,6 +38,7 @@ const {
   parametrosLeituraPublicaValidos
 } = require("./agenda-cache-publica");
 const { avisoPopupPublico } = require("./aviso-popup");
+const { criarRegistradorMetricas, comMetricaAbertura } = require("./metricas-abertura");
 
 initializeApp();
 
@@ -49,6 +50,7 @@ const avaliacaoN8nUrl = defineSecret("AVALIACAO_N8N_WEBHOOK_URL");
 const avaliacaoN8nToken = defineSecret("AVALIACAO_N8N_TOKEN");
 const avaliacaoDestinatarioChave = defineSecret("AVALIACAO_DESTINATARIO_CHAVE");
 const servicoAvaliacaoGoogle = criarServicoAvaliacao({ db, Timestamp });
+const registrarMetricaAbertura = criarRegistradorMetricas({ db, FieldValue });
 
 exports.enviarAvaliacoesGooglePendentes = onSchedule({
   schedule: "0 17 * * *",
@@ -1204,7 +1206,9 @@ function resolverResultadoOperacaoAgendamento(dados, payloadHash) {
   }
 }
 
-exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request) => {
+// Cada pedido entra nas metricas da abertura (metricas-abertura.js), fora da
+// transacao e sem poder atrasar ou derrubar o agendamento.
+exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, comMetricaAbertura(registrarMetricaAbertura, async (request) => {
   const dadosRequisicao = request.data || {};
   const nome = normalizarTexto(dadosRequisicao.nome, "o nome completo", 5, 120);
   const cpfNum = normalizarCpf(dadosRequisicao.cpf);
@@ -1432,7 +1436,7 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
   }).catch(relancarConflitoComAgenda);
 
   return resultadoTransacao;
-});
+}));
 
 exports.prepararCancelamentoCidadao = onCall(publicCallableOptions, async (request) => {
   await aplicarRateLimit(request, "preparar_cancelamento", 6, 10 * 60 * 1000, digitosCpf(request.data && request.data.cpf));

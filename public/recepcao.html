@@ -445,6 +445,21 @@
                 </div>
             </div>
             </div>
+            <div class="painel-config painel-metricas">
+                <h3><i class="fa-solid fa-stopwatch"></i> Últimas aberturas</h3>
+                <p class="detalhe-pessoal">Pedidos de agendamento feitos pelo site em cada semana, contados pela segunda-feira da abertura. "Perderam o horário": outra pessoa concluiu primeiro. "Recusados": CPF já agendado, CPF bloqueado por falta ou limite de tentativas. Horários no fuso de Brasília.</p>
+                <div style="margin-bottom:10px;">
+                    <button type="button" class="btn btn-atualizar" data-acao="carregarMetricasAbertura"><i class="fa-solid fa-rotate"></i> Atualizar métricas</button>
+                </div>
+                <div class="tabela-wrap">
+                    <table class="tabela-metricas">
+                        <thead>
+                            <tr><th>Abertura</th><th>Tentativas</th><th>Agendados</th><th>Perderam o horário</th><th>Recusados</th><th>Outros</th><th>1º → último agendamento</th><th>Pico de tentativas</th></tr>
+                        </thead>
+                        <tbody id="metricas-abertura-corpo"></tbody>
+                    </table>
+                </div>
+            </div>
             <div class="painel-config painel-logs">
                 <h3><i class="fa-solid fa-clock-rotate-left"></i> Histórico de ações de hoje</h3>
                 <div style="margin-bottom:10px;">

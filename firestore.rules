@@ -53,6 +53,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Metricas de cada abertura: so contadores, sem dado pessoal. Gravadas
+    // pelas Functions; o painel so le.
+    match /metricas_abertura/{segunda}/fragmentos/{fragmento} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     match /pedidos_avaliacao_google/{documentId} {
       allow read, write: if false;
     }
