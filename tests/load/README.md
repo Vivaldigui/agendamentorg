@@ -37,7 +37,15 @@ Este cenário envia 50 CPFs válidos e diferentes para exatamente o mesmo dia/ho
 
 Como `criarAgendamentoCidadao` exige App Check, crie um debug token somente no app de homologação em Firebase Console → App Check → Gerenciar tokens de depuração. Guarde-o apenas em variável de ambiente e remova-o após o ensaio.
 
-Cadastre no painel de homologação uma data futura e um horário exclusivos para o teste. Depois execute:
+Cadastre no painel de homologação uma data futura e um horário exclusivos para o teste.
+
+Desde 16/10/2026 a criação tem tetos por celular (2 agendamentos ativos) e por conexão (4 criados por dia), e todas as requisições do ensaio saem da mesma máquina com o mesmo celular. Uma rodada grava um único agendamento e passa, mas a terceira rodada com agendamentos ainda ativos, ou a quinta no mesmo dia, é recusada com `resource-exhausted` (`limite-telefone` ou `limite-origem`) e conta como resultado inesperado. Para repetir o ensaio, ou para um cenário com várias vagas, desligue os tetos **somente na homologação**, em `configuracoes/agenda`:
+
+```json
+"limitesAgendamento": { "porTelefone": 0, "porOrigemDia": 0 }
+```
+
+e apague o campo ao terminar. Depois execute:
 
 ```powershell
 $env:CONFIRM_HOMOLOGATION = "SIM"

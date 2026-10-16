@@ -38,6 +38,19 @@ const {
   parametrosLeituraPublicaValidos
 } = require("./agenda-cache-publica");
 const { avisoPopupPublico } = require("./aviso-popup");
+const {
+  TIPO_LIMITE_TELEFONE,
+  TIPO_LIMITE_ORIGEM,
+  normalizarLimitesAgendamento,
+  chaveOrigemLimite,
+  limiteOrigemDocId,
+  telefoneDocId,
+  agendamentosQueContamNoTelefone,
+  excedeTeto,
+  mensagemLimiteTelefone,
+  mensagemLimiteOrigem,
+  expiracaoAposData
+} = require("./limites-agendamento");
 
 initializeApp();
 
@@ -1267,6 +1280,15 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
   const bloqueioRef = db.collection("bloqueios_agendamento").doc(cpfNum);
   const agendaRef = AGENDA_REF();
   const expiraEmOperacao = Timestamp.fromMillis(Date.now() + OPERACAO_AGENDAMENTO_TTL_MS);
+  // Tetos por telefone e por origem (limites-agendamento.js). A origem usa o IP
+  // acrescentado pelo balanceador, nao o primeiro X-Forwarded-For do cliente.
+  // Sem IP utilizavel o teto de origem nao se aplica.
+  const hojeLimites = hojeSaoPauloISO();
+  const telefoneRef = db.collection("telefones_agendados").doc(telefoneDocId(telefoneCanonico(telefone)));
+  const chaveOrigem = chaveOrigemLimite(ipOrigemConfiavel(request));
+  const origemRef = chaveOrigem
+    ? db.collection("limites_origem").doc(limiteOrigemDocId(chaveOrigem, hojeLimites))
+    : null;
 
   const resultadoTransacao = await db.runTransaction(async (t) => {
     const operacaoDoc = await t.get(operacaoRef);
@@ -1274,11 +1296,13 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
       return resolverResultadoOperacaoAgendamento(operacaoDoc.data(), payloadHash);
     }
 
-    const [cpfDoc, cpfLegadoDoc, bloqueioDoc, agendaDoc] = await Promise.all([
+    const [cpfDoc, cpfLegadoDoc, bloqueioDoc, agendaDoc, telefoneDoc, origemDoc] = await Promise.all([
       t.get(cpfRef),
       t.get(cpfLegadoRef),
       t.get(bloqueioRef),
-      t.get(agendaRef)
+      t.get(agendaRef),
+      t.get(telefoneRef),
+      origemRef ? t.get(origemRef) : Promise.resolve(null)
     ]);
 
     const bloqueioRevalidado = bloqueioDoc.exists ? bloqueioAtivoDeDoc(bloqueioDoc.data()) : null;
@@ -1366,6 +1390,30 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
       );
     }
 
+    // Tetos conferidos dentro da transacao: uma rajada em paralelo do mesmo
+    // telefone ou da mesma origem colide aqui e nao passa inteira. Ficam depois
+    // da vaga e do CPF para que os erros mais especificos continuem saindo antes.
+    const limites = normalizarLimitesAgendamento(agendaDoc.exists ? agendaDoc.data().limitesAgendamento : null);
+    const idsTelefone = telefoneDoc.exists && Array.isArray(telefoneDoc.data().agendamentoIds)
+      ? [...new Set(telefoneDoc.data().agendamentoIds.filter((id) => typeof id === "string" && id))].slice(0, 20)
+      : [];
+    const docsTelefone = idsTelefone.length
+      ? await t.getAll(...idsTelefone.map((id) => db.collection("dados_cidadaos").doc(id)))
+      : [];
+    const contamNoTelefone = agendamentosQueContamNoTelefone(docsTelefone, hojeLimites, agendamentoEstaAtivo);
+    if (excedeTeto(contamNoTelefone.length, limites.porTelefone)) {
+      console.warn("Agendamento recusado pelo teto por telefone.", { tipo: TIPO_LIMITE_TELEFONE, teto: limites.porTelefone });
+      throw new HttpsError("resource-exhausted", mensagemLimiteTelefone(limites.porTelefone), { tipo: TIPO_LIMITE_TELEFONE, teto: limites.porTelefone });
+    }
+    const dadosOrigem = origemDoc && origemDoc.exists ? origemDoc.data() : {};
+    const usadosOrigem = dadosOrigem.dataISO === hojeLimites && Number.isInteger(dadosOrigem.contagem)
+      ? dadosOrigem.contagem
+      : 0;
+    if (origemRef && excedeTeto(usadosOrigem, limites.porOrigemDia)) {
+      console.warn("Agendamento recusado pelo teto por origem.", { tipo: TIPO_LIMITE_ORIGEM, teto: limites.porOrigemDia });
+      throw new HttpsError("resource-exhausted", mensagemLimiteOrigem(), { tipo: TIPO_LIMITE_ORIGEM, teto: limites.porOrigemDia });
+    }
+
     let agendamentoSubstituido = null;
     if (agendamentoAtivoExistente && substituirAnterior) {
       const slotAntigoId = agendamentoAtivoExistente.slotId || `${agendamentoAtivoExistente.dataISO}_${agendamentoAtivoExistente.hora}`;
@@ -1427,6 +1475,24 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, async (request)
       criadoEm: FieldValue.serverTimestamp(),
       expiraEm: expiraEmOperacao
     });
+
+    // Contadores so andam quando a reserva grava. Indice do telefone guarda so
+    // os ids que ainda contam; a limpeza diaria apaga o doc depois da ultima data.
+    const contamDepois = [...contamNoTelefone, { id: agendamentoRef.id, dataISO }];
+    const ultimaDataTelefone = contamDepois.map((item) => item.dataISO).sort().pop();
+    t.set(telefoneRef, {
+      agendamentoIds: contamDepois.map((item) => item.id),
+      atualizado: criado,
+      expiraEm: Timestamp.fromMillis(expiracaoAposData(ultimaDataTelefone))
+    });
+    if (origemRef) {
+      t.set(origemRef, {
+        dataISO: hojeLimites,
+        contagem: usadosOrigem + 1,
+        atualizado: criado,
+        expiraEm: Timestamp.fromMillis(expiracaoAposData(hojeLimites))
+      });
+    }
 
     return resultado;
   }).catch(relancarConflitoComAgenda);
@@ -2129,13 +2195,17 @@ async function limparAuxiliaresExpirados() {
   let rateLimits = 0;
   let cancelamentos = 0;
   let operacoesAgendamento = 0;
+  let limitesOrigem = 0;
+  let telefonesAgendados = 0;
   try {
     rateLimits = await limparColecaoExpirada("rate_limits", agora);
     cancelamentos = await limparColecaoExpirada("cancelamentos_pendentes", agora);
     operacoesAgendamento = await limparColecaoExpirada("operacoes_agendamento", agora);
+    limitesOrigem = await limparColecaoExpirada("limites_origem", agora);
+    telefonesAgendados = await limparColecaoExpirada("telefones_agendados", agora);
     await db.collection("logs_admin").add({
       acao: "limpeza_auxiliares_expirados",
-      detalhes: { rateLimits, cancelamentos, operacoesAgendamento },
+      detalhes: { rateLimits, cancelamentos, operacoesAgendamento, limitesOrigem, telefonesAgendados },
       adminEmail: "sistema",
       criadoEm: FieldValue.serverTimestamp(),
       criado: new Date().toISOString()
@@ -2143,7 +2213,7 @@ async function limparAuxiliaresExpirados() {
   } catch (err) {
     await db.collection("logs_admin").add({
       acao: "erro_limpeza_auxiliares",
-      detalhes: { mensagem: err.message, rateLimits, cancelamentos, operacoesAgendamento },
+      detalhes: { mensagem: err.message, rateLimits, cancelamentos, operacoesAgendamento, limitesOrigem, telefonesAgendados },
       adminEmail: "sistema",
       criadoEm: FieldValue.serverTimestamp(),
       criado: new Date().toISOString()
