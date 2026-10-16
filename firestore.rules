@@ -5,9 +5,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // E-mail verificado: sem isso, a identidade do admin e so o e-mail que a
+    // conta declara, e quem criasse por conta propria uma conta com um e-mail
+    // listado em admins herdaria o acesso (auditoria de 16/10/2026, SEG-03).
     function isAdmin() {
       return isSignedIn()
         && request.auth.token.email != null
+        && request.auth.token.email_verified == true
         && exists(/databases/$(database)/documents/admins/$(request.auth.token.email))
         && get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.ativo == true;
     }

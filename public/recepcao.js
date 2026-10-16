@@ -145,6 +145,14 @@ async function validarAdministradorAtivo(user) {
         erro.code = "unauthenticated";
         throw erro;
     }
+    // As regras do Firestore e as callables exigem e-mail verificado. Conferir
+    // aqui antes evita a leitura de admins, que seria recusada, e permite
+    // oferecer a confirmacao em vez de um "acesso revogado" enganoso.
+    if (user.emailVerified !== true) {
+        const erro = new Error("E-mail da conta ainda nao confirmado.");
+        erro.code = "email-nao-verificado";
+        throw erro;
+    }
     const doc = await db.collection("admins").doc(email).get({ source: "server" });
     if (!doc.exists || doc.data().ativo !== true) {
         const erro = new Error("Administrador inativo.");
@@ -1863,6 +1871,12 @@ auth.onAuthStateChanged(async user => {
             await validarAdministradorAtivo(user);
         } catch (e) {
             if (splash) splash.style.display = 'none';
+            if (e && e.code === "email-nao-verificado") {
+                // Continua logado: o envio da confirmacao precisa da sessao.
+                // Sem o e-mail verificado as regras recusam qualquer dado.
+                mostrarVerificacaoEmail(user);
+                return;
+            }
             if (await encerrarSessaoPorAcessoRevogado(e)) return;
             try { await auth.signOut(); } catch (erroLogout) { console.warn("Falha ao reiniciar login", erroLogout); }
             document.getElementById('login-screen').style.display='block';
@@ -1870,6 +1884,7 @@ auth.onAuthStateChanged(async user => {
             return;
         }
         if (splash) splash.style.display = 'none';
+        esconderVerificacaoEmail();
         document.getElementById('login-screen').style.display='none';
         document.getElementById('painel-screen').style.display='block';
         resetarTimerInatividade();
@@ -1912,6 +1927,7 @@ auth.onAuthStateChanged(async user => {
         clearInterval(timerAtualizacaoAutomatica);
         agendaGestaoCarregada = false;
         definirMutacoesAgendaHabilitadas(false);
+        esconderVerificacaoEmail();
         document.getElementById('login-screen').style.display='block';
         document.getElementById('painel-screen').style.display='none';
         document.title = "Recepção CIN — Câmara de Itanhandu";
@@ -1952,6 +1968,63 @@ async function fazerLogin() {
 ["email", "senha"].forEach(id => document.getElementById(id).addEventListener("keydown", e => {
     if (e.key === "Enter") fazerLogin();
 }));
+// Conta com senha certa mas e-mail ainda nao confirmado. A sessao fica aberta
+// so para pedir e conferir a confirmacao; o banco recusa qualquer dado ate la.
+function mostrarVerificacaoEmail(user) {
+    document.getElementById('painel-screen').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'block';
+    document.getElementById('login-screen').classList.add('aguardando-verificacao');
+    document.getElementById('verificacao-email-endereco').textContent = String(user && user.email || "");
+    document.getElementById('verificacao-email').style.display = 'block';
+    document.getElementById('login-erro').style.display = 'none';
+}
+
+function esconderVerificacaoEmail() {
+    document.getElementById('login-screen').classList.remove('aguardando-verificacao');
+    document.getElementById('verificacao-email').style.display = 'none';
+    document.getElementById('verificacao-email-status').textContent = "";
+}
+
+function statusVerificacaoEmail(mensagem) {
+    document.getElementById('verificacao-email-status').textContent = mensagem;
+}
+
+async function enviarVerificacaoEmail() {
+    const user = auth.currentUser;
+    if (!user) return;
+    const btn = document.getElementById('btn-enviar-verificacao');
+    btn.disabled = true;
+    try {
+        await user.sendEmailVerification();
+        statusVerificacaoEmail(`Enviamos o link para ${user.email}. Abra o e-mail, toque no link e depois volte aqui e toque em "Já confirmei". Confira também a caixa de spam.`);
+    } catch (e) {
+        const codigo = (e && e.code) || "";
+        statusVerificacaoEmail(codigo === "auth/too-many-requests"
+            ? "Já enviamos vários links há pouco. Aguarde alguns minutos antes de pedir outro."
+            : "Não foi possível enviar o e-mail agora. Verifique a conexão e tente novamente.");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function conferirEmailVerificado() {
+    const user = auth.currentUser;
+    if (!user) return;
+    try {
+        await user.reload();
+        if (!auth.currentUser.emailVerified) {
+            statusVerificacaoEmail("O e-mail ainda não aparece como confirmado. Toque no link recebido e tente de novo.");
+            return;
+        }
+        // Token novo com email_verified: o antigo segue valendo por ate uma
+        // hora e as regras continuariam recusando.
+        await auth.currentUser.getIdToken(true);
+        window.location.reload();
+    } catch (e) {
+        statusVerificacaoEmail("Não foi possível conferir agora. Verifique a conexão e tente novamente.");
+    }
+}
+
 function fazerLogout() { clearTimeout(timerAviso); clearTimeout(timerLogout); clearInterval(timerAtualizacaoAutomatica); pararMonitoramentoAcessos(); removerAvisoSessao(); auth.signOut(); }
 function abrirModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='flex'; }
 function fecharModal() { marcarErroManual([]); document.getElementById('modal-manual').style.display='none'; }
@@ -3991,6 +4064,7 @@ function exportarExcel() {
 const ACOES_CLIQUE = {
     // Sessao e navegacao
     fazerLogin, fazerLogout, alternarTema,
+    enviarVerificacaoEmail, conferirEmailVerificado,
     vista: el => mostrarVistaPainel(el.dataset.vista),
 
     // Lista de agendamentos
