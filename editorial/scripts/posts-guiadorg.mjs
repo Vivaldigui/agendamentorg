@@ -45,19 +45,19 @@ export function lerFeed(xml) {
 export function montarCards(artigos) {
   const validos = artigos.filter((a) => a.titulo && /^https:\/\/guiadorg\.com\.br\/artigos\/[a-z0-9-]+\/$/.test(a.link));
   if (validos.length < QUANTIDADE) throw new Error(`o feed trouxe ${validos.length} artigos válidos; são necessários ${QUANTIDADE}`);
-  const cards = validos.slice(0, QUANTIDADE).map((a) => `                    <li><a class="post-guiadorg" href="${escapar(a.link)}" target="_blank" rel="noopener">
-                        ${a.categoria ? `<span class="post-guiadorg-categoria">${escapar(a.categoria)}</span>\n                        ` : ""}<strong class="post-guiadorg-titulo">${escapar(a.titulo)}</strong>
-                        <span class="post-guiadorg-resumo">${escapar(a.resumo)}</span>
-                        <span class="post-guiadorg-ler">Ler no Guia do RG <span aria-hidden="true">↗</span><span class="sr-only"> (abre em nova aba)</span></span>
-                    </a></li>`);
+  const cards = validos.slice(0, QUANTIDADE).map((a) => `        <li><a class="post-guiadorg" href="${escapar(a.link)}" target="_blank" rel="noopener">
+            ${a.categoria ? `<span class="post-guiadorg-categoria">${escapar(a.categoria)}</span>\n            ` : ""}<strong class="post-guiadorg-titulo">${escapar(a.titulo)}</strong>
+            <span class="post-guiadorg-resumo">${escapar(a.resumo)}</span>
+            <span class="post-guiadorg-ler">Ler no Guia do RG <span aria-hidden="true">↗</span><span class="sr-only"> (abre em nova aba)</span></span>
+        </a></li>`);
   return `${INICIO}
-                <section class="posts-guiadorg so-preencher" aria-labelledby="titulo-posts-guiadorg">
-                <h2 id="titulo-posts-guiadorg" class="posts-guiadorg-titulo-secao">Tire dúvidas sobre o RG no Guia do RG</h2>
-                <ul class="posts-guiadorg-lista">
+<section class="servicos-publicos posts-guiadorg" aria-labelledby="titulo-posts-guiadorg">
+    <h2 class="servicos-titulo" id="titulo-posts-guiadorg">Tire dúvidas sobre o RG no Guia do RG</h2>
+    <ul class="posts-guiadorg-lista">
 ${cards.join("\n")}
-                </ul>
-                </section>
-                ${FIM}`;
+    </ul>
+</section>
+${FIM}`;
 }
 
 export function substituirBloco(html, bloco) {

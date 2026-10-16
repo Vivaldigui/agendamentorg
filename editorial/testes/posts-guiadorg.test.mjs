@@ -30,13 +30,13 @@ test("substitui só o que está entre os marcadores", () => {
   assert.throws(() => substituirBloco("sem marcadores", "x"), /marcadores/);
 });
 
-test("a home tem os cards do guiadorg logo abaixo dos botões do formulário", async () => {
+test("a home tem os cards do guiadorg logo abaixo de Serviços e informações", async () => {
   const html = await fs.readFile(path.join(RAIZ, "..", "public", "index.html"), "utf8");
   const bloco = html.slice(html.indexOf(INICIO), html.indexOf(FIM));
   const links = [...bloco.matchAll(/<a class="post-guiadorg" href="([^"]+)" target="_blank" rel="noopener">/g)];
   assert.equal(links.length, QUANTIDADE);
   for (const [, href] of links) assert.match(href, /^https:\/\/guiadorg\.com\.br\/artigos\/[a-z0-9-]+\/$/);
-  assert.ok(html.indexOf('id="btnContinuarDados"') < html.indexOf(INICIO));
-  assert.ok(html.indexOf(FIM) < html.indexOf('id="sucesso-docs"'));
-  assert.match(bloco, /class="posts-guiadorg so-preencher"/);
+  const servicos = html.indexOf('id="servicos-titulo"');
+  assert.ok(servicos > 0 && html.indexOf("</section>", servicos) < html.indexOf(INICIO));
+  assert.ok(html.indexOf(FIM) < html.indexOf('aria-labelledby="titulo-servico-cin"'));
 });
