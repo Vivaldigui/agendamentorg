@@ -285,7 +285,10 @@ function montarCriar(docs, { leituraPublica = async () => ({ payload: AGENDA_FRE
     hojeSaoPauloISO: () => "2026-09-28",
     telefoneCanonico: (v) => String(v),
     ipOrigemConfiavel: () => "sem-ip",
-    console: { warn: () => {} }
+    console: { warn: () => {} },
+    // Metricas da abertura: testadas em metricas-abertura.test.js.
+    registrarMetricaAbertura: async () => {},
+    comMetricaAbertura: (_registrar, handler) => handler
   };
   new Function(...Object.keys(dependencias), extrairExport(backend, "criarAgendamentoCidadao"))(
     ...Object.values(dependencias)

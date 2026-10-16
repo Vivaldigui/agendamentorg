@@ -118,6 +118,7 @@ Definidas em [`functions/index.js`](functions/index.js).
 | `rate_limits` | Contadores de limitação por ação/fingerprint |
 | `telefones_agendados` | Índice celular (hash SHA-256) → agendamentos que contam no teto por celular |
 | `limites_origem` | Agendamentos criados por conexão no dia (chave em hash) |
+| `metricas_abertura` | Contadores de cada abertura, sem dado pessoal (subcoleção `fragmentos`) |
 | `configuracoes/agenda` | Dias, horários, avisos e pop-up configurados pela recepção |
 | `admins` | E-mails autorizados a acessar o painel |
 | `logs_admin` | Trilha de auditoria das ações administrativas |
@@ -247,6 +248,12 @@ Desde 28/09/2026, para quem perdia a vaga tentando horário atrás de horário. 
 - **Sem atalho "Primeiro horário livre".** Ele apontava o mesmo horário em todos os celulares e juntava a abertura inteira numa vaga só.
 - **Horário preenchido mostra o que ainda está livre.** Quando a transação recusa o horário, `criarAgendamentoCidadao` devolve no próprio erro (`details.agenda`) a agenda pública lida naquele instante do Firestore, sem CDN. O site mostra os horários livres daquele dia com botões "Agendar às HH:MM": um toque agenda, sem segundo modal. Outros dias só abrem a grade. Se a leitura falhar ou passar de 2,5 s, o erro sai como antes e o site volta à grade.
 - **Grade a cada 2 s nos 5 minutos após cada publicação.** A resposta pública traz `atualizacaoRapidaAte`, e o cache curto do CDN caiu de 5 s para 2 s. A grade é atualizada no lugar, sem redesenhar nem esconder os horários de quem está escolhendo. A atualização para com a aba oculta, durante o envio do agendamento, na tela de sucesso e quando as vagas acabam. A atualização de 3 minutos também passou a atualizar no lugar.
+
+### Métricas de cada abertura
+
+Desde 16/10/2026, cada pedido a `criarAgendamentoCidadao` soma um contador em `metricas_abertura/{segunda}/fragmentos/{0..19}`, pela segunda-feira da semana do pedido: tentativas, agendados, perderam o horário, CPF já agendado, CPF bloqueado, limite excedido, muitas tentativas, horário indisponível, dados inválidos e erros, mais um histograma por minuto (fuso de Brasília). Não há dado pessoal. A recepção vê as quatro últimas aberturas em **Relatórios → Últimas aberturas**: quantas pessoas tentaram, quantas conseguiram, o primeiro e o último agendamento e o minuto de pico.
+
+Os contadores ficam em 20 fragmentos para não criar um documento disputado por todos os pedidos do pico, e a gravação acontece fora da transação da reserva, com prazo de 400 ms e erro engolido: métrica nunca atrasa nem derruba um agendamento. Pedidos recusados pelo App Check não chegam à função e não entram na conta; uma retentativa de rede do mesmo pedido conta de novo. Regra em [`functions/metricas-abertura.js`](functions/metricas-abertura.js).
 
 ### Pop-up de aviso no site
 

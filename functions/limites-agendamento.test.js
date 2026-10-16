@@ -152,7 +152,10 @@ function montarCriar(docs, { hoje = "2026-09-28" } = {}) {
     hojeSaoPauloISO: () => hoje,
     telefoneCanonico,
     ipOrigemConfiavel,
-    console: { warn: () => {} }
+    console: { warn: () => {} },
+    // Metricas da abertura: testadas em metricas-abertura.test.js.
+    registrarMetricaAbertura: async () => {},
+    comMetricaAbertura: (_registrar, handler) => handler
   };
   new Function(...Object.keys(dependencias), extrairExport(backend, "criarAgendamentoCidadao"))(
     ...Object.values(dependencias)

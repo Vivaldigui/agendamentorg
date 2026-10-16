@@ -2946,7 +2946,89 @@ function mostrarVistaPainel(vista) {
     if (vistaPainelAtual === "hoje") renderFilaHoje();
     if (vistaPainelAtual === "credenciais" && !credenciaisCarregadas) carregarCredenciais();
     if (vistaPainelAtual === "config") atualizarEstadoConfigHub();
+    if (vistaPainelAtual === "relatorios" && !metricasAberturaCarregadas) carregarMetricasAbertura();
     atualizarFaixaEstado();
+}
+
+// ---- Relatorios: metricas de cada abertura ----------------------------
+// Contadores gravados por criarAgendamentoCidadao em
+// metricas_abertura/{segunda}/fragmentos (functions/metricas-abertura.js).
+// A soma espelha somarFragmentos de la; ha teste de equivalencia.
+const MOTIVOS_METRICA_ABERTURA = ["sucesso", "conflitoHorario", "cpfJaAgendado", "cpfBloqueado", "limiteExcedido", "muitasTentativas", "horarioIndisponivel", "dadosInvalidos", "erro"];
+const ABERTURAS_NO_RELATORIO = 4;
+let metricasAberturaCarregadas = false;
+
+function somarFragmentosMetricas(fragmentos) {
+    const total = { tentativas: 0, tentativasPorMinuto: {}, sucessosPorMinuto: {} };
+    MOTIVOS_METRICA_ABERTURA.forEach(motivo => { total[motivo] = 0; });
+    for (const dados of fragmentos) {
+        if (!dados || typeof dados !== "object") continue;
+        total.tentativas += Number(dados.tentativas) || 0;
+        MOTIVOS_METRICA_ABERTURA.forEach(motivo => { total[motivo] += Number(dados[motivo]) || 0; });
+        for (const mapa of ["tentativasPorMinuto", "sucessosPorMinuto"]) {
+            const origem = dados[mapa] && typeof dados[mapa] === "object" ? dados[mapa] : {};
+            for (const [minuto, valor] of Object.entries(origem)) {
+                total[mapa][minuto] = (total[mapa][minuto] || 0) + (Number(valor) || 0);
+            }
+        }
+    }
+    return total;
+}
+
+// "2026-10-19T08:03" -> "19/10 08:03"
+function minutoMetricaLegivel(minuto) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})$/.exec(String(minuto || ""));
+    return m ? `${m[3]}/${m[2]} ${m[4]}` : "—";
+}
+
+function resumoAbertura(segunda, total) {
+    const comSucesso = Object.keys(total.sucessosPorMinuto).filter(m => total.sucessosPorMinuto[m] > 0).sort();
+    let pico = null;
+    for (const [minuto, quantidade] of Object.entries(total.tentativasPorMinuto)) {
+        if (!pico || quantidade > pico.quantidade || (quantidade === pico.quantidade && minuto < pico.minuto)) pico = { minuto, quantidade };
+    }
+    return {
+        segunda,
+        tentativas: total.tentativas,
+        agendados: total.sucesso,
+        perderamHorario: total.conflitoHorario,
+        recusados: total.cpfJaAgendado + total.cpfBloqueado + total.limiteExcedido + total.muitasTentativas,
+        limiteExcedido: total.limiteExcedido,
+        outros: total.horarioIndisponivel + total.dadosInvalidos + total.erro,
+        primeiroAgendamento: comSucesso[0] || "",
+        ultimoAgendamento: comSucesso[comSucesso.length - 1] || "",
+        pico
+    };
+}
+
+async function carregarMetricasAbertura() {
+    const corpo = document.getElementById("metricas-abertura-corpo");
+    if (!corpo) return;
+    corpo.innerHTML = "<tr><td colspan='8'><i class='fa-solid fa-spinner fa-spin'></i> Carregando...</td></tr>";
+    try {
+        const segundaAtual = segundaDaSemanaPainel(hojeISO());
+        const segundas = Array.from({ length: ABERTURAS_NO_RELATORIO }, (_, i) => somarDiasISO(segundaAtual, -7 * i));
+        const resumos = await Promise.all(segundas.map(async segunda => {
+            const snap = await db.collection("metricas_abertura").doc(segunda).collection("fragmentos").get({ source: "server" });
+            return resumoAbertura(segunda, somarFragmentosMetricas(snap.docs.map(doc => doc.data())));
+        }));
+        metricasAberturaCarregadas = true;
+        corpo.innerHTML = resumos.map(r => r.tentativas === 0
+            ? `<tr><td data-label="Abertura">${textoSeguro(dataBrISO(r.segunda))}</td><td colspan='7' class='detalhe-pessoal'>Sem registro (as métricas começam a contar a partir desta versão).</td></tr>`
+            : `<tr>
+                <td data-label="Abertura">${textoSeguro(dataBrISO(r.segunda))}</td>
+                <td data-label="Tentativas">${r.tentativas}</td>
+                <td data-label="Agendados">${r.agendados}</td>
+                <td data-label="Perderam o horário">${r.perderamHorario}</td>
+                <td data-label="Recusados">${r.recusados}${r.limiteExcedido ? ` <small>(${r.limiteExcedido} por limite)</small>` : ""}</td>
+                <td data-label="Outros">${r.outros}</td>
+                <td data-label="1º → último agendamento">${textoSeguro(minutoMetricaLegivel(r.primeiroAgendamento))} → ${textoSeguro(minutoMetricaLegivel(r.ultimoAgendamento))}</td>
+                <td data-label="Pico de tentativas">${r.pico ? `${textoSeguro(minutoMetricaLegivel(r.pico.minuto))} (${r.pico.quantidade})` : "—"}</td>
+            </tr>`).join("");
+    } catch (e) {
+        if (await encerrarSessaoPorAcessoRevogado(e)) return;
+        corpo.innerHTML = "<tr><td colspan='8'>Não foi possível carregar as métricas. Tente atualizar.</td></tr>";
+    }
 }
 
 // ---- Configuracao: hub de icones e paineis de detalhe -----------------
@@ -4065,6 +4147,7 @@ const ACOES_CLIQUE = {
     // Sessao e navegacao
     fazerLogin, fazerLogout, alternarTema,
     enviarVerificacaoEmail, conferirEmailVerificado,
+    carregarMetricasAbertura,
     vista: el => mostrarVistaPainel(el.dataset.vista),
 
     // Lista de agendamentos

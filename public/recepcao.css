@@ -1061,6 +1061,9 @@ body.modo-escuro .login-erro { background:#450a0a; border-color:#991b1b; color:#
 .verificacao-email-status { margin-top:12px; font-weight:700; }
 .verificacao-email-status:empty { display:none; }
 body.modo-escuro .btn-secundario-login { background:transparent !important; }
+.painel-metricas { margin-top:14px; }
+@media (min-width: 761px) { .tabela-metricas { min-width:760px; } }
+.tabela-metricas td small { color:#64748b; font-weight:700; }
 .toast-sessao button { margin-left:auto; border:1px solid #92400e; background:white; color:#78350f; border-radius:7px; padding:5px 9px; font-weight:900; cursor:pointer; }
 .painel-horarios, .painel-preferencias, .painel-automacao, .painel-logs { margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
 details > summary { cursor:pointer; color:var(--primary-dark); font-weight:900; }
