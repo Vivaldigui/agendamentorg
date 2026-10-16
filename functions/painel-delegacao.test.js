@@ -196,13 +196,18 @@ test("delegacao converte indices e dias para numero e confirmacao para booleano"
   assert.match(painelJs, /confirmacao: el => resolverConfirmacao\(el\.dataset\.valor === "true"\)/);
 });
 
-test("id de credencial e escapado antes dos cinco atributos dinamicos", () => {
-  const inicio = painelJs.indexOf("function renderCredenciais()");
-  const fim = painelJs.indexOf("\nasync function salvarCredencial()", inicio);
-  const trecho = painelJs.slice(inicio, fim);
-  assert.match(trecho, /const id = textoSeguro\(c\.id\);/);
-  assert.equal((trecho.match(/data-id="\$\{id\}"/g) || []).length, 5);
-  assert.equal(/data-id="\$\{c\.id\}"/.test(trecho), false);
+test("credenciais de estacionamento sairam do painel e a colecao esta fechada", () => {
+  // Retiradas em 16/10/2026: sem uso. Os rotulos de log credencial_* ficam
+  // para o historico antigo continuar legivel.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(__dirname, "..", "public", "recepcao.html"), "utf8");
+  assert.doesNotMatch(html, /credencia/i);
+  const semRotulosDeLog = painelJs.replace(/^\s*credencial_\w+: "[^"]*",?$/gm, "");
+  assert.doesNotMatch(semRotulosDeLog.replace(/\/\/[^\n]*/g, ""), /credencia/i);
+  assert.match(painelJs, /const VISTAS_PAINEL = \["hoje", "lista", "config", "relatorios"\];/);
+  const regras = fs.readFileSync(path.join(__dirname, "..", "firestore.rules"), "utf8");
+  assert.match(regras, /match \/credenciais_estacionamento\/\{documentId\} \{\s*allow read, write: if false;/);
 });
 
 test("logs de emissao so ocorrem quando a janela foi criada", () => {

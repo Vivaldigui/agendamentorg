@@ -308,6 +308,10 @@ Alertas por e-mail (Cloud Monitoring, criados em 16/10/2026; canal "E-mail do re
 
 O orçamento é o "spend cap" de R$ 10 criado pelo console do Firebase, com aviso aos administradores de faturamento em 50%, 80% e 100%. Existem dois idênticos na conta de faturamento.
 
+### Credenciais de estacionamento (retiradas em 16/10/2026)
+
+A aba **Credenciais** do painel (cadastro de credenciais de estacionamento para idosos e pessoas com deficiência) saiu por falta de uso. As regras fecham `credenciais_estacionamento` para leitura e escrita pelo navegador. Os documentos antigos, com nome e telefone, **não foram apagados pelo código**: apagar é decisão da Câmara. Para apagar, abra o console do Firebase → Firestore Database → coleção `credenciais_estacionamento` → menu ⋮ → **Excluir coleção** (exporte antes, se precisar guardar). Os logs antigos `credencial_*` continuam no histórico.
+
 ### Blog e contador de visitas (retirados em 12/10/2026)
 
 O blog (`/blog/`) foi transferido para o portal Guia do RG, com autorização da Câmara. Os endereços antigos redirecionam com 301 para o artigo equivalente em `guiadorg.com.br` (regras `redirects` do [`firebase.json`](firebase.json)). Detalhes e registro da autorização em [`docs/RETIRADA-BLOG-E-CONTADOR.md`](docs/RETIRADA-BLOG-E-CONTADOR.md).
