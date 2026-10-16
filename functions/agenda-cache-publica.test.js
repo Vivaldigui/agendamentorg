@@ -419,7 +419,9 @@ test("processarAgenda entrega publicacaoDatas e automacaoSemanal", () => {
 
 test("o handler HTTP publica o cabecalho vindo da mesma leitura", () => {
   assert.match(backend, /require\(["']\.\/agenda-cache-publica["']\)/);
-  assert.match(backend, /const\s*\{\s*payload,\s*cacheControl\s*\}\s*=\s*await\s+carregarDisponibilidadePublica\(\)/);
+  // Desde 16/10/2026 a leitura passa pelo microcache (PERF-01), que devolve o
+  // par { payload, cacheControl } de uma unica leitura.
+  assert.match(backend, /const\s*\{\s*payload,\s*cacheControl\s*\}\s*=\s*await\s+disponibilidadePublicaComMicrocache\(\)/);
   assert.match(backend, /res\.set\("Cache-Control",\s*cacheControl\)/);
   assert.match(backend, /res\.status\(200\)\.json\(payload\)/);
   assert.equal(backend.includes("function cacheControlAgendaPublica("), false);
@@ -518,13 +520,14 @@ test("a leitura publica so aceita as chaves que o sistema usa, perto do relogio"
   assert.equal(valida({ "atualizar-minuto": String(minuto), preaquecer: `${SEGUNDA}T07:59` }), false);
 });
 
-test("parametro invalido e recusado antes do rate limit e das leituras", () => {
+test("parametro invalido e recusado antes de qualquer leitura", () => {
   const handler = backend.slice(backend.indexOf("exports.carregarAgendaPublicaHttp"));
   const corpo = handler.slice(0, handler.indexOf("exports.", 1));
   const trava = corpo.indexOf("parametrosLeituraPublicaValidos(req.query");
   assert.notEqual(trava, -1);
-  assert.ok(trava < corpo.indexOf("aplicarRateLimit("), "a trava precisa vir antes de qualquer gravacao");
-  assert.ok(trava < corpo.indexOf("carregarDisponibilidadePublica()"));
+  // Sem rate limit gravado desde 16/10/2026 (PERF-01): nenhuma escrita por pedido.
+  assert.equal(corpo.indexOf("aplicarRateLimit("), -1);
+  assert.ok(trava < corpo.indexOf("disponibilidadePublicaComMicrocache()"));
   assert.match(corpo.slice(trava, corpo.indexOf("try {")), /CACHE_SEM_ARMAZENAMENTO[\s\S]*status\(400\)/);
   // Os dois usos legitimos continuam no formato aceito.
   const site = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
