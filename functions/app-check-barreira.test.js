@@ -220,7 +220,9 @@ test("App Check nao e ativado no carregamento da pagina", () => {
   assert.equal(ativacoes.length, 1, "activate() deve existir em um unico ponto.");
 
   const preparar = extrairFuncao(sitePublico, "prepararAppCheck");
-  assert.match(preparar, /appCheck\(\)\.activate\(APP_CHECK_RECAPTCHA_SITE_KEY, true\)/);
+  // Fora do modo emulador (localhost + ?emulador) a chave e a do reCAPTCHA.
+  assert.match(preparar, /appCheck\(\)\.activate\(emulador \? provedorAppCheckEmulador\(\) : APP_CHECK_RECAPTCHA_SITE_KEY, true\)/);
+  assert.match(sitePublico, /var MODO_EMULADOR = \["localhost", "127\.0\.0\.1"\]\.includes\(location\.hostname\)\s*&& new URLSearchParams\(location\.search\)\.has\("emulador"\);/);
   // Guarda de ativacao unica.
   assert.match(preparar, /if \(!appCheckAtivado\)/);
   assert.match(preparar, /appCheckAtivado = true/);

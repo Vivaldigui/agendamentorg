@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#0056b3">
+    <meta name="theme-color" content="#2b4c9b">
     <meta name="google-site-verification" content="_Ni9c3GW2ogtGGzc1c8xZOz6qcuGhZGhA-K9urOyaWE" />
     <title>Agendamento de RG - CIN Itanhandu</title>
     <link rel="canonical" href="https://cin.itanhandu.cam.mg.gov.br/">
@@ -152,270 +152,440 @@
     <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <link rel="manifest" href="/manifest.json">
     <link rel="preconnect" href="https://www.gstatic.com">
-    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="/vendor/fontawesome/css/all.min.css" rel="stylesheet" />
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"></noscript>
+    <!-- Reformulacao de 16/10/2026: fonte do sistema no lugar do Inter do
+         Google Fonts (6 pesos). E a fonte que o aparelho ja tem: nenhum
+         download antes do primeiro texto, o que pesa na abertura das 08:00. -->
     <style type="text/css">
+        /* ==============================================================
+           Portal publico de agendamento CIN — design system
+           1. Tokens   2. Base   3. Botoes   4. Campos   5. Estrutura
+           6. Fluxo (etapas, datas, horarios)   7. Sucesso e consulta
+           8. Servicos e informacoes   9. Modal e avisos   10. Responsivo
+           ============================================================== */
+
+        /* ---- 1. Tokens ---------------------------------------------- */
         :root {
-            --primary: #0056b3; --primary-dark: #003d82; --primary-light: #eff6ff;
-            --success: #10b981; --success-dark: #059669; --success-light: #ecfdf5;
-            --warning: #f59e0b; --warning-light: #fffbeb;
-            --danger: #ef4444; --danger-dark: #dc2626; --danger-light: #fef2f2;
-            --gray-50: #f8fafc; --gray-100: #f1f5f9; --gray-200: #e2e8f0; 
-            --gray-400: #94a3b8; --gray-600: #475569; --gray-800: #1e293b;
-            --radius: 14px;
-            --shadow-soft: 0 20px 40px rgba(0, 0, 0, 0.06);
-            --shadow-hover: 0 10px 25px rgba(0, 86, 179, 0.15);
+            --azul: #2b4c9b; --azul-escuro: #1f3a7a; --azul-claro: #7fa3dc; --azul-suave: #eef3fb; --azul-borda: #c9d7f0;
+            --fundo: #f8fafc; --branco: #ffffff; --grafite: #1e2432; --texto-2: #334155; --cinza: #64748b; --linha: #e2e8f0; --linha-forte: #cbd5e1;
+            --verde: #16a34a; --verde-escuro: #15803d; --verde-suave: #f0fdf4; --verde-borda: #bbf7d0;
+            --vermelho: #dc2626; --vermelho-escuro: #b91c1c; --vermelho-suave: #fef2f2; --vermelho-borda: #fecaca;
+            --ambar: #f59e0b; --ambar-texto: #92400e; --ambar-suave: #fffbeb; --ambar-borda: #fde68a;
+            --raio-p: 8px; --raio: 12px; --raio-g: 16px;
+            --sombra-1: 0 1px 2px rgba(30, 36, 50, 0.06);
+            --sombra-2: 0 8px 24px rgba(30, 36, 50, 0.08);
+            --fonte: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --fonte-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+            --largura: 1120px;
+
+            /* Nomes antigos, ainda usados por estilos gerados no JS. */
+            --primary: var(--azul); --primary-dark: var(--azul-escuro); --primary-light: var(--azul-suave);
+            --success: var(--verde-escuro); --success-dark: var(--verde-escuro); --success-light: var(--verde-suave);
+            --warning: var(--ambar); --warning-light: var(--ambar-suave);
+            --danger: var(--vermelho); --danger-dark: var(--vermelho-escuro); --danger-light: var(--vermelho-suave);
+            --gray-50: #f8fafc; --gray-100: #f1f5f9; --gray-200: #e2e8f0;
+            --gray-400: #94a3b8; --gray-600: #64748b; --gray-800: #1e2432;
+            --radius: 12px;
         }
+
+        /* ---- 2. Base ------------------------------------------------- */
         *, *::before, *::after { box-sizing: border-box; }
-        body { background-color: #f0f4f8; margin: 0; padding: 10px 10px calc(96px + env(safe-area-inset-bottom, 0px)); font-family: 'Inter', sans-serif; }
-        #sistema-agendamento { max-width: 700px; margin: 0 auto; border-radius: 20px; overflow: hidden; box-shadow: var(--shadow-soft); background: #fff; border: 1px solid rgba(0,0,0,0.05); }
-        .cabecalho-sistema { background: linear-gradient(135deg, var(--primary) 0%, #00428a 100%); color: white; padding: 20px 16px 18px; text-align: center; position: relative; overflow: hidden; }
-        .cabecalho-sistema::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--warning), #fbbf24); opacity: 0.95; }
-        .cabecalho-sistema img { max-width: 185px; width: 70%; height: auto; margin: 0 auto; display: block; filter: drop-shadow(0 5px 8px rgba(0,0,0,0.18)); }
-        .banner-vagas { padding: 12px; text-align: center; display: none; border-bottom: 1px solid var(--gray-200); background: white; }
-        .status-vagas-card { width: 100%; border-radius: 16px; padding: 16px 14px; display: flex; align-items: center; justify-content: center; gap: 13px; border: 1px solid var(--gray-200); text-align: center; }
-        .status-vagas-icone { width: 44px; height: 44px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1.25rem; box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08); }
-        .status-vagas-titulo { display: block; font-size: 1.18rem; font-weight: 950; line-height: 1.1; text-transform: uppercase; letter-spacing: 0.02em; }
-        .status-vagas-sub { display: block; margin-top: 5px; font-size: 0.9rem; font-weight: 800; line-height: 1.35; color: var(--gray-600); }
-        .status-vagas-card.agenda-fechada { flex-direction: column; padding: 26px 20px; gap: 12px; }
-        .status-vagas-card.agenda-fechada .status-vagas-icone { width: 62px; height: 62px; font-size: 1.75rem; margin: 0 auto; }
-        .status-vagas-card.agenda-fechada .status-vagas-titulo { font-size: 1.45rem; }
-        .status-vagas-card.agenda-fechada .status-vagas-sub { font-size: 1rem; max-width: 520px; margin: 10px auto 0; color: var(--gray-800); }
-        .proxima-liberacao { display: inline-block; margin-top: 12px; padding: 10px 14px; border-radius: 999px; background: white; color: var(--primary); border: 1px solid #bfdbfe; font-size: 1.08rem; font-weight: 950; }
-        .banner-vagas.com-vagas .status-vagas-card { background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%); border-color: #86efac; box-shadow: inset 0 0 0 1px rgba(16,185,129,0.08); }
-        .banner-vagas.com-vagas .status-vagas-icone { background: white; color: var(--success-dark); }
-        .banner-vagas.com-vagas .status-vagas-titulo { color: var(--success-dark); }
-        .banner-vagas.sem-vagas .status-vagas-card { background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%); border-color: #fca5a5; box-shadow: inset 0 0 0 1px rgba(239,68,68,0.08); }
-        .banner-vagas.sem-vagas .status-vagas-icone { background: white; color: var(--danger-dark); }
-        .banner-vagas.sem-vagas .status-vagas-titulo { color: var(--danger-dark); }
-        .banner-vagas.liberando-vagas .status-vagas-card { background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%); border-color: #93c5fd; }
-        .banner-vagas.liberando-vagas .status-vagas-icone { background: white; color: var(--primary); }
-        .banner-vagas.liberando-vagas .status-vagas-titulo { color: var(--primary-dark); }
-        .banner-vagas.erro-agenda .status-vagas-card { background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%); border-color: #fbbf24; }
-        .banner-vagas.erro-agenda .status-vagas-icone { background: white; color: #b45309; }
-        .banner-vagas.erro-agenda .status-vagas-titulo { color: #92400e; }
-        .acao-atualizar-agenda { display: inline-flex; align-items: center; justify-content: center; gap: 7px; margin-top: 12px; padding: 10px 16px; min-height: 44px; border: 1px solid #d97706; border-radius: 999px; background: white; color: #92400e; font-weight: 900; cursor: pointer; touch-action: manipulation; }
-        .abas { display: flex; background: var(--gray-50); padding: 8px; gap: 8px; border-bottom: 1px solid var(--gray-200); margin: 0; }
-        .aba { flex: 1; padding: 12px 5px; min-height: 44px; cursor: pointer; border: none; background: transparent; border-radius: 10px; font-weight: 700; color: var(--gray-600); transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.85rem; touch-action: manipulation; }
-        .aba.ativa { background: white; color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .aba:hover:not(.ativa) { background: var(--gray-100); color: var(--gray-800); }
-        .corpo-sistema { padding: 32px 30px 28px; }
-        .steps-bar { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 30px; }
-        .step { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 700; color: var(--gray-400); transition: 0.3s; }
-        .step .step-num { width: 28px; height: 28px; border-radius: 50%; background: var(--gray-100); color: var(--gray-600); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.85rem; flex-shrink: 0; }
-        .step.ativo { color: var(--primary); }
-        .step.ativo .step-num { background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(0,86,179,0.3); }
-        .step.concluido { color: var(--success); }
-        .step.concluido .step-num { background: var(--success); color: white; }
-        .step-linha { flex: 1; height: 3px; background: var(--gray-100); min-width: 20px; max-width: 45px; border-radius: 2px; }
-        .step-linha.ativa { background: var(--primary); opacity: 0.5; }
-        .step-linha.concluida { background: var(--success); }
-        .loading-container { width: 100%; background: var(--gray-100); border-radius: 20px; margin: 20px 0; overflow: hidden; height: 6px; position: relative; }
-        /* Anima transform, nao left: animar left forcava layout a cada quadro, e
-           esta barra fica girando durante toda a janela de "Liberando vagas".
-           35% da largura do container = 1 largura do proprio elemento, entao
-           -35% vira translateX(-100%) e 110% vira translateX(314.3%). */
-        .loading-bar { width: 35%; height: 100%; background: var(--primary); border-radius: 20px; position: absolute; left: 0; animation: loading-anim 1.2s infinite; }
-        @keyframes loading-anim { 0% { transform: translateX(-100%); } 100% { transform: translateX(314.3%); } }
-        .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; margin: 20px 0; }
-        .grade-horas { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
-        .btn-data, .btn-hora { padding: 16px 10px; border: 2px solid var(--gray-200); background: white; cursor: pointer; border-radius: var(--radius); text-align: center; font-weight: 700; color: var(--gray-800); font-size: 0.95rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: 0.2s; touch-action: manipulation; }
-        .btn-hora { padding: 14px 10px; font-size: 1.05rem; flex-direction: row; }
-        .btn-data:hover:not(:disabled), .btn-hora:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); transform: translateY(-3px); box-shadow: var(--shadow-hover); }
-        .btn-data:disabled, .btn-hora:disabled { background: var(--gray-50); color: var(--gray-400); opacity: 0.7; cursor: not-allowed; border-color: var(--gray-100); transform: none; }
-        .btn-data.esgotada { background: #fef2f2; border-color: #fecaca; color: #991b1b; opacity: 1; }
-        .btn-data.esgotada strong { color: #991b1b; }
-        .lotado-badge { background: #dc2626; color: white; border-radius: 999px; padding: 4px 9px; font-size: 0.75rem; font-weight: 900; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.02em; }
-        .vagas-badge { font-size: 0.75rem; font-weight: 700; padding: 4px 8px; border-radius: 20px; margin-top: 4px; }
-        .vagas-badge.ok { background: var(--success-light); color: var(--success-dark); }
-        .vagas-badge.low { background: var(--warning-light); color: #b45309; }
-        .btn-hora .vagas-hora { font-size: 0.72rem; font-weight: 700; opacity: 0.85; }
-        .selecionado { background: var(--primary) !important; color: white !important; border-color: var(--primary) !important; transform: translateY(-2px) !important; box-shadow: var(--shadow-hover) !important; }
-        .form-grupo { margin-bottom: 20px; }
-        .form-grupo label { display: block; margin-bottom: 8px; font-weight: 700; color: var(--gray-800); font-size: 0.9rem; }
-        .form-grupo input[type="text"], .form-grupo input[type="email"], .form-grupo input[type="tel"] { width: 100%; padding: 15px 16px; border: 2px solid var(--gray-200); background: var(--gray-50); border-radius: 12px; font-size: 1rem; font-weight: 500; color: var(--gray-800); outline: none; transition: 0.25s; }
-        .form-grupo input:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 4px var(--primary-light); }
-        .form-grupo input.erro { border-color: var(--danger); background: var(--danger-light); }
-        .msg-campo-erro { color: var(--danger); font-size: 0.8rem; font-weight: 600; margin-top: 6px; display: none; }
-        .msg-campo-erro.visivel { display: block; animation: fadeIn 0.3s; }
-        .msg-campo-alerta { color: #b45309; background: var(--warning-light); border: 1px solid #fde68a; padding: 10px 12px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; margin-top: 6px; display: none; }
-        .msg-campo-alerta.visivel { display: block; animation: fadeIn 0.3s; }
-        .checkbox-termo { display:flex; align-items:flex-start; gap:10px; background:var(--gray-50); padding:18px; border-radius:8px; border:1px solid var(--gray-200); transition: 0.2s; cursor: pointer; touch-action: manipulation; }
-        .checkbox-termo input[type="checkbox"] { width:24px !important; height:24px !important; margin-top:0 !important; flex-shrink: 0; }
-        .checkbox-termo.erro-termo { border-color: var(--danger); background: var(--danger-light); box-shadow: 0 0 0 4px rgba(239,68,68,0.1); }
-        .ajuda-campo { color: var(--gray-600); font-size: 0.78rem; font-weight: 600; }
-        .ajuda-codigo-perdido { display: block; margin: 8px 0 0; font-size: 0.86rem; line-height: 1.4; }
-        .ajuda-codigo-perdido a { display: inline-flex; align-items: center; min-height: 44px; color: var(--primary); font-weight: 800; }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .card-resumo { background: var(--primary-light); border: 1px solid #bfdbfe; border-radius: var(--radius); padding: 18px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
-        .card-resumo .info { font-size: 0.95rem; color: var(--gray-800); }
-        .aviso-horario { display: block; margin-top: 5px; color: #92400e; font-size: 0.78rem; font-weight: 800; }
-        .toast-agenda { position: fixed; left: 50%; bottom: calc(82px + env(safe-area-inset-bottom, 0px)); z-index: 9999; max-width: calc(100vw - 28px); padding: 10px 16px; border-radius: 999px; background: #1e293b; color: white; box-shadow: 0 10px 26px rgba(15,23,42,0.2); font-size: 0.84rem; font-weight: 800; text-align: center; transform: translateX(-50%); animation: toast-agenda-entrada 0.22s ease-out; }
-        @keyframes toast-agenda-entrada { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
-        .btn-alterar { background: white; border: 1px solid var(--primary); color: var(--primary); font-weight: 700; cursor: pointer; border-radius: 8px; padding: 10px 16px; min-height: 44px; font-size: 0.85rem; touch-action: manipulation; }
-        /* Fluxo em duas fases: os dados sao preenchidos ANTES de escolher o
-           horario, para que a digitacao nao dispute a vaga na abertura das 08:00.
-           A mesma secao #dados-pessoais serve as duas fases; a classe de modo
-           decide o que aparece. */
-        #dados-pessoais.modo-preencher .so-confirmar { display: none !important; }
-        #dados-pessoais.modo-confirmar .so-preencher { display: none !important; }
-        .instru-fase { background: var(--primary-light); border: 1px solid #bfdbfe; border-radius: var(--radius); padding: 14px 16px; margin-bottom: 20px; color: var(--primary-dark); font-size: 0.92rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
-        .instru-fase i { font-size: 1.2rem; }
-        .instru-fase.instru-destaque { background: #eaf2ff; border: 2px solid var(--primary); border-left-width: 6px; padding: 16px 18px; font-size: 0.98rem; align-items: flex-start; box-shadow: 0 8px 20px rgba(0, 86, 179, 0.10); }
-        .instru-fase.instru-destaque i { font-size: 1.45rem; color: var(--primary); margin-top: 2px; }
-        .instru-titulo { display: block; margin-bottom: 4px; font-size: 1.05rem; font-weight: 900; color: var(--primary-dark); }
-        .modal-btn.livre-agora { background: #047857; color: white; }
-        .modal-btn.livre-agora:hover:not(:disabled) { background: #065f46; }
-        .modal-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-        .aviso-toque-confirma { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; border-radius: 10px; padding: 10px 14px; margin: 4px 0 14px; font-size: 0.82rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
-        .contador-vagas-topo { text-align: center; font-size: 0.85rem; font-weight: 800; color: var(--gray-600); margin: 0 0 14px; }
-        .contador-vagas-topo strong { color: var(--primary); }
-        .tarja-alerta { background: var(--danger-light); color: var(--danger-dark); padding: 14px 18px; border-radius: 10px; margin-bottom: 24px; font-weight: 600; font-size: 0.88rem; display: flex; align-items: center; gap: 12px; border-left: 5px solid var(--danger); }
-        .btn-principal { width: 100%; padding: 18px; border: none; border-radius: 12px; font-size: 1.05rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.3s; touch-action: manipulation; }
-        .btn-principal.verde { background: #047857; color: white; }
-        .btn-principal.verde:hover:not(:disabled) { background: #065f46; transform: translateY(-2px); box-shadow: 0 10px 25px rgba(4, 120, 87, 0.3); }
-        .btn-principal.azul { background: var(--primary); color: white; }
-        .btn-principal.azul:hover:not(:disabled) { background: var(--primary-dark); transform: translateY(-2px); }
-        .btn-principal.vermelho { background: var(--danger); color: white; }
-        .btn-principal.vermelho:hover:not(:disabled) { background: var(--danger-dark); transform: translateY(-2px); }
-        .btn-principal.cinza { background: white; color: var(--gray-800); border: 2px solid var(--gray-200); }
-        .btn-principal:disabled { opacity: 0.7; cursor: not-allowed; transform: none; box-shadow: none; }
+        html { -webkit-text-size-adjust: 100%; scroll-padding-top: 16px; }
+        body { margin: 0; background: var(--fundo); color: var(--grafite); font-family: var(--fonte); font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; padding-bottom: env(safe-area-inset-bottom, 0px); }
+        h1, h2, h3 { margin: 0; color: var(--grafite); line-height: 1.25; letter-spacing: -0.01em; }
+        p { margin: 0; }
+        a { color: var(--azul); }
+        img { max-width: 100%; }
+        button, input, select, textarea { font: inherit; }
+        :focus-visible { outline: 3px solid #0f172a; outline-offset: 2px; }
+        .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+        .pular-conteudo { position: absolute; left: 12px; top: -60px; z-index: 10000; padding: 10px 16px; border-radius: var(--raio-p); background: var(--grafite); color: #fff; font-weight: 700; text-decoration: none; }
+        .pular-conteudo:focus { top: 12px; }
+        .foco-etapa:focus { outline: 3px solid var(--azul); outline-offset: 4px; border-radius: 4px; }
+        .foco-etapa:focus:not(:focus-visible) { outline: none; }
+
+        /* ---- 3. Botoes ----------------------------------------------- */
+        .btn-principal { width: 100%; min-height: 54px; padding: 14px 20px; border: 1px solid transparent; border-radius: var(--raio); font-size: 1.0625rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: background-color 0.15s, border-color 0.15s; touch-action: manipulation; }
+        .btn-principal.verde, .btn-principal.azul { background: var(--azul); color: #fff; }
+        .btn-principal.verde:hover:not(:disabled), .btn-principal.azul:hover:not(:disabled) { background: var(--azul-escuro); }
+        .btn-principal.vermelho { background: var(--vermelho); color: #fff; }
+        .btn-principal.vermelho:hover:not(:disabled) { background: var(--vermelho-escuro); }
+        .btn-principal.cinza { background: var(--branco); color: var(--grafite); border-color: var(--linha-forte); }
+        .btn-principal.cinza:hover:not(:disabled) { background: var(--fundo); }
+        .btn-principal:disabled { opacity: 0.6; cursor: progress; }
         .btn-principal:focus-visible, .btn-data:focus-visible, .btn-hora:focus-visible,
         .btn-alterar:focus-visible, .aba:focus-visible {
             outline: 3px solid #0f172a;
             outline-offset: 3px;
         }
-        .foco-etapa:focus { outline: 3px solid var(--primary); outline-offset: 4px; border-radius: 4px; }
-        .btn-principal:active:not(:disabled), .btn-data:active:not(:disabled), .btn-hora:active:not(:disabled), .aba:active { transform: scale(0.96) !important; transition: transform 0.1s; }
-        .ticket-sucesso { background: var(--success-light); border: 1px solid #a7f3d0; border-left: 6px solid var(--success); border-radius: 16px; padding: 26px; text-align: center; margin-bottom: 24px; }
-        .data-grande { font-size: 2.4rem; font-weight: 900; color: var(--success-dark); display: block; margin: 12px 0 8px; letter-spacing: -1px; }
-        .msg-sucesso-topo { color: var(--success-dark); font-size: 1.6rem; font-weight: 900; display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 18px; }
-        .docs-container { background: var(--warning-light); border: 1px solid #fde68a; border-left: 5px solid var(--warning); padding: 22px; border-radius: 12px; margin-top: 20px; color: #92400e; font-size: 0.95rem; line-height: 1.6; }
-        .docs-container h3 { margin: 0 0 12px; color: #78350f; font-size: 1.1rem; }
-        .estado-civil { margin: 4px 0 18px; padding: 14px 16px 16px; border: 1px solid var(--gray-200); border-radius: 12px; background: white; }
-        .estado-civil.erro { border-color: var(--danger); background: var(--danger-light); }
-        .estado-civil legend { padding: 0 6px; font-weight: 800; font-size: 1rem; color: var(--gray-800); }
-        .estado-civil-ajuda { margin: 0 0 10px; font-size: 0.85rem; line-height: 1.4; color: var(--gray-600); }
-        .certidao-destaque { display: flex; gap: 14px; align-items: flex-start; margin: 20px 0 0; padding: 16px 18px; background: #eff6ff; border: 2px solid var(--primary); border-radius: 12px; color: var(--gray-800); line-height: 1.45; }
-        .certidao-destaque[hidden] { display: none; }
-        .certidao-destaque > i { font-size: 1.6rem; color: var(--primary); margin-top: 2px; }
-        .certidao-destaque-rotulo { display: block; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--primary-dark); }
-        .certidao-destaque strong { display: block; margin: 2px 0; font-size: 1.12rem; color: var(--gray-800); }
-        .estado-civil-opcoes { display: flex; flex-wrap: wrap; gap: 8px; }
-        .estado-civil-opcoes label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 14px; border: 2px solid var(--gray-200); border-radius: 999px; font-weight: 700; color: var(--gray-800); cursor: pointer; touch-action: manipulation; }
-        .estado-civil-opcoes input { width: 20px; height: 20px; margin: 0; flex-shrink: 0; accent-color: var(--primary); }
-        .estado-civil-opcoes label:has(input:checked) { border-color: var(--primary); background: #eff6ff; }
-        .estado-civil-opcoes input:focus-visible { outline: 3px solid #0f172a; outline-offset: 2px; }
-        .estado-civil-opcoes label:has(input:focus-visible) { outline: 3px solid #0f172a; outline-offset: 3px; }
-        .aviso-taxa { margin-top: 16px; padding: 14px 16px; background: white; border: 1px solid #f59e0b; border-radius: 10px; color: #78350f; line-height: 1.5; }
-        .aviso-taxa p { margin: 9px 0 0; }
-        .aviso-taxa p:first-child { margin-top: 0; }
-        .aviso-taxa a { color: #78350f; font-weight: 900; text-decoration-thickness: 2px; text-underline-offset: 2px; }
-        .checklist-docs { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-        .checklist-docs li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; }
-        .checklist-docs i { color: var(--primary); margin-top: 4px; }
-        .endereco-box { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 12px; padding: 16px; margin-top: 18px; color: var(--gray-800); font-size: 0.92rem; line-height: 1.5; }
-        .acoes-sucesso { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+        .btn-principal:active:not(:disabled), .btn-data:active:not(:disabled), .btn-hora:active:not(:disabled) { transform: scale(0.98); }
+        .btn-alterar { display: inline-flex; align-items: center; gap: 6px; background: var(--branco); border: 1px solid var(--azul); color: var(--azul); font-weight: 700; cursor: pointer; border-radius: var(--raio-p); padding: 10px 16px; min-height: 44px; font-size: 0.9375rem; touch-action: manipulation; }
+        .btn-alterar:hover { background: var(--azul-suave); }
+        .acao-atualizar-agenda { display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; padding: 10px 16px; min-height: 44px; border: 1px solid var(--ambar-texto); border-radius: var(--raio-p); background: var(--branco); color: var(--ambar-texto); font-weight: 700; cursor: pointer; touch-action: manipulation; }
+        .link-acao { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 4px; border: 0; background: none; color: var(--azul); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; touch-action: manipulation; }
+        .link-acao:hover { color: var(--azul-escuro); }
         /* Marcas em SVG inline: evita baixar a familia "brands" do Font Awesome
            (102 KB) so por causa de dois icones. */
         .icone-marca { width: 1.15em; height: 1.15em; flex-shrink: 0; }
-        .btn-acao-sucesso { border: none; border-radius: 12px; padding: 14px 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; font-size: 0.92rem; }
-        .btn-acao-sucesso.whatsapp { background: var(--success); color: white; }
-        .btn-acao-sucesso.azul { background: var(--primary); color: white; }
-        .btn-acao-sucesso.vermelho { background: var(--danger); color: white; }
-        .btn-acao-sucesso.cinza { background: white; color: var(--gray-800); border: 2px solid var(--gray-200); }
-        .aviso-cancelamento { margin: 0; padding: 10px 18px; background: #fff7ed; border-bottom: 1px solid #fed7aa; color: #9a3412; font-size: 0.84rem; font-weight: 700; text-align: center; }
-        .aviso-cancelamento.oculto-atalho { display: none; }
-        .ticket-consulta { background: var(--gray-50); border: 1px solid var(--gray-200); border-left: 5px solid var(--primary); border-radius: 12px; padding: 22px; margin-top: 20px; }
-        .ticket-consulta .data-ag { font-size: 1.6rem; font-weight: 900; color: var(--primary); display: block; margin: 10px 0 8px; }
-        .secao { display: none; animation: slideUp 0.4s; }
+
+        /* ---- 4. Campos ----------------------------------------------- */
+        .form-grupo { margin-bottom: 18px; }
+        .form-grupo > label { display: block; margin-bottom: 6px; font-weight: 600; color: var(--grafite); font-size: 0.9375rem; }
+        .form-grupo input[type="text"], .form-grupo input[type="email"], .form-grupo input[type="tel"] { width: 100%; min-height: 52px; padding: 12px 14px; border: 1px solid var(--linha-forte); background: var(--branco); border-radius: var(--raio); font-size: 1.0625rem; color: var(--grafite); outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+        .form-grupo input::placeholder { color: #94a3b8; }
+        .form-grupo input:focus { border-color: var(--azul); box-shadow: 0 0 0 3px rgba(43, 76, 155, 0.2); }
+        .form-grupo input.erro { border-color: var(--vermelho); background: var(--vermelho-suave); }
+        .obrigatorio { color: var(--vermelho); font-weight: 700; }
+        .legenda-obrigatorio { margin: 0 0 14px; color: var(--cinza); font-size: 0.875rem; }
+        .msg-campo-erro { color: var(--vermelho-escuro); font-size: 0.875rem; font-weight: 600; margin-top: 6px; display: none; }
+        .msg-campo-erro::before { content: "\f06a"; font-family: "Font Awesome 6 Free"; font-weight: 900; margin-right: 6px; }
+        .msg-campo-erro.visivel { display: block; }
+        .msg-campo-alerta { color: var(--ambar-texto); background: var(--ambar-suave); border: 1px solid var(--ambar-borda); padding: 10px 12px; border-radius: var(--raio-p); font-size: 0.875rem; margin-top: 8px; display: none; }
+        .msg-campo-alerta.visivel { display: block; }
+        .checkbox-termo { display: flex; align-items: flex-start; gap: 12px; background: var(--branco); padding: 14px 16px; border-radius: var(--raio); border: 1px solid var(--linha); cursor: pointer; touch-action: manipulation; }
+        .checkbox-termo input[type="checkbox"] { width: 22px !important; height: 22px !important; margin: 1px 0 0 !important; flex-shrink: 0; accent-color: var(--azul); }
+        .checkbox-termo .texto-termo { font-size: 0.9rem; color: var(--texto-2); line-height: 1.5; }
+        .checkbox-termo.erro-termo { border-color: var(--vermelho); background: var(--vermelho-suave); box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12); }
+        .ajuda-campo { color: var(--cinza); font-size: 0.8125rem; font-weight: 500; }
+        .ajuda-codigo-perdido { display: block; margin: 6px 0 0; font-size: 0.875rem; line-height: 1.4; }
+        .ajuda-codigo-perdido a { display: inline-flex; align-items: center; min-height: 44px; color: var(--azul); font-weight: 700; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+
+        .estado-civil { margin: 4px 0 18px; padding: 0; border: 0; min-width: 0; }
+        .estado-civil legend { padding: 0; margin-bottom: 4px; font-weight: 600; font-size: 0.9375rem; color: var(--grafite); }
+        .estado-civil-ajuda { margin: 0 0 10px; font-size: 0.875rem; line-height: 1.45; color: var(--cinza); }
+        .estado-civil-opcoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+        .estado-civil-opcoes label { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 10px 14px; border: 1px solid var(--linha-forte); border-radius: var(--raio); background: var(--branco); font-weight: 600; color: var(--grafite); cursor: pointer; touch-action: manipulation; }
+        .estado-civil-opcoes input { width: 20px; height: 20px; margin: 0; flex-shrink: 0; accent-color: var(--azul); }
+        .estado-civil-opcoes label:has(input:checked) { border-color: var(--azul); background: var(--azul-suave); box-shadow: inset 0 0 0 1px var(--azul); }
+        .estado-civil-opcoes input:focus-visible { outline: 3px solid #0f172a; outline-offset: 2px; }
+        .estado-civil-opcoes label:has(input:focus-visible) { outline: 3px solid #0f172a; outline-offset: 3px; }
+        .estado-civil.erro .estado-civil-opcoes label { border-color: var(--vermelho); }
+
+        /* ---- 5. Estrutura -------------------------------------------- */
+        .topo { background: var(--azul); color: #fff; }
+        .topo-in { max-width: var(--largura); margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+        .marca { display: flex; align-items: center; min-height: 44px; }
+        .marca img { display: block; height: 44px; width: auto; }
+        .topo-nav { display: flex; align-items: center; gap: 4px; }
+        .abas { display: flex; margin: 0; }
+        .aba { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 14px; border: 1px solid transparent; border-radius: var(--raio-p); background: transparent; color: #fff; font-weight: 600; font-size: 0.9375rem; cursor: pointer; touch-action: manipulation; }
+        .topo-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 14px; border: 1px solid transparent; border-radius: var(--raio-p); background: transparent; color: #fff; font-weight: 600; font-size: 0.9375rem; text-decoration: none; cursor: pointer; touch-action: manipulation; }
+        .aba:hover, .topo-link:hover { background: rgba(255, 255, 255, 0.12); }
+        .aba.ativa { border-color: rgba(255, 255, 255, 0.45); }
+        .topo .aba:focus-visible, .topo-link:focus-visible { outline-color: #fff; }
+
+        .hero { background: var(--branco); border-bottom: 1px solid var(--linha); }
+        .hero-in { max-width: var(--largura); margin: 0 auto; padding: 36px 20px 32px; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 32px; align-items: center; }
+        .hero-sobretitulo { margin-bottom: 8px; color: var(--azul); font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+        .hero h1 { font-size: 2.25rem; font-weight: 750; letter-spacing: -0.02em; }
+        .hero-sub { margin-top: 10px; max-width: 34em; color: var(--texto-2); font-size: 1.125rem; }
+        .hero-acoes { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; margin-top: 22px; }
+        .btn-cta { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 56px; padding: 0 28px; border: 0; border-radius: var(--raio); background: var(--azul); color: #fff; font-size: 1.0625rem; font-weight: 750; letter-spacing: 0.02em; text-transform: uppercase; cursor: pointer; box-shadow: 0 6px 16px rgba(43, 76, 155, 0.25); touch-action: manipulation; }
+        .btn-cta:hover { background: var(--azul-escuro); }
+        .hero-secundarias { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+        .hero-info { list-style: none; margin: 22px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--texto-2); font-size: 0.9375rem; }
+        .hero-info li { display: inline-flex; align-items: center; gap: 8px; }
+        .hero-info i { color: var(--azul); width: 16px; text-align: center; }
+
+        .conteudo { max-width: var(--largura); margin: 0 auto; padding: 28px 20px 48px; }
+        .layout-fluxo { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+        #sistema-agendamento { background: var(--branco); border: 1px solid var(--linha); border-radius: var(--raio-g); box-shadow: var(--sombra-1); scroll-margin-top: 16px; min-width: 0; }
+        .corpo-sistema { padding: 28px 28px 28px; }
+        /* A rolagem para a etapa deixa as etapas (stepper) a vista. */
+        #etapa-selecao { scroll-margin-top: 104px; }
+        .secao { display: none; }
         .secao.ativa { display: block; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .servicos-publicos.posts-guiadorg { margin-top: 24px; }
-                .posts-guiadorg-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-        .posts-guiadorg-lista li { display: flex; }
-        .post-guiadorg { width: 100%; display: flex; flex-direction: column; gap: 5px; padding: 14px 16px; border: 1px solid var(--gray-200); border-radius: 14px; background: #fff; color: var(--gray-800); text-decoration: none; transition: border-color 0.2s, box-shadow 0.2s; }
-        .post-guiadorg:hover { border-color: #93c5fd; box-shadow: var(--shadow-hover); }
-        .post-guiadorg:focus-visible { outline: 3px solid #0f172a; outline-offset: 3px; }
-        .post-guiadorg-categoria { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gray-600); }
-        .post-guiadorg-titulo { font-size: 0.98rem; line-height: 1.35; color: var(--primary-dark); }
-        .post-guiadorg-resumo { font-size: 0.86rem; line-height: 1.45; color: var(--gray-600); }
-        .post-guiadorg-ler { margin-top: auto; padding-top: 4px; font-size: 0.85rem; font-weight: 800; color: var(--primary); }
-        .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-        @media (min-width: 720px) { .posts-guiadorg-lista { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-        .servicos-publicos { max-width: 700px; margin: 34px auto 0; padding: 0 10px; }
-        .servicos-titulo { margin: 0 0 12px; color: var(--gray-800); font-size: 1.1rem; font-weight: 900; }
-        .grade-servicos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-        .servico-card { width: 100%; min-width: 0; min-height: 96px; padding: 13px; border: 0; border-radius: 14px; color: white; font: inherit; text-align: left; text-decoration: none; cursor: pointer; touch-action: manipulation; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 10px; box-shadow: 0 8px 20px rgba(15,23,42,0.14); }
+        .etapa-titulo { font-size: 1.375rem; font-weight: 700; margin-bottom: 6px; }
+        .etapa-sub { color: var(--cinza); margin-bottom: 20px; font-size: 0.9375rem; }
+        .lateral { display: grid; gap: 16px; position: sticky; top: 16px; }
+        .bloco-lateral { background: var(--branco); border: 1px solid var(--linha); border-radius: var(--raio-g); padding: 18px 20px; }
+        .bloco-lateral h2 { font-size: 1rem; font-weight: 700; margin-bottom: 10px; }
+        .lista-passos { list-style: none; margin: 0; padding: 0; counter-reset: passo; display: grid; gap: 10px; }
+        .lista-passos li { counter-increment: passo; display: grid; grid-template-columns: 26px 1fr; gap: 10px; font-size: 0.9375rem; color: var(--texto-2); }
+        .lista-passos li::before { content: counter(passo); display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: var(--azul-suave); color: var(--azul); font-weight: 700; font-size: 0.8125rem; }
+        .local-endereco { font-size: 0.9375rem; color: var(--texto-2); }
+        .local-endereco strong { display: block; color: var(--grafite); }
+
+        /* Status de vagas: informa o que o sistema publicou, nunca estimativa. */
+        .banner-vagas { display: none; }
+        .status-vagas-card { width: 100%; border-radius: var(--raio-g); padding: 18px 20px; display: flex; align-items: center; gap: 14px; border: 1px solid var(--linha); background: var(--branco); }
+        .status-vagas-icone { width: 44px; height: 44px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1.15rem; }
+        .status-vagas-titulo { display: block; font-size: 1.125rem; font-weight: 750; line-height: 1.25; }
+        .status-vagas-sub { display: block; margin-top: 4px; font-size: 0.9375rem; line-height: 1.45; color: var(--texto-2); }
+        .status-vagas-card.agenda-fechada { flex-direction: column; align-items: flex-start; }
+        .proxima-liberacao { display: inline-block; margin-top: 8px; padding: 6px 12px; border-radius: var(--raio-p); background: var(--azul-suave); color: var(--azul-escuro); font-weight: 750; }
+        .banner-vagas.com-vagas .status-vagas-card { background: var(--verde-suave); border-color: var(--verde-borda); }
+        .banner-vagas.com-vagas .status-vagas-icone { background: var(--verde-escuro); color: #fff; }
+        .banner-vagas.com-vagas .status-vagas-titulo { color: var(--verde-escuro); }
+        .banner-vagas.sem-vagas .status-vagas-icone { background: var(--azul-suave); color: var(--azul); }
+        .banner-vagas.liberando-vagas .status-vagas-card { background: var(--azul-suave); border-color: var(--azul-borda); }
+        .banner-vagas.liberando-vagas .status-vagas-icone { background: var(--branco); color: var(--azul); }
+        .banner-vagas.erro-agenda .status-vagas-card { background: var(--ambar-suave); border-color: var(--ambar-borda); }
+        .banner-vagas.erro-agenda .status-vagas-icone { background: var(--branco); color: var(--ambar-texto); }
+        .banner-vagas.erro-agenda .status-vagas-titulo { color: var(--ambar-texto); }
+        .countdown-wrap { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+        .countdown-bloco { background: var(--fundo); border-radius: var(--raio-p); padding: 8px 10px; min-width: 58px; text-align: center; border: 1px solid var(--linha); }
+        .countdown-num { display: block; font-size: 1.375rem; font-weight: 750; color: var(--azul); line-height: 1; font-variant-numeric: tabular-nums; }
+        .countdown-label { display: block; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--cinza); margin-top: 4px; }
+
+        /* ---- 6. Fluxo ------------------------------------------------ */
+        /* Etapas: numero + rotulo. No celular so a etapa atual mostra o nome. */
+        .steps-bar { list-style: none; display: flex; align-items: flex-start; margin: 0 0 24px; padding: 0; }
+        .step { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 0.8125rem; font-weight: 600; color: var(--cinza); text-align: center; }
+        .step + .step::before { content: ""; position: absolute; top: 15px; right: calc(50% + 20px); left: calc(-50% + 20px); height: 2px; border-radius: 2px; background: var(--linha); }
+        .step .step-num { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--linha-forte); background: var(--branco); color: var(--cinza); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; flex-shrink: 0; }
+        .step.ativo { color: var(--grafite); }
+        .step.ativo .step-num { background: var(--azul); border-color: var(--azul); color: #fff; box-shadow: 0 0 0 4px var(--azul-suave); }
+        .step.concluido { color: var(--texto-2); }
+        .step.concluido .step-num { background: var(--verde-escuro); border-color: var(--verde-escuro); color: #fff; }
+        .step.concluido + .step::before, .step.ativo::before { background: var(--verde-escuro); }
+        .step.ativo::before { background: var(--azul); }
+
+        .instru-fase { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; margin-bottom: 14px; border-radius: var(--raio); background: var(--azul-suave); border: 1px solid var(--azul-borda); color: var(--texto-2); font-size: 0.9375rem; }
+        .instru-fase i { color: var(--azul); font-size: 1.1rem; margin-top: 3px; }
+        .instru-titulo { display: block; color: var(--grafite); font-weight: 700; }
+        .tarja-alerta { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; margin-bottom: 22px; border-radius: var(--raio); background: var(--ambar-suave); border: 1px solid var(--ambar-borda); color: var(--ambar-texto); font-size: 0.9375rem; }
+        .tarja-alerta i { margin-top: 3px; }
+        #dados-pessoais.modo-preencher .so-confirmar { display: none !important; }
+        #dados-pessoais.modo-confirmar .so-preencher { display: none !important; }
+        .card-resumo { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--azul-suave); border: 1px solid var(--azul-borda); border-radius: var(--raio); padding: 16px 18px; margin-bottom: 20px; }
+        .card-resumo .info { font-size: 1.0625rem; color: var(--grafite); }
+        .aviso-horario { display: block; margin-top: 4px; color: var(--cinza); font-size: 0.875rem; font-weight: 500; }
+
+        .contador-vagas-topo { margin: 0 0 14px; color: var(--cinza); font-size: 0.9375rem; }
+        .contador-vagas-topo strong { color: var(--verde-escuro); }
+        .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 10px; margin: 12px 0 20px; }
+        .grade-horas { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+        .estado-grade { grid-column: 1 / -1; padding: 24px 16px; border: 1px dashed var(--linha-forte); border-radius: var(--raio); color: var(--cinza); text-align: center; line-height: 1.5; }
+        .estado-grade.erro { border-color: var(--vermelho-borda); color: var(--vermelho-escuro); background: var(--vermelho-suave); }
+
+        /* Dia: semana, numero e mes; vagas em texto (a cor so reforca). */
+        .btn-data { min-height: 112px; padding: 12px 8px; border: 1px solid var(--linha-forte); background: var(--branco); border-radius: var(--raio); text-align: center; color: var(--grafite); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s; touch-action: manipulation; }
+        .btn-data:hover:not(:disabled) { border-color: var(--azul); box-shadow: 0 0 0 1px var(--azul); }
+        .btn-data .dia-semana { font-size: 0.8125rem; font-weight: 600; color: var(--cinza); text-transform: uppercase; letter-spacing: 0.04em; }
+        .btn-data .dia-num { font-size: 1.75rem; font-weight: 750; line-height: 1.1; font-variant-numeric: tabular-nums; }
+        .btn-data .dia-mes { font-size: 0.8125rem; color: var(--cinza); }
+        .btn-data:disabled { background: var(--fundo); color: var(--cinza); cursor: not-allowed; }
+        .btn-data:disabled .dia-num { color: #94a3b8; }
+        .vagas-badge, .lotado-badge { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+        .vagas-badge.ok { background: var(--verde-suave); color: var(--verde-escuro); }
+        .vagas-badge.low { background: var(--ambar-suave); color: var(--ambar-texto); }
+        .lotado-badge { background: var(--vermelho-suave); color: var(--vermelho-escuro); }
+        .btn-data.esgotada { opacity: 1; }
+
+        /* Horario: disponivel (contorno), selecionado (azul com check) e
+           indisponivel (riscado e escrito "Ocupado"). */
+        .btn-hora { min-height: 60px; padding: 10px 8px; border: 1px solid var(--linha-forte); background: var(--branco); border-radius: var(--raio); color: var(--grafite); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; touch-action: manipulation; transition: border-color 0.15s, box-shadow 0.15s; }
+        .btn-hora .hora-valor { font-size: 1.1875rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .btn-hora .vagas-hora { font-size: 0.75rem; font-weight: 600; color: var(--cinza); }
+        .btn-hora:hover:not(:disabled) { border-color: var(--azul); box-shadow: 0 0 0 1px var(--azul); }
+        .btn-hora:disabled { background: var(--fundo); color: #94a3b8; cursor: not-allowed; }
+        .btn-hora:disabled .hora-valor { text-decoration: line-through; }
+        .selecionado { background: var(--azul) !important; color: #fff !important; border-color: var(--azul) !important; }
+        .selecionado .dia-semana, .selecionado .dia-mes, .selecionado .vagas-hora { color: rgba(255, 255, 255, 0.85) !important; }
+        .btn-data.selecionado::after { content: "\f00c"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 0.75rem; margin-top: 4px; }
+        .aviso-toque-confirma { display: flex; align-items: center; gap: 10px; margin: 4px 0 4px; color: var(--cinza); font-size: 0.875rem; }
+        .divisor { border: 0; border-top: 1px solid var(--linha); margin: 8px 0 22px; }
+
+        .loading-container { width: 100%; background: var(--linha); border-radius: 20px; margin: 16px 0; overflow: hidden; height: 4px; position: relative; grid-column: 1 / -1; }
+        /* Anima transform, nao left: animar left forcava layout a cada quadro, e
+           esta barra fica girando durante toda a janela de "Liberando vagas".
+           35% da largura do container = 1 largura do proprio elemento, entao
+           -35% vira translateX(-100%) e 110% vira translateX(314.3%). */
+        .loading-bar { width: 35%; height: 100%; background: var(--azul); border-radius: 20px; position: absolute; left: 0; animation: loading-anim 1.2s infinite; }
+        @keyframes loading-anim { 0% { transform: translateX(-100%); } 100% { transform: translateX(314.3%); } }
+        @keyframes skeleton-shimmer { 0% { background-position: -600px 0; } 100% { background-position: 600px 0; } }
+        .skeleton-card, .skeleton-hora { border-radius: var(--raio); background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 1200px 100%; animation: skeleton-shimmer 1.5s ease-in-out infinite; }
+        .skeleton-card { min-height: 112px; }
+        .skeleton-hora { min-height: 60px; }
+
+        /* ---- 7. Sucesso e consulta ----------------------------------- */
+        .msg-sucesso-topo { display: flex; align-items: center; gap: 12px; color: var(--verde-escuro); font-size: 1.625rem; font-weight: 750; margin-bottom: 6px; }
+        .msg-sucesso-topo i { display: inline-block; }
+        .sucesso-sub { color: var(--texto-2); margin-bottom: 20px; }
+        .ticket-sucesso { border: 1px solid var(--linha); border-radius: var(--raio-g); overflow: hidden; margin-bottom: 20px; }
+        .ticket-cabecalho { padding: 18px 20px; background: var(--azul); color: #fff; }
+        .ticket-rotulo { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.85; }
+        .data-grande { display: block; margin-top: 4px; font-size: 1.75rem; font-weight: 750; letter-spacing: -0.01em; color: #fff; }
+        .ticket-corpo { padding: 18px 20px; display: grid; gap: 14px; }
+        .ticket-linha { display: flex; gap: 10px; align-items: flex-start; color: var(--texto-2); }
+        .ticket-linha i { color: var(--azul); margin-top: 4px; width: 16px; text-align: center; }
+        .ticket-linha strong { color: var(--grafite); }
+        .protocolo-caixa { padding: 16px; border: 2px dashed var(--azul-claro); border-radius: var(--raio); background: var(--azul-suave); }
+        .protocolo-rotulo { font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--azul-escuro); }
+        .protocolo-valor-linha { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 10px; }
+        #ticket-protocolo-valor { font-family: var(--fonte-mono); font-size: 1.625rem; font-weight: 700; letter-spacing: 0.06em; color: var(--azul-escuro); }
+        .protocolo-aviso { font-size: 0.9rem; color: var(--texto-2); line-height: 1.5; }
+        .protocolo-aceite { display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; cursor: pointer; font-size: 0.9375rem; }
+        .protocolo-aceite input { width: 20px; height: 20px; margin: 2px 0 0; flex-shrink: 0; accent-color: var(--azul); }
+        .acoes-sucesso { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 4px; }
+        .btn-acao-sucesso { min-height: 48px; border: 1px solid var(--linha-forte); border-radius: var(--raio); padding: 10px 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; font-size: 0.9375rem; background: var(--branco); color: var(--grafite); touch-action: manipulation; }
+        .btn-acao-sucesso:hover { background: var(--fundo); }
+        .btn-acao-sucesso i { color: var(--azul); }
+        .btn-acao-sucesso.whatsapp { background: var(--verde-escuro); border-color: var(--verde-escuro); color: #fff; }
+        .btn-acao-sucesso.azul { background: var(--azul); border-color: var(--azul); color: #fff; }
+        .btn-acao-sucesso.whatsapp i, .btn-acao-sucesso.azul i { color: #fff; }
+        .btn-acao-sucesso.vermelho { color: var(--vermelho-escuro); border-color: var(--vermelho-borda); }
+        .btn-acao-sucesso.vermelho i { color: var(--vermelho); }
+        .btn-acao-sucesso.cinza { background: var(--branco); color: var(--grafite); }
+        .aviso-cancelamento { margin: 0; padding: 10px 28px; background: var(--ambar-suave); border-bottom: 1px solid var(--ambar-borda); color: var(--ambar-texto); font-size: 0.875rem; border-radius: var(--raio-g) var(--raio-g) 0 0; }
+        .aviso-cancelamento.oculto-atalho { display: none; }
+        .endereco-box { background: var(--fundo); border: 1px solid var(--linha); border-radius: var(--raio); padding: 14px 16px; margin-top: 16px; color: var(--texto-2); font-size: 0.9375rem; line-height: 1.5; }
+        .certidao-destaque { display: flex; gap: 14px; align-items: flex-start; margin: 16px 0 0; padding: 16px 18px; background: var(--azul-suave); border: 1px solid var(--azul); border-radius: var(--raio); color: var(--grafite); line-height: 1.45; }
+        .certidao-destaque[hidden] { display: none; }
+        .certidao-destaque > i { font-size: 1.4rem; color: var(--azul); margin-top: 2px; }
+        .certidao-destaque-rotulo { display: block; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--azul-escuro); }
+        .certidao-destaque strong { display: block; margin: 2px 0; font-size: 1.0625rem; }
+        .docs-container { border: 1px solid var(--linha); border-radius: var(--raio); padding: 18px 20px; margin-top: 16px; color: var(--texto-2); font-size: 0.9375rem; line-height: 1.55; }
+        .docs-container h3 { margin: 0 0 12px; font-size: 1.0625rem; }
+        .docs-container h3 i { color: var(--azul); margin-right: 6px; }
+        .checklist-docs { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+        .checklist-docs li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; }
+        .checklist-docs i { color: var(--azul); margin-top: 4px; }
+        .aviso-taxa { margin-top: 16px; padding: 14px 16px; background: var(--ambar-suave); border: 1px solid var(--ambar-borda); border-radius: var(--raio); color: var(--ambar-texto); line-height: 1.5; }
+        .aviso-taxa p { margin: 8px 0 0; }
+        .aviso-taxa p:first-child { margin-top: 0; }
+        .aviso-taxa a { color: var(--ambar-texto); font-weight: 700; text-decoration-thickness: 2px; text-underline-offset: 2px; }
+        .ticket-consulta { border: 1px solid var(--linha); border-left: 4px solid var(--azul); border-radius: var(--raio); padding: 18px 20px; margin-bottom: 14px; }
+        .ticket-consulta .nome-ag { font-weight: 600; color: var(--texto-2); }
+        .ticket-consulta .data-ag { display: block; margin: 6px 0; font-size: 1.5rem; font-weight: 750; color: var(--azul-escuro); }
+        .cartao-cancelamento { border: 1px solid var(--vermelho-borda); border-left: 4px solid var(--vermelho); border-radius: var(--raio); padding: 18px 20px; background: var(--vermelho-suave); }
+        .cartao-cancelamento .nome-ag { font-weight: 600; color: var(--texto-2); margin-bottom: 4px; }
+        .cartao-cancelamento .data-ag { font-size: 1.375rem; font-weight: 750; color: var(--vermelho-escuro); margin-bottom: 8px; }
+        .cartao-cancelamento .explica { font-size: 0.9375rem; color: var(--texto-2); margin-bottom: 12px; }
+        .tempo-cancelamento { margin: 0 0 12px; font-size: 0.875rem; color: var(--texto-2); }
+        .msg-erro-resultado { padding: 14px 16px; border-radius: var(--raio); border: 1px solid var(--vermelho-borda); background: var(--vermelho-suave); color: var(--vermelho-escuro); font-weight: 600; }
+        .form-consulta { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+        .form-consulta .largura-total { grid-column: 1 / -1; }
+        .lembrete-protocolo { display: none; margin: 0 0 16px; padding: 12px 14px; background: var(--fundo); border: 1px solid var(--linha); border-left: 4px solid var(--azul); border-radius: var(--raio-p); font-size: 0.9375rem; color: var(--grafite); line-height: 1.45; }
+
+        /* ---- 8. Servicos e informacoes ------------------------------- */
+        .secao-info { margin-top: 40px; }
+        .secao-info > h2 { font-size: 1.375rem; font-weight: 700; margin-bottom: 14px; }
+        .servicos-titulo { margin: 0 0 14px; font-size: 1.375rem; font-weight: 700; }
+        .grade-servicos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+        .servico-card { width: 100%; min-width: 0; min-height: 96px; padding: 16px; border: 1px solid var(--linha); border-radius: var(--raio); background: var(--branco); color: var(--grafite); font: inherit; text-align: left; text-decoration: none; cursor: pointer; touch-action: manipulation; display: flex; align-items: flex-start; gap: 14px; transition: border-color 0.15s, box-shadow 0.15s; }
+        .servico-card:hover { border-color: var(--azul-claro); box-shadow: var(--sombra-2); }
         .servico-card:focus-visible { outline: 3px solid #0f172a; outline-offset: 3px; }
-        .servico-icone { width: 38px; height: 38px; border-radius: 11px; background: rgba(255,255,255,0.2); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .servico-icone { width: 40px; height: 40px; border-radius: var(--raio-p); background: var(--azul-suave); color: var(--azul); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .servico-icone svg { width: 22px; height: 22px; }
-        .servico-rotulo { display: block; font-size: 0.92rem; font-weight: 900; line-height: 1.18; }
-        .servico-dica { display: block; margin-top: 4px; color: white; font-size: 0.75rem; font-weight: 700; line-height: 1.25; }
-        .servico-documentos { background: #0056b3; }
-        .servico-consultar { background: #0b7a52; }
-        .servico-cancelar { background: #c0392b; }
-        .servico-taxa { background: #a06400; }
-        .servico-mapa { background: #4f5d75; }
-        .servico-duvidas { background: #6d4aa8; }
-        .rodape-publico { max-width: 700px; margin: 18px auto 0; padding: 0 10px; text-align: center; }
-        .instagram-rodape { min-height: 44px; color: var(--gray-600); display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.88rem; font-weight: 700; text-decoration: none; }
-        .instagram-rodape:hover { color: var(--primary); text-decoration: underline; text-underline-offset: 3px; }
-        .instagram-rodape:focus-visible { outline: 3px solid var(--warning); outline-offset: 3px; border-radius: 6px; }
-        .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
+        .servico-rotulo { display: block; font-size: 1rem; font-weight: 700; line-height: 1.25; }
+        .servico-dica { display: block; margin-top: 4px; color: var(--cinza); font-size: 0.875rem; line-height: 1.35; }
+        .servico-cancelar .servico-icone { background: var(--vermelho-suave); color: var(--vermelho); }
+        .servico-taxa .servico-icone { background: var(--ambar-suave); color: var(--ambar-texto); }
+        .posts-guiadorg-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+        .posts-guiadorg-lista li { display: flex; }
+        .post-guiadorg { width: 100%; display: flex; flex-direction: column; gap: 6px; padding: 16px; border: 1px solid var(--linha); border-radius: var(--raio); background: var(--branco); color: var(--grafite); text-decoration: none; transition: border-color 0.15s, box-shadow 0.15s; }
+        .post-guiadorg:hover { border-color: var(--azul-claro); box-shadow: var(--sombra-2); }
+        .post-guiadorg:focus-visible { outline: 3px solid #0f172a; outline-offset: 3px; }
+        .post-guiadorg-categoria { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--cinza); }
+        .post-guiadorg-titulo { font-size: 1rem; line-height: 1.35; color: var(--grafite); }
+        .post-guiadorg-resumo { font-size: 0.875rem; line-height: 1.45; color: var(--cinza); }
+        .post-guiadorg-ler { margin-top: auto; padding-top: 4px; font-size: 0.875rem; font-weight: 700; color: var(--azul); }
+        .atalhos-guia-cin { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+        .atalhos-guia-cin a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 16px; border: 1px solid var(--linha-forte); border-radius: 999px; background: var(--branco); color: var(--azul-escuro); font-weight: 600; text-decoration: none; }
+        .atalhos-guia-cin a:hover { border-color: var(--azul); }
+        .rodape-publico { margin-top: 48px; background: var(--grafite); color: #cbd5e1; }
+        .rodape-in { max-width: var(--largura); margin: 0 auto; padding: 28px 20px calc(28px + env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px 32px; font-size: 0.9375rem; }
+        .rodape-in strong { display: block; color: #fff; }
+        .instagram-rodape { min-height: 44px; color: #cbd5e1; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; text-decoration: none; }
+        .instagram-rodape:hover { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+        .instagram-rodape:focus-visible { outline: 3px solid var(--ambar); outline-offset: 3px; border-radius: 6px; }
+
+        /* ---- 9. Modal e avisos --------------------------------------- */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(30, 36, 50, 0.55); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
         .modal-overlay.oculto { display: none; }
-        .modal-caixa { background: white; border-radius: 24px; padding: 36px 32px calc(36px + env(safe-area-inset-bottom, 0px)); max-width: 440px; width: 100%; text-align: center; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto; }
-        .modal-icone { font-size: 3.5rem; margin-bottom: 16px; }
-        #modal-mensagem { white-space: pre-line; overflow-wrap: anywhere; }
+        .modal-caixa { background: var(--branco); border-radius: var(--raio-g); padding: 28px 28px calc(28px + env(safe-area-inset-bottom, 0px)); max-width: 460px; width: 100%; text-align: left; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto; box-shadow: 0 20px 48px rgba(30, 36, 50, 0.25); }
+        .modal-icone { font-size: 2rem; margin-bottom: 10px; color: var(--azul); }
+        #modal-titulo { font-size: 1.25rem; font-weight: 750; margin-bottom: 10px; color: var(--grafite); }
+        #modal-mensagem { color: var(--texto-2); line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; }
         /* Dois botoes de rotulo longo estouravam a caixa em telas de ate 320px.
            A folga vem do padding menor no media query de 520px; a quebra de
            linha e a rede de seguranca para rotulos maiores. */
-        .modal-botoes { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top:20px; }
-        .modal-btn { padding: 14px 26px; border: none; border-radius: 12px; font-weight: 800; cursor: pointer; font-size: 0.95rem; min-height: 44px; touch-action: manipulation; }
-        .modal-btn.primario { background: var(--primary); color: white; }
-        .modal-btn.sucesso { background: var(--success); color: white; }
-        .modal-btn.perigo { background: var(--danger); color: white; }
-        .modal-btn.neutro { background: var(--gray-100); color: var(--gray-800); }
-        @media (min-width: 720px) {
-            body { padding: 20px 10px calc(96px + env(safe-area-inset-bottom, 0px)); }
-            .cabecalho-sistema { padding: 24px 20px 22px; }
-            .cabecalho-sistema img { max-width: 440px; width: 70%; }
-            .banner-vagas { padding: 12px 16px; }
-            .grade-servicos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .modal-botoes { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+        .modal-btn { padding: 12px 22px; border: 1px solid transparent; border-radius: var(--raio); font-weight: 700; cursor: pointer; font-size: 1rem; min-height: 44px; touch-action: manipulation; }
+        .modal-btn.primario { background: var(--azul); color: #fff; }
+        .modal-btn.primario:hover:not(:disabled) { background: var(--azul-escuro); }
+        .modal-btn.sucesso { background: var(--verde-escuro); color: #fff; }
+        .modal-btn.perigo { background: var(--vermelho); color: #fff; }
+        .modal-btn.neutro { background: var(--branco); border-color: var(--linha-forte); color: var(--grafite); }
+        .modal-btn.livre-agora { background: #047857; color: white; }
+        .modal-btn.livre-agora:hover:not(:disabled) { background: #065f46; }
+        .modal-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .toast-agenda { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 9999; max-width: calc(100vw - 28px); padding: 10px 16px; border-radius: 999px; background: var(--grafite); color: #fff; box-shadow: var(--sombra-2); font-size: 0.875rem; font-weight: 600; text-align: center; transform: translateX(-50%); animation: toast-agenda-entrada 0.2s ease-out; }
+        @keyframes toast-agenda-entrada { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+        @keyframes confetti-fall { 0% { transform: translateY(-20px) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(900deg); opacity: 0; } }
+        .confetti-piece { position: fixed; top: -20px; pointer-events: none; z-index: 99999; animation: confetti-fall linear forwards; }
+        @keyframes success-bounce { 0% { transform: scale(0.6); opacity: 0; } 70% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); } }
+        .msg-sucesso-topo i.animar { animation: success-bounce 0.45s ease-out both; }
+        .btn-principal, .btn-data, .btn-hora { position: relative; overflow: hidden; }
+        .ripple-wave { position: absolute; border-radius: 50%; transform: scale(0); animation: ripple-anim 0.5s linear; background: rgba(43, 76, 155, 0.15); pointer-events: none; }
+        .btn-principal .ripple-wave { background: rgba(255, 255, 255, 0.25); }
+        @keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }
+
+        /* ---- 10. Responsivo ------------------------------------------ */
+        @media (max-width: 960px) {
+            .layout-fluxo { grid-template-columns: 1fr; }
+            .lateral { position: static; grid-template-columns: 1fr 1fr; }
+            .hero-in { grid-template-columns: 1fr; gap: 20px; }
+            .grade-servicos, .posts-guiadorg-lista { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 720px) {
+            .lateral { grid-template-columns: 1fr; }
+            .grade-servicos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+            .servico-card { flex-direction: column; gap: 10px; padding: 14px; }
+            .posts-guiadorg-lista { grid-template-columns: 1fr; }
+            .form-consulta { grid-template-columns: 1fr; }
         }
         @media (max-width: 520px) {
-            #sistema-agendamento { border-radius: 16px; }
-            .cabecalho-sistema { padding: 16px 14px 18px; }
-            /* No celular a logo ocupa toda a faixa azul, na proporcao original. */
-            .cabecalho-sistema img { max-width: 100%; width: 100%; }
-            /* O titulo sai da tela no celular, mas continua para leitor de tela e buscadores. */
-            .cabecalho-subtitulo { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-            .banner-vagas { padding: 10px; }
-            .status-vagas-card { padding: 14px 12px; gap: 10px; border-radius: 14px; }
-            .status-vagas-icone { width: 38px; height: 38px; font-size: 1.08rem; }
-            .status-vagas-titulo { font-size: 1.02rem; }
-            .status-vagas-sub { font-size: 0.82rem; }
-            .status-vagas-card.agenda-fechada { padding: 24px 14px; }
-            .status-vagas-card.agenda-fechada .status-vagas-icone { width: 58px; height: 58px; font-size: 1.6rem; }
-            .status-vagas-card.agenda-fechada .status-vagas-titulo { font-size: 1.32rem; }
-            .status-vagas-card.agenda-fechada .status-vagas-sub { font-size: 0.95rem; }
-            .proxima-liberacao { display: block; font-size: 1rem; border-radius: 14px; }
-            .corpo-sistema { padding: 24px 18px 20px; }
+            .topo-in { padding: 8px 12px; gap: 8px; }
+            .marca img { height: 36px; }
+            .topo-nav .topo-link { display: none; }
+            .aba, .topo-link { padding: 8px 10px; }
+            .hero-in { padding: 20px 16px 20px; gap: 16px; }
+            .hero-sobretitulo { display: none; }
+            .hero h1 { font-size: 1.625rem; }
+            .hero-sub { font-size: 1rem; margin-top: 6px; }
+            .hero-acoes { margin-top: 16px; }
+            .btn-cta { width: 100%; }
+            .hero-secundarias { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+            .hero-secundarias .link-acao { justify-content: center; padding: 8px; border: 1px solid var(--linha-forte); border-radius: var(--raio); text-decoration: none; font-size: 0.9375rem; text-align: center; line-height: 1.25; }
+            .hero-info { margin-top: 12px; gap: 4px 12px; font-size: 0.8125rem; color: var(--cinza); }
+            .hero-info i { width: auto; }
+            .instru-fase, .tarja-alerta { padding: 10px 12px; font-size: 0.875rem; margin-bottom: 12px; }
+            .steps-bar { margin-bottom: 16px; }
+            .conteudo { padding: 16px 12px 32px; }
+            .corpo-sistema { padding: 20px 16px; }
+            .aviso-cancelamento { padding: 10px 16px; }
+            .etapa-titulo { font-size: 1.25rem; }
             .grid-2 { grid-template-columns: 1fr; gap: 0; }
+            .estado-civil-opcoes { grid-template-columns: 1fr 1fr; }
+            .grade { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+            .grade-horas { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .btn-data { min-height: 104px; }
+            .status-vagas-card { padding: 14px 16px; }
             .acoes-sucesso { grid-template-columns: 1fr; }
-            .acoes-sucesso { gap: 10px; }
-            .grade { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); }
-            .servicos-publicos { margin-top: 24px; }
-            .modal-caixa { padding: 28px 20px calc(28px + env(safe-area-inset-bottom, 0px)); }
+            .data-grande { font-size: 1.5rem; }
+            .modal-overlay { align-items: flex-end; padding: 0; }
+            .modal-caixa { padding: 28px 20px calc(28px + env(safe-area-inset-bottom, 0px)); border-radius: var(--raio-g) var(--raio-g) 0 0; max-width: none; }
             /* Empilhado de proposito: no celular a largura util nao cabe dois
                rotulos longos lado a lado, e depender da quebra deixava o
                resultado no limite do estouro. */
             .modal-botoes { flex-direction: column; }
             .modal-btn { padding: 14px 18px; flex: 1 1 auto; }
+            /* Etapas no celular: so a atual mostra o nome. */
+            .step .step-rotulo { display: none; }
+            .step.ativo .step-rotulo { display: block; white-space: nowrap; }
+            .secao-info { margin-top: 28px; }
+        }
+        @media (max-width: 400px) {
+            .hero h1 { font-size: 1.5rem; }
+            .estado-civil-opcoes { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 340px) {
+            .grade, .grade-horas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .marca img { height: 30px; }
         }
 
         /* Quem pede menos movimento no sistema nao precisa de barra correndo,
@@ -426,151 +596,120 @@
                 animation: none !important;
             }
             .skeleton-card, .skeleton-hora { background: var(--gray-100); }
-            .btn-data, .btn-hora, .btn-principal, .aba, .vaga-progress-fill {
-                transition: none !important;
-            }
-            .btn-data:hover:not(:disabled), .btn-hora:hover:not(:disabled) { transform: none; }
-        }
-
-
-        /* ================================================================
-           MELHORIAS VISUAIS
-        ================================================================ */
-
-        /* 1. Contador regressivo */
-        .countdown-wrap { display: flex; gap: 10px; justify-content: center; margin-top: 14px; flex-wrap: wrap; }
-        .countdown-bloco { background: white; border-radius: 12px; padding: 8px 14px; min-width: 62px; text-align: center; border: 1px solid #bfdbfe; box-shadow: 0 4px 12px rgba(0,86,179,0.08); }
-        .countdown-num { display: block; font-size: 1.5rem; font-weight: 900; color: var(--primary); line-height: 1; }
-        .countdown-label { display: block; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-600); margin-top: 3px; }
-
-
-        /* 3. Confetti */
-        @keyframes confetti-fall { 0% { transform: translateY(-20px) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(900deg); opacity: 0; } }
-        .confetti-piece { position: fixed; top: -20px; pointer-events: none; z-index: 99999; animation: confetti-fall linear forwards; }
-
-        /* 3b. Ícone sucesso bounce */
-        @keyframes success-bounce { 0% { transform: scale(0.4); opacity: 0; } 65% { transform: scale(1.22); opacity: 1; } 82% { transform: scale(0.92); } 100% { transform: scale(1); } }
-        .msg-sucesso-topo i { display: inline-block; }
-        .msg-sucesso-topo i.animar { animation: success-bounce 0.75s cubic-bezier(0.34,1.56,0.64,1) both; }
-
-        /* 4. Skeleton loading */
-        @keyframes skeleton-shimmer { 0% { background-position: -600px 0; } 100% { background-position: 600px 0; } }
-        .skeleton-card { border-radius: var(--radius); min-height: 82px; background: linear-gradient(90deg, #f0f4f8 25%, #e2e8f0 50%, #f0f4f8 75%); background-size: 1200px 100%; animation: skeleton-shimmer 1.5s ease-in-out infinite; border: 2px solid transparent; }
-        .skeleton-hora { border-radius: var(--radius); min-height: 50px; background: linear-gradient(90deg, #f0f4f8 25%, #e2e8f0 50%, #f0f4f8 75%); background-size: 1200px 100%; animation: skeleton-shimmer 1.5s ease-in-out infinite; }
-
-        /* 5. Barra de progresso de vagas */
-        .vaga-progress { width: 100%; height: 4px; background: var(--gray-200); border-radius: 999px; margin-top: 5px; overflow: hidden; }
-        .vaga-progress-fill { height: 100%; border-radius: 999px; transition: width 0.6s ease; }
-        .vaga-progress-fill.ok { background: var(--success); }
-        .vaga-progress-fill.low { background: var(--warning); }
-
-        /* 6. Subtítulo do cabeçalho */
-        .cabecalho-subtitulo { color: rgba(255,255,255,0.82); font-size: 0.74rem; font-weight: 700; margin-top: 9px; margin-bottom: 0; letter-spacing: 0.05em; text-transform: uppercase; }
-
-        /* 7. Efeito ripple */
-        .btn-principal, .btn-data, .btn-hora { position: relative; overflow: hidden; }
-        .ripple-wave { position: absolute; border-radius: 50%; transform: scale(0); animation: ripple-anim 0.65s linear; background: rgba(255,255,255,0.28); pointer-events: none; }
-        @keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }
-        .dia-semana { font-size: 0.8rem; }
-
-        @media (max-width: 420px) {
-            .step > span { display: none; }
-            .step-linha { max-width: 64px; }
-        }
-
-        @media (max-width: 400px) {
-            .aba { min-height: 44px; font-size: 0.95rem; }
-        }
-
-        @media (max-width: 380px) {
-            .corpo-sistema { padding: 20px 14px 16px; }
-            .banner-vagas { padding: 12px; }
-            .cabecalho-sistema { padding-bottom: 19px; }
+            .btn-data, .btn-hora, .btn-principal, .aba { transition: none !important; }
+            html { scroll-behavior: auto; }
         }
     </style>
 </head>
 <body>
+<a class="pular-conteudo" href="#sistema-agendamento">Pular para o agendamento</a>
 
 <div id="modal-global" class="modal-overlay oculto">
     <div class="modal-caixa" role="dialog" aria-modal="true" aria-labelledby="modal-titulo" aria-describedby="modal-mensagem" tabindex="-1">
         <div id="modal-icone" class="modal-icone" aria-hidden="true"></div>
-        <div id="modal-titulo" style="font-size: 1.3rem; font-weight: 900; margin-bottom: 12px;"></div>
-        <div id="modal-mensagem" style="color: var(--gray-600); line-height: 1.6;"></div>
+        <div id="modal-titulo"></div>
+        <div id="modal-mensagem"></div>
         <div id="modal-botoes" class="modal-botoes"></div>
     </div>
 </div>
 
-<div id="sistema-agendamento">
-    <div class="cabecalho-sistema">
-        <img src="/assets/header-logo.png" alt="Câmara Municipal de Itanhandu">
-        <h1 class="cabecalho-subtitulo"><i class="fa-solid fa-id-card" aria-hidden="true"></i> Agendamento RG / CIN &mdash; Câmara de Itanhandu</h1>
+<header class="topo">
+    <div class="topo-in">
+        <a class="marca" href="/" aria-label="Câmara Municipal de Itanhandu — página inicial do agendamento">
+            <img src="/assets/header-logo.png" alt="Câmara Municipal de Itanhandu" width="188" height="44">
+        </a>
+        <nav class="topo-nav" aria-label="Acesso rápido">
+            <!-- Unico controle de aba: volta ao novo agendamento. Consultar e
+                 Cancelar abrem as proprias secoes pelos atalhos ao lado e
+                 pelos cards de servicos. -->
+            <div class="abas">
+                <button class="aba ativa" id="aba-novo" type="button" aria-label="Novo agendamento" aria-pressed="true" title="Novo agendamento" onclick="irParaAgendamento()"><i class="fa-solid fa-calendar-plus" aria-hidden="true"></i><span class="aba-texto">Agendar</span></button>
+            </div>
+            <button type="button" class="topo-link" onclick="abrirAbaConsultar()">Consultar</button>
+            <button type="button" class="topo-link" onclick="abrirAbaCancelar()">Cancelar</button>
+        </nav>
     </div>
+</header>
 
-    <div id="banner-vagas" class="banner-vagas"></div>
-
-    <!-- Consultar e Cancelar ficam nos cards de servicos abaixo. O unico controle
-         no topo e o caminho de volta para um novo agendamento. -->
-    <div class="abas">
-        <button class="aba ativa" id="aba-novo" type="button" aria-label="Novo agendamento" aria-pressed="true" title="Novo agendamento" onclick="mudarAba('novo', this)"><i class="fa-solid fa-calendar-plus" aria-hidden="true"></i><span class="aba-texto">Novo agendamento</span></button>
+<section class="hero" aria-labelledby="titulo-pagina">
+    <div class="hero-in">
+        <div>
+            <p class="hero-sobretitulo">RG / CIN · Câmara de Itanhandu</p>
+            <h1 id="titulo-pagina">Agende sua Carteira de Identidade</h1>
+            <p class="hero-sub">Escolha um dia e horário para seu atendimento na Câmara Municipal de Itanhandu.</p>
+            <div class="hero-acoes">
+                <button type="button" class="btn-cta" onclick="irParaAgendamento()">Agendar meu RG <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+                <div class="hero-secundarias">
+                    <button type="button" class="link-acao" onclick="abrirAbaConsultar()">Consultar agendamento</button>
+                    <button type="button" class="link-acao" onclick="abrirAbaCancelar()">Cancelar agendamento</button>
+                </div>
+            </div>
+            <ul class="hero-info">
+                <li><i class="fa-solid fa-building-columns" aria-hidden="true"></i> Atendimento presencial</li>
+                <li><i class="fa-solid fa-location-dot" aria-hidden="true"></i> Câmara Municipal de Itanhandu</li>
+                <li><i class="fa-solid fa-id-card" aria-hidden="true"></i> 1ª via da CIN gratuita</li>
+            </ul>
+        </div>
+        <div id="banner-vagas" class="banner-vagas"></div>
     </div>
+</section>
+
+<main class="conteudo" id="conteudo">
+<div class="layout-fluxo">
+<div id="sistema-agendamento" tabindex="-1">
     <div class="aviso-cancelamento" id="aviso-cancelamento">
         <span><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> Se não puder comparecer, cancele seu horário para liberar a vaga para outra pessoa.</span>
     </div>
 
     <div class="corpo-sistema">
         <div class="secao ativa" id="secao-novo">
+            <ol class="steps-bar" aria-label="Etapas do agendamento">
+                <li class="step ativo" aria-current="step"><span class="step-num">1</span><span class="step-rotulo">Seus dados</span></li>
+                <li class="step"><span class="step-num">2</span><span class="step-rotulo">Escolher data</span></li>
+                <li class="step"><span class="step-num">3</span><span class="step-rotulo">Escolher horário</span></li>
+                <li class="step"><span class="step-num">4</span><span class="step-rotulo">Confirmação</span></li>
+            </ol>
+
             <div id="etapa-selecao" style="display:none;">
-                <div class="steps-bar">
-                    <div class="step concluido"><div class="step-num"><i class="fa-solid fa-check"></i></div><span>Dados</span></div>
-                    <div class="step-linha concluida"></div>
-                    <div class="step ativo"><div class="step-num">2</div><span>Data</span></div>
-                    <div class="step-linha"></div>
-                    <div class="step"><div class="step-num">3</div><span>Horário</span></div>
-                </div>
+                <h2 class="etapa-titulo foco-etapa" id="titulo-escolher-dia" tabindex="-1">Escolha o dia do atendimento</h2>
                 <p class="contador-vagas-topo" id="contador-vagas-topo" style="display:none;"></p>
-                <h2 class="foco-etapa" id="titulo-escolher-dia" tabindex="-1" style="color:var(--gray-800); font-size:1.1rem; margin:0 0 6px; font-weight:800;"><i class="fa-regular fa-calendar" style="color:var(--primary);"></i> Escolha o dia do atendimento:</h2>
                 <div class="grade" id="gradeDatas"><div class="loading-container"><div class="loading-bar"></div></div></div>
                 <div id="container-horas" style="display:none;">
-                    <hr style="border:none; border-top:1px dashed var(--gray-200); margin:24px 0;">
-                    <h2 class="foco-etapa" id="titulo-escolher-horario" tabindex="-1" style="color:var(--gray-800); font-size:1.1rem; margin:0 0 6px; font-weight:800;"><i class="fa-regular fa-clock" style="color:var(--primary);"></i> Horários em <span id="label-data-selecionada" style="color:var(--primary);"></span></h2>
-                    <div class="aviso-toque-confirma"><i class="fa-solid fa-hand-pointer"></i> <span>Ao tocar em um horário, confira a data e a hora antes de confirmar.</span></div>
+                    <hr class="divisor">
+                    <h2 class="etapa-titulo foco-etapa" id="titulo-escolher-horario" tabindex="-1">Horários em <span id="label-data-selecionada"></span></h2>
+                    <p class="aviso-toque-confirma"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> <span>Ao tocar em um horário, confira a data e a hora antes de confirmar.</span></p>
                     <div class="grade grade-horas" id="gradeHoras"></div>
                 </div>
-                <button type="button" class="btn-principal cinza" onclick="voltarParaDados()" style="margin-top:20px;"><i class="fa-solid fa-arrow-left"></i> Voltar e revisar meus dados</button>
+                <button type="button" class="btn-principal cinza" onclick="voltarParaDados()"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Voltar e revisar meus dados</button>
             </div>
 
             <div id="dados-pessoais" class="modo-preencher" style="display:none;">
-                <div class="steps-bar" id="steps-dados">
-                    <div class="step ativo"><div class="step-num">1</div><span>Dados</span></div>
-                    <div class="step-linha"></div>
-                    <div class="step"><div class="step-num">2</div><span>Data</span></div>
-                    <div class="step-linha"></div>
-                    <div class="step"><div class="step-num">3</div><span>Horário</span></div>
-                </div>
-                <div class="instru-fase instru-destaque so-preencher"><i class="fa-solid fa-keyboard" aria-hidden="true"></i> <span><strong class="instru-titulo">Dá para preencher mesmo antes de as vagas abrirem.</strong> Preencha os dados agora. No próximo passo você escolhe o dia e o horário — e confirma tudo antes de reservar. Seus dados ficam guardados enquanto esta aba estiver aberta.</span></div>
-                <div class="tarja-alerta"><i class="fa-solid fa-circle-exclamation" style="font-size:1.5rem;"></i><div><strong>ATENÇÃO:</strong> Os dados devem ser de quem irá fazer o RG.</div></div>
+                <h2 class="etapa-titulo so-preencher">Seus dados</h2>
+                <h2 class="etapa-titulo so-confirmar">Confirme seu agendamento</h2>
+                <div class="instru-fase so-preencher"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> <span><strong class="instru-titulo">Dá para preencher antes de as vagas abrirem.</strong> Seus dados ficam guardados enquanto esta aba estiver aberta.</span></div>
+                <div class="tarja-alerta"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><div><strong>Os dados devem ser de quem vai fazer o RG.</strong> <span class="so-preencher">Campos com <span class="obrigatorio" aria-hidden="true">*</span> são obrigatórios.</span></div></div>
                 <div class="card-resumo so-confirmar foco-etapa" id="resumo-confirmacao" tabindex="-1" role="status" aria-live="polite">
                     <div class="info">
-                        <i class="fa-solid fa-calendar-check" style="color:var(--primary);"></i> <strong> <span id="resumo-data-txt"></span></strong> às <strong><span id="resumo-hora-txt"></span></strong>
-                        <span class="aviso-horario"><i class="fa-solid fa-circle-check"></i> Horário selecionado para confirmação.</span>
+                        <i class="fa-solid fa-calendar-check" style="color:var(--primary);" aria-hidden="true"></i> <strong><span id="resumo-data-txt"></span></strong> às <strong><span id="resumo-hora-txt"></span></strong>
+                        <span class="aviso-horario">Horário selecionado para confirmação.</span>
                     </div>
-                    <button type="button" class="btn-alterar" onclick="voltarParaHorarios()"><i class="fa-solid fa-pen"></i> Alterar</button>
+                    <button type="button" class="btn-alterar" onclick="voltarParaHorarios()"><i class="fa-solid fa-pen" aria-hidden="true"></i> Alterar</button>
                 </div>
-                <div class="form-grupo so-preencher"><label for="inp-nome">Nome Completo: <span style="color:var(--danger)">*</span></label><input id="inp-nome" type="text" maxlength="120" autocomplete="name" autocapitalize="words" placeholder="Ex: João da Silva" onblur="formatarNomeProprio(this)" /><div class="msg-campo-erro" id="erro-nome">Informe o nome completo.</div></div>
+                <div class="form-grupo so-preencher"><label for="inp-nome">Nome completo <span class="obrigatorio" aria-hidden="true">*</span></label><input id="inp-nome" type="text" maxlength="120" autocomplete="name" autocapitalize="words" placeholder="Ex.: João da Silva" required onblur="formatarNomeProprio(this)" /><div class="msg-campo-erro" id="erro-nome">Informe o nome completo.</div></div>
                 <div class="grid-2 so-preencher">
-                    <div class="form-grupo"><label for="inp-cpf">CPF: <span style="color:var(--danger)">*</span></label><input id="inp-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" onblur="validarCpfAgendamento()" type="text" placeholder="000.000.000-00" /><div class="msg-campo-erro" id="erro-cpf">CPF inválido.</div></div>
-                    <div class="form-grupo"><label for="inp-nasc">Nascimento: <span style="color:var(--danger)">*</span></label><input id="inp-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this); validarNascimentoAgendamento()" onblur="mascaraData(this)" type="text" placeholder="DD/MM/AAAA" /><div class="msg-campo-erro" id="erro-nasc">Data inválida.</div><div class="msg-campo-alerta" id="erro-menor-3"><i class="fa-solid fa-circle-info"></i> <strong>Atenção:</strong> Por ser menor de 3 anos, além dos demais documentos necessários, é <strong>obrigatório levar 1 foto 3x4 recente</strong>. A lista completa aparece depois de agendar.</div></div>
+                    <div class="form-grupo"><label for="inp-cpf">CPF <span class="obrigatorio" aria-hidden="true">*</span></label><input id="inp-cpf" maxlength="14" inputmode="numeric" autocomplete="off" required oninput="mascaraCPF(this)" onblur="validarCpfAgendamento()" type="text" placeholder="000.000.000-00" /><div class="msg-campo-erro" id="erro-cpf">CPF inválido. Confira os números.</div></div>
+                    <div class="form-grupo"><label for="inp-nasc">Data de nascimento <span class="obrigatorio" aria-hidden="true">*</span></label><input id="inp-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" required oninput="mascaraData(this); validarNascimentoAgendamento()" onblur="mascaraData(this)" type="text" placeholder="DD/MM/AAAA" /><div class="msg-campo-erro" id="erro-nasc">Data inválida. Use DD/MM/AAAA.</div><div class="msg-campo-alerta" id="erro-menor-3"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> <strong>Atenção:</strong> Por ser menor de 3 anos, além dos demais documentos necessários, é <strong>obrigatório levar 1 foto 3x4 recente</strong>. A lista completa aparece depois de agendar.</div></div>
                 </div>
-                <div class="form-grupo so-preencher"><label for="inp-tel">Celular / WhatsApp: <span class="ajuda-campo">(para a Câmara entrar em contato, se precisar)</span> <span style="color:var(--danger)">*</span></label><input id="inp-tel" maxlength="15" inputmode="tel" autocomplete="tel" oninput="mascaraTel(this)" type="tel" placeholder="(00) 00000-0000" /><div class="msg-campo-erro" id="erro-tel">Informe um telefone válido.</div></div>
-                <div class="form-grupo so-preencher"><label for="inp-email">E-mail (Opcional)</label><input id="inp-email" type="email" maxlength="120" autocomplete="email" placeholder="seu.email@exemplo.com" /><div class="msg-campo-erro" id="erro-email">E-mail inválido.</div></div>
+                <div class="form-grupo so-preencher"><label for="inp-tel">Celular / WhatsApp <span class="obrigatorio" aria-hidden="true">*</span> <span class="ajuda-campo">(para a Câmara entrar em contato, se precisar)</span></label><input id="inp-tel" maxlength="15" inputmode="tel" autocomplete="tel" required oninput="mascaraTel(this)" type="tel" placeholder="(00) 00000-0000" /><div class="msg-campo-erro" id="erro-tel">Informe um celular válido, com DDD.</div></div>
+                <div class="form-grupo so-preencher"><label for="inp-email">E-mail <span class="ajuda-campo">(opcional)</span></label><input id="inp-email" type="email" maxlength="120" autocomplete="email" placeholder="seu.email@exemplo.com" /><div class="msg-campo-erro" id="erro-email">E-mail inválido.</div></div>
                 <label class="form-grupo checkbox-termo checkbox-opcional so-preencher">
                     <input type="checkbox" id="aceite-avaliacao">
-                    <span style="font-size:0.85rem; color:var(--gray-600); line-height:1.4; font-weight:500; margin:0;">
+                    <span class="texto-termo">
                         <strong>Opcional:</strong> quero receber no e-mail informado, depois do atendimento, um convite para avaliar o atendimento da Câmara no Google. Sem marcar, o e-mail é usado só para o agendamento.
                     </span>
                 </label>
                 <fieldset class="estado-civil so-preencher" aria-describedby="estado-civil-ajuda">
-                    <legend>Qual é o seu estado civil? <span style="color:var(--danger)">*</span></legend>
+                    <legend>Qual é o seu estado civil? <span class="obrigatorio" aria-hidden="true">*</span></legend>
                     <p class="estado-civil-ajuda" id="estado-civil-ajuda">Serve para mostrar, depois de agendar, qual certidão você deve levar. Essa resposta não é enviada nem guardada.</p>
                     <div class="estado-civil-opcoes">
                         <label><input type="radio" name="estado-civil" value="solteiro" autocomplete="off" onchange="atualizarDicaCertidao(this.value); marcarErroEstadoCivil(false)"> Solteiro(a)</label>
@@ -583,46 +722,50 @@
                 </fieldset>
                 <label class="form-grupo checkbox-termo so-preencher">
                     <input type="checkbox" id="aceite-lgpd" onchange="limparErroAceite('aceite-lgpd')">
-                    <span style="font-size:0.85rem; color:var(--gray-600); line-height:1.4; font-weight:500; margin:0;">
+                    <span class="texto-termo">
                         Declaro que concordo com a coleta e o tratamento dos meus dados exclusivamente para agendamento do RG/CIN, conforme a Política de Privacidade LGPD da Câmara de Itanhandu, e estou ciente de que o não comparecimento sem cancelamento prévio poderá impedir novo agendamento pelo prazo de 6 meses.
                     </span>
                 </label>
-                <button type="button" class="btn-principal verde so-preencher" id="btnContinuarDados" onclick="avancarParaDatas()">CONTINUAR PARA ESCOLHER O DIA <i class="fa-solid fa-arrow-right"></i></button>
-                <button type="button" class="btn-principal verde so-confirmar" id="btnFinalizar" onclick="confirmarAgendamento()">FINALIZAR AGENDAMENTO <i class="fa-solid fa-arrow-right"></i></button>
+                <button type="button" class="btn-principal verde so-preencher" id="btnContinuarDados" onclick="avancarParaDatas()">Continuar para escolher o dia <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+                <button type="button" class="btn-principal verde so-confirmar" id="btnFinalizar" onclick="confirmarAgendamento()">Confirmar agendamento <i class="fa-solid fa-check" aria-hidden="true"></i></button>
             </div>
 
             <div id="sucesso-docs" style="display:none;">
-                <div class="msg-sucesso-topo foco-etapa" id="titulo-sucesso" tabindex="-1"><i class="fa-solid fa-circle-check"></i> Agendado!</div>
+                <h2 class="msg-sucesso-topo foco-etapa" id="titulo-sucesso" tabindex="-1"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Agendamento confirmado!</h2>
+                <p class="sucesso-sub">Guarde o código abaixo e leve os documentos no dia.</p>
                 <div class="ticket-sucesso">
-                    <p style="margin:0; font-size:0.9rem; color:var(--success-dark); font-weight:600;">Seu horário confirmado:</p>
-                    <span class="data-grande" id="ticket-info"></span>
-                    <div id="ticket-protocolo" style="display:none; margin:14px 0 0; padding:14px; background:#fff; border:2px dashed var(--primary); border-radius:12px;">
-                        <p style="margin:0 0 6px; font-size:0.8rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--gray-600);">Código do comprovante</p>
-                        <div style="display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap;">
-                            <strong id="ticket-protocolo-valor" style="font-size:1.5rem; letter-spacing:0.08em; color:var(--primary); font-family:monospace;"></strong>
-                            <button type="button" id="btn-copiar-protocolo" class="btn-acao-sucesso cinza" style="margin:0; padding:8px 14px; min-height:44px;" onclick="copiarProtocolo()"><i class="fa-regular fa-copy"></i> Copiar</button>
-                        </div>
-                        <p style="margin:10px 0 0; font-size:0.85rem; color:#92400e; background:var(--warning-light); border-radius:8px; padding:8px 10px; line-height:1.45;">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-                            <strong>Anote este código antes de sair.</strong> Ele é a única forma de consultar ou cancelar seu agendamento pelo site.
-                            <strong>Nada é enviado automaticamente</strong> — use os botões abaixo para salvar no WhatsApp ou em PDF.
-                        </p>
-                        <label class="filtro-check" style="display:flex; align-items:flex-start; gap:8px; margin:10px 0 0; padding:0; text-align:left; cursor:pointer;">
-                            <input type="checkbox" id="aceite-protocolo" onchange="confirmarGuardaProtocolo()" style="margin-top:3px; min-width:20px; min-height:20px;">
-                            <span style="font-size:0.86rem; color:var(--gray-800); line-height:1.4;">Guardei meu código em local seguro.</span>
-                        </label>
+                    <div class="ticket-cabecalho">
+                        <span class="ticket-rotulo">Seu horário</span>
+                        <span class="data-grande" id="ticket-info"></span>
                     </div>
-                    <p style="margin:8px 0 0; font-size:0.95rem; color:var(--gray-800);"><i class="fa-solid fa-location-dot" style="color:var(--primary);"></i> <strong>Câmara Municipal de Itanhandu</strong></p>
+                    <div class="ticket-corpo">
+                        <p class="ticket-linha"><i class="fa-solid fa-location-dot" aria-hidden="true"></i> <span><strong>Câmara Municipal de Itanhandu</strong><br>Rua Eng. Paulo Franco da Rosa, 298, Centro, Itanhandu — MG</span></p>
+                        <div id="ticket-protocolo" class="protocolo-caixa" style="display:none;">
+                            <p class="protocolo-rotulo">Código do comprovante</p>
+                            <div class="protocolo-valor-linha">
+                                <strong id="ticket-protocolo-valor"></strong>
+                                <button type="button" id="btn-copiar-protocolo" class="btn-acao-sucesso cinza" onclick="copiarProtocolo()"><i class="fa-regular fa-copy" aria-hidden="true"></i> Copiar código</button>
+                            </div>
+                            <p class="protocolo-aviso">
+                                <strong>Anote este código antes de sair.</strong> Ele é a única forma de consultar ou cancelar seu agendamento pelo site.
+                                <strong>Nada é enviado automaticamente</strong> — use os botões abaixo para salvar no WhatsApp ou em PDF.
+                            </p>
+                            <label class="filtro-check protocolo-aceite">
+                                <input type="checkbox" id="aceite-protocolo" onchange="confirmarGuardaProtocolo()">
+                                <span>Guardei meu código em local seguro.</span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
                 <div class="acoes-sucesso">
                     <button class="btn-acao-sucesso whatsapp" onclick="enviarConfirmacaoWhatsApp()"><svg class="icone-marca" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3A9 9 0 0 0 4.3 16.7L3.2 20.8l4.2-1.1A9 9 0 1 0 12 3Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M9.1 8.2c.3 2 1.2 3.5 2.4 4.6 1.2 1.1 2.6 1.8 4.2 2.1" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg> Enviar no WhatsApp</button>
-                    <button class="btn-acao-sucesso azul" onclick="baixarComprovante()"><i class="fa-solid fa-file-pdf"></i> Gerar comprovante PDF</button>
-                    <button class="btn-acao-sucesso vermelho" onclick="abrirAbaCancelar()"><i class="fa-solid fa-calendar-xmark"></i> Cancelar horário</button>
-                    <button class="btn-acao-sucesso cinza" onclick="baixarAgenda()"><i class="fa-regular fa-calendar-plus"></i> Adicionar à Agenda</button>
-                    <a class="btn-acao-sucesso cinza" href="https://www.google.com/maps/search/?api=1&query=C%C3%A2mara%20Municipal%20de%20Itanhandu" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-map-location-dot"></i> Abrir no Maps</a>
+                    <button class="btn-acao-sucesso azul" onclick="baixarComprovante()"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Salvar comprovante (PDF)</button>
+                    <button class="btn-acao-sucesso cinza" onclick="baixarAgenda()"><i class="fa-regular fa-calendar-plus" aria-hidden="true"></i> Adicionar à agenda</button>
+                    <a class="btn-acao-sucesso cinza" href="https://www.google.com/maps/search/?api=1&query=C%C3%A2mara%20Municipal%20de%20Itanhandu" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-map-location-dot" aria-hidden="true"></i> Abrir no mapa</a>
+                    <button class="btn-acao-sucesso vermelho" onclick="abrirAbaCancelar()"><i class="fa-solid fa-calendar-xmark" aria-hidden="true"></i> Cancelar horário</button>
                 </div>
-                <div class="tarja-alerta" style="background:var(--warning-light); color:#92400e; border-left-color:var(--warning); margin-top:18px;">
-                    <i class="fa-solid fa-circle-exclamation" style="font-size:1.4rem;"></i>
+                <div class="tarja-alerta" style="margin-top:18px;">
+                    <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
                     <div><strong>Não poderá comparecer?</strong> Cancele seu horário para liberar a vaga para outra pessoa e evitar bloqueio futuro.</div>
                 </div>
                 <div class="endereco-box">
@@ -638,44 +781,66 @@
                     </div>
                 </div>
                 <div class="docs-container">
-                    <h3><i class="fa-regular fa-folder-open"></i> Documentos Obrigatórios</h3>
+                    <h3><i class="fa-regular fa-folder-open" aria-hidden="true"></i> Documentos obrigatórios</h3>
                     <ul class="checklist-docs">
-                        <li id="dica-certidao"><i class="fa-regular fa-square"></i><span><strong>Certidão original ou cópia autenticada</strong>, sem rasgos, rasuras ou alterações. Solteiros devem apresentar certidão de nascimento; casados, viúvos ou divorciados devem apresentar certidão de casamento, com averbação quando houver.</span></li>
-                        <li><i class="fa-regular fa-square"></i><span><strong>Número do CPF.</strong> Basta informá-lo; não é necessário apresentar cartão ou comprovante de inscrição.</span></li>
-                        <li><i class="fa-regular fa-square"></i><span>Comprovante de residência atualizado.</span></li>
-                        <li><i class="fa-regular fa-square"></i><span>Menores de 16 anos devem estar acompanhados do responsável legal, que deve apresentar documento de identificação original com foto, como RG ou CNH. Quando o acompanhante não for o pai nem a mãe, é necessário também apresentar a documentação que comprove a representação ou a guarda.</span></li>
-                        <li><i class="fa-regular fa-square"></i><span><strong>Menores de 3 anos:</strong> além dos documentos exigidos, levar 1 foto 3x4 recente.</span></li>
+                        <li id="dica-certidao"><i class="fa-regular fa-square" aria-hidden="true"></i><span><strong>Certidão original ou cópia autenticada</strong>, sem rasgos, rasuras ou alterações. Solteiros devem apresentar certidão de nascimento; casados, viúvos ou divorciados devem apresentar certidão de casamento, com averbação quando houver.</span></li>
+                        <li><i class="fa-regular fa-square" aria-hidden="true"></i><span><strong>Número do CPF.</strong> Basta informá-lo; não é necessário apresentar cartão ou comprovante de inscrição.</span></li>
+                        <li><i class="fa-regular fa-square" aria-hidden="true"></i><span>Comprovante de residência atualizado.</span></li>
+                        <li><i class="fa-regular fa-square" aria-hidden="true"></i><span>Menores de 16 anos devem estar acompanhados do responsável legal, que deve apresentar documento de identificação original com foto, como RG ou CNH. Quando o acompanhante não for o pai nem a mãe, é necessário também apresentar a documentação que comprove a representação ou a guarda.</span></li>
+                        <li><i class="fa-regular fa-square" aria-hidden="true"></i><span><strong>Menores de 3 anos:</strong> além dos documentos exigidos, levar 1 foto 3x4 recente.</span></li>
                     </ul>
                     <div class="aviso-taxa" data-aviso-taxa></div>
                 </div>
-                <button class="btn-principal cinza" onclick="location.reload()" style="margin-top:24px;">Voltar ao Início</button>
+                <button class="btn-principal cinza" onclick="location.reload()" style="margin-top:20px;">Voltar ao início</button>
             </div>
         </div>
 
         <div class="secao" id="secao-consultar">
-            <h2 class="foco-etapa" id="titulo-consultar" tabindex="-1" style="color:var(--gray-800); font-size:1.1rem; margin:0 0 20px; font-weight:800;"><i class="fa-solid fa-magnifying-glass" style="color:var(--primary);"></i> Consultar Agendamento</h2>
-            <p style="color:var(--gray-600); font-size:0.9rem; margin:0 0 20px;">Informe CPF, data de nascimento e a confirmação de segurança para ver seu agendamento.</p>
-            <p id="lembrete-protocolo" style="display:none; margin:0 0 16px; padding:10px 12px; background:var(--gray-100); border-left:4px solid var(--primary); border-radius:6px; font-size:0.86rem; color:var(--gray-800); line-height:1.45;"></p>
-            <div class="form-grupo"><label for="cons-cpf">CPF:</label><input id="cons-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" /></div>
-            <div class="form-grupo"><label for="cons-nasc">Data de Nascimento:</label><input id="cons-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" /></div>
-            <div class="form-grupo"><label for="cons-fator">Código do comprovante <span style="color:var(--danger)">*</span>: <span class="ajuda-campo">(o código CIN- do seu comprovante. Se o seu comprovante não tem código, informe o telefone do agendamento.)</span></label><input id="cons-fator" maxlength="40" autocomplete="off" type="text" placeholder="CIN-XXXXXXXX" /><p class="ajuda-campo ajuda-codigo-perdido">Perdeu o código? Fale com a Câmara pelo WhatsApp <a href="https://wa.me/553535040397" target="_blank" rel="noopener noreferrer">(35) 3504-0397</a>.</p></div>
-            <button class="btn-principal azul" id="btnConsultar" onclick="consultarAgendamento()">Buscar Meu Horário <i class="fa-solid fa-search"></i></button>
-            <div id="resultado-consulta" style="margin-top:24px;"></div>
+            <h2 class="etapa-titulo foco-etapa" id="titulo-consultar" tabindex="-1">Consultar agendamento</h2>
+            <p class="etapa-sub">Informe CPF, data de nascimento e o código do comprovante para ver seu horário.</p>
+            <p id="lembrete-protocolo" class="lembrete-protocolo"></p>
+            <div class="form-consulta">
+                <div class="form-grupo"><label for="cons-cpf">CPF</label><input id="cons-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" placeholder="000.000.000-00" /></div>
+                <div class="form-grupo"><label for="cons-nasc">Data de nascimento</label><input id="cons-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" placeholder="DD/MM/AAAA" /></div>
+                <div class="form-grupo largura-total"><label for="cons-fator">Código do comprovante <span class="obrigatorio" aria-hidden="true">*</span> <span class="ajuda-campo">(o código CIN- do seu comprovante. Se o seu comprovante não tem código, informe o telefone do agendamento.)</span></label><input id="cons-fator" maxlength="40" autocomplete="off" type="text" placeholder="CIN-XXXXXXXX" /><p class="ajuda-campo ajuda-codigo-perdido">Perdeu o código? Fale com a Câmara pelo WhatsApp <a href="https://wa.me/553535040397" target="_blank" rel="noopener noreferrer">(35) 3504-0397</a>.</p></div>
+            </div>
+            <button class="btn-principal azul" id="btnConsultar" onclick="consultarAgendamento()"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Buscar meu horário</button>
+            <div id="resultado-consulta" style="margin-top:20px;" aria-live="polite"></div>
         </div>
 
         <div class="secao" id="secao-cancelar">
-            <h2 class="foco-etapa" id="titulo-cancelar" tabindex="-1" style="color:var(--gray-800); font-size:1.1rem; margin:0 0 12px; font-weight:800;"><i class="fa-regular fa-calendar-xmark" style="color:var(--danger);"></i> Cancelar Agendamento</h2>
-            <p style="color:var(--gray-600); font-size:0.9rem; margin:0 0 20px;">Informe CPF, data de nascimento e a confirmação de segurança para localizar seu horário. Confira os dados antes de confirmar o cancelamento.</p>
-            <div class="form-grupo"><label for="cancelar-cpf">CPF:</label><input id="cancelar-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" /></div>
-            <div class="form-grupo"><label for="cancelar-nasc">Data de Nascimento:</label><input id="cancelar-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" /></div>
-            <div class="form-grupo"><label for="cancelar-fator">Código do comprovante <span style="color:var(--danger)">*</span>: <span class="ajuda-campo">(o código CIN- do seu comprovante. Se o seu comprovante não tem código, informe o telefone do agendamento.)</span></label><input id="cancelar-fator" maxlength="40" autocomplete="off" type="text" placeholder="CIN-XXXXXXXX" /><p class="ajuda-campo ajuda-codigo-perdido">Perdeu o código? Fale com a Câmara pelo WhatsApp <a href="https://wa.me/553535040397" target="_blank" rel="noopener noreferrer">(35) 3504-0397</a>.</p></div>
-            <button class="btn-principal vermelho" id="btnBuscarCancelamento" onclick="buscarParaCancelar()">Localizar Agendamento <i class="fa-solid fa-search"></i></button>
-            <div id="resultado-cancelamento" style="margin-top:24px;"></div>
+            <h2 class="etapa-titulo foco-etapa" id="titulo-cancelar" tabindex="-1">Cancelar agendamento</h2>
+            <p class="etapa-sub">Cancelar um horário que você não vai usar libera a vaga para outra pessoa. Primeiro localizamos o agendamento; você confere os dados antes de confirmar.</p>
+            <div class="form-consulta">
+                <div class="form-grupo"><label for="cancelar-cpf">CPF</label><input id="cancelar-cpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="mascaraCPF(this)" type="text" placeholder="000.000.000-00" /></div>
+                <div class="form-grupo"><label for="cancelar-nasc">Data de nascimento</label><input id="cancelar-nasc" maxlength="10" inputmode="numeric" autocomplete="bday" oninput="mascaraData(this)" type="text" placeholder="DD/MM/AAAA" /></div>
+                <div class="form-grupo largura-total"><label for="cancelar-fator">Código do comprovante <span class="obrigatorio" aria-hidden="true">*</span> <span class="ajuda-campo">(o código CIN- do seu comprovante. Se o seu comprovante não tem código, informe o telefone do agendamento.)</span></label><input id="cancelar-fator" maxlength="40" autocomplete="off" type="text" placeholder="CIN-XXXXXXXX" /><p class="ajuda-campo ajuda-codigo-perdido">Perdeu o código? Fale com a Câmara pelo WhatsApp <a href="https://wa.me/553535040397" target="_blank" rel="noopener noreferrer">(35) 3504-0397</a>.</p></div>
+            </div>
+            <button class="btn-principal vermelho" id="btnBuscarCancelamento" onclick="buscarParaCancelar()"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Localizar agendamento</button>
+            <div id="resultado-cancelamento" style="margin-top:20px;" aria-live="polite"></div>
         </div>
     </div>
 </div>
 
-<section class="servicos-publicos" aria-labelledby="servicos-titulo">
+<aside class="lateral" aria-label="Orientações">
+    <section class="bloco-lateral" aria-labelledby="titulo-como-funciona">
+        <h2 id="titulo-como-funciona">Como funciona</h2>
+        <ol class="lista-passos">
+            <li>Preencha os dados de quem vai fazer o RG.</li>
+            <li>Escolha o dia e o horário disponíveis.</li>
+            <li>Confira e confirme o agendamento.</li>
+            <li>Guarde o código do comprovante e leve os documentos no dia.</li>
+        </ol>
+    </section>
+    <section class="bloco-lateral" aria-labelledby="titulo-local">
+        <h2 id="titulo-local">Local do atendimento</h2>
+        <p class="local-endereco"><strong>Câmara Municipal de Itanhandu</strong>Rua Eng. Paulo Franco da Rosa, 298, Centro, Itanhandu — MG</p>
+        <a class="link-acao" href="https://www.google.com/maps/search/?api=1&amp;query=C%C3%A2mara%20Municipal%20de%20Itanhandu" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-map-location-dot" aria-hidden="true"></i> Ver no mapa <span class="sr-only">(abre em nova aba)</span></a>
+    </section>
+</aside>
+</div>
+
+<section class="secao-info servicos-publicos" aria-labelledby="servicos-titulo">
     <h2 class="servicos-titulo" id="servicos-titulo">Serviços e informações</h2>
     <div class="grade-servicos">
         <button class="servico-card servico-documentos" type="button" onclick="abrirDocumentosNecessarios()" aria-label="Ver documentos necessários para o atendimento">
@@ -706,7 +871,7 @@
 </section>
 
 <!-- posts-guiadorg:inicio -->
-<section class="servicos-publicos posts-guiadorg" aria-labelledby="titulo-posts-guiadorg">
+<section class="secao-info servicos-publicos posts-guiadorg" aria-labelledby="titulo-posts-guiadorg">
     <h2 class="servicos-titulo" id="titulo-posts-guiadorg">Tire dúvidas sobre o RG no Guia do RG</h2>
     <ul class="posts-guiadorg-lista">
         <li><a class="post-guiadorg" href="https://guiadorg.com.br/artigos/perdi-o-rg/" target="_blank" rel="noopener">
@@ -731,22 +896,27 @@
 </section>
 <!-- posts-guiadorg:fim -->
 
-<section class="servicos-publicos" aria-labelledby="titulo-servico-cin" style="margin-top:16px;">
-    <div style="padding:14px 20px;background:#fffbeb;border:1px solid #fde68a;border-radius:var(--radius);text-align:center;">
-        <h2 id="titulo-servico-cin" style="margin:0 0 8px;font-size:1.1rem;color:#003d82;">Agendamento de RG e CIN — Câmara de Itanhandu</h2>
-        <nav class="atalhos-guia-cin" aria-label="Orientações sobre a CIN" style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;">
-            <a href="/cin/" style="display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;color:#003d82;font-weight:800;">Guia da CIN</a>
-            <a href="/cin/documentos/" style="display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;color:#003d82;font-weight:800;">Documentos</a>
-            <a href="/cin/como-agendar/" style="display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;color:#003d82;font-weight:800;">Como agendar</a>
-        </nav>
-    </div>
+<section class="secao-info servicos-publicos" aria-labelledby="titulo-servico-cin">
+    <h2 class="servicos-titulo" id="titulo-servico-cin">Agendamento de RG e CIN — Câmara de Itanhandu</h2>
+    <nav class="atalhos-guia-cin" aria-label="Orientações sobre a CIN">
+        <a href="/cin/">Guia da CIN</a>
+        <a href="/cin/documentos/">Documentos</a>
+        <a href="/cin/como-agendar/">Como agendar</a>
+    </nav>
 </section>
+</main>
 
 <footer class="rodape-publico">
-    <a class="instagram-rodape" href="https://www.instagram.com/camaraitanhandu/" target="_blank" rel="noopener noreferrer" aria-label="Acompanhe a Câmara no Instagram: @camaraitanhandu; abre em nova aba">
-        <svg class="icone-marca" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><rect x="2.5" y="2.5" width="19" height="19" rx="5.5"/><circle cx="12" cy="12" r="4.6"/><circle cx="17.4" cy="6.6" r="1.2" fill="currentColor" stroke="none"/></svg>
-        <span>Acompanhe a Câmara: <strong>@camaraitanhandu</strong> <span aria-hidden="true">↗</span></span>
-    </a>
+    <div class="rodape-in">
+        <div>
+            <strong>Câmara Municipal de Itanhandu</strong>
+            Rua Eng. Paulo Franco da Rosa, 298, Centro, Itanhandu — MG
+        </div>
+        <a class="instagram-rodape" href="https://www.instagram.com/camaraitanhandu/" target="_blank" rel="noopener noreferrer" aria-label="Acompanhe a Câmara no Instagram: @camaraitanhandu; abre em nova aba">
+            <svg class="icone-marca" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><rect x="2.5" y="2.5" width="19" height="19" rx="5.5"/><circle cx="12" cy="12" r="4.6"/><circle cx="17.4" cy="6.6" r="1.2" fill="currentColor" stroke="none"/></svg>
+            <span>Acompanhe a Câmara: <strong>@camaraitanhandu</strong> <span aria-hidden="true">↗</span></span>
+        </a>
+    </div>
 </footer>
 
 <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
@@ -788,8 +958,16 @@
         measurementId: "G-KWKF7NCJHK"
     };
 
+    // Modo emulador, so para desenvolvimento (mesmo criterio do painel): em
+    // localhost com ?emulador na URL o site fala com o emulador de Functions
+    // num projeto demo-, com dados ficticios (scripts/painel-local.js). Fora de
+    // localhost nada disso existe e o comportamento de producao nao muda.
+    var MODO_EMULADOR = ["localhost", "127.0.0.1"].includes(location.hostname)
+        && new URLSearchParams(location.search).has("emulador");
+    if (MODO_EMULADOR) firebaseConfig = Object.assign({}, firebaseConfig, { projectId: "demo-agendamento-cin" });
+
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    try { if (firebase.analytics) firebase.analytics(); } catch (e) { console.warn("Analytics indisponivel:", e); }
+    try { if (firebase.analytics && !MODO_EMULADOR) firebase.analytics(); } catch (e) { console.warn("Analytics indisponivel:", e); }
     var functions = firebase.functions();
 
     // Só o caminho crítico do pico foi para southamerica-east1, junto do
@@ -800,6 +978,10 @@
     var REGIAO_PICO = "southamerica-east1";
     var CALLABLES_REGIAO_PICO = ["criarAgendamentoCidadao", "verificarDisponibilidadeSlotCidadao"];
     var functionsPico = firebase.app().functions(REGIAO_PICO);
+    if (MODO_EMULADOR) {
+        functions.useEmulator("127.0.0.1", 5001);
+        functionsPico.useEmulator("127.0.0.1", 5001);
+    }
 
     // Token de App Check de uso unico (auditoria de 16/10/2026, CON-02). Um
     // token comum vale ate uma hora e podia ser copiado de um navegador real
@@ -835,13 +1017,27 @@
         );
     }
 
+    // So no modo emulador. O reCAPTCHA nao atende localhost, e o emulador de
+    // Functions apenas decodifica o token (skipTokenVerification): um JWT sem
+    // assinatura com o appId basta para exercitar o fluxo local.
+    function provedorAppCheckEmulador() {
+        const b64 = obj => btoa(JSON.stringify(obj)).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
+        return new firebase.appCheck.CustomProvider({
+            getToken: () => Promise.resolve({
+                token: `${b64({ alg: "none", typ: "JWT" })}.${b64({ sub: firebaseConfig.appId, exp: Math.floor(Date.now() / 1000) + 3600 })}.emulador`,
+                expireTimeMillis: Date.now() + 3600 * 1000
+            })
+        });
+    }
+
     async function prepararAppCheck() {
         if (!appCheckConfigurado()) {
             console.warn("Firebase App Check ainda nao foi ativado: informe a chave publica do reCAPTCHA v3 no index.html.");
             return false;
         }
         if (!appCheckAtivado) {
-            firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
+            const emulador = typeof MODO_EMULADOR !== "undefined" && MODO_EMULADOR;
+            firebase.appCheck().activate(emulador ? provedorAppCheckEmulador() : APP_CHECK_RECAPTCHA_SITE_KEY, true);
             appCheckAtivado = true;
         }
         // Espera a emissao do token: a partir daqui as callables ja saem com o
@@ -1843,7 +2039,10 @@
     function confirmarModalAsync({ titulo, mensagem, textoConfirmar = "Confirmar", textoCancelar = "Cancelar", classeConfirmar = "perigo" }) {
         return new Promise(resolve => {
             modal({
-                icone: '<i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);"></i>',
+                // Alerta amarelo so para acao perigosa; confirmar o horario e um passo normal.
+                icone: classeConfirmar === "perigo"
+                    ? '<i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);"></i>'
+                    : '<i class="fa-solid fa-calendar-check" style="color:var(--primary);"></i>',
                 titulo: titulo || "Confirmar",
                 mensagem,
                 botoes: [
@@ -1909,14 +2108,16 @@
         }); 
     }
 
-    function confirmar({ mensagem, titulo, onConfirm }) { 
+    // Rotulos com o verbo da acao: num cancelamento, "Cancelar" no botao de
+    // desistir era ambiguo.
+    function confirmar({ mensagem, titulo, onConfirm, textoConfirmar = "Confirmar", textoCancelar = "Voltar" }) { 
         modal({ 
             icone: '<i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);"></i>', 
             titulo: titulo || "Confirmar", 
             mensagem, 
             botoes: [
-                { texto: "Cancelar", classe: "neutro" }, 
-                { texto: "Confirmar", classe: "perigo", acao: onConfirm }
+                { texto: textoCancelar, classe: "neutro" }, 
+                { texto: textoConfirmar, classe: "perigo", acao: onConfirm }
             ] 
         }); 
     }
@@ -2391,7 +2592,9 @@
     function rotuloDoCampo(input) {
         const label = input && input.id ? document.querySelector(`label[for="${input.id}"]`) : null;
         if (!label) return "";
-        return label.textContent.split(":")[0].replace(/\(opcional\)/i, "").replace(/\*/g, "").trim();
+        // Tira dois-pontos, a ajuda entre parenteses e o asterisco: sobra o
+        // nome do campo que a pessoa le na tela.
+        return label.textContent.split(":")[0].replace(/\([^)]*\)/g, "").replace(/\*/g, "").replace(/\s+/g, " ").trim();
     }
 
     // "Corrija o campo CPF." / "Corrija os campos Nome Completo, CPF e Celular / WhatsApp."
@@ -2451,6 +2654,18 @@
         atualizarVisibilidadeAtalhos();
     }
 
+    // "Agendar meu RG" (hero) e "Agendar" (topo): volta para o fluxo de novo
+    // agendamento, rola ate ele e coloca o foco onde a pessoa continua.
+    function irParaAgendamento() {
+        mudarAba("novo", document.getElementById("aba-novo"));
+        const alvo = document.getElementById("sistema-agendamento");
+        if (alvo) alvo.scrollIntoView({ behavior: movimentoReduzido() ? "auto" : "smooth", block: "start" });
+        const dados = document.getElementById("dados-pessoais");
+        if (dados.style.display === "block" && dados.classList.contains("modo-preencher")) focarConteudo("inp-nome");
+        else if (document.getElementById("etapa-selecao").style.display === "block") focarConteudo("titulo-escolher-dia");
+        else focarConteudo("sistema-agendamento");
+    }
+
     function preencherFatorDoUltimoAgendamento() {
         const campo = document.getElementById("cancelar-fator");
         const ag = ultimoAgendamentoConfirmado;
@@ -2504,9 +2719,10 @@
                 const dadosPessoais = document.getElementById("dados-pessoais");
                 const preenchendoDados = dadosPessoais.style.display === "block"
                     && dadosPessoais.classList.contains("modo-preencher");
-                const orientacao = preenchendoDados
-                    ? "Preencha seus dados para continuar."
-                    : "Escolha abaixo a data do atendimento.";
+                const sucessoVisivel = document.getElementById("sucesso-docs").style.display === "block";
+                const orientacao = sucessoVisivel
+                    ? "Vagas restantes nesta abertura."
+                    : (preenchendoDados ? "Preencha seus dados para continuar." : "Escolha abaixo a data do atendimento.");
                 banner.innerHTML = `
                     <div class="status-vagas-card">
                         <span class="status-vagas-icone"><i class="fa-solid fa-check"></i></span>
@@ -2701,7 +2917,8 @@
     function voltarParaDados() {
         document.getElementById("etapa-selecao").style.display = "none";
         mostrarTelaDados();
-        window.scrollTo(0, 0);
+        // O fluxo fica abaixo do hero: volta ao cartao, nao ao topo da pagina.
+        { const fluxo = document.getElementById("sistema-agendamento"); if (fluxo && fluxo.scrollIntoView) fluxo.scrollIntoView({ block: "start" }); else window.scrollTo(0, 0); }
     }
 
     // "Alterar", a partir da tela de confirmacao: reaproveita o retorno seguro
@@ -2721,9 +2938,11 @@
             // um aviso que dizia o dia. Pedir de novo so gastaria segundos na
             // disputa.
             if (!jaConfirmado) {
+                // O nome entra no resumo para a pessoa conferir de quem e o horario.
+                const nomeResumo = String(document.getElementById("inp-nome").value || "").trim();
                 const confirmou = await confirmarModalAsync({
                     titulo: "Confirmar agendamento?",
-                    mensagem: `Data: ${dataBrTela(data)}\nHorário: ${h}\n\nConfira as informações antes de reservar a vaga.`,
+                    mensagem: `${nomeResumo ? `Nome: ${nomeResumo}\n` : ""}Data: ${dataBrTela(data)}\nHorário: ${h}\n\nConfira as informações antes de reservar a vaga.`,
                     textoConfirmar: "Confirmar agendamento",
                     textoCancelar: "Voltar",
                     classeConfirmar: "primario"
@@ -2737,11 +2956,12 @@
             document.getElementById("resumo-hora-txt").textContent = h;
             document.getElementById("etapa-selecao").style.display = "none";
             definirModoDados("modo-confirmar");
-            atualizarEtapasFluxo(3);
+            atualizarEtapasFluxo(4);
             document.getElementById("dados-pessoais").style.display = "block";
             atualizarVisibilidadeAtalhos();
             validarNascimentoAgendamento();
-            window.scrollTo(0, 0);
+            // O fluxo fica abaixo do hero: volta ao cartao, nao ao topo da pagina.
+            { const fluxo = document.getElementById("sistema-agendamento"); if (fluxo && fluxo.scrollIntoView) fluxo.scrollIntoView({ block: "start" }); else window.scrollTo(0, 0); }
             focarConteudo("resumo-confirmacao");
             await confirmarAgendamento();
         } finally {
@@ -2767,13 +2987,13 @@
         grade.innerHTML = htmlSkeletonDatas();
         document.getElementById("container-horas").style.display = "none";
         if (ESTADO_AGENDA_PUBLICA !== "valido") {
-            grade.innerHTML = '<p style="color:var(--gray-600); text-align:center; grid-column:1/-1;">Atualizando a agenda...</p>';
+            grade.innerHTML = '<p class="estado-grade" role="status">Atualizando a agenda...</p>';
             return;
         }
         try {
             grade.innerHTML = "";
             if (!DIAS_DISPONIVEIS.length) {
-                grade.innerHTML = '<p role="status" style="color:var(--gray-600); text-align:center; grid-column:1/-1; line-height:1.5;">Não há datas com vagas no momento. Seus dados foram mantidos. Você pode voltar para revisá-los ou aguardar a próxima abertura indicada acima.</p>';
+                grade.innerHTML = '<p class="estado-grade" role="status"><strong>Não há datas com vagas no momento.</strong><br>Seus dados foram mantidos. Você pode voltar para revisá-los ou aguardar a próxima abertura indicada no quadro de vagas.</p>';
                 return;
             }
             DIAS_DISPONIVEIS.forEach(ds => {
@@ -2786,7 +3006,7 @@
                 btn.onclick = () => selecionarDia(ds);
                 grade.appendChild(btn);
             });
-        } catch(e) { grade.innerHTML = '<p style="color:var(--danger); text-align:center; font-weight:700; grid-column:1/-1;"><i class="fa-solid fa-circle-exclamation"></i> Erro ao carregar datas. Tente novamente.</p>'; }
+        } catch(e) { grade.innerHTML = '<p class="estado-grade erro" role="alert"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> Erro ao carregar datas. Tente novamente.</p>'; }
     }
 
     // Conteudo e estado do botao de um dia. Usado no desenho da grade e na
@@ -2803,20 +3023,25 @@
         btn.dataset.estado = assinatura;
 
         const diaSemana = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"][d.getDay()];
-        const diaMes = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
-        let html = `<div class="dia-semana">${diaSemana}</div><strong style="font-size:1.15rem;">${diaMes}</strong>`;
+        const mes = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"][d.getMonth()];
+        const diaExtenso = d.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+        // A etiqueta tem a mesma altura com ou sem vagas: o dia que lota
+        // durante a atualizacao nao empurra a grade de horarios para cima
+        // debaixo do dedo de ninguem.
+        let html = `<span class="dia-semana" aria-hidden="true">${diaSemana}</span><span class="dia-num" aria-hidden="true">${String(d.getDate()).padStart(2,'0')}</span><span class="dia-mes" aria-hidden="true">${mes}</span>`;
+        let rotulo;
         if (vagas <= 0) {
-            // A barra invisivel mantem a altura do botao igual a de um dia com
-            // vagas: o dia que lota durante a atualizacao nao empurra a grade
-            // de horarios para cima debaixo do dedo de ninguem.
-            html += '<div style="width:100%;text-align:center;"><span class="lotado-badge">Lotado</span><div class="vaga-progress" style="visibility:hidden;"></div></div>';
+            html += '<span class="lotado-badge" aria-hidden="true"><i class="fa-solid fa-ban"></i> Lotado</span>';
+            rotulo = `${diaExtenso}: lotado`;
         } else {
             const badgeClass = vagas <= 2 ? 'low' : 'ok';
             const vagaText = vagas === 1 ? 'vaga' : 'vagas';
-            const pct = Math.round((vagas / totalSlots) * 100);
-            html += `<div style="width:100%;text-align:center;"><span class="vagas-badge ${badgeClass}">${vagas} ${vagaText}</span><div class="vaga-progress"><div class="vaga-progress-fill ${badgeClass}" style="width:${pct}%"></div></div></div>`;
+            html += `<span class="vagas-badge ${badgeClass}" aria-hidden="true">${vagas} ${vagaText}</span>`;
+            rotulo = `${diaExtenso}: ${vagas} ${vagaText}`;
         }
         btn.innerHTML = html;
+        btn.setAttribute("aria-label", rotulo);
+        void totalSlots;
         btn.disabled = vagas <= 0;
         btn.classList.toggle("esgotada", vagas <= 0);
     }
@@ -2889,7 +3114,7 @@
                 btn.onclick = () => selecionarHorarioEConfirmar(data, h);
                 grade.appendChild(btn);
             });
-        } catch(e) { grade.innerHTML = '<p style="color:var(--danger); text-align:center; font-weight:700; grid-column:1/-1;"><i class="fa-solid fa-circle-exclamation"></i> Erro ao carregar horários.</p>'; }
+        } catch(e) { grade.innerHTML = '<p class="estado-grade erro" role="alert"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> Erro ao carregar horários.</p>'; }
     }
 
     // Conteudo e estado do botao de um horario, no desenho e na atualizacao no
@@ -2901,7 +3126,9 @@
         const assinatura = `${livre ? 1 : 0}|${vagas}`;
         if (btn.dataset.estado === assinatura) return;
         btn.dataset.estado = assinatura;
-        btn.innerHTML = `<i class="fa-regular fa-clock"></i> ${h}${vagas ? ` <span class="vagas-hora">${vagas} vagas</span>` : ""}`;
+        const detalhe = !livre ? "Ocupado" : (vagas ? `${vagas} vagas` : "Disponível");
+        btn.innerHTML = `<span class="hora-valor">${h}</span><span class="vagas-hora">${detalhe}</span>`;
+        btn.setAttribute("aria-label", `${h}, ${detalhe.toLowerCase()}`);
         btn.disabled = !livre;
     }
 
@@ -3044,7 +3271,8 @@
                 atualizarEtapasFluxo(3);
             }
             atualizarBannerVagas();
-            window.scrollTo(0, 0);
+            // O fluxo fica abaixo do hero: volta ao cartao, nao ao topo da pagina.
+            { const fluxo = document.getElementById("sistema-agendamento"); if (fluxo && fluxo.scrollIntoView) fluxo.scrollIntoView({ block: "start" }); else window.scrollTo(0, 0); }
         } catch (erroTela) {
             console.warn("Nao foi possivel montar os horarios livres:", erroTela);
             return false;
@@ -3200,7 +3428,8 @@
             focarConteudo("titulo-escolher-dia");
         }
         atualizarBannerVagas();
-        window.scrollTo(0,0); 
+        // O fluxo fica abaixo do hero: volta ao cartao, nao ao topo da pagina.
+        { const fluxo = document.getElementById("sistema-agendamento"); if (fluxo && fluxo.scrollIntoView) fluxo.scrollIntoView({ block: "start" }); else window.scrollTo(0, 0); }
     }
 
     function erroTransiente(e) {
@@ -3369,9 +3598,11 @@
                 guardarAgendamentoLocalmente(ultimoAgendamentoConfirmado);
                 limparDadosAgendamentoPersistidos();
                 document.getElementById("dados-pessoais").style.display = "none"; 
-                document.getElementById("sucesso-docs").style.display = "block"; 
+                document.getElementById("sucesso-docs").style.display = "block";
+                atualizarEtapasFluxo(5);
                 atualizarVisibilidadeAtalhos();
-                window.scrollTo(0,0);
+                // O fluxo fica abaixo do hero: volta ao cartao, nao ao topo da pagina.
+                { const fluxo = document.getElementById("sistema-agendamento"); if (fluxo && fluxo.scrollIntoView) fluxo.scrollIntoView({ block: "start" }); else window.scrollTo(0, 0); }
                 focarConteudo("titulo-sucesso");
                 dispararConfete();
                 const _ic = document.querySelector('#sucesso-docs .msg-sucesso-topo i');
@@ -3576,7 +3807,7 @@
         } else {
             msgErro = ultimoErro.message || "Não foi possível consultar o agendamento.";
         }
-        res.innerHTML = `<p style='color:var(--danger); text-align:center;'>${textoSeguro(msgErro)}</p>`;
+        res.innerHTML = `<p class="msg-erro-resultado" role="alert">${textoSeguro(msgErro)}</p>`;
 
         btn.disabled = false;
         btn.innerHTML = htmlOriginal;
@@ -3630,7 +3861,7 @@
             } else {
                 msgErro = (eCancel && eCancel.message) || "Não foi possível localizar o agendamento.";
             }
-            res.innerHTML = `<p style='color:var(--danger); text-align:center;'>${textoSeguro(msgErro)}</p>`;
+            res.innerHTML = `<p class="msg-erro-resultado" role="alert">${textoSeguro(msgErro)}</p>`;
             btnBusca.disabled = false;
             btnBusca.innerHTML = htmlOriginal;
             return;
@@ -3642,11 +3873,12 @@
             const expiraEm = respostaCancelamento.data.expiraEm;
 
             const wrapper = document.createElement("div");
-            wrapper.style.cssText = "border:1px solid #fca5a5; border-left:5px solid var(--danger); border-radius:12px; padding:20px; background:var(--danger-light); margin-top:20px;";
-            wrapper.innerHTML = `<p style="margin:0 0 8px; font-weight:800; font-size:1.05rem;">${textoSeguro(ag.nome)}</p><p style="margin:0 0 16px; font-size:1.2rem; font-weight:900; color:var(--danger-dark);">${textoSeguro(ag.dataBR)} às ${textoSeguro(ag.hora)}</p>`;
+            wrapper.className = "cartao-cancelamento";
+            wrapper.innerHTML = `<p class="nome-ag">${textoSeguro(ag.nome)}</p><p class="data-ag">${textoSeguro(ag.dataBR)} às ${textoSeguro(ag.hora)}</p><p class="explica">Confira os dados. Ao cancelar, o horário fica livre para outra pessoa.</p>`;
 
             const timerEl = document.createElement("p");
-            timerEl.style.cssText = "margin:0 0 12px; font-size:0.85rem; color:var(--gray-600); text-align:center;";
+            timerEl.className = "tempo-cancelamento";
+            timerEl.setAttribute("role", "timer");
             wrapper.appendChild(timerEl);
 
             let cancelTimerInterval = null;
@@ -3674,7 +3906,7 @@
             btn.className = "btn-principal vermelho";
             btn.innerHTML = '<i class="fa-solid fa-trash"></i> CANCELAR AGENDAMENTO';
             btn.onclick = () => {
-                confirmar({ titulo: "Confirmar Cancelamento", mensagem: "Deseja realmente cancelar este agendamento? Esta ação é irreversível.", onConfirm: async () => {
+                confirmar({ titulo: "Cancelar este agendamento?", mensagem: "O horário fica livre para outra pessoa. Esta ação não pode ser desfeita.", textoConfirmar: "Sim, cancelar", textoCancelar: "Não, manter", onConfirm: async () => {
                     const btnHtml = btn.innerHTML;
                     btn.disabled = true;
                     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CANCELANDO...';
@@ -3715,7 +3947,7 @@
             } else {
                 msgErro = e.message || "Não foi possível localizar o agendamento.";
             }
-            res.innerHTML = `<p style='color:var(--danger); text-align:center;'>${textoSeguro(msgErro)}</p>`;
+            res.innerHTML = `<p class="msg-erro-resultado" role="alert">${textoSeguro(msgErro)}</p>`;
         } finally {
             btnBusca.disabled = false;
             btnBusca.innerHTML = htmlOriginal;

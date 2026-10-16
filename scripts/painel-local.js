@@ -38,6 +38,18 @@ const TIPOS = {
 function servir() {
   const servidor = http.createServer((req, res) => {
     const url = new URL(req.url, "http://localhost");
+    // Mesmo rewrite do firebase.json: o site publico le a agenda por
+    // /api/agenda-publica, que aqui vai para o emulador de Functions.
+    if (url.pathname === "/api/agenda-publica") {
+      const destino = `http://127.0.0.1:5001/${PROJETO}/southamerica-east1/carregarAgendaPublicaHttp${url.search}`;
+      const repasse = http.request(destino, { method: req.method, headers: { accept: req.headers.accept || "*/*" } }, resposta => {
+        res.writeHead(resposta.statusCode, resposta.headers);
+        resposta.pipe(res);
+      });
+      repasse.on("error", () => res.writeHead(502).end());
+      req.pipe(repasse);
+      return;
+    }
     let caminho = decodeURIComponent(url.pathname);
     if (caminho === "/painel") caminho = "/recepcao.html";
     if (caminho.endsWith("/")) caminho += "index.html";
@@ -49,7 +61,10 @@ function servir() {
       res.end(conteudo);
     });
   });
-  servidor.listen(PORTA, () => console.log(`\nPainel local: http://localhost:${PORTA}/painel?emulador`));
+  servidor.listen(PORTA, () => {
+    console.log(`\nPainel local: http://localhost:${PORTA}/painel?emulador`);
+    console.log(`Site publico local: http://localhost:${PORTA}/?emulador`);
+  });
 }
 
 function esperarPorta(porta, limiteMs = 120000) {
