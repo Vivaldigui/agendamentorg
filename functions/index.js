@@ -557,10 +557,14 @@ async function assertAdmin(request) {
   return email;
 }
 
+// IP + User-Agent + extra. O IP vinha do PRIMEIRO X-Forwarded-For, que o
+// chamador escreve: trocar o cabecalho zerava qualquer limite (auditoria de
+// 16/10/2026, SEG-04). Agora e o IP que o balanceador acrescentou. O
+// User-Agent fica para espalhar a carga atras de CGNAT; quem o rotaciona
+// esbarra nos tetos por origem (aplicarRateLimitOrigem) onde eles existem.
 function fingerprintRequisicao(request, extra = "") {
   const raw = request.rawRequest || {};
-  const forwarded = String(raw.headers && raw.headers["x-forwarded-for"] || "").split(",")[0].trim();
-  const ip = forwarded || raw.ip || "sem-ip";
+  const ip = ipOrigemConfiavel(request);
   const userAgent = raw.headers && raw.headers["user-agent"] ? String(raw.headers["user-agent"]).slice(0, 120) : "";
   return crypto.createHash("sha256").update(`${ip}|${userAgent}|${extra}`).digest("hex");
 }
@@ -1066,6 +1070,32 @@ async function relancarConflitoComAgenda(err) {
   });
 }
 
+// Microcache por instancia da leitura publica (auditoria de 16/10/2026,
+// PERF-01). A URL da funcao responde tambem fora do CDN, e cada pedido ali
+// lia a agenda e todas as vagas futuras: um script em laco virava conta de
+// Firestore. Com o microcache, cada instancia le no maximo uma vez a cada
+// MICROCACHE_AGENDA_PUBLICA_MS, e pedidos simultaneos esperam a mesma
+// leitura. A copia nunca atravessa a virada do minuto: a publicacao das
+// 08:00 nao pode ficar presa numa resposta de 07:59. O CDN ja segura a
+// resposta por 2s na abertura, entao o atraso maximo continua da mesma ordem.
+// Quem perde a disputa por um horario segue recebendo leitura fresca:
+// relancarConflitoComAgenda chama carregarDisponibilidadePublica direto.
+const MICROCACHE_AGENDA_PUBLICA_MS = 2000;
+let microcacheAgendaPublica = null;
+
+function disponibilidadePublicaComMicrocache(agoraMs = Date.now(), minuto = agoraSaoPauloInput()) {
+  const atual = microcacheAgendaPublica;
+  if (atual && atual.minuto === minuto && atual.expiraMs > agoraMs) return atual.promessa;
+  const promessa = carregarDisponibilidadePublica();
+  const entrada = { minuto, expiraMs: agoraMs + MICROCACHE_AGENDA_PUBLICA_MS, promessa };
+  microcacheAgendaPublica = entrada;
+  // Falha nao fica guardada: o proximo pedido tenta de novo.
+  promessa.catch(() => {
+    if (microcacheAgendaPublica === entrada) microcacheAgendaPublica = null;
+  });
+  return promessa;
+}
+
 exports.carregarAgendaPublicaHttp = onRequest({
   cors: callableOptions.cors,
   region: REGIAO_PICO,
@@ -1086,17 +1116,16 @@ exports.carregarAgendaPublicaHttp = onRequest({
   }
 
   try {
-    // 600 e nao 240: com dois URLs ativos (com e sem a chave do minuto) e TTL
-    // de 5s na janela de virada, o envelope teorico de buscas na origem chega a
-    // ~240 por 10 min, encostando no limite antigo. A leitura e idempotente e
-    // fica atras do CDN, entao a folga custa pouco e evita 429 no pico.
-    await aplicarRateLimit({ rawRequest: req }, "carregar_agenda_publica_http", 600, 10 * 60 * 1000);
-    const { payload, cacheControl } = await carregarDisponibilidadePublica();
+    // Sem rate limit gravado no Firestore desde 16/10/2026 (PERF-01): ele
+    // custava uma transacao por pedido, era contornavel pelo X-Forwarded-For e
+    // nao protegia nada que o microcache nao proteja melhor. Quem chama a URL
+    // da funcao direto, sem o CDN, agora recebe a mesma copia de ate 2s.
+    const { payload, cacheControl } = await disponibilidadePublicaComMicrocache();
     // Cabecalho derivado do mesmo instante que montou o corpo.
     res.set("Cache-Control", cacheControl);
     res.status(200).json(payload);
   } catch (err) {
-    const status = err && err.code === "resource-exhausted" ? 429 : 500;
+    const status = 500;
     // Um erro gravado no CDN sob a chave do minuto da abertura seria tao
     // danoso quanto uma agenda fechada armazenada.
     res.set("Cache-Control", CACHE_SEM_ARMAZENAMENTO);
