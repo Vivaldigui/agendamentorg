@@ -153,8 +153,24 @@ const agendamentoPicoOptions = {
   region: REGIAO_PICO,
   maxInstances: 80,
   minInstances: PICO_MIN_INSTANCES,
-  timeoutSeconds: 300
+  timeoutSeconds: 300,
+  // Protecao contra replay do token de App Check (auditoria de 16/10/2026,
+  // CON-02). O site pede um token de uso unico a cada criacao; aqui o token e
+  // consumido, e um token ja usado chega com request.app.alreadyConsumed.
+  // Custa uma ida ao App Check por pedido, aceitavel no unico ponto que
+  // reserva vaga.
+  consumeAppCheckToken: true
 };
+
+// Token reaproveitado: recusa antes de qualquer leitura. "unauthenticated"
+// de proposito: o site trata esse codigo pedindo um token novo e repetindo uma
+// vez, entao uma aba aberta antes da troca do SDK (que ainda usa o token
+// comum de uma hora) se recupera sozinha.
+function recusarTokenAppCheckReaproveitado(request) {
+  if (request && request.app && request.app.alreadyConsumed === true) {
+    throw new HttpsError("unauthenticated", "Verificacao de seguranca expirada. Tente novamente.");
+  }
+}
 
 const verificacaoSlotOptions = {
   ...publicCallableOptions,
@@ -1331,6 +1347,7 @@ function resolverResultadoOperacaoAgendamento(dados, payloadHash) {
 // Cada pedido entra nas metricas da abertura (metricas-abertura.js), fora da
 // transacao e sem poder atrasar ou derrubar o agendamento.
 exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, comMetricaAbertura(registrarMetricaAbertura, async (request) => {
+  recusarTokenAppCheckReaproveitado(request);
   const dadosRequisicao = request.data || {};
   const nome = normalizarTexto(dadosRequisicao.nome, "o nome completo", 5, 120);
   const cpfNum = normalizarCpf(dadosRequisicao.cpf);

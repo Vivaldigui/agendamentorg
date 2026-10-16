@@ -743,10 +743,10 @@
     </a>
 </footer>
 
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app-check.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-check-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-analytics-compat.js"></script>
 
 <script>
     const APP_CHECK_RECAPTCHA_SITE_KEY = "6LdoYfcsAAAAALyCdBKewXtFLB1e9biRnXTWqNv0";
@@ -794,6 +794,15 @@
     var REGIAO_PICO = "southamerica-east1";
     var CALLABLES_REGIAO_PICO = ["criarAgendamentoCidadao", "verificarDisponibilidadeSlotCidadao"];
     var functionsPico = firebase.app().functions(REGIAO_PICO);
+
+    // Token de App Check de uso unico (auditoria de 16/10/2026, CON-02). Um
+    // token comum vale ate uma hora e podia ser copiado de um navegador real
+    // para um script que disparasse dezenas de reservas. Na criacao o SDK
+    // pede um token novo a cada chamada e o backend o consome
+    // (consumeAppCheckToken): reaproveitado, ele e recusado.
+    var OPCOES_CALLABLE = {
+        criarAgendamentoCidadao: { limitedUseAppCheckTokens: true }
+    };
 
     function clienteFunctions(nome) {
         return CALLABLES_REGIAO_PICO.indexOf(nome) !== -1 ? functionsPico : functions;
@@ -908,7 +917,7 @@
     async function chamarFuncao(nome, dados) {
         await garantirAppCheckPronto();
         try {
-            const r = await clienteFunctions(nome).httpsCallable(nome)(dados);
+            const r = await clienteFunctions(nome).httpsCallable(nome, OPCOES_CALLABLE[nome])(dados);
             recusasAppCheckSeguidas = 0;
             return r;
         } catch (erro) {
@@ -921,7 +930,7 @@
             console.warn(`App Check recusado em ${nome}; renovando o token e repetindo.`, erro);
             await tentarRefreshAppCheck();
             try {
-                const r = await clienteFunctions(nome).httpsCallable(nome)(dados);
+                const r = await clienteFunctions(nome).httpsCallable(nome, OPCOES_CALLABLE[nome])(dados);
                 recusasAppCheckSeguidas = 0;
                 return r;
             } catch (segundo) {
