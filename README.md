@@ -56,7 +56,8 @@ agendamentorg/
 └── scripts/
     ├── preaquecer-ligar.ps1     # Sobe instâncias quentes antes de um pico
     ├── preaquecer-desligar.ps1  # Volta ao repouso após o pico
-    └── migrar-dados-cidadaos.js # Migração pontual de dados legados
+    ├── migrar-dados-cidadaos.js # Migração pontual de dados legados
+    └── sanear-dados-lgpd.js     # Saneamento pontual: CPF em logs e observações de anonimizados
 ```
 
 ---
@@ -98,8 +99,8 @@ Definidas em [`functions/index.js`](functions/index.js).
 | Função | Gatilho |
 |---|---|
 | `prepararAgendaSemanalAutomatica` | Cron de segunda às 07:50, 07:55 e 07:59 — prepara a semana, aquece a leitura e publica às 08:00 |
-| `anonimizarDadosAntigosLGPD` | Cron mensal `0 3 1 * *` — anonimiza dados com retenção > 6 meses |
-| `executarManutencaoDiaria` | Cron diário `0 2 * * *` — limpa agenda passada e auxiliares expirados |
+| `anonimizarDadosAntigosLGPD` | Cron mensal `0 3 1 * *` — anonimiza todo registro com atendimento há mais de 6 meses, continuando de onde parou (`configuracoes/lgpd.proximaDataISO`) |
+| `executarManutencaoDiaria` | Cron diário `0 2 * * *` — limpa agenda passada, auxiliares expirados e bloqueios vencidos ou liberados |
 
 ---
 
@@ -111,7 +112,7 @@ Definidas em [`functions/index.js`](functions/index.js).
 | `dados_cidadaos` | Agendamentos (nome, CPF, contato, data/hora, status) |
 | `vagas_ocupadas` | Slots ocupados, doc id `AAAA-MM-DD_HH:MM` — fonte da verdade da disponibilidade |
 | `cpfs_agendados` | Índice CPF → agendamento ativo (chave por hash SHA-256 do CPF) |
-| `bloqueios_agendamento` | CPFs bloqueados temporariamente (ex.: ausência em atendimento anterior) |
+| `bloqueios_agendamento` | CPFs bloqueados temporariamente (ex.: ausência em atendimento anterior); só CPF, motivo e data, apagado ao vencer ou ser liberado |
 | `cancelamentos_pendentes` | Tokens de cancelamento com expiração |
 | `rate_limits` | Contadores de limitação por ação/fingerprint |
 | `telefones_agendados` | Índice celular (hash SHA-256) → agendamentos que contam no teto por celular |
@@ -133,7 +134,7 @@ O Realtime Database não é mais usado: a telemetria de presença (`presenca_pub
 - **Transações atômicas** para criar/cancelar/remarcar — disponibilidade, bloqueio de CPF e duplicidade são revalidados *dentro* da transação (sem janelas de corrida).
 - **Substituição por CPF**: ao agendar com um CPF que já tem agendamento ativo, o anterior é cancelado e o novo criado na mesma transação, mediante confirmação do cidadão.
 - **Retry com backoff exponencial** no backend (leituras auxiliares) e no frontend (envio do agendamento).
-- **LGPD**: anonimização automática de dados após 6 meses.
+- **LGPD**: anonimização mensal de todo registro com atendimento há mais de 6 meses (nome, CPF, telefone, e-mail, nascimento e observação interna), com cursor para não reler o histórico; o índice de CPF só é apagado se ainda apontar para o registro anonimizado. Bloqueios vencidos são apagados diariamente, e logs do painel não guardam CPF. Saneamento dos dados anteriores a 16/10/2026: [`scripts/sanear-dados-lgpd.js`](scripts/sanear-dados-lgpd.js) (simulação por padrão).
 - **Pré-aquecimento** por mínimo de serviço do Cloud Run, ligado e desligado pelos scripts em `scripts/`, sem deploy.
 
 ---

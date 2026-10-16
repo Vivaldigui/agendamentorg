@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const { initializeApp } = require("firebase-admin/app");
-const { FieldValue, Timestamp, getFirestore } = require("firebase-admin/firestore");
+const { FieldPath, FieldValue, Timestamp, getFirestore } = require("firebase-admin/firestore");
 const { HttpsError, onCall, onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineBoolean, defineString, defineSecret } = require("firebase-functions/params");
@@ -92,14 +92,6 @@ const STATUS_VALIDOS = [
   "cancelado_camara",
   "remarcado"
 ];
-const STATUS_ANONIMIZAR_LGPD = new Set([
-  "compareceu",
-  "vai_voltar",
-  "nao_compareceu",
-  "cancelado",
-  "cancelado_cidadao",
-  "cancelado_camara"
-]);
 const LGPD_RETENCAO_MESES = 6;
 const LGPD_MAX_LEITURAS_POR_EXECUCAO = 5000;
 const LGPD_TAMANHO_PAGINA = 250;
@@ -425,16 +417,17 @@ function validarIdadeMinimaAgendamento(nascimentoISO, dataISO) {
   // Permite que menores de 3 anos possam marcar pelo sistema.
 }
 
+// Dia fica no ultimo dia do mes de destino quando ele nao existe la: 31/08
+// menos seis meses e 28/02, e nao 03/03 (setMonth transbordava para marco).
 function subtrairMesesISO(dataISO, meses) {
   const partes = String(dataISO || "").split("-").map(Number);
   if (partes.length !== 3 || partes.some((n) => !Number.isFinite(n))) return hojeSaoPauloISO();
-  const data = new Date(partes[0], partes[1] - 1, partes[2]);
-  data.setMonth(data.getMonth() - meses);
-  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
-}
-
-function statusParaAnonimizar(status) {
-  return STATUS_ANONIMIZAR_LGPD.has(String(status || ""));
+  const indiceMes = partes[0] * 12 + (partes[1] - 1) - meses;
+  const ano = Math.floor(indiceMes / 12);
+  const mes = indiceMes - ano * 12;
+  const ultimoDia = new Date(Date.UTC(ano, mes + 1, 0)).getUTCDate();
+  const dia = Math.min(partes[2], ultimoDia);
+  return `${String(ano).padStart(4, "0")}-${String(mes + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
 }
 
 function cpfNumeros(valor) {
@@ -657,22 +650,61 @@ async function aplicarRateLimitOrigem(request, acao, limite, janelaMs, extra = "
   );
 }
 
+// Anonimizacao mensal (LGPD). Revista em 16/10/2026 a partir da auditoria:
+//
+//   - LGPD-01: todo registro com atendimento ha mais de seis meses e tratado,
+//     qualquer que seja o status. Antes, "agendado" e "remarcado" ficavam de
+//     fora -- quem a recepcao nao marcou depois do atendimento, e todo
+//     remarcado pelo painel, guardava nome, CPF, nascimento e telefone para
+//     sempre. Seis meses depois da data nao ha uso operacional para nenhum.
+//   - LGPD-02: a consulta comecava sempre do registro mais antigo e nao
+//     excluia os ja anonimizados. Com o teto de leituras por execucao, quando
+//     o historico passasse dele a rotina leria sempre os mesmos documentos e
+//     nunca chegaria aos novos. Agora ela continua de onde parou, pelo cursor
+//     em configuracoes/lgpd.proximaDataISO (datas anteriores ja tratadas).
+//     Para reprocessar tudo, apague esse campo.
+//   - O indice de CPF so e apagado se ainda apontar para o registro
+//     anonimizado. Apagar sempre removia tambem o indice de um agendamento
+//     NOVO do mesmo CPF, e a criacao, que confere duplicidade por ele, passava
+//     a aceitar um segundo agendamento ativo.
+//   - A observacao interna sai junto: e texto livre da recepcao e pode citar
+//     dados da pessoa.
+//   - O bloqueio por falta so e copiado para bloqueios_agendamento se ainda
+//     estiver valendo, e sem nome nem telefone.
+const LGPD_CURSOR_REF = () => db.collection("configuracoes").doc("lgpd");
+
 async function anonimizarDadosAntigosLGPD() {
   const corte = subtrairMesesISO(hojeSaoPauloISO(), LGPD_RETENCAO_MESES);
+  const cursorDoc = await LGPD_CURSOR_REF().get();
+  const cursorSalvo = cursorDoc.exists ? cursorDoc.data().proximaDataISO : "";
+  const inicio = dataISOValida(cursorSalvo) && cursorSalvo <= corte ? cursorSalvo : "";
   let ultimoDoc = null;
+  let ultimaDataLida = "";
+  let concluiu = false;
   let totalLidos = 0;
   let totalAnonimizados = 0;
   let totalCpfMapsRemovidos = 0;
+  let totalCpfMapsPreservados = 0;
+  let totalBloqueiosPreservados = 0;
 
-  while (totalLidos < LGPD_MAX_LEITURAS_POR_EXECUCAO) {
-    let query = db.collection("dados_cidadaos")
-      .where("dataISO", "<=", corte)
+  if (cursorSalvo && dataISOValida(cursorSalvo) && cursorSalvo > corte) {
+    // Tudo ate o corte ja foi tratado numa execucao anterior.
+    concluiu = true;
+  }
+
+  while (!concluiu && totalLidos < LGPD_MAX_LEITURAS_POR_EXECUCAO) {
+    let query = db.collection("dados_cidadaos").where("dataISO", "<=", corte);
+    if (inicio) query = query.where("dataISO", ">=", inicio);
+    query = query
       .orderBy("dataISO")
       .limit(Math.min(LGPD_TAMANHO_PAGINA, LGPD_MAX_LEITURAS_POR_EXECUCAO - totalLidos));
     if (ultimoDoc) query = query.startAfter(ultimoDoc);
 
     const snap = await query.get();
-    if (snap.empty) break;
+    if (snap.empty) {
+      concluiu = true;
+      break;
+    }
     totalLidos += snap.size;
     ultimoDoc = snap.docs[snap.docs.length - 1];
 
@@ -688,10 +720,12 @@ async function anonimizarDadosAntigosLGPD() {
 
     for (const doc of snap.docs) {
       const dados = doc.data();
-      if (dados.anonimizadoLGPD === true || !statusParaAnonimizar(dados.status)) continue;
+      ultimaDataLida = String(dados.dataISO || ultimaDataLida);
+      if (dados.anonimizadoLGPD === true) continue;
 
-      const cpfNum = cpfNumeros(dados.cpf);
-      if (dados.status === "nao_compareceu" && cpfNum.length === 11 && dados.bloqueadoAte) {
+      const cpfNum = cpfNumeros(dados.cpf || dados.bloqueioCpf);
+      const bloqueio = bloqueioAtivoDeDoc(dados);
+      if (bloqueio && cpfNum.length === 11) {
         batch.set(
           db.collection("bloqueios_agendamento").doc(cpfNum),
           {
@@ -704,6 +738,7 @@ async function anonimizarDadosAntigosLGPD() {
           { merge: true }
         );
         operacoes += 1;
+        totalBloqueiosPreservados += 1;
       }
       batch.set(doc.ref, {
         nome: "ANONIMIZADO",
@@ -712,6 +747,7 @@ async function anonimizarDadosAntigosLGPD() {
         email: FieldValue.delete(),
         dataNasc: FieldValue.delete(),
         nascimento: FieldValue.delete(),
+        observacaoInterna: FieldValue.delete(),
         bloqueioCpf: FieldValue.delete(),
         bloqueioNome: FieldValue.delete(),
         bloqueioTelefone: FieldValue.delete(),
@@ -722,10 +758,19 @@ async function anonimizarDadosAntigosLGPD() {
       operacoes += 1;
 
       if (cpfNum.length === 11) {
-        batch.delete(db.collection("cpfs_agendados").doc(cpfDocId(cpfNum)));
-        batch.delete(db.collection("cpfs_agendados").doc(cpfNum));
-        operacoes += 2;
-        totalCpfMapsRemovidos += 2;
+        const indices = [cpfDocId(cpfNum), cpfNum].map((id) => db.collection("cpfs_agendados").doc(id));
+        const snapsIndice = await db.getAll(...indices);
+        snapsIndice.forEach((snapIndice, posicao) => {
+          if (!snapIndice.exists) return;
+          const apontaPara = snapIndice.data().agendamentoId;
+          if (!apontaPara || apontaPara === doc.id) {
+            batch.delete(indices[posicao]);
+            operacoes += 1;
+            totalCpfMapsRemovidos += 1;
+          } else {
+            totalCpfMapsPreservados += 1;
+          }
+        });
       }
 
       totalAnonimizados += 1;
@@ -733,8 +778,24 @@ async function anonimizarDadosAntigosLGPD() {
     }
 
     await commitSeNecessario(true);
-    if (snap.size < LGPD_TAMANHO_PAGINA) break;
+    if (snap.size < LGPD_TAMANHO_PAGINA) {
+      concluiu = true;
+      break;
+    }
   }
+
+  // Concluiu: tudo ate o corte foi tratado e a proxima execucao comeca no dia
+  // seguinte a ele. Parou no teto: recomeca na data do ultimo registro lido,
+  // que pode ter irmaos ainda nao lidos (os ja tratados sao pulados).
+  const proximaDataISO = concluiu
+    ? somarDiasISO(corte, 1)
+    : (ultimaDataLida || inicio || "");
+  await LGPD_CURSOR_REF().set({
+    proximaDataISO,
+    ultimoCorte: corte,
+    concluiuAteCorte: concluiu,
+    atualizadoEm: new Date().toISOString()
+  }, { merge: true });
 
   if (totalAnonimizados > 0) {
     await db.collection("configuracoes").doc("estatisticas").set({
@@ -748,9 +809,14 @@ async function anonimizarDadosAntigosLGPD() {
     detalhes: {
       corte,
       mesesRetencao: LGPD_RETENCAO_MESES,
+      inicio,
+      proximaDataISO,
+      concluiuAteCorte: concluiu,
       totalLidos,
       totalAnonimizados,
       totalCpfMapsRemovidos,
+      totalCpfMapsPreservados,
+      totalBloqueiosPreservados,
       totalAtendimentosHistorico: totalAnonimizados
     },
     adminEmail: "sistema",
@@ -758,7 +824,17 @@ async function anonimizarDadosAntigosLGPD() {
     criado: new Date().toISOString()
   });
 
-  return { corte, totalLidos, totalAnonimizados, totalCpfMapsRemovidos };
+  return {
+    corte,
+    inicio,
+    proximaDataISO,
+    concluiuAteCorte: concluiu,
+    totalLidos,
+    totalAnonimizados,
+    totalCpfMapsRemovidos,
+    totalCpfMapsPreservados,
+    totalBloqueiosPreservados
+  };
 }
 
 // `agora` e `hoje` sao parametros para que a leitura publica use um unico
@@ -2305,6 +2381,67 @@ async function limparAuxiliaresExpirados() {
   }
 }
 
+// bloqueios_agendamento nao tinha limpeza: bloqueio vencido ou liberado ficava
+// para sempre, com CPF no id e, nos gravados pelo painel, nome e telefone.
+// Vencido ou liberado sai; o que ainda vale perde nome e telefone, que a
+// verificacao do bloqueio nunca usou. A colecao e pequena (uma entrada por
+// falta), entao a leitura integral diaria custa pouco.
+const BLOQUEIOS_PAGINA = 300;
+const BLOQUEIOS_MAX_LEITURAS = 5000;
+const CAMPOS_PESSOAIS_BLOQUEIO = ["nome", "telefone"];
+
+async function limparBloqueiosVencidos() {
+  let lidos = 0;
+  let removidos = 0;
+  let saneados = 0;
+  let ultimo = null;
+  try {
+    while (lidos < BLOQUEIOS_MAX_LEITURAS) {
+      let query = db.collection("bloqueios_agendamento").orderBy(FieldPath.documentId()).limit(BLOQUEIOS_PAGINA);
+      if (ultimo) query = query.startAfter(ultimo);
+      const snap = await query.get();
+      if (snap.empty) break;
+      lidos += snap.size;
+      ultimo = snap.docs[snap.docs.length - 1];
+      const batch = db.batch();
+      let operacoes = 0;
+      for (const doc of snap.docs) {
+        const dados = doc.data();
+        if (!bloqueioAtivoDeDoc(dados)) {
+          batch.delete(doc.ref);
+          removidos += 1;
+          operacoes += 1;
+          continue;
+        }
+        const presentes = CAMPOS_PESSOAIS_BLOQUEIO.filter((campo) => dados[campo] !== undefined);
+        if (presentes.length) {
+          batch.update(doc.ref, Object.fromEntries(presentes.map((campo) => [campo, FieldValue.delete()])));
+          saneados += 1;
+          operacoes += 1;
+        }
+      }
+      if (operacoes) await batch.commit();
+      if (snap.size < BLOQUEIOS_PAGINA) break;
+    }
+    await db.collection("logs_admin").add({
+      acao: "limpeza_bloqueios_vencidos",
+      detalhes: { lidos, removidos, saneados },
+      adminEmail: "sistema",
+      criadoEm: FieldValue.serverTimestamp(),
+      criado: new Date().toISOString()
+    });
+  } catch (err) {
+    await db.collection("logs_admin").add({
+      acao: "erro_limpeza_bloqueios",
+      detalhes: { mensagem: err.message, lidos, removidos, saneados },
+      adminEmail: "sistema",
+      criadoEm: FieldValue.serverTimestamp(),
+      criado: new Date().toISOString()
+    }).catch(() => {});
+  }
+  return { lidos, removidos, saneados };
+}
+
 // Um unico job diario substitui os tres agendamentos de limpeza. Junto da
 // automacao semanal e da anonimizacao mensal, o projeto passa a ter tres jobs
 // do Cloud Scheduler, dentro da franquia gratuita quando a conta nao possui
@@ -2320,4 +2457,5 @@ exports.executarManutencaoDiaria = onSchedule({
 }, async () => {
   await limparDatasPassadasAgenda();
   await limparAuxiliaresExpirados();
+  await limparBloqueiosVencidos();
 });
