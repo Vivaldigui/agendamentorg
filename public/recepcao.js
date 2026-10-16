@@ -1339,13 +1339,6 @@ function somarDiasISO(dataISO, dias) {
     return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
 }
 
-function somarMesesISO(dataISO, meses) {
-    const [a, m, d] = dataISO.split("-").map(Number);
-    const data = new Date(a, m - 1, d);
-    data.setMonth(data.getMonth() + meses);
-    return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
-}
-
 function amanhaISO() {
     return somarDiasISO(hojeISO(), 1);
 }
@@ -1404,22 +1397,6 @@ function semanaFimISO() {
 
 function bloqueioAtivo(dados) {
     return dados.bloqueioAtivo === true && (!dados.bloqueadoAte || dados.bloqueadoAte >= hojeISO());
-}
-
-function criarDadosBloqueio(dados) {
-    const cpf = cpfNumeros(dados.cpf);
-    return {
-        bloqueioAtivo: true,
-        bloqueioCpf: cpf,
-        bloqueioNome: dados.nome || "",
-        bloqueioTelefone: dados.telefone || "",
-        bloqueioMotivo: "Não comparecimento",
-        bloqueioDataFalta: dataHoraAtendimento(dados),
-        bloqueadoAte: somarMesesISO(hojeISO(), 6),
-        bloqueioCriadoEm: new Date().toISOString(),
-        bloqueioOrigem: "gestaov6",
-        bloqueioLiberado: false
-    };
 }
 
 function statusValor(dados) {
@@ -3549,26 +3526,6 @@ async function salvarRemarcacao() {
     btn.innerText = "Salvar Remarcação";
 }
 
-async function tentarGravarBloqueioDedicado(dadosBloqueio) {
-    const cpf = dadosBloqueio.bloqueioCpf;
-    if (cpf.length !== 11) return;
-    try {
-        // Sem nome e telefone: a verificacao do bloqueio so precisa do CPF e da
-        // data, e a recepcao ve os dados da pessoa no proprio agendamento.
-        await db.collection("bloqueios_agendamento").doc(cpf).set({
-            cpf,
-            motivo: dadosBloqueio.bloqueioMotivo,
-            dataFalta: dadosBloqueio.bloqueioDataFalta,
-            bloqueadoAte: dadosBloqueio.bloqueadoAte,
-            criadoEm: dadosBloqueio.bloqueioCriadoEm,
-            origem: "gestaov6",
-            liberado: false
-        }, { merge: true });
-    } catch (e) {
-        console.warn("Bloqueio mantido no cadastro do cidadão; coleção dedicada sem permissão no momento.", e);
-    }
-}
-
 async function alterarStatus(id, status) {
     if (!STATUS_LABELS[status]) return avisoPainel("Status inválido.");
     if (status === "cancelado") {
@@ -3585,33 +3542,31 @@ async function alterarStatus(id, status) {
             return;
         }
     }
-    const agora = new Date().toISOString();
-    const atualizacao = {
-        status,
-        statusAtualizadoEm: agora,
-        statusAtualizadoPor: auth.currentUser ? auth.currentUser.email : "",
-        alteradoPor: auth.currentUser ? auth.currentUser.email : ""
-    };
-    let dadosBloqueio = null;
-    if (status === "nao_compareceu") {
-        dadosBloqueio = criarDadosBloqueio(ag.dados);
-        Object.assign(atualizacao, dadosBloqueio);
-    }
     try {
-        await db.collection("dados_cidadaos").doc(id).set(atualizacao, { merge: true });
-        if (dadosBloqueio) await tentarGravarBloqueioDedicado(dadosBloqueio);
-        Object.assign(ag.dados, atualizacao);
-        await registrarLog("alterar_status", { agendamentoId: id, status, bloqueadoAte: dadosBloqueio ? dadosBloqueio.bloqueadoAte : "" });
+        // Passa pela callable transacional: agendamento, bloqueio por falta e
+        // log saem juntos do servidor, com o e-mail do token. Trocar uma falta
+        // por outro status desfaz o bloqueio que ela criou.
+        const alterar = functions.httpsCallable("alterarStatusAdmin");
+        const resposta = await alterar({ agendamentoId: id, status });
+        const r = (resposta && resposta.data) || {};
+        Object.assign(ag.dados, r.atualizacao || { status });
         atualizarEstatisticasLocalmente(id, status, ag.dados);
         renderTabelaAgendamentos();
         renderFilaHoje();
         destacarAtendimento(id);
-        const mensagem = dadosBloqueio
-            ? `${ag.dados.nome} marcado como não compareceu. CPF bloqueado até ${dataBrISO(dadosBloqueio.bloqueadoAte)}.`
-            : `${ag.dados.nome} marcado como ${statusLabel(status)}.`;
+        let mensagem = `${ag.dados.nome} marcado como ${statusLabel(status)}.`;
+        if (r.bloqueadoAte) mensagem = `${ag.dados.nome} marcado como não compareceu. CPF bloqueado até ${dataBrISO(r.bloqueadoAte)}.`;
+        else if (r.bloqueioDesfeito) mensagem = `${ag.dados.nome} marcado como ${statusLabel(status)}. O bloqueio da falta foi desfeito.`;
         mostrarToast(mensagem);
     } catch (e) {
-        avisoPainel("Erro ao atualizar status.");
+        const codigo = String((e && e.code) || "").replace(/^functions\//, "");
+        if (codigo === "permission-denied" || codigo === "unauthenticated") {
+            avisoPainel("Sessão sem permissão para alterar o status. Entre novamente.");
+        } else if (codigo === "not-found") {
+            avisoPainel("Agendamento não encontrado. A lista foi atualizada.");
+        } else {
+            avisoPainel("Erro ao atualizar status.");
+        }
         listarAgendamentos();
     }
 }
@@ -3956,23 +3911,22 @@ async function liberarBloqueio(id) {
     const ag = buscarAgendamentoCache(id);
     if (!ag) return avisoPainel("Registro não encontrado.");
     if (!(await confirmarPainel("Tem certeza que deseja liberar este CPF para novo agendamento?", { titulo: "Liberar bloqueio", textoConfirmar: "Liberar CPF" }))) return;
-    const cpf = ag.dados.bloqueioCpf || cpfNumeros(ag.dados.cpf);
-    const liberacao = {
-        bloqueioAtivo: false,
-        bloqueioLiberado: true,
-        dataLiberacao: new Date().toISOString(),
-        usuarioLiberacao: auth.currentUser ? auth.currentUser.email : ""
-    };
     try {
-        await db.collection("dados_cidadaos").doc(id).set(liberacao, { merge: true });
-        if (cpf.length === 11) await db.collection("bloqueios_agendamento").doc(cpf).delete().catch(() => {});
-        Object.assign(ag.dados, liberacao);
-        await registrarLog("liberar_bloqueio", { agendamentoId: id });
+        // O servidor libera todos os bloqueios ativos do CPF (registro dedicado
+        // e agendamentos com falta) e grava o log na mesma transacao.
+        const liberar = functions.httpsCallable("liberarBloqueioAdmin");
+        const resposta = await liberar({ agendamentoId: id });
+        const r = (resposta && resposta.data) || {};
+        Object.assign(ag.dados, r.liberacao || { bloqueioAtivo: false, bloqueioLiberado: true });
         renderTabelaAgendamentos();
         renderFilaHoje();
-        mostrarToast("Bloqueio liberado.");
+        mostrarToast(r.registrosLiberados > 1 ? `Bloqueio liberado (${r.registrosLiberados} faltas deste CPF).` : "Bloqueio liberado.");
     } catch (e) {
-        avisoPainel("Erro ao liberar bloqueio.");
+        const codigo = String((e && e.code) || "").replace(/^functions\//, "");
+        avisoPainel(codigo === "permission-denied" || codigo === "unauthenticated"
+            ? "Sessão sem permissão para liberar o bloqueio. Entre novamente."
+            : "Erro ao liberar bloqueio.");
+        listarAgendamentos();
     }
 }
 

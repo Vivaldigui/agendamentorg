@@ -93,6 +93,11 @@ Definidas em [`functions/index.js`](functions/index.js).
 | `criarEncaixeManual` | Encaixe manual fora da grade pública |
 | `atualizarObservacaoAdmin` | Observação interna no agendamento |
 | `remarcarAgendamentoAdmin` | Remarca data/horário |
+| `cancelarAgendamentoAdmin` | Cancela e libera a vaga só se ela ainda for do agendamento |
+| `alterarStatusAdmin` | Compareceu, vai voltar, não compareceu (cria o bloqueio de 6 meses) ou agendado; corrigir uma falta desfaz o bloqueio |
+| `liberarBloqueioAdmin` | Libera todos os bloqueios ativos do CPF |
+
+Desde 16/10/2026 o painel não grava em `dados_cidadaos`, `vagas_ocupadas`, `cpfs_agendados` nem `bloqueios_agendamento`: as regras só permitem leitura, e toda mudança passa por estas callables, em transação e com log gravado no servidor.
 | `listarLogsAdmin` | Auditoria de ações administrativas |
 | `gerarBackupAdmin` | Exportação de dados |
 

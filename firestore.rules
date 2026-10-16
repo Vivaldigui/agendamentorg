@@ -20,24 +20,29 @@ service cloud.firestore {
       allow get, list, create, update, delete: if isAdmin();
     }
 
+    // Agendamentos, vagas, indices de CPF e bloqueios so mudam pelas Functions,
+    // em transacao (auditoria de 16/10/2026, SEG-02). O painel le, e toda
+    // escrita passa por callable com assertAdmin e log no servidor. Escrita
+    // direta do navegador era o que permitia vender a mesma vaga duas vezes
+    // (remarcacao) e forjar ou omitir a trilha de auditoria.
     match /vagas_ocupadas/{slotId} {
       allow read: if isAdmin();
-      allow create: if isAdmin();
-      allow update, delete: if isAdmin();
+      allow write: if false;
     }
 
     match /dados_cidadaos/{documentId} {
-      allow create: if isAdmin();
-      allow get, list, update, delete: if isAdmin();
+      allow get, list: if isAdmin();
+      allow write: if false;
     }
 
     match /cpfs_agendados/{documentId} {
-      allow create: if isAdmin();
-      allow get, list, update, delete: if isAdmin();
+      allow get, list: if isAdmin();
+      allow write: if false;
     }
 
     match /bloqueios_agendamento/{cpf} {
-      allow get, list, create, update, delete: if isAdmin();
+      allow get, list: if isAdmin();
+      allow write: if false;
     }
 
     match /cancelamentos_pendentes/{documentId} {
@@ -48,8 +53,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // O painel ainda registra acoes que so acontecem no navegador (comprovante,
+    // WhatsApp, exportacao). O log precisa levar o e-mail do proprio token e a
+    // hora do servidor: antes qualquer admin podia gravar em nome de outro.
     match /logs_admin/{documentId} {
-      allow create, get, list: if isAdmin();
+      allow get, list: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.adminEmail == request.auth.token.email
+        && request.resource.data.criadoEm == request.time;
       allow update, delete: if false;
     }
 
