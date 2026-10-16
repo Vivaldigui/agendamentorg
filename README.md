@@ -56,6 +56,7 @@ agendamentorg/
 └── scripts/
     ├── preaquecer-ligar.ps1     # Sobe instâncias quentes antes de um pico
     ├── preaquecer-desligar.ps1  # Volta ao repouso após o pico
+    ├── verificar-admins.js      # Diagnóstico das contas admin (e-mail verificado) antes do deploy
     └── migrar-dados-cidadaos.js # Migração pontual de dados legados
 ```
 
@@ -126,6 +127,7 @@ O Realtime Database não é mais usado: a telemetria de presença (`presenca_pub
 
 - **Validação de CPF** com dígitos verificadores, no frontend e no backend.
 - **App Check obrigatório** (`enforceAppCheck: true`) em todas as funções públicas.
+- **Admin só com e-mail verificado**: `isAdmin()` nas regras, `assertAdmin` nas callables e o login do painel exigem `email_verified`. Quem entra com e-mail ainda não confirmado vê a opção de receber o link de confirmação no próprio painel.
 - **Rate limiting** por fingerprint (IP + User-Agent + ação/CPF), em transação.
 - **Transações atômicas** para criar/cancelar/remarcar — disponibilidade, bloqueio de CPF e duplicidade são revalidados *dentro* da transação (sem janelas de corrida).
 - **Substituição por CPF**: ao agendar com um CPF que já tem agendamento ativo, o anterior é cancelado e o novo criado na mesma transação, mediante confirmação do cidadão.
@@ -151,6 +153,8 @@ npm install
 ## Deploy
 
 > O frontend deve ir ao ar **antes** das functions quando há mudanças de contrato, para que o cliente novo já esteja disponível.
+
+> **Antes de publicar regras ou functions que exigem e-mail verificado (16/10/2026)**, rode `node scripts/verificar-admins.js` (só leitura). Ele lista cada admin com a situação da conta no Firebase Auth e termina com código 2 se algum admin ativo ficaria fora do painel ou se há e-mail em `admins` sem conta. Resolva antes do deploy: confirmação pelo link no painel (publique o hosting primeiro) ou, com aprovação da Câmara, `--marcar-verificado=EMAIL`. E-mail em `admins` sem conta deve ser removido ou ter a conta criada pela Câmara. Recomendado também desativar o cadastro de contas pelo cliente em Authentication → Configurações → Ações do usuário (disponível com Identity Platform).
 
 ```bash
 # Frontend (Hosting)

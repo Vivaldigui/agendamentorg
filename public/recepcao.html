@@ -24,6 +24,14 @@
         <div class="input-group"><label for="senha">Senha:</label><input type="password" id="senha" autocomplete="current-password"></div>
         <div id="login-erro" class="login-erro" style="display:none;"></div>
         <button class="btn-login" id="btn-login" data-acao="fazerLogin">ACESSAR PAINEL SEGURO</button>
+        <div id="verificacao-email" class="verificacao-email" style="display:none;">
+            <p><strong>Confirme o e-mail desta conta para entrar.</strong></p>
+            <p>A senha está certa, mas o painel só abre para contas com e-mail confirmado: <span id="verificacao-email-endereco"></span>.</p>
+            <button type="button" class="btn-login" id="btn-enviar-verificacao" data-acao="enviarVerificacaoEmail">ENVIAR LINK DE CONFIRMAÇÃO</button>
+            <button type="button" class="btn-login btn-secundario-login" data-acao="conferirEmailVerificado">JÁ CONFIRMEI</button>
+            <button type="button" class="btn-link-login" data-acao="fazerLogout">Sair e entrar com outra conta</button>
+            <p id="verificacao-email-status" class="verificacao-email-status" role="status" aria-live="polite"></p>
+        </div>
     </div>
 
     <div id="painel-screen">

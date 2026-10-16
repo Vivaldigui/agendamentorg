@@ -533,9 +533,13 @@ function mensagemCpfBloqueado(bloqueio) {
   return `Nao foi possivel realizar novo agendamento.\n\nConsta ausencia em atendimento anterior.\nNovo agendamento permitido a partir de ${bloqueio.dataLiberacao}.\n\nEm caso de justificativa, entre em contato com a Camara Municipal.`;
 }
 
+// Mesma regra de isAdmin() em firestore.rules: e-mail presente, VERIFICADO e
+// cadastrado como admin ativo. Sem a verificacao, quem criasse uma conta com
+// um e-mail listado em admins herdaria o acesso.
 async function assertAdmin(request) {
-  const email = String(request.auth && request.auth.token && request.auth.token.email || "").trim().toLowerCase();
-  if (!email) {
+  const token = (request.auth && request.auth.token) || {};
+  const email = String(token.email || "").trim().toLowerCase();
+  if (!email || token.email_verified !== true) {
     throw new HttpsError("permission-denied", "Acesso administrativo negado.");
   }
   const adminDoc = await db.collection("admins").doc(email).get();
