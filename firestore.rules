@@ -104,8 +104,10 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Credenciais de estacionamento retiradas do painel em 16/10/2026: a
+    // colecao fica fechada. Os documentos antigos so pelo console do Firebase.
     match /credenciais_estacionamento/{documentId} {
-      allow get, list, create, update, delete: if isAdmin();
+      allow read, write: if false;
     }
 
     match /{document=**} {

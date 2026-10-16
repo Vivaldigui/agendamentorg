@@ -154,7 +154,25 @@ const agendamentoPicoOptions = {
   maxInstances: 80,
   minInstances: PICO_MIN_INSTANCES,
   timeoutSeconds: 300
+  // Protecao contra replay do token de App Check (auditoria de 16/10/2026,
+  // CON-02): o site ja pede um token de uso unico a cada criacao. Consumir o
+  // token aqui (consumeAppCheckToken: true) exige que a conta de servico das
+  // Functions tenha o papel "Firebase App Check Token Verifier"
+  // (roles/firebaseappcheck.tokenVerifier). Publicado sem ele em 16/10/2026,
+  // TODA criacao voltou 401 ("permission 'firebaseappcheck.appCheckTokens.
+  // verify' denied") e foi revertido em minutos. Religar so depois de
+  // conceder o papel e conferir com um pedido real no site.
 };
+
+// Token reaproveitado: recusa antes de qualquer leitura. "unauthenticated"
+// de proposito: o site trata esse codigo pedindo um token novo e repetindo uma
+// vez, entao uma aba aberta antes da troca do SDK (que ainda usa o token
+// comum de uma hora) se recupera sozinha.
+function recusarTokenAppCheckReaproveitado(request) {
+  if (request && request.app && request.app.alreadyConsumed === true) {
+    throw new HttpsError("unauthenticated", "Verificacao de seguranca expirada. Tente novamente.");
+  }
+}
 
 const verificacaoSlotOptions = {
   ...publicCallableOptions,
@@ -383,6 +401,12 @@ function cpfDocId(cpfNum) {
   return "cpf_" + crypto.createHash("sha256").update(cpfNum).digest("hex");
 }
 
+// Confere a data de nascimento de um bloqueio sem guardar a data em si no
+// registro dedicado (auditoria de 16/10/2026, SEG-05).
+function hashNascimentoBloqueio(cpfNum, dataNasc) {
+  return crypto.createHash("sha256").update(`${cpfNum}|${dataNasc}`).digest("hex");
+}
+
 function gerarProtocolo(agendamentoId) {
   const base = String(agendamentoId || crypto.randomBytes(8).toString("hex"))
     .replace(/[^a-zA-Z0-9]/g, "")
@@ -413,10 +437,6 @@ function idadeEmAnosNaData(nascimentoISO, referenciaISO) {
     || (referencia.getMonth() === nascimento.getMonth() && referencia.getDate() >= nascimento.getDate());
   if (!fezAniversario) idade -= 1;
   return idade;
-}
-
-function validarIdadeMinimaAgendamento(nascimentoISO, dataISO) {
-  // Permite que menores de 3 anos possam marcar pelo sistema.
 }
 
 // Dia fica no ultimo dia do mes de destino quando ele nao existe la: 31/08
@@ -518,7 +538,10 @@ function normalizarBloqueadoAte(valor) {
   return null;
 }
 
-async function buscarBloqueioAtivoCpf(cpfNum) {
+// Bloqueio ativo do CPF e se a data de nascimento informada confere com a do
+// registro da falta. Quem so sabe o CPF e recusado do mesmo jeito, mas nao
+// fica sabendo que a pessoa faltou nem ate quando esta bloqueada (SEG-05).
+async function buscarBloqueioAtivoCpf(cpfNum, dataNasc = "") {
   const candidatos = [];
   const [docBloqueio, snapCadastro] = await comRetry(() => Promise.all([
     db.collection("bloqueios_agendamento").doc(cpfNum).get(),
@@ -530,11 +553,33 @@ async function buscarBloqueioAtivoCpf(cpfNum) {
   if (docBloqueio.exists) candidatos.push(docBloqueio.data());
   snapCadastro.docs.forEach((doc) => candidatos.push(doc.data()));
 
-  return candidatos
+  const ativos = candidatos
     .filter((dados) => dados && dados.liberado !== true && dados.bloqueioLiberado !== true && dados.bloqueioAtivo !== false)
-    .map((dados) => normalizarBloqueadoAte(dados.bloqueadoAte))
-    .filter((bloqueio) => bloqueio && bloqueio.ativo)
-    .sort((a, b) => b.comparador - a.comparador)[0] || null;
+    .map((dados) => ({ dados, bloqueio: normalizarBloqueadoAte(dados.bloqueadoAte) }))
+    .filter((item) => item.bloqueio && item.bloqueio.ativo)
+    .sort((a, b) => b.bloqueio.comparador - a.bloqueio.comparador);
+  if (!ativos.length) return null;
+  return {
+    ...ativos[0].bloqueio,
+    nascimentoConfere: Boolean(dataNasc) && ativos.some((item) => nascimentoConfereBloqueio(item.dados, cpfNum, dataNasc))
+  };
+}
+
+function nascimentoConfereBloqueio(dados, cpfNum, dataNasc) {
+  if (!dados || !dataNasc) return false;
+  if (dados.dataNasc) return dados.dataNasc === dataNasc;
+  return Boolean(dados.nascimentoHash) && dados.nascimentoHash === hashNascimentoBloqueio(cpfNum, dataNasc);
+}
+
+const TIPO_CPF_BLOQUEADO = "cpf-bloqueado";
+
+// Recusa por bloqueio: a data de liberacao so para quem provou a data de
+// nascimento do registro da falta.
+function erroCpfBloqueado(bloqueio) {
+  const mensagem = bloqueio.nascimentoConfere
+    ? mensagemCpfBloqueado(bloqueio)
+    : "Nao foi possivel realizar o agendamento com este CPF.\n\nSe houve falta em atendimento anterior, o novo agendamento so e liberado depois do prazo. Em caso de duvida, entre em contato com a Camara Municipal.";
+  return new HttpsError("failed-precondition", mensagem, { tipo: TIPO_CPF_BLOQUEADO });
 }
 
 function mensagemCpfBloqueado(bloqueio) {
@@ -741,6 +786,7 @@ async function anonimizarDadosAntigosLGPD() {
           {
             cpf: cpfNum,
             bloqueadoAte: dados.bloqueadoAte,
+            ...(dados.dataNasc ? { nascimentoHash: hashNascimentoBloqueio(cpfNum, dados.dataNasc) } : {}),
             motivoBloqueio: "nao_compareceu",
             migradoDeAnonimizacao: true,
             criadoEm: FieldValue.serverTimestamp()
@@ -977,8 +1023,22 @@ async function carregarDisponibilidadePublica() {
   // uma vaga (documentos AAAA-MM-DD_HH:MM, AAAA-MM-DD_HH:MM_2...), entao conta.
   const ocupados = new Map();
 
+  // Mesma regra da transacao (slotRepresentaOcupacaoAtual): vaga cujo
+  // agendamento foi cancelado conta como livre. Antes a contagem publica
+  // contava todo documento de vaga, e um dado inconsistente mostrava
+  // "esgotado" num horario que ainda aceitava reserva (auditoria de
+  // 16/10/2026, BUG-02). Leituras extras limitadas pelo microcache.
+  const idsAgendamento = [...new Set(vagasSnap.docs.map((doc) => doc.data().agendamentoId).filter(Boolean))];
+  const agendamentos = idsAgendamento.length
+    ? await db.getAll(...idsAgendamento.map((id) => db.collection("dados_cidadaos").doc(id)))
+    : [];
+  const agendamentoPorId = new Map(agendamentos.map((doc) => [doc.id, doc]));
+
   vagasSnap.docs.forEach((doc) => {
     const vaga = doc.data();
+    const agDoc = vaga.agendamentoId ? agendamentoPorId.get(vaga.agendamentoId) : null;
+    const agExiste = Boolean(agDoc && agDoc.exists);
+    if (!slotRepresentaOcupacaoAtual(true, vaga, agExiste, agExiste ? agDoc.data() : null)) return;
     if (vagaContaNoSite(vaga) && agenda.dias.includes(vaga.dataISO) && horariosParaData(agenda, vaga.dataISO).includes(vaga.hora)) {
       const chave = `${vaga.dataISO}_${vaga.hora}`;
       ocupados.set(chave, (ocupados.get(chave) || 0) + 1);
@@ -1164,17 +1224,9 @@ exports.verificarDisponibilidadeSlotCidadao = onCall(verificacaoSlotOptions, asy
   };
 });
 
-exports.verificarBloqueioCpf = onCall(publicCallableOptions, async (request) => {
-  const cpfNum = normalizarCpf(request.data && request.data.cpf);
-  await aplicarRateLimit(request, "verificar_bloqueio_cpf", 40, 10 * 60 * 1000, cpfNum);
-  const bloqueio = await buscarBloqueioAtivoCpf(cpfNum);
-  if (!bloqueio) return { bloqueado: false };
-  return {
-    bloqueado: true,
-    dataLiberacao: bloqueio.dataLiberacao,
-    mensagem: mensagemCpfBloqueado(bloqueio)
-  };
-});
+// verificarBloqueioCpf foi removida em 16/10/2026 (SEG-05): com so um CPF,
+// qualquer pessoa descobria se o cidadao tinha faltado e ate quando estava
+// bloqueado. O site nao a chamava; o bloqueio e conferido na criacao.
 
 // Mensagem unica de propósito: distinguir "fator errado" de "agendamento
 // inexistente" confirmaria que aquele CPF tem agendamento, e a enumeracao
@@ -1331,14 +1383,23 @@ function resolverResultadoOperacaoAgendamento(dados, payloadHash) {
 // Cada pedido entra nas metricas da abertura (metricas-abertura.js), fora da
 // transacao e sem poder atrasar ou derrubar o agendamento.
 exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, comMetricaAbertura(registrarMetricaAbertura, async (request) => {
+  recusarTokenAppCheckReaproveitado(request);
   const dadosRequisicao = request.data || {};
   const nome = normalizarTexto(dadosRequisicao.nome, "o nome completo", 5, 120);
   const cpfNum = normalizarCpf(dadosRequisicao.cpf);
   const telefone = normalizarTelefone(dadosRequisicao.telefone);
   const email = normalizarEmail(dadosRequisicao.email);
   const dataNasc = normalizarData(dadosRequisicao.nascimento);
+  // Nascimento no futuro ou antes de 1900 e erro de digitacao, e entraria
+  // gravado no agendamento (auditoria de 16/10/2026, BUG-04).
+  if (dataNasc > hojeSaoPauloISO() || dataNasc < "1900-01-01") {
+    throw new HttpsError("invalid-argument", "Informe a data de nascimento corretamente.");
+  }
   const dataISO = normalizarData(dadosRequisicao.data, "data do agendamento");
   const hora = normalizarHora(dadosRequisicao.hora);
+  // Convite para avaliar o atendimento: consentimento proprio, opcional, e so
+  // faz sentido com e-mail (LGPD-04).
+  const consentimentoAvaliacao = dadosRequisicao.aceiteAvaliacao === true && Boolean(email);
   // CONTENCAO B4. O booleano vinha do cliente e nada ligava quem chamava ao CPF
   // informado: com substituirAnterior=true bastava conhecer um CPF para liberar a
   // vaga da vitima, inativar o agendamento dela e criar outro com dados proprios.
@@ -1350,7 +1411,6 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, comMetricaAbert
   const operationId = operationIdInformado
     ? normalizarOperationIdPublico(dadosRequisicao.operationId)
     : crypto.randomBytes(16).toString("hex");
-  validarIdadeMinimaAgendamento(dataNasc, dataISO);
 
   const payloadHash = hashPayloadAgendamento({
     operationId,
@@ -1371,9 +1431,9 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, comMetricaAbert
   }
 
   await aplicarRateLimit(request, "criar_agendamento", 20, 10 * 60 * 1000, cpfNum);
-  const bloqueio = await buscarBloqueioAtivoCpf(cpfNum);
+  const bloqueio = await buscarBloqueioAtivoCpf(cpfNum, dataNasc);
   if (bloqueio) {
-    throw new HttpsError("failed-precondition", mensagemCpfBloqueado(bloqueio));
+    throw erroCpfBloqueado(bloqueio);
   }
 
   const cpfFormatado = formatarCpf(cpfNum);
@@ -1420,7 +1480,10 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, comMetricaAbert
 
     const bloqueioRevalidado = bloqueioDoc.exists ? bloqueioAtivoDeDoc(bloqueioDoc.data()) : null;
     if (bloqueioRevalidado) {
-      throw new HttpsError("failed-precondition", mensagemCpfBloqueado(bloqueioRevalidado));
+      throw erroCpfBloqueado({
+        ...bloqueioRevalidado,
+        nascimentoConfere: nascimentoConfereBloqueio(bloqueioDoc.data(), cpfNum, dataNasc)
+      });
     }
 
     const agendaTransacao = processarAgenda(agendaDoc.exists ? agendaDoc.data() : {});
@@ -1577,7 +1640,8 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, comMetricaAbert
       protocolo,
       status: "agendado",
       criado,
-      statusAtualizadoEm: criado
+      statusAtualizadoEm: criado,
+      ...(consentimentoAvaliacao ? { consentimentoAvaliacao: true, consentimentoAvaliacaoEm: criado } : {})
     });
     t.create(operacaoRef, {
       tipo: "criar_agendamento",
@@ -2181,6 +2245,7 @@ exports.alterarStatusAdmin = onCall(callableOptions, async (request) => {
         t.set(bloqueioRef, {
           cpf: cpfNum,
           agendamentoId,
+          ...(dados.dataNasc ? { nascimentoHash: hashNascimentoBloqueio(cpfNum, dados.dataNasc) } : {}),
           motivo: MOTIVO_BLOQUEIO_FALTA,
           dataFalta,
           bloqueadoAte,

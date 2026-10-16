@@ -563,7 +563,13 @@
                 </div>
                 <div class="form-grupo so-preencher"><label for="inp-tel">Celular / WhatsApp: <span class="ajuda-campo">(para a Câmara entrar em contato, se precisar)</span> <span style="color:var(--danger)">*</span></label><input id="inp-tel" maxlength="15" inputmode="tel" autocomplete="tel" oninput="mascaraTel(this)" type="tel" placeholder="(00) 00000-0000" /><div class="msg-campo-erro" id="erro-tel">Informe um telefone válido.</div></div>
                 <div class="form-grupo so-preencher"><label for="inp-email">E-mail (Opcional)</label><input id="inp-email" type="email" maxlength="120" autocomplete="email" placeholder="seu.email@exemplo.com" /><div class="msg-campo-erro" id="erro-email">E-mail inválido.</div></div>
-                <fieldset class="estado-civil so-preencher" aria-describedby="estado-civil-ajuda erro-estado-civil">
+                <label class="form-grupo checkbox-termo checkbox-opcional so-preencher">
+                    <input type="checkbox" id="aceite-avaliacao">
+                    <span style="font-size:0.85rem; color:var(--gray-600); line-height:1.4; font-weight:500; margin:0;">
+                        <strong>Opcional:</strong> quero receber no e-mail informado, depois do atendimento, um convite para avaliar o atendimento da Câmara no Google. Sem marcar, o e-mail é usado só para o agendamento.
+                    </span>
+                </label>
+                <fieldset class="estado-civil so-preencher" aria-describedby="estado-civil-ajuda">
                     <legend>Qual é o seu estado civil? <span style="color:var(--danger)">*</span></legend>
                     <p class="estado-civil-ajuda" id="estado-civil-ajuda">Serve para mostrar, depois de agendar, qual certidão você deve levar. Essa resposta não é enviada nem guardada.</p>
                     <div class="estado-civil-opcoes">
@@ -743,10 +749,10 @@
     </a>
 </footer>
 
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app-check.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-check-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-analytics-compat.js"></script>
 
 <script>
     const APP_CHECK_RECAPTCHA_SITE_KEY = "6LdoYfcsAAAAALyCdBKewXtFLB1e9biRnXTWqNv0";
@@ -794,6 +800,15 @@
     var REGIAO_PICO = "southamerica-east1";
     var CALLABLES_REGIAO_PICO = ["criarAgendamentoCidadao", "verificarDisponibilidadeSlotCidadao"];
     var functionsPico = firebase.app().functions(REGIAO_PICO);
+
+    // Token de App Check de uso unico (auditoria de 16/10/2026, CON-02). Um
+    // token comum vale ate uma hora e podia ser copiado de um navegador real
+    // para um script que disparasse dezenas de reservas. Na criacao o SDK
+    // pede um token novo a cada chamada e o backend o consome
+    // (consumeAppCheckToken): reaproveitado, ele e recusado.
+    var OPCOES_CALLABLE = {
+        criarAgendamentoCidadao: { limitedUseAppCheckTokens: true }
+    };
 
     function clienteFunctions(nome) {
         return CALLABLES_REGIAO_PICO.indexOf(nome) !== -1 ? functionsPico : functions;
@@ -908,7 +923,7 @@
     async function chamarFuncao(nome, dados) {
         await garantirAppCheckPronto();
         try {
-            const r = await clienteFunctions(nome).httpsCallable(nome)(dados);
+            const r = await clienteFunctions(nome).httpsCallable(nome, OPCOES_CALLABLE[nome])(dados);
             recusasAppCheckSeguidas = 0;
             return r;
         } catch (erro) {
@@ -921,7 +936,7 @@
             console.warn(`App Check recusado em ${nome}; renovando o token e repetindo.`, erro);
             await tentarRefreshAppCheck();
             try {
-                const r = await clienteFunctions(nome).httpsCallable(nome)(dados);
+                const r = await clienteFunctions(nome).httpsCallable(nome, OPCOES_CALLABLE[nome])(dados);
                 recusasAppCheckSeguidas = 0;
                 return r;
             } catch (segundo) {
@@ -1102,17 +1117,32 @@
     // pede reconhecimento explicito.
     const CHAVE_ULTIMO_AGENDAMENTO = "cin_ultimo_agendamento";
 
+    // O codigo fica no aparelho so ate a data do atendimento, sem o nome, e a
+    // pessoa pode apagar quando quiser (auditoria de 16/10/2026, UX-02). Em
+    // celular emprestado ou computador compartilhado, quem viesse depois via o
+    // protocolo, que junto de CPF e nascimento permite cancelar.
     function guardarAgendamentoLocalmente(ag) {
         if (!ag || !ag.protocolo) return;
         try {
             localStorage.setItem(CHAVE_ULTIMO_AGENDAMENTO, JSON.stringify({
                 protocolo: ag.protocolo,
+                dataISO: ag.dataISO || "",
                 dataBR: ag.dataBR || "",
                 hora: ag.hora || "",
-                nome: ag.nome || "",
                 guardadoEm: Date.now()
             }));
         } catch (e) { /* modo privativo ou armazenamento cheio: segue sem cache */ }
+    }
+
+    function esquecerAgendamentoLocal() {
+        try { localStorage.removeItem(CHAVE_ULTIMO_AGENDAMENTO); } catch (e) {}
+    }
+
+    // Data do atendimento guardado; registros antigos so tinham dataBR.
+    function dataISODoAgendamentoLocal(dados) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(String(dados.dataISO || ""))) return dados.dataISO;
+        const br = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(dados.dataBR || ""));
+        return br ? `${br[3]}-${br[2]}-${br[1]}` : "";
     }
 
     function lerAgendamentoLocal() {
@@ -1120,8 +1150,22 @@
             const bruto = localStorage.getItem(CHAVE_ULTIMO_AGENDAMENTO);
             if (!bruto) return null;
             const dados = JSON.parse(bruto);
-            return dados && dados.protocolo ? dados : null;
+            if (!dados || !dados.protocolo) return null;
+            // Atendimento ja passou: o codigo nao serve mais e sai do aparelho.
+            const dataISO = dataISODoAgendamentoLocal(dados);
+            if (!dataISO || dataISO < hojeISO()) {
+                esquecerAgendamentoLocal();
+                return null;
+            }
+            return dados;
         } catch (e) { return null; }
+    }
+
+    function esquecerAgendamentoNesteAparelho() {
+        esquecerAgendamentoLocal();
+        const alvo = document.getElementById("lembrete-protocolo");
+        if (alvo) { alvo.style.display = "none"; alvo.innerHTML = ""; }
+        aviso("Pronto: o código saiu deste aparelho. Guarde-o em outro lugar; sem ele, só a recepção localiza o agendamento.");
     }
 
     function mostrarProtocoloConfirmado(protocolo) {
@@ -1158,7 +1202,7 @@
         const dados = lerAgendamentoLocal();
         const alvo = document.getElementById("lembrete-protocolo");
         if (!dados || !alvo) return;
-        alvo.innerHTML = `<i class="fa-solid fa-circle-info"></i> Seu último agendamento neste aparelho: <strong>${textoSeguro(dados.dataBR)} às ${textoSeguro(dados.hora)}</strong> — código <strong style="font-family:monospace; letter-spacing:0.06em;">${textoSeguro(dados.protocolo)}</strong>`;
+        alvo.innerHTML = `<i class="fa-solid fa-circle-info"></i> Seu último agendamento neste aparelho: <strong>${textoSeguro(dados.dataBR)} às ${textoSeguro(dados.hora)}</strong> — código <strong style="font-family:monospace; letter-spacing:0.06em;">${textoSeguro(dados.protocolo)}</strong> <button type="button" onclick="esquecerAgendamentoNesteAparelho()" style="display:inline-block; margin-left:4px; padding:6px 4px; min-height:32px; background:none; border:none; color:var(--primary); font-weight:700; text-decoration:underline; cursor:pointer; font-size:inherit;">Esquecer neste aparelho</button>`;
         alvo.style.display = "block";
     }
 
@@ -1939,7 +1983,7 @@
 
     function nascimentoAgendamentoValido(nascimentoBR) {
         const dataISO = converterDataISO(nascimentoBR);
-        return dataISO && dataISO <= hojeISO() ? dataISO : "";
+        return dataISO && dataISO <= hojeISO() && dataISO >= "1900-01-01" ? dataISO : "";
     }
     function validarCpfAgendamento() {
         setErroCampo("inp-cpf", "erro-cpf", !cpfValido(document.getElementById("inp-cpf").value));
@@ -1981,56 +2025,6 @@
             };
         }
         return null;
-    }
-
-    async function verificarBloqueioCPF(cpf) {
-        const cpfLimpo = limparCPF(cpf);
-        if (cpfLimpo.length !== 11) return { bloqueado: false };
-
-        const MAX_TENTATIVAS = 2;
-        let ultimoErro = null;
-
-        for (let tentativa = 0; tentativa < MAX_TENTATIVAS; tentativa++) {
-            try {
-                if (tentativa > 0) await new Promise(r => setTimeout(r, 1500 * tentativa));
-                const resposta = await chamarFuncao("verificarBloqueioCpf", { cpf: cpfLimpo });
-                const dados = resposta.data || {};
-                if (!dados.bloqueado) return { bloqueado: false };
-                return {
-                    bloqueado: true,
-                    dataLiberacao: dados.dataLiberacao || "",
-                    mensagem: dados.mensagem || "Não foi possível realizar novo agendamento. Consta ausência em atendimento anterior."
-                };
-            } catch (e) {
-                ultimoErro = e;
-                console.warn(`Tentativa ${tentativa + 1}/${MAX_TENTATIVAS} de verificar bloqueio falhou:`, e);
-                const codigo = codigoErroFunctions(e);
-                // Erros que não devem ser retentados
-                if (codigo === "invalid-argument") break;
-            }
-        }
-
-        console.error("Erro ao consultar bloqueio de CPF após tentativas:", ultimoErro);
-        const codigoErro = codigoErroFunctions(ultimoErro);
-        let mensagemErro;
-        if (codigoErro === "resource-exhausted") {
-            mensagemErro = "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.";
-        } else if (codigoErro === "unauthenticated" || codigoErro === "permission-denied") {
-            mensagemErro = "Não foi possível verificar a segurança da requisição. Tente novamente em alguns instantes.";
-        } else {
-            mensagemErro = "Não foi possível validar o CPF no momento. Tente novamente em alguns instantes ou entre em contato com a Câmara.";
-        }
-
-        return {
-            bloqueado: false,
-            erro: true,
-            mensagem: mensagemErro
-        };
-    }
-
-    function abrirWhatsAppContatoBloqueio() {
-        const msg = "Olá! Preciso de orientação sobre bloqueio de agendamento de RG/CIN por ausência anterior.";
-        window.open(`https://wa.me/553535040397?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
     }
 
     function exibirBloqueioCPF(resultado) {
@@ -2102,6 +2096,10 @@
     }
 
     function erroCpfBloqueado(erroObj) {
+        // A data de liberacao so vem para quem informou o nascimento do
+        // registro da falta (SEG-05); os demais recebem a recusa generica,
+        // marcada por details.tipo.
+        if (erroObj && erroObj.details && erroObj.details.tipo === "cpf-bloqueado") return true;
         const texto = normalizarErroTexto(erroObj);
         return texto.includes("ausencia em atendimento anterior")
             || texto.includes("novo agendamento permitido a partir");
@@ -2135,7 +2133,11 @@
 
     function marcarErroEstadoCivil(comErro) {
         const grupo = document.querySelector("fieldset.estado-civil");
-        if (grupo) grupo.classList.toggle("erro", comErro);
+        if (grupo) {
+            grupo.classList.toggle("erro", comErro);
+            // A mensagem de erro so e descrita enquanto ha erro (UX-01).
+            grupo.setAttribute("aria-describedby", comErro ? "estado-civil-ajuda erro-estado-civil" : "estado-civil-ajuda");
+        }
         const msg = document.getElementById("erro-estado-civil");
         if (msg) msg.classList.toggle("visivel", comErro);
     }
@@ -2368,10 +2370,39 @@
         baixarArquivo(`Agenda_CIN_${ag.dataISO}_${ag.hora.replace(":", "")}.ics`, ics, "text/calendar;charset=utf-8");
     }
 
-    function setErroCampo(id, erroId, mostrar) { 
-        const input = document.getElementById(id), msg = document.getElementById(erroId); 
-        if (mostrar) { input.classList.add("erro"); msg.classList.add("visivel"); } 
-        else { input.classList.remove("erro"); msg.classList.remove("visivel"); } 
+    // Erro de campo acessivel (auditoria de 16/10/2026, UX-01). Antes so a cor
+    // e a mensagem visivel mudavam: o leitor de tela ouvia "corrija os campos
+    // em destaque" sem saber quais. Agora o campo fica aria-invalid e aponta
+    // para a propria mensagem, que e lida ao chegar nele. A mensagem so entra
+    // no aria-describedby enquanto ha erro: referencia oculta tambem e lida.
+    function setErroCampo(id, erroId, mostrar) {
+        const input = document.getElementById(id), msg = document.getElementById(erroId);
+        input.classList.toggle("erro", mostrar);
+        msg.classList.toggle("visivel", mostrar);
+        if (mostrar) input.setAttribute("aria-invalid", "true");
+        else input.removeAttribute("aria-invalid");
+        const descritos = (input.getAttribute("aria-describedby") || "").split(/\s+/).filter(ref => ref && ref !== erroId);
+        if (mostrar) descritos.push(erroId);
+        if (descritos.length) input.setAttribute("aria-describedby", descritos.join(" "));
+        else input.removeAttribute("aria-describedby");
+    }
+
+    // Nome do campo como a pessoa le na tela: "Nome Completo", "CPF"...
+    function rotuloDoCampo(input) {
+        const label = input && input.id ? document.querySelector(`label[for="${input.id}"]`) : null;
+        if (!label) return "";
+        return label.textContent.split(":")[0].replace(/\(opcional\)/i, "").replace(/\*/g, "").trim();
+    }
+
+    // "Corrija o campo CPF." / "Corrija os campos Nome Completo, CPF e Celular / WhatsApp."
+    function mensagemCamposComErro(seletorContainer, extras = []) {
+        const nomes = [...document.querySelectorAll(`${seletorContainer} input[aria-invalid="true"]`)]
+            .map(rotuloDoCampo)
+            .filter(Boolean)
+            .concat(extras);
+        if (!nomes.length) return "Corrija os campos em destaque para continuar.";
+        if (nomes.length === 1) return `Corrija o campo ${nomes[0]}.`;
+        return `Corrija os campos ${nomes.slice(0, -1).join(", ")} e ${nomes[nomes.length - 1]}.`;
     }
 
     function limparErroAceite(id) {
@@ -2639,7 +2670,7 @@
             const primeiro = document.querySelector("#dados-pessoais input.erro")
                 || (!estadoCivilOk && document.querySelector('input[name="estado-civil"]'));
             if (primeiro) primeiro.focus({ preventScroll: true });
-            aviso("Corrija os campos em destaque para continuar.");
+            aviso(mensagemCamposComErro("#dados-pessoais", estadoCivilOk ? [] : ["Estado civil"]));
             return;
         }
         validarNascimentoAgendamento();
@@ -3244,7 +3275,12 @@
         setErroCampo("inp-nasc","erro-nasc",!nascISO); if(!nascISO) val=false; 
         setErroCampo("inp-tel","erro-tel",tel.length<14); if(tel.length<14) val=false;
         
-        if (!val) { aviso("Corrija os campos em destaque antes de finalizar."); return; }
+        if (!val) {
+            const primeiro = document.querySelector("#dados-pessoais input.erro");
+            if (primeiro && primeiro.offsetParent !== null) primeiro.focus({ preventScroll: true });
+            aviso(mensagemCamposComErro("#dados-pessoais"));
+            return;
+        }
         if (!dataSel || !horaSel || !horarioAgendamentoFuturo(dataSel, horaSel)) {
             aviso("Este horario ja passou. Escolha outro horario disponivel.");
             await abrirAlterarHorario();
@@ -3303,6 +3339,8 @@
                     data: dataOperacao,
                     hora: horaOperacao,
                     substituirAnterior,
+                    // Consentimento proprio do convite de avaliacao (LGPD-04).
+                    aceiteAvaliacao: Boolean(email) && (document.getElementById("aceite-avaliacao") || {}).checked === true,
                     operationId: operacaoPendente.operationId
                 });
 
@@ -3643,6 +3681,9 @@
                     try {
                         await chamarFuncao("cancelarAgendamentoCidadao", { token });
                         desmarcarSlotIndisponivelLocalmente(ag.dataISO, ag.hora);
+                        // Agendamento cancelado: o codigo guardado deixa de servir.
+                        const local = lerAgendamentoLocal();
+                        if (local && ag.protocolo && local.protocolo === ag.protocolo) esquecerAgendamentoLocal();
                         if (cancelTimerInterval) clearInterval(cancelTimerInterval);
                         modal({ icone: '<i class="fa-solid fa-circle-check" style="color:var(--success);"></i>', titulo: "Cancelado", mensagem: "Agendamento removido com sucesso.", botoes: [{ texto: "Ok", classe: "sucesso", acao: () => location.reload() }] });
                     } catch(e) {

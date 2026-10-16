@@ -1289,7 +1289,7 @@ body.modo-escuro .btn-vista.ativo {
 .nav-in .btn-vista i { color: inherit; }
 
 /* As regras antigas de .btn-vista (pilulas) continuam valendo para os
-   filtros de credenciais; aqui na navegacao por area elas precisam ser
+   outros filtros do painel; aqui na navegacao por area elas precisam ser
    desfeitas tambem no modo escuro, que tem especificidade maior. */
 body.modo-escuro .nav-in .btn-vista {
     background: none;

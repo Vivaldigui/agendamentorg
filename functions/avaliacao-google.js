@@ -69,8 +69,12 @@ function criarServicoAvaliacao({ db, Timestamp, fetchImpl = fetch, logger = cons
       if (pedido && TERMINAIS.has(pedido.estado)) return null;
 
       const dados = cadastroSnap.exists ? cadastroSnap.data() : null;
+      // Consentimento proprio e opcional (auditoria de 16/10/2026, LGPD-04): o
+      // aceite do agendamento diz "exclusivamente para agendamento", entao o
+      // convite so vai para quem marcou a caixa do convite ao agendar.
       const elegivel = dados && dados.dataISO === dataAtendimento &&
-        dados.status === "compareceu" && !dados.anonimizadoLGPD && emailValido(dados.email);
+        dados.status === "compareceu" && !dados.anonimizadoLGPD && emailValido(dados.email) &&
+        dados.consentimentoAvaliacao === true;
       if (!elegivel) {
         if (pedidoSnap.exists) {
           tx.set(pedidoRef, {

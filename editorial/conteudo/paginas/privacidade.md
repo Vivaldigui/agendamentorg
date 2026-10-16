@@ -34,6 +34,8 @@ O formulário coleta nome, CPF, data de nascimento e telefone. O e-mail é opcio
 
 Os dados são usados para organizar a agenda do Posto de Identificação, confirmar a ocupação do horário e permitir que a própria pessoa consulte ou cancele o agendamento.
 
+Quem informar e-mail pode, se quiser, marcar uma caixa separada para receber depois do atendimento um convite para avaliar o atendimento da Câmara no Google. Sem essa marcação, o e-mail é usado só para o agendamento. O convite é enviado uma única vez por endereço.
+
 ## Retenção
 
 Uma rotina programada para o primeiro dia de cada mês, às 03h no horário de São Paulo, remove nome, CPF, telefone, e-mail, nascimento e observações internas de todos os registros cuja data de atendimento tem pelo menos seis meses, qualquer que seja a situação do registro. O processamento tem limite por execução e continua na execução seguinte de onde parou, portanto não ocorre necessariamente no dia em que cada registro completa seis meses.
