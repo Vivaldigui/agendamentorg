@@ -563,6 +563,12 @@
                 </div>
                 <div class="form-grupo so-preencher"><label for="inp-tel">Celular / WhatsApp: <span class="ajuda-campo">(para a Câmara entrar em contato, se precisar)</span> <span style="color:var(--danger)">*</span></label><input id="inp-tel" maxlength="15" inputmode="tel" autocomplete="tel" oninput="mascaraTel(this)" type="tel" placeholder="(00) 00000-0000" /><div class="msg-campo-erro" id="erro-tel">Informe um telefone válido.</div></div>
                 <div class="form-grupo so-preencher"><label for="inp-email">E-mail (Opcional)</label><input id="inp-email" type="email" maxlength="120" autocomplete="email" placeholder="seu.email@exemplo.com" /><div class="msg-campo-erro" id="erro-email">E-mail inválido.</div></div>
+                <label class="form-grupo checkbox-termo checkbox-opcional so-preencher">
+                    <input type="checkbox" id="aceite-avaliacao">
+                    <span style="font-size:0.85rem; color:var(--gray-600); line-height:1.4; font-weight:500; margin:0;">
+                        <strong>Opcional:</strong> quero receber no e-mail informado, depois do atendimento, um convite para avaliar o atendimento da Câmara no Google. Sem marcar, o e-mail é usado só para o agendamento.
+                    </span>
+                </label>
                 <fieldset class="estado-civil so-preencher" aria-describedby="estado-civil-ajuda erro-estado-civil">
                     <legend>Qual é o seu estado civil? <span style="color:var(--danger)">*</span></legend>
                     <p class="estado-civil-ajuda" id="estado-civil-ajuda">Serve para mostrar, depois de agendar, qual certidão você deve levar. Essa resposta não é enviada nem guardada.</p>
@@ -1939,7 +1945,7 @@
 
     function nascimentoAgendamentoValido(nascimentoBR) {
         const dataISO = converterDataISO(nascimentoBR);
-        return dataISO && dataISO <= hojeISO() ? dataISO : "";
+        return dataISO && dataISO <= hojeISO() && dataISO >= "1900-01-01" ? dataISO : "";
     }
     function validarCpfAgendamento() {
         setErroCampo("inp-cpf", "erro-cpf", !cpfValido(document.getElementById("inp-cpf").value));
@@ -3303,6 +3309,8 @@
                     data: dataOperacao,
                     hora: horaOperacao,
                     substituirAnterior,
+                    // Consentimento proprio do convite de avaliacao (LGPD-04).
+                    aceiteAvaliacao: Boolean(email) && (document.getElementById("aceite-avaliacao") || {}).checked === true,
                     operationId: operacaoPendente.operationId
                 });
 

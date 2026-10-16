@@ -100,6 +100,8 @@ function ambiente() {
     status: "compareceu",
     statusAtualizadoEm: "2026-09-16T19:58:00.000Z",
     email: "pessoa@example.test",
+    // Consentimento proprio do convite (LGPD-04, 16/10/2026).
+    consentimentoAvaliacao: true,
     nome: "Pessoa de Teste",
     cpf: "nao-compartilhar",
     telefone: "nao-compartilhar"
@@ -125,8 +127,9 @@ test("processa às 17h todos os comparecimentos do dia com email valido", async 
   a.registros.set("dados_cidadaos/outro-dia", { ...a.cadastro, dataISO: "2026-09-15" });
   a.registros.set("dados_cidadaos/sem-email", { ...a.cadastro, email: "" });
   a.registros.set("dados_cidadaos/faltou", { ...a.cadastro, status: "nao_compareceu" });
+  a.registros.set("dados_cidadaos/sem-consentimento", { ...a.cadastro, email: "terceira@example.test", consentimentoAvaliacao: undefined });
   await a.processarData(DATA, CONFIG);
-  assert.equal(a.chamadas.length, 2);
+  assert.equal(a.chamadas.length, 2, "Sem consentimento do convite, nada e enviado.");
   assert.equal(a.pedido().estado, "enviado");
   assert.equal(a.pedido("ag2").estado, "enviado");
   assert.equal(a.pedido("outro-dia"), undefined);
@@ -304,4 +307,13 @@ test("workflow fica autenticado e sem retry automatico de SMTP", () => {
   assert.equal(email.parameters.html, "={{ $json.mensagemHtml }}");
   assert.equal(email.parameters.text, "={{ $json.mensagem }}");
   assert.equal(email.parameters.options.appendAttribution, false);
+});
+
+test("LGPD-04: sem o consentimento proprio do convite, ninguem recebe", async () => {
+  const a = ambiente();
+  for (const valor of [undefined, false, "true", 1]) {
+    a.registros.set("dados_cidadaos/ag1", { ...a.cadastro, consentimentoAvaliacao: valor });
+    await a.processarData(DATA, CONFIG);
+  }
+  assert.equal(a.chamadas.length, 0);
 });
