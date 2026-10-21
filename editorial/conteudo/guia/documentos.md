@@ -7,7 +7,7 @@ titulo_seo: "Documentos para tirar a CIN (novo RG) em Itanhandu"
 descricao: "Veja os documentos para tirar a CIN em Itanhandu: certidão original, digital ou autenticada, número do CPF e comprovante de residência obrigatório."
 resposta: "Para fazer a CIN em Itanhandu, leve a certidão correspondente ao seu estado civil: original em papel, digital verificável ou cópia autenticada. Informe o número do CPF; se ainda não tiver, a inscrição será feita durante a emissão. O comprovante de residência é obrigatório para cadastrar a entrega, mas não precisa estar no nome do requerente."
 publicado: 2026-09-11
-atualizado: 2026-09-11
+atualizado: 2026-10-14
 conferido: 2026-09-11
 conferido_por: "Responsável pelo projeto — aprovação registrada em conversa; conferência técnica por OpenAI Codex"
 cluster: antes-de-agendar
