@@ -7,7 +7,7 @@ titulo_seo: "Guia da CIN: como fazer o novo RG em Itanhandu"
 descricao: "Onde é o atendimento, como agendar, o que levar e quanto tempo demora: o caminho completo para tirar a Carteira de Identidade Nacional em Itanhandu."
 resposta: "Para fazer a CIN em Itanhandu, use o site para escolher um horário, separe os documentos do seu caso e compareça ao Posto de Identificação na Câmara Municipal. A Polícia Civil de Minas Gerais emite o documento. A primeira via é gratuita e o prazo informado pelo Governo de Minas é de até 15 dias úteis."
 publicado: 2026-09-11
-atualizado: 2026-09-11
+atualizado: 2026-10-14
 conferido: 2026-09-11
 conferido_por: "Responsável pelo projeto — aprovação registrada em conversa; conferência técnica por OpenAI Codex"
 cluster: regras-e-contexto

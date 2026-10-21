@@ -7,7 +7,7 @@ titulo_seo: "A CIN é gratuita? Primeira via, renovação e segunda via"
 descricao: "A primeira CIN e a renovação por vencimento são gratuitas. Veja a taxa da segunda via em Minas Gerais e as isenções por furto, roubo ou insuficiência de renda."
 resposta: "A primeira via da CIN e a renovação por vencimento são gratuitas. Em Minas Gerais, a segunda via tem taxa de R$ 115,80, salvo isenção. Furto, roubo e insuficiência de renda têm hipóteses específicas de gratuidade. Informe sua situação ao posto antes de pagar e confira a documentação exigida."
 publicado: 2026-09-11
-atualizado: 2026-09-11
+atualizado: 2026-10-14
 conferido: 2026-09-11
 conferido_por: "Responsável pelo projeto — aprovação registrada em conversa; conferência técnica por OpenAI Codex"
 cluster: regras-e-contexto
