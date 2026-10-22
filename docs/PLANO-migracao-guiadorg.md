@@ -2,8 +2,8 @@
 
 Proposto em 22/10/2026, a partir do código dos dois repositórios (`agendamentorg`
 e `guiadorg`) nessa data. Nada foi implementado. A Fase 0 depende da Câmara e
-segura todas as outras; o que cabe a você decidir está no fim, em "Decisões em
-aberto". O enquadramento jurídico da Fase 0 é ponto de partida para o jurídico
+segura todas as outras. As decisões tomadas e as que faltam estão no fim, em
+"Decisões". O enquadramento jurídico da Fase 0 é ponto de partida para o jurídico
 ou o controle interno da Câmara, que devem revisá-lo.
 
 O que o plano propõe:
@@ -13,8 +13,9 @@ O que o plano propõe:
    ficam onde estão: nenhum dado de cidadão muda de lugar.
 2. **A Câmara continua controladora dos dados**, e a mudança sai por ofício e
    termo antes de qualquer deploy.
-3. **Nenhum anúncio e nenhum rastreamento publicitário no agendamento**, com
-   trava em teste para isso não voltar por descuido.
+3. **Nenhum anúncio e nenhum rastreamento no agendamento**: o Analytics é
+   desligado, os cards do guiadorg saem da home e uma trava em teste impede a
+   volta por descuido.
 4. **O `.gov.br` vira redirecionamento 301** para o mesmo caminho no endereço
    novo, sem mexer no DNS da Câmara. Voltar atrás custa um deploy.
 
@@ -64,6 +65,10 @@ paga um proxy no caminho da abertura nem a origem compartilhada com anúncios.
   art. 7º, III, e no art. 23 da LGPD (`docs/POLITICA-PRIVACIDADE.md`). A política
   ainda não foi publicada e o encarregado não foi designado
   (`docs/AUDITORIA-LGPD.md`, itens 3 e 4).
+- **Projeto e custos:** o projeto `agendamento-cin-itanhandu` e a conta de
+  faturamento são de Guilherme Ribeiro, que paga os custos (confirmado em
+  22/10/2026). O aceite dos termos do Firebase e do Google Cloud, incluindo os de
+  tratamento de dados, está no nome dele.
 - **Guia do RG:** Next.js com exportação estática, projeto Firebase `guiadorg`
   (plano Spark), contas pessoais. O `docs/PUBLICACAO.md` de lá diz que nenhuma
   conta, projeto ou dado da Câmara entra no projeto, e o site se declara sem
@@ -75,7 +80,8 @@ paga um proxy no caminho da abertura nem a origem compartilhada com anúncios.
   12/10/2026 com autorização da Câmara, mas o campo do documento de autorização
   segue em branco (`docs/RETIRADA-BLOG-E-CONTADOR.md`). A home do agendamento tem
   três cards para artigos do guiadorg, exceção autorizada em 15/10/2026
-  (`editorial/README.md:65`).
+  (`editorial/README.md:65`), e três páginas do guia citam artigos do guiadorg no
+  meio do texto (ver "Decisões").
 
 O plano mantém verdadeira a regra do `docs/PUBLICACAO.md` do guiadorg: o
 agendamento continua no projeto e nas contas de hoje, e o guiadorg só empresta o
@@ -115,8 +121,9 @@ O ofício ou termo precisa dizer:
 3. que a Câmara continua controladora dos dados, com a mesma finalidade e a
    mesma base legal, e qual é o seu papel no tratamento: servidor que mantém o
    sistema em nome da Câmara ou operador, conforme o jurídico enquadrar;
-4. que o agendamento não exibe anúncio, não carrega rastreamento publicitário e
-   não compartilha dado com o Guia do RG;
+4. que o agendamento não exibe anúncio, não carrega ferramenta de rastreamento
+   (o Analytics é desligado), não compartilha dado com o Guia do RG e deixa de ter
+   os cards do guiadorg na home, que a Câmara tinha autorizado em 15/10/2026;
 5. que a Câmara mantém o registro DNS de `cin.itanhandu.cam.mg.gov.br` apontando
    para o Firebase por pelo menos 12 meses. É ele que leva links antigos,
    cartazes e QR codes ao endereço novo;
@@ -130,13 +137,13 @@ Junto com o ofício:
   designado e o endereço novo no texto. Sair do `.gov.br` sem política publicada,
   com o formulário de CPF num domínio pessoal, é a combinação mais difícil de
   defender.
-- **Conta institucional da Câmara como Proprietária do projeto**
-  `agendamento-cin-itanhandu`. Registre também quem é dono do projeto e da conta
-  de faturamento hoje. Sem esse acesso, a Câmara depende de você para voltar
-  atrás ou exportar os próprios dados.
-- **Decisão sobre os três cards do guiadorg na home** (ver "Decisões em aberto").
-- **Aprovação do texto do rodapé** (proposta em "Decisões em aberto"), que fala
-  em nome da Câmara.
+- **Custos e continuidade no termo:** o projeto e o faturamento ficam com você,
+  e a Câmara não paga nada. Qualquer desligamento tem aviso prévio (sugestão: 90
+  dias), e nesse prazo você entrega à Câmara a exportação dos dados e, se ela
+  quiser seguir com o sistema, a transferência do projeto. O termo também
+  registra que os termos do Firebase e do Google Cloud estão no seu nome.
+- **Acesso de emergência da Câmara** ao projeto, se for dado (ver "Decisões").
+- **Aprovação do texto do rodapé** (em "Decisões"), que fala em nome da Câmara.
 - **Número do documento** anotado neste arquivo e no campo em branco de
   `docs/RETIRADA-BLOG-E-CONTADOR.md`.
 - **Divulgação pela Câmara** no dia da virada: site institucional, Instagram e
@@ -161,21 +168,34 @@ No `agendamentorg`:
   `GovernmentService` continua com a Câmara como operadora e a Polícia Civil como
   prestadora, porque isso não muda.
 - Aviso no rodapé de todas as páginas, com o texto aprovado na Fase 0.
+- **Cards do guiadorg fora da home** (decidido em 22/10/2026): sai o bloco entre
+  os marcadores `posts-guiadorg` e o CSS `.posts-guiadorg*` de `public/index.html`,
+  o script `editorial/scripts/posts-guiadorg.mjs` e o comando `posts-guiadorg` de
+  `editorial/package.json`. `editorial/testes/posts-guiadorg.test.mjs` passa a
+  exigir que o bloco não exista, e a exceção de `editorial/README.md:65` vira
+  registro histórico. Não depende da migração: pode sair antes, num deploy comum
+  de hosting.
 - `tests/load/agenda-read.js`, `tests/load/booking-contention.js` e
   `functions/producao-safety.test.js`: a denylist de produção passa a bloquear o
   endereço novo, para nenhum k6 rodar contra a produção por ele.
-- **Trava contra anúncio:** teste novo que falha se alguma página de `public/`
-  citar `adsbygoogle`, `pagead2.googlesyndication.com` ou o ID do GA4 do guiadorg,
-  ou se o `script-src` ou o `frame-src` do CSP em `firebase.json` liberar domínio
-  de anúncio. O CSP de hoje já barra o script do AdSense; o teste segura isso.
-- **Analytics isolado:** o GA4 grava o cookie `_ga` no domínio mais alto
-  possível, que passa a ser `.guiadorg.com.br`. Sem ajuste, o Analytics do
-  agendamento (`G-KWKF7NCJHK`) e o do blog, que vai ser ligado ao AdSense,
-  dividiriam o mesmo identificador de visitante. Configurar `cookie_domain` com
-  o subdomínio exato e um `cookie_prefix` próprio. Conferir se o SDK compat
-  12.19.0 aceita a opção na chamada atual (`public/index.html:792`); se não
-  aceitar, trocar por `initializeAnalytics` do SDK modular ou desligar o
-  Analytics no agendamento.
+- **Trava contra anúncio e rastreamento:** teste novo que falha se alguma página
+  de `public/` citar `adsbygoogle`, `pagead2.googlesyndication.com`, `gtag` ou
+  `firebase-analytics`, ou se o CSP em `firebase.json` liberar domínio de anúncio
+  ou do Analytics. O CSP de hoje já barra o script do AdSense; o teste segura isso.
+- **Analytics desligado** (decidido em 22/10/2026). No subdomínio, o GA4
+  gravaria o cookie `_ga` em `.guiadorg.com.br`, e o Analytics do agendamento
+  (`G-KWKF7NCJHK`) dividiria o identificador de visitante com o do blog, que vai
+  ser ligado ao AdSense. Saem o script `firebase-analytics-compat.js`
+  (`public/index.html:755`), a chamada `firebase.analytics()`
+  (`public/index.html:792`) e o `measurementId` da configuração da home e do
+  painel (`public/recepcao.js:2`; o painel nunca carregou o Analytics). Do CSP
+  global saem `www.googletagmanager.com`, `www.google-analytics.com`,
+  `analytics.google.com` e `stats.g.doubleclick.net`; `www.google.com`,
+  `www.gstatic.com` e `www.recaptcha.net` ficam, porque o App Check e o SDK usam.
+  No rascunho da política, sai o parágrafo condicional do Analytics
+  (`docs/POLITICA-PRIVACIDADE.md:81`). Perde-se a contagem de visitas. A busca
+  continua medida no Search Console, as aberturas em `metricas_abertura` e o
+  atendimento nos relatórios do painel.
 - `legado/firebase.json` (novo): configuração do site padrão depois da virada,
   só com redirecionamentos e `"site": "agendamento-cin-itanhandu"`, e uma pasta
   pública que só tem o arquivo de verificação do Search Console. Primeiro as
@@ -225,6 +245,9 @@ ensaiar a parte de Hosting, que é a novidade:
   treinar a volta (publicar a configuração completa de novo) e cronometrar.
 - Confirmar que `firebase deploy --only hosting --config legado/firebase.json`
   publica no site indicado em `"site"`, e não no padrão do projeto.
+- Se a Câmara receber o acesso de emergência, dar à conta dela o mesmo papel na
+  homologação e treinar a volta com essa conta, para descobrir antes qual
+  permissão falta.
 
 ## Fase 3 — endereço novo no ar, sem anunciar
 
@@ -285,7 +308,7 @@ atendimento é à tarde.
    antigo continua trazendo para cá, e o agendamento segue gratuito e da Câmara.
 9. Atualizar o que a Câmara controla (site institucional, Instagram, perfil no
    Google), reimportar o workflow do n8n e trocar o endereço no projeto do
-   OpenSEO e no fluxo web do Analytics.
+   OpenSEO.
 
 ### Voltar atrás
 
@@ -295,9 +318,9 @@ atendimento é à tarde.
   `firebase.json`, e deploy do hosting. Em poucos minutos o `.gov.br` volta a
   servir o site. Para desistir da migração inteira, reverter também o canonical
   da Fase 1.
-- **Pela Câmara, sem você:** com o acesso de Proprietária da Fase 0, o mesmo
-  deploy. No limite, ela aponta `cin.itanhandu.cam.mg.gov.br` para outro lugar no
-  DNS dela.
+- **Pela Câmara, sem você:** com o acesso de emergência (ver "Decisões"), o
+  mesmo deploy. Sem ele, o que resta à Câmara é apontar
+  `cin.itanhandu.cam.mg.gov.br` para outro lugar no DNS dela.
 
 ## Fase 5 — acompanhamento
 
@@ -360,23 +383,41 @@ A Fase 0 é o caminho crítico: depende da agenda da Câmara, não do código.
 
 ---
 
-## Decisões em aberto
+## Decisões
 
-1. **Cards do guiadorg na home:** o plano recomenda tirar quando os anúncios do
-   guiadorg forem ligados. Com o agendamento sob a marca Guia do RG e o blog com
-   anúncio, os cards viram o caminho do serviço público até as páginas que dão
-   receita, e é isso que a Câmara e o controle interno vão olhar primeiro.
-   Mantê-los exige o aval renovado no ofício.
-2. **Analytics no agendamento:** isolar o cookie (recomendado) ou desligar.
-3. **Projeto e faturamento:** quem é dono hoje, e se a Câmara entra como
-   Proprietária (recomendado).
-4. **Texto do rodapé.** Proposta, sujeita à aprovação da Câmara:
+Tomadas em 22/10/2026:
+
+1. **Endereço:** `itanhandu.guiadorg.com.br` (ver "Decisão 1").
+2. **Cards do guiadorg na home:** saem (Fase 1). Com o agendamento sob a marca
+   Guia do RG e o blog com anúncio, eles seriam o caminho do serviço público até
+   as páginas que dão receita.
+3. **Analytics no agendamento:** desligado (Fase 1).
+4. **Projeto e faturamento:** ficam com Guilherme Ribeiro, dono do projeto e
+   responsável pelos custos e pelo faturamento.
+5. **Texto do rodapé:** aprovado por você; falta a aprovação da Câmara, na
+   Fase 0:
 
    > Agendamento gratuito do atendimento da Carteira de Identidade Nacional na
    > Câmara Municipal de Itanhandu. A emissão é feita pela Polícia Civil de Minas
    > Gerais. Sistema desenvolvido por Guilherme Ribeiro e cedido à Câmara, que é
    > a responsável pelos dados (veja a Política de Privacidade). Este endereço
    > fica no domínio do Guia do RG e não exibe anúncios.
+
+Em aberto:
+
+1. **Acesso de emergência da Câmara ao projeto.** Como o projeto é seu, a
+   Câmara não consegue desfazer o redirecionamento se você não estiver
+   disponível. O mínimo é uma conta institucional dela com o papel Administrador
+   do Firebase Hosting, que publica o Hosting sem acesso ao faturamento nem ao
+   Firestore, mais as permissões de leitura que o deploy pedir (o rewrite para a
+   function costuma exigir Leitor do Cloud Run). Recomendado, com teste na
+   Fase 2. A alternativa é não dar acesso e deixar a volta só no termo.
+2. **Links do guia para o guiadorg.** Três páginas citam artigos do guiadorg no
+   meio do texto: `editorial/conteudo/guia/_pilar.md:80`, `documentos.md:44` e
+   `gratuidade-e-segunda-via.md:42`, na mesma pasta. Levam ao mesmo lugar que os
+   cards, e pela mesma razão o plano recomenda tirar junto, trocando por fonte
+   oficial onde houver. Os 301 do antigo `/blog/` ficam: eles só levam links
+   antigos para onde o conteúdo foi, com autorização da Câmara.
 
 ## Autorização
 
