@@ -85,10 +85,12 @@ A mais frequente depois que os avisos começarem: "confirmado", "ok obrigada", �
 
 **Nome:** *Cidinho*, assistente virtual do RG da Câmara de Itanhandu (decisão de 15/11). Ele se apresenta no "oi" e quando perguntam quem é; nas outras respostas vai direto ao assunto.
 
-**Modelos (decisão de 15/11): Haiku 5.5 no simples, Opus 5.5 no resto.** Uma regra fixa em `whatsapp/robo/nucleo.mjs` (`mensagemSimples`) manda para o Haiku só cumprimento, agradecimento e confirmação sem pergunta: "oi", "bom dia", "ok obrigada", "confirmado", 👍. Qualquer outra mensagem vai para o Opus, com esforço baixo e fallback do servidor se ele recusar. Assim, nenhuma pergunta sobre documento cai no Haiku. Na bateria de 103 casos, 96 foram para o Opus e 7 para o Haiku, com 102 de 103 dentro do esperado.
+**Modelos (desde 15/11, 19h31): Haiku 5.5 no simples, Sonnet 5.5 no resto**, para baratear (pedido do responsável). O Sonnet custa metade do Opus por token e a bateria de 107 casos deu 104 dentro do esperado (as 3 restantes estavam certas; o teste procurava uma palavra exata). Custo medido: ~US$ 0,0033 por resposta do Sonnet com o cache quente (US$ 0,33 em 100 respostas), contra ~US$ 0,006 do Opus. Relatório: `whatsapp/robo/resultados/2026-11-15-22-24-auto.md`. O texto abaixo, da escolha original, fala do Opus.
+
+**Escolha original (15/11): Haiku 5.5 no simples, Opus 5.5 no resto.** Uma regra fixa em `whatsapp/robo/nucleo.mjs` (`mensagemSimples`) manda para o Haiku só cumprimento, agradecimento e confirmação sem pergunta: "oi", "bom dia", "ok obrigada", "confirmado", 👍. Qualquer outra mensagem vai para o Opus, com esforço baixo e fallback do servidor se ele recusar. Assim, nenhuma pergunta sobre documento cai no Haiku. Na bateria de 103 casos, 96 foram para o Opus e 7 para o Haiku, com 102 de 103 dentro do esperado.
 
 **Cache igual ao dos robôs da Sucupira (no ar desde 15/11):**
-- O intermediário fica no n8n da Câmara: fluxo **"CIN — Cidinho: intermediário da IA (Opus/Haiku com cache)"** (`CinCidinhoIA0001`), webhook interno `POST http://127.0.0.1:5678/webhook/cidinho`, que só aceita chamadas de 127.0.0.1.
+- O intermediário fica no n8n da Câmara: fluxo **"CIN — Cidinho: intermediário da IA (Sonnet/Haiku com cache)"** (`CinCidinhoIA0001`), webhook interno `POST http://127.0.0.1:5678/webhook/cidinho`, que só aceita chamadas de 127.0.0.1.
 - Ele guarda a chave (credencial **"Anthropic do Cidinho"**, `CinAnthropic0001`, workspace `rg-itanhandu`) e busca a agenda pública na hora.
 - Regras e base formam um bloco fixo marcado com **cache de 1 h**, compartilhado entre todas as conversas, um cache para cada modelo. Data, aviso recebido e agenda vão depois do ponto de cache.
 - Conferido em 15/11: no Opus, a primeira chamada gravou 6.647 tokens e as duas seguintes leram 6.647 cada; o Haiku gravou o seu.
@@ -138,14 +140,24 @@ O custo medido no dia foi de ~US$ 0,30 em 12 chamadas. Com pouco tráfego, quem 
   - "Hash do telefone" → "Cidinho atende?". A lista `CIDINHO_LIBERADOS` guarda o SHA-256 dos números liberados, ou `'todos'` (assim desde 15/11, 19h16).
   - Liberado: guarda a conversa e chama o intermediário. Não liberado: segue a resposta padrão de sempre.
   - Para voltar a só o celular de teste: troque a lista pelo hash que está no comentário, gere de novo, importe, publique e reinicie fora dos minutos :00/:05/:10… e longe das 8h.
-- **Conversa:** tabela `cin_cidinho_conversa` (telefone, papel, texto, quando). Guarda só 24 h: as falas mais antigas são apagadas a cada mensagem. Vão para a IA as últimas 12 falas.
-- **Texto fixo, sem IA:** áudio, foto, documento ou mensagem vazia pede para escrever em texto ou chamar o (35) 3504-0397. Depois de **20 respostas em 24 h** para o mesmo número, manda para a recepção.
+- **Conversa:** tabela `cin_cidinho_falas` (telefone, papel, texto, quando, msgid), desde 15/11 19h31; antes era `cin_cidinho_conversa`, sem o msgid, esvaziada na troca. Guarda só 24 h (apagada a cada mensagem e pela limpeza de hora em hora). Vão para a IA todas as falas desde a última resposta e, antes delas, as últimas 12.
+- **Texto fixo, sem IA:** foto, vídeo, documento ou mensagem vazia pede para escrever ou mandar áudio, ou chamar o (35) 3504-0397. Depois de **20 respostas em 24 h** para o mesmo número, manda para a recepção.
 - **Falha da IA:** mensagem fixa que manda para a recepção.
-- **Ainda não feito:** juntar a rajada (três mensagens seguidas recebem três respostas), áudio e passagem real da conversa para a recepção.
+- **Ainda não feito:** passagem real da conversa para a recepção.
+
+### Estrutura copiada do robô UAZAPI da Sucupira (15/11, 19h31)
+
+Estudado o robô `E7sLJiBwen8t0CNx` (cópia em `Google ADS/whatsapp-bot/correcoes-conversas-2026-11-12/depois/uazapi.json`). Vieram três peças, adaptadas às tabelas do n8n (a Câmara não tem Redis):
+
+- **Mensagem repetida:** cada fala guarda o id da mensagem do WhatsApp (`msgid`). Se o mesmo id chegar de novo, o fluxo para ("Mensagem nova?"). Na Sucupira é o `INCR dedup` no Redis.
+- **Juntar mensagens (rajada):** a fala da pessoa é guardada na hora; o fluxo espera **9 segundos** e relê a conversa. Só a execução da **última** mensagem segue; as outras param. Ela manda à IA tudo o que chegou desde a última resposta. Depois da IA, confere de novo ("Conferir de novo" → "Ainda é a última?"): se chegou outra mensagem enquanto a IA pensava, a resposta é descartada, sem enviar nem guardar, e a execução mais nova responde tudo. Mesma ideia do `buffer_last` + "Ainda é a última mensagem? (IA)" da Sucupira.
+- **Áudio:** o WAHA manda o link do arquivo; o fluxo troca o endereço pelo interno do WAHA (a chave vai junto e só pode ir para ele), baixa e transcreve no **Whisper local da Sucupira** (`http://sucupira_naturale_whisper:9000/asr`, rede interna do Easypanel, sem custo por áudio). O filtro da Sucupira barra o que o Whisper inventa em silêncio ou ruído ("Thank you for watching", "Legendas pela comunidade"); nesse caso, ou se o download ou a transcrição falharem, o Cidinho pede para repetir ou escrever. O texto transcrito entra na conversa como uma mensagem escrita e também passa pela rajada.
+
+**Conferido em 15/11 (mensagens simuladas a partir do próprio número do robô):** três mensagens com 2 s de intervalo ("oi" / "queria tirar o rg da minha filha" / "ela tem 2 anos, precisa de foto?") geraram **uma** resposta, dada pela última, sobre a foto 3x4 de quem tem menos de 3 anos. A mesma mensagem reenviada foi ignorada. Um áudio com link quebrado recebeu "Não consegui entender o seu áudio". **Falta conferir um áudio de verdade** vindo de um celular (o WAHA precisa mandar `media.url`; o padrão é baixar a mídia).
 
 ## Conflitos encontrados (precisam de decisão)
 
-1. **Certidão: só original, ou também cópia autenticada e digital?** O guia e a página de dúvidas aceitam **original em papel, certidão digital verificável ou cópia autenticada (cópia simples não)**. A mensagem de confirmação do WhatsApp, a pedido de 15/11, diz só "**original**". Os três têm de dizer o mesmo. Até a decisão, o robô segue o guia (`[DECISÃO PENDENTE]` em `conhecimento.md`).
+1. **Certidão — decidido em 15/11 pelo responsável: original ou cópia autenticada em cartório.** Xerox simples, foto e certidão digital/PDF não servem. Já está no robô (`conhecimento.md`) e na mensagem de confirmação. **Falta o guia /cin e a página de dúvidas**, que ainda dizem que a certidão digital verificável vale: precisam mudar para não contradizer o Cidinho.
 2. **O guia diz que o comprovante "não é enviado automaticamente"** (página consultar-ou-cancelar, "O comprovante chega por e-mail ou mensagem? Não."). Com os avisos ligados para o público, isso deixa de ser verdade e o guia precisa mudar no mesmo dia.
 3. **O robô roda num número diferente do da recepção.** Quando precisar de uma pessoa, ele só pode **dar o número** (35) 3504-0397, não transferir a conversa. Para transferir de verdade, só com o número geral na API oficial (o outro plano).
 
@@ -154,4 +166,4 @@ O custo medido no dia foi de ~US$ 0,30 em 12 chamadas. Com pouco tráfego, quem 
 1. ~~Rodar a bateria e corrigir regras ou base~~ (feito em 15/11: duas rodadas, acima).
 2. Você e a recepção leem as respostas da bateria e acrescentam as perguntas reais do balcão.
 3. Montar o robô no fluxo de entrada, quando o SAIR estiver publicado, primeiro só para números liberados.
-4. Antes do público: a decisão da certidão, a Câmara revisar `conhecimento.md` e a política de privacidade dizer que o texto das mensagens vai para a IA da Anthropic, nos EUA.
+4. Antes do público: ~~a decisão da certidão~~ (15/11), a Câmara revisar `conhecimento.md` e a política de privacidade dizer que o texto das mensagens vai para a IA da Anthropic, nos EUA.
