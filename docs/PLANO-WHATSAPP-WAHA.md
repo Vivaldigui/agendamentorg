@@ -122,6 +122,10 @@ Para U2/U3: o Cloud Scheduler já tem quatro jobs (o quarto custa ~US$ 0,10/mês
 - [ ] Só responde a números de uma lista branca (você e quem você indicar).
 
 ### Fase 3 — Abrir para o público (decisão da Câmara)
+
+**Pronto em 15/11/2026, sem publicar:** branch `feat/whatsapp-cin-ativo` (e31d9c8) com `WHATSAPP_AVISOS_PARA_TODOS = true` no site e o texto da caixa em "Estou ciente de que vou receber…". Política (rascunho) com o item 5-A dos avisos (main eb68558).
+
+**Para ligar:** (1) SAIR/VOLTAR no ar — sessão derivada trabalhando em `whatsapp/n8n/montar-entrada.mjs`; (2) teste ponta a ponta com agendamento real em `?whatsapp=teste`; (3) aval dos textos e da regra da certidão (original × cópia autenticada); (4) merge da branch, `WHATSAPP_CIN_MODO=ativo` no `.env.agendamento-cin-itanhandu` e deploy de `processarFilaWhatsappCin`, `avisarWhatsappAgendamento` e hosting. A política só vira página com os campos `[[PREENCHER]]` da Câmara; a fila `whatsapp_envios` ainda não tem rotina de limpeza.
 - [ ] Textos aprovados pela Câmara.
 - [ ] Ligar `WHATSAPP_ATIVO=true`, depois abrir o robô para todos.
 - [ ] Número no site (página de confirmação e `/cin/`), só depois de uma semana estável.
