@@ -632,7 +632,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Why Code: monta a conversa (24 h, últimas 12 falas), barra mídia e aplica o teto, num passo só.\nconst p = ($('Hash do segredo').first().json.body || {}).payload || {};\nconst texto = String(p.body || '').trim().slice(0, 2000);\nconst midia = p.hasMedia === true || (!texto);\nconst limite = Date.now() - 24 * 3600 * 1000;\nconst falas = $input.all().map((i) => i.json)\n  .filter((r) => r && r.telefone && (r.papel === 'user' || r.papel === 'assistant') && new Date(r.quando).getTime() >= limite)\n  .sort((a, b) => new Date(a.quando) - new Date(b.quando));\nconst respostas = falas.filter((r) => r.papel === 'assistant').length;\nif (midia) return [{ json: { usarIa: false, resposta: \"Ainda não consigo ouvir áudio nem ver foto ou documento. 🙏 Escreva sua dúvida em texto, por favor.\\n\\nSe preferir falar com uma pessoa, chame a recepção da Câmara no WhatsApp *(35) 3504-0397*.\", textoPessoa: texto || '[mídia]' } }];\nif (respostas >= 20) return [{ json: { usarIa: false, resposta: \"Por hoje eu já respondi bastante por aqui. 🙏 Para continuar, fale com a recepção da Câmara pelo WhatsApp *(35) 3504-0397*.\\n\\nAgendar, consultar ou cancelar: https://cin.itanhandu.cam.mg.gov.br\", textoPessoa: texto } }];\n// Últimas 12 falas, juntando falas seguidas do mesmo lado, e a mensagem de agora no fim.\nconst mensagens = [];\nfor (const f of [...falas.slice(-12), { papel: 'user', texto }]) {\n  const ultima = mensagens[mensagens.length - 1];\n  if (ultima && ultima.role === f.papel) ultima.content += '\\n' + f.texto;\n  else mensagens.push({ role: f.papel, content: String(f.texto || '') });\n}\nwhile (mensagens.length && mensagens[0].role !== 'user') mensagens.shift();\nreturn [{ json: { usarIa: true, mensagens, textoPessoa: texto } }];"
+        "jsCode": "// Why Code: monta a conversa (24 h, últimas 12 falas), barra mídia e aplica o teto, num passo só.\nconst p = ($('Hash do segredo').first().json.body || {}).payload || {};\nconst texto = String(p.body || '').trim().slice(0, 2000);\nconst midia = p.hasMedia === true || (!texto);\nconst limite = Date.now() - 24 * 3600 * 1000;\nconst falas = $input.all().map((i) => i.json)\n  .filter((r) => r && r.telefone && (r.papel === 'user' || r.papel === 'assistant') && new Date(r.quando).getTime() >= limite)\n  .sort((a, b) => new Date(a.quando) - new Date(b.quando));\nconst respostas = falas.filter((r) => r.papel === 'assistant').length;\nif (midia) return [{ json: { usarIa: false, resposta: \"Ainda não consigo ouvir áudio nem ver foto ou documento. 🙏 Escreva sua dúvida em texto, por favor.\\n\\nSe preferir falar com uma pessoa, chame a recepção da Câmara no WhatsApp *(35) 3504-0397*.\", textoPessoa: texto || '[mídia]' } }];\nif (respostas >= 20) return [{ json: { usarIa: false, resposta: \"Por hoje eu já respondi bastante por aqui. 🙏 Para continuar, fale com a recepção da Câmara pelo WhatsApp *(35) 3504-0397*.\\n\\nAgendar, consultar ou cancelar: https://cin.itanhandu.cam.mg.gov.br\", textoPessoa: texto } }];\n// Últimas 12 falas, juntando falas seguidas do mesmo lado, e a mensagem de agora no fim.\nconst mensagens = [];\nfor (const f of [...falas.slice(-12), { papel: 'user', texto }]) {\n  const ultima = mensagens[mensagens.length - 1];\n  if (ultima && ultima.role === f.papel) ultima.content += '\\n' + f.texto;\n  else mensagens.push({ role: f.papel, content: String(f.texto || '') });\n}\nwhile (mensagens.length && mensagens[0].role !== 'user') mensagens.shift();\nreturn [{ json: { usarIa: true, mensagens, primeira: falas.length === 0, textoPessoa: texto } }];"
       }
     },
     {
@@ -712,7 +712,7 @@
         "url": "http://127.0.0.1:5678/webhook/cidinho",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ mensagens: $('Preparar Cidinho').first().json.mensagens }) }}",
+        "jsonBody": "={{ JSON.stringify({ mensagens: $('Preparar Cidinho').first().json.mensagens, primeira: $('Preparar Cidinho').first().json.primeira }) }}",
         "options": {
           "timeout": 90000
         }
@@ -781,7 +781,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ session: 'cin', chatId: $('Telefone').first().json.chatId, text: $json.resposta }) }}",
+        "jsonBody": "={{ JSON.stringify({ session: 'cin', chatId: $('Telefone').first().json.chatId, text: $json.resposta, linkPreview: false }) }}",
         "options": {
           "timeout": 30000
         }
@@ -806,7 +806,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Why Code: duas linhas (a pessoa e o Cidinho) a partir de nós diferentes.\nconst telefone = $('Telefone').first().json.telefone;\nconst pessoa = $('Preparar Cidinho').first().json.textoPessoa;\nconst resposta = $('Usar a IA?').first().json.usarIa ? $('Resposta da IA').first().json.resposta : $('Resposta fixa').first().json.resposta;\nconst agora = Date.now();\nreturn [\n  { json: { telefone, papel: 'user', texto: pessoa, quando: new Date(agora).toISOString() } },\n  { json: { telefone, papel: 'assistant', texto: resposta, quando: new Date(agora + 1).toISOString() } },\n];"
+        "jsCode": "// Why Code: duas linhas (a pessoa e o Cidinho) a partir de nós diferentes.\nconst telefone = $('Telefone').first().json.telefone;\nconst pessoa = $('Preparar Cidinho').first().json.textoPessoa;\nconst resposta = $('Preparar Cidinho').first().json.usarIa ? $('Resposta da IA').first().json.resposta : $('Resposta fixa').first().json.resposta;\nconst agora = Date.now();\nreturn [\n  { json: { telefone, papel: 'user', texto: pessoa, quando: new Date(agora).toISOString() } },\n  { json: { telefone, papel: 'assistant', texto: resposta, quando: new Date(agora + 1).toISOString() } },\n];"
       }
     },
     {

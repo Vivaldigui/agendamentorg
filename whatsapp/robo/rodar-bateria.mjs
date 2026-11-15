@@ -10,7 +10,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { montarPedido, lerResposta } from "./nucleo.mjs";
+import { montarPedido, lerResposta, contextoDaConversa } from "./nucleo.mjs";
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
 const ler = (f) => fs.readFileSync(path.join(aqui, f), "utf8");
@@ -49,7 +49,8 @@ async function responder(caso) {
     ? { ...caso.vagas, dataNovasVagas: proximaSegunda() }
     : caso.vagas;
   const { corpo, cabecalhos, modelo } = montarPedido({
-    prompt, conhecimento, mensagens, contexto: caso.contexto, vagas,
+    // Como na entrada: sem histórico, é a primeira mensagem das últimas 24 h.
+    prompt, conhecimento, mensagens, contexto: [contextoDaConversa(!caso.historico), caso.contexto].filter(Boolean).join("\n"), vagas,
     agora: Date.now(), modelo: MODELO === "auto" ? undefined : MODELO
   });
   const r = await client.beta.messages.create(corpo, { headers: cabecalhos });

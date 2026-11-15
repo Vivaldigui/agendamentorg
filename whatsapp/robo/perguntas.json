@@ -211,6 +211,9 @@
       "mensagem": "tenho que chegar antes?",
       "deve": [
         "5 minutos|cinco minutos"
+      ],
+      "nao_deve": [
+        "https?://"
       ]
     },
     {
@@ -356,7 +359,10 @@
         "CPF",
         "comprovante"
       ],
-      "max_palavras": 90
+      "max_palavras": 90,
+      "nao_deve": [
+        "https?://"
+      ]
     },
     {
       "id": "doc-02",
@@ -364,6 +370,9 @@
       "mensagem": "sou casada, qual certidao levo",
       "deve": [
         "casamento"
+      ],
+      "nao_deve": [
+        "https?://"
       ]
     },
     {
@@ -390,6 +399,9 @@
       "deve": [
         "autenticad",
         "simples"
+      ],
+      "nao_deve": [
+        "https?://"
       ]
     },
     {
@@ -465,6 +477,9 @@
       "deve": [
         "sim|pode",
         "3x4"
+      ],
+      "nao_deve": [
+        "https?://"
       ]
     },
     {
@@ -473,6 +488,9 @@
       "mensagem": "a avó pode levar a criança?",
       "deve": [
         "guarda"
+      ],
+      "nao_deve": [
+        "https?://"
       ]
     },
     {
@@ -513,6 +531,9 @@
       "mensagem": "é de graça?",
       "deve": [
         "gratuit|de gra[cç]a"
+      ],
+      "nao_deve": [
+        "https?://"
       ]
     },
     {
@@ -556,6 +577,9 @@
       "mensagem": "quanto tempo fica pronto?",
       "deve": [
         "15 dias"
+      ],
+      "nao_deve": [
+        "https?://"
       ]
     },
     {
@@ -653,6 +677,9 @@
       "mensagem": "pode tirar foto de oculos?",
       "deve": [
         "n[aã]o|tir"
+      ],
+      "nao_deve": [
+        "https?://"
       ]
     },
     {
@@ -694,7 +721,8 @@
         ".+"
       ],
       "nao_deve": [
-        "cancel"
+        "cancel",
+        "Sou o *?Cidinho"
       ],
       "max_palavras": 40
     },
@@ -706,7 +734,10 @@
       "deve": [
         ".+"
       ],
-      "max_palavras": 30
+      "max_palavras": 30,
+      "nao_deve": [
+        "Sou o *?Cidinho"
+      ]
     },
     {
       "id": "lem-03",
@@ -716,7 +747,10 @@
       "deve": [
         ".+"
       ],
-      "max_palavras": 25
+      "max_palavras": 25,
+      "nao_deve": [
+        "Sou o *?Cidinho"
+      ]
     },
     {
       "id": "lem-04",
@@ -767,7 +801,10 @@
       "deve": [
         ".+"
       ],
-      "max_palavras": 25
+      "max_palavras": 25,
+      "nao_deve": [
+        "Sou o *?Cidinho"
+      ]
     },
     {
       "id": "fora-01",
@@ -905,7 +942,8 @@
         "lista de espera|semana seguinte|pr[oó]xima"
       ],
       "nao_deve": [
-        "reservo|guardo uma vaga"
+        "reservo|guardo uma vaga",
+        "Sou o *?Cidinho"
       ]
     },
     {
@@ -927,6 +965,9 @@
       ],
       "deve": [
         "casamento"
+      ],
+      "nao_deve": [
+        "Sou o *?Cidinho"
       ]
     },
     {

@@ -55,6 +55,14 @@ export function escolherModelo(mensagens) {
   return mensagemSimples(texto) ? MODELO_SIMPLES : MODELO_PRINCIPAL;
 }
 
+// Regra fixa da apresentação: só na primeira mensagem das últimas 24 h.
+// O fluxo de entrada sabe se há fala anterior; a bateria também.
+export function contextoDaConversa(primeiraMensagem) {
+  return primeiraMensagem
+    ? "Esta é a primeira mensagem da pessoa nas últimas 24 horas: comece se apresentando como o Cidinho."
+    : "A conversa já começou: NÃO se apresente de novo e não cumprimente outra vez; responda direto.";
+}
+
 export function blocoAgenda(vagas) {
   if (!vagas) return "";
   const dias = (vagas.dias || [])

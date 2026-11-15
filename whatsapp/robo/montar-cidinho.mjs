@@ -5,7 +5,7 @@
 //
 // Uso: node whatsapp/robo/montar-cidinho.mjs
 // Pedido:   POST http://127.0.0.1:5678/webhook/cidinho
-//           { "mensagens": [{ "role": "user"|"assistant", "content": "..." }], "contexto": "opcional" }
+//           { "mensagens": [{ "role": "user"|"assistant", "content": "..." }], "primeira": true|false, "contexto": "opcional" }
 // Resposta: { "texto": "...", "modelo": "claude-opus-5-5"|"claude-haiku-5-5", "falhou": false }
 //           Em falha, "texto" traz a mensagem fixa que manda para a recepção.
 import { readFileSync, writeFileSync } from "node:fs";
@@ -59,7 +59,9 @@ if (!mensagens.length || mensagens[mensagens.length - 1].role !== 'user') {
 }
 const agenda = $input.first().json;
 const vagas = agenda && Array.isArray(agenda.dias) ? agenda : null;
-const contexto = typeof corpoPedido.contexto === 'string' ? corpoPedido.contexto.slice(0, 500) : '';
+// "primeira": a entrada diz se não há fala anterior nas últimas 24 h (regra fixa da apresentação).
+const contexto = [contextoDaConversa(corpoPedido.primeira === true), typeof corpoPedido.contexto === 'string' ? corpoPedido.contexto.slice(0, 500) : '']
+  .filter(Boolean).join('\\n');
 const { corpo, modelo } = montarPedido({ prompt: PROMPT, conhecimento: CONHECIMENTO, mensagens, contexto, vagas, agora: Date.now() });
 return [{ json: { corpo, modelo } }];`;
 no("Montar pedido", "n8n-nodes-base.code", 2, [440, 200], { jsCode: codigoMontar });

@@ -252,7 +252,7 @@ for (const f of [...falas.slice(-12), { papel: 'user', texto }]) {
   else mensagens.push({ role: f.papel, content: String(f.texto || '') });
 }
 while (mensagens.length && mensagens[0].role !== 'user') mensagens.shift();
-return [{ json: { usarIa: true, mensagens, textoPessoa: texto } }];`,
+return [{ json: { usarIa: true, mensagens, primeira: falas.length === 0, textoPessoa: texto } }];`,
 });
 no('Usar a IA?', 'n8n-nodes-base.if', 2.2, [3520, 640], {
   conditions: condicoes([verdadeiro('={{ $json.usarIa }}')]),
@@ -273,7 +273,7 @@ no('Perguntar ao Cidinho', 'n8n-nodes-base.httpRequest', 4.2, [3960, 560], {
   url: 'http://127.0.0.1:5678/webhook/cidinho',
   sendBody: true,
   specifyBody: 'json',
-  jsonBody: "={{ JSON.stringify({ mensagens: $('Preparar Cidinho').first().json.mensagens }) }}",
+  jsonBody: "={{ JSON.stringify({ mensagens: $('Preparar Cidinho').first().json.mensagens, primeira: $('Preparar Cidinho').first().json.primeira }) }}",
   options: { timeout: 90000 },
 }, { onError: 'continueRegularOutput' });
 no('Resposta da IA', 'n8n-nodes-base.set', 3.4, [4180, 560], {
@@ -291,7 +291,7 @@ no('Enviar resposta do Cidinho', 'n8n-nodes-base.httpRequest', 4.2, [4400, 640],
   genericAuthType: 'httpHeaderAuth',
   sendBody: true,
   specifyBody: 'json',
-  jsonBody: `={{ JSON.stringify({ session: '${SESSAO}', chatId: ${M}.chatId, text: $json.resposta }) }}`,
+  jsonBody: `={{ JSON.stringify({ session: '${SESSAO}', chatId: ${M}.chatId, text: $json.resposta, linkPreview: false }) }}`,
   options: { timeout: 30000 },
 }, { ...credencialWaha, onError: 'continueRegularOutput' });
 no('Falas para guardar', 'n8n-nodes-base.code', 2, [4620, 640], {
@@ -300,7 +300,7 @@ no('Falas para guardar', 'n8n-nodes-base.code', 2, [4620, 640], {
   jsCode: `// Why Code: duas linhas (a pessoa e o Cidinho) a partir de nós diferentes.
 const telefone = $('Telefone').first().json.telefone;
 const pessoa = $('Preparar Cidinho').first().json.textoPessoa;
-const resposta = $('Usar a IA?').first().json.usarIa ? $('Resposta da IA').first().json.resposta : $('Resposta fixa').first().json.resposta;
+const resposta = $('Preparar Cidinho').first().json.usarIa ? $('Resposta da IA').first().json.resposta : $('Resposta fixa').first().json.resposta;
 const agora = Date.now();
 return [
   { json: { telefone, papel: 'user', texto: pessoa, quando: new Date(agora).toISOString() } },
