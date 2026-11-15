@@ -359,3 +359,48 @@ test("rodada: antes das 17h nao entra convite de avaliacao", async () => {
   assert.equal(r.avaliacoes, null);
   assert.equal(a.chamadas.length, 0);
 });
+
+test("limpeza: apaga so os envios com atendimento antes do corte, em lotes", async () => {
+  const { limparEnviosAntigos } = require("./whatsapp-cin");
+  const registros = new Map();
+  for (let i = 0; i < 7; i += 1) registros.set(`whatsapp_envios/velho${i}`, { dataISO: "2026-04-10", status: "enviado" });
+  registros.set("whatsapp_envios/novo", { dataISO: "2026-06-01", status: "enviado" });
+  registros.set("whatsapp_avaliacao_destinatarios/x", { agendamentoId: "a" });
+  let lotes = 0;
+  const db = {
+    collection(nome) {
+      let filtro = null;
+      let limite = Infinity;
+      const consulta = {
+        where(campo, op, valor) { assert.equal(campo, "dataISO"); assert.equal(op, "<"); filtro = valor; return consulta; },
+        limit(n) { limite = n; return consulta; },
+        async get() {
+          const docs = [...registros]
+            .filter(([path, d]) => path.startsWith(`${nome}/`) && d.dataISO < filtro)
+            .slice(0, limite)
+            .map(([path]) => ({ ref: { path } }));
+          return { empty: docs.length === 0, docs };
+        }
+      };
+      return consulta;
+    },
+    batch() {
+      const apagar = [];
+      return { delete(ref) { apagar.push(ref.path); }, async commit() { lotes += 1; apagar.forEach((p) => registros.delete(p)); } };
+    }
+  };
+  const apagados = await limparEnviosAntigos(db, "2026-05-15", { pagina: 3 });
+  assert.equal(apagados, 7);
+  assert.equal(lotes, 3);
+  assert.ok(registros.has("whatsapp_envios/novo"));
+  assert.ok(registros.has("whatsapp_avaliacao_destinatarios/x"), "o convite unico por celular fica");
+  assert.equal(await limparEnviosAntigos(db, "2026-05-15", { pagina: 3, maximo: 2 }), 0);
+  await assert.rejects(() => limparEnviosAntigos(db, "ontem"));
+});
+
+test("manutencao diaria chama a limpeza da fila com o prazo da LGPD", () => {
+  const index = require("node:fs").readFileSync(require.resolve("./index"), "utf8");
+  const manutencao = index.slice(index.indexOf("exports.executarManutencaoDiaria"), index.indexOf("async function limparFilaWhatsappAntiga"));
+  assert.match(manutencao, /await limparFilaWhatsappAntiga\(\);/);
+  assert.match(index, /subtrairMesesISO\(hojeSaoPauloISO\(\), LGPD_RETENCAO_MESES\);\s*let apagados = 0;\s*try \{\s*apagados = await limparEnviosAntigos\(db, corte\);/);
+});

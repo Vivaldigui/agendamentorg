@@ -6,7 +6,7 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { defineBoolean, defineString, defineSecret } = require("firebase-functions/params");
 const { criarServicoAvaliacao, dataEmSaoPaulo } = require("./avaliacao-google");
-const { criarServicoWhatsappCin, eventoDoAgendamento } = require("./whatsapp-cin");
+const { criarServicoWhatsappCin, eventoDoAgendamento, limparEnviosAntigos } = require("./whatsapp-cin");
 const {
   dataISOValida,
   somarDiasISO,
@@ -2801,4 +2801,33 @@ exports.executarManutencaoDiaria = onSchedule({
   await limparDatasPassadasAgenda();
   await limparAuxiliaresExpirados();
   await limparBloqueiosVencidos();
+  await limparFilaWhatsappAntiga();
 });
+
+// Fila dos avisos do WhatsApp (whatsapp-cin.js): registros com atendimento de
+// mais de LGPD_RETENCAO_MESES saem, como o proprio agendamento. Falha aqui so
+// vai para o log, sem derrubar a manutencao.
+async function limparFilaWhatsappAntiga() {
+  const corte = subtrairMesesISO(hojeSaoPauloISO(), LGPD_RETENCAO_MESES);
+  let apagados = 0;
+  try {
+    apagados = await limparEnviosAntigos(db, corte);
+    if (apagados > 0) {
+      await db.collection("logs_admin").add({
+        acao: "limpeza_fila_whatsapp",
+        detalhes: { apagados, corte },
+        adminEmail: "sistema",
+        criadoEm: FieldValue.serverTimestamp(),
+        criado: new Date().toISOString()
+      });
+    }
+  } catch (err) {
+    await db.collection("logs_admin").add({
+      acao: "erro_limpeza_fila_whatsapp",
+      detalhes: { mensagem: err.message, apagados, corte },
+      adminEmail: "sistema",
+      criadoEm: FieldValue.serverTimestamp(),
+      criado: new Date().toISOString()
+    }).catch(() => {});
+  }
+}

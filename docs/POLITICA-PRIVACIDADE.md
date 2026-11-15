@@ -134,8 +134,8 @@ Os avisos fazem parte do próprio serviço de agendamento e seguem o mesmo
 fundamento legal do item 2. O envio passa pelo WhatsApp, serviço da Meta, e por
 um servidor contratado para isso [[PREENCHER: quem é o contratado e onde fica o
 servidor]]. O sistema guarda, por mensagem, só o tipo do aviso, a data e se ela
-foi entregue, sem o telefone e sem o texto, por [[PREENCHER: prazo; sugerido 6
-meses, como o agendamento]].
+foi entregue, sem o telefone e sem o texto, por 6 meses depois do atendimento,
+como o agendamento; depois um processo automático apaga.
 
 ### 6. Como protegemos
 
@@ -210,8 +210,8 @@ Quando a página for construída:
   obrigatória (decisão do responsável). Como a base é a execução de política
   pública, e não o consentimento (item 2), o texto da caixa deve dizer que a
   pessoa **está ciente** de que vai receber os avisos, e não que "concorda". O
-  item 5-A precisa dos dados do servidor e do prazo de guarda de
-  `whatsapp_envios`, que hoje **não é apagada** por nenhuma rotina. Quando o robô
+  item 5-A precisa dos dados do servidor: `whatsapp_envios` é apagada 6 meses depois do atendimento pela manutenção
+  diária (desde 15/11/2026). Quando o robô
   de IA entrar, acrescentar: o texto das conversas vai à Anthropic, nos EUA
   (transferência internacional), só o texto, sem foto nem áudio.
 - `firebase.json` não muda: a página herda os headers de `**` e o `Cache-Control`

@@ -466,7 +466,35 @@ function criarServicoWhatsappCin({
   return { enfileirar, enfileirarLembretes, enfileirarAvaliacoes, processarFila };
 }
 
+// Limpeza da fila (manutencao diaria em index.js): apaga os registros de
+// whatsapp_envios com data de atendimento anterior ao corte (6 meses, o mesmo
+// prazo da anonimizacao do agendamento). Os registros so tem tipo, data, status
+// e o id do agendamento, mas nao precisam durar mais que o proprio agendamento.
+// whatsapp_avaliacao_destinatarios fica: e o que garante o convite unico por
+// celular e guarda so um HMAC do numero, como os destinatarios do e-mail.
+const LIMPEZA_PAGINA = 300;
+const LIMPEZA_MAX_POR_EXECUCAO = 5000;
+
+async function limparEnviosAntigos(db, corteISO, { pagina = LIMPEZA_PAGINA, maximo = LIMPEZA_MAX_POR_EXECUCAO } = {}) {
+  if (!dataISOValida(corteISO)) throw new Error("Data de corte invalida.");
+  let apagados = 0;
+  while (apagados < maximo) {
+    const consulta = await db.collection(COLECAO_ENVIOS)
+      .where("dataISO", "<", corteISO)
+      .limit(Math.min(pagina, maximo - apagados))
+      .get();
+    if (consulta.empty || consulta.docs.length === 0) break;
+    const lote = db.batch();
+    consulta.docs.forEach((doc) => lote.delete(doc.ref));
+    await lote.commit();
+    apagados += consulta.docs.length;
+    if (consulta.docs.length < pagina) break;
+  }
+  return apagados;
+}
+
 module.exports = {
+  limparEnviosAntigos,
   COLECAO_ENVIOS,
   COLECAO_AVALIACAO_DESTINATARIOS,
   CONVITE_WHATSAPP_ALCANCOU,
