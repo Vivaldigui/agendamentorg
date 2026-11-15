@@ -125,6 +125,8 @@ Para U2/U3: o Cloud Scheduler já tem quatro jobs (o quarto custa ~US$ 0,10/mês
 
 ### Fase 3 — Abrir para o público (decisão da Câmara)
 
+**LIGADO PARA O PÚBLICO em 15/11/2026, ~15h15** (main 9b5dfbf, a pedido do responsável). `WHATSAPP_CIN_MODO=ativo` no `.env.agendamento-cin-itanhandu`; deploy de `avisarWhatsappAgendamento`, `processarFilaWhatsappCin` e hosting. Conferido no ar: caixa visível sem parâmetro, obrigatória, texto "Estou ciente de que vou receber…"; function com `WHATSAPP_CIN_MODO=ativo`. Ligado **sem** o teste ponta a ponta com agendamento real: conferir na primeira abertura das 8h (`whatsapp_envios` e execuções do fluxo `CinWhatsEnviar01`). Ainda abertos: rotina de limpeza de `whatsapp_envios`/`whatsapp_avaliacao_destinatarios`, página de privacidade (campos `[[PREENCHER]]` da Câmara) e o número no site. Para desligar: `WHATSAPP_CIN_MODO=desligado` e deploy das duas functions (a caixa no site continua; o aceite só fica gravado).
+
 **Pronto em 15/11/2026, sem publicar:** branch `feat/whatsapp-cin-ativo` (e31d9c8) com `WHATSAPP_AVISOS_PARA_TODOS = true` no site e o texto da caixa em "Estou ciente de que vou receber…". Política (rascunho) com o item 5-A dos avisos (main eb68558).
 
 **Para ligar:** (1) SAIR/VOLTAR no ar e testado em 15/11 (feito); (2) teste ponta a ponta com agendamento real em `?whatsapp=teste`; (3) aval dos textos e da regra da certidão (original × cópia autenticada); (4) merge da branch, `WHATSAPP_CIN_MODO=ativo` no `.env.agendamento-cin-itanhandu` e deploy de `processarFilaWhatsappCin`, `avisarWhatsappAgendamento` e hosting. A política só vira página com os campos `[[PREENCHER]]` da Câmara; a fila `whatsapp_envios` ainda não tem rotina de limpeza.
