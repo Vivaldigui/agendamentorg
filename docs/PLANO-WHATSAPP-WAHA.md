@@ -107,7 +107,9 @@ Para U2/U3: o Cloud Scheduler já tem quatro jobs (o quarto custa ~US$ 0,10/mês
 - `firestore.rules`: `whatsapp_envios` fechada para o navegador.
 - n8n da Câmara: fluxo **"CIN — enviar aviso do agendamento pelo WhatsApp (WAHA)"** (`CinWhatsEnviar01`, webhook `/webhook/cin-whatsapp-enviar`), publicado. Fonte: `whatsapp/n8n/montar-enviar.mjs` (recebe o SHA-256 do token). Confere o hash do cabeçalho `X-Cin-Token`, o número no WhatsApp, mostra "digitando" 3–6 s e envia. Não guarda execução com sucesso (telefone e texto). Testado: token errado → 401; número sem WhatsApp → `sem_whatsapp`.
 
-**Falta antes de ligar para o público (modo `ativo`):** tratar o **SAIR** (as mensagens já pedem), textos aprovados pela Câmara e a política de privacidade.
+**SAIR no ar desde 15/11/2026** (main f77ddf6). Fluxo n8n `CinWhatsEntrada1` "CIN — receber mensagens do WhatsApp (SAIR e resposta padrão)", webhook público `/webhook/cin-whatsapp-entrada`; o WAHA (sessão `cin`) manda o evento `message` com o segredo no cabeçalho `X-Cin-Entrada` (o fluxo guarda só o SHA-256; o WAHA não aceita URL com `_`, por isso o endereço público). SAIR/PARAR/PARE/STOP → tabela `cin_whatsapp_saida` + confirmação; VOLTAR → sai da tabela; outra mensagem → resposta padrão uma vez por dia (`cin_whatsapp_respondidos`), lugar onde o robô de IA vai entrar. O fluxo de envio consulta `cin_whatsapp_saida` e responde `motivo: "saiu"`. **Testado com o celular de teste:** "oi" → resposta padrão; "SAIR" → número na tabela (telefone resolvido certo); envio para ele → `saiu`, nada entregue.
+
+**Falta antes de ligar para o público (modo `ativo`):** textos aprovados pela Câmara e a política de privacidade.
 - [ ] Caixa de opt-in no formulário + campo `avisoWhatsapp` no agendamento; testes em `functions/`.
 - [ ] Coleção `mensagens_whatsapp` + regras do Firestore fechadas para o navegador.
 - [ ] Gatilho e webhook do n8n (token em secret, como o da avaliação).
@@ -125,7 +127,7 @@ Para U2/U3: o Cloud Scheduler já tem quatro jobs (o quarto custa ~US$ 0,10/mês
 
 **Pronto em 15/11/2026, sem publicar:** branch `feat/whatsapp-cin-ativo` (e31d9c8) com `WHATSAPP_AVISOS_PARA_TODOS = true` no site e o texto da caixa em "Estou ciente de que vou receber…". Política (rascunho) com o item 5-A dos avisos (main eb68558).
 
-**Para ligar:** (1) SAIR/VOLTAR no ar — sessão derivada trabalhando em `whatsapp/n8n/montar-entrada.mjs`; (2) teste ponta a ponta com agendamento real em `?whatsapp=teste`; (3) aval dos textos e da regra da certidão (original × cópia autenticada); (4) merge da branch, `WHATSAPP_CIN_MODO=ativo` no `.env.agendamento-cin-itanhandu` e deploy de `processarFilaWhatsappCin`, `avisarWhatsappAgendamento` e hosting. A política só vira página com os campos `[[PREENCHER]]` da Câmara; a fila `whatsapp_envios` ainda não tem rotina de limpeza.
+**Para ligar:** (1) SAIR/VOLTAR no ar e testado em 15/11 (feito); (2) teste ponta a ponta com agendamento real em `?whatsapp=teste`; (3) aval dos textos e da regra da certidão (original × cópia autenticada); (4) merge da branch, `WHATSAPP_CIN_MODO=ativo` no `.env.agendamento-cin-itanhandu` e deploy de `processarFilaWhatsappCin`, `avisarWhatsappAgendamento` e hosting. A política só vira página com os campos `[[PREENCHER]]` da Câmara; a fila `whatsapp_envios` ainda não tem rotina de limpeza.
 - [ ] Textos aprovados pela Câmara.
 - [ ] Ligar `WHATSAPP_ATIVO=true`, depois abrir o robô para todos.
 - [ ] Número no site (página de confirmação e `/cin/`), só depois de uma semana estável.
