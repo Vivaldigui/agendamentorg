@@ -498,7 +498,7 @@
           "conditions": [
             {
               "id": "c2000000-0000-4000-8000-000000000024",
-              "leftValue": "={{ [\"a34df2e6d776e0d9b5cb7ebe45db6d8a28d3e8f4756d48cdc86e6a56a9f3854d\"].includes('todos') || [\"a34df2e6d776e0d9b5cb7ebe45db6d8a28d3e8f4756d48cdc86e6a56a9f3854d\"].includes($json.telefoneHash) }}",
+              "leftValue": "={{ [\"todos\"].includes('todos') || [\"todos\"].includes($json.telefoneHash) }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",

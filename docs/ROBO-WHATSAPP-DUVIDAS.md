@@ -126,13 +126,18 @@ Chave do workspace `rg-itanhandu`. Relatórios completos em `whatsapp/robo/resul
 
 Com umas 600 respostas por mês, o Opus fica entre R$ 25 e R$ 150, dependendo de quantas vezes o cache esfria; o Haiku, abaixo de R$ 5. **Recomendação:** Opus 5.5, pelo erro do bebê no Haiku, num público em que errar documento custa uma viagem. A escolha é sua; trocar de modelo é uma linha.
 
-## Ligado no WhatsApp (15/11/2026, só para números liberados)
+## Ligado no WhatsApp (15/11/2026; aberto para todos às 19h16)
+
+**Aberto para todos em 15/11/2026, 19h16**, a pedido do responsável, porque o site ganhou o botão "Dúvidas? WhatsApp". `CIDINHO_LIBERADOS = ['todos']`. Continuam valendo o teto de 20 respostas por número em 24 h, o SAIR e o VOLTAR. Entrou também um **teto geral de 300 chamadas à IA por dia** (`LIMITE_DIARIO` no nó "Montar pedido" do intermediário). Passou dele, a pessoa recebe a mensagem fixa da recepção, (35) 3504-0397.
+
+O custo medido no dia foi de ~US$ 0,30 em 12 chamadas. Com pouco tráfego, quem pesa é a gravação do cache: fica entre R$ 0,03 e R$ 0,30 por resposta. No teto de 300/dia, o pior caso fica perto de R$ 40 a R$ 90 por dia; num dia normal, bem menos.
+
 
 - **Empatia:** com quem chega frustrado ("não consigo agendar", "sempre acaba"), o Cidinho reconhece o sentimento com as palavras dele. Depois explica que são poucas vagas (24 por semana, pelo acordo da Câmara), que abrem toda segunda às 8h, que dá para preencher os dados antes e que, se não der, é tentar na próxima segunda. Termina com incentivo e o link. Casos `emp-01` a `emp-04` na bateria (107 casos, 105 dentro do esperado; os 2 restantes são falso alarme do teste).
 - **Onde entra:** saída "outro" do Switch "Comando" do fluxo de entrada (`CinWhatsEntrada1`, fonte `whatsapp/n8n/montar-entrada.mjs`).
-  - "Hash do telefone" → "Cidinho atende?". A lista `CIDINHO_LIBERADOS` guarda só o SHA-256 dos números liberados; hoje, o celular de teste do responsável.
+  - "Hash do telefone" → "Cidinho atende?". A lista `CIDINHO_LIBERADOS` guarda o SHA-256 dos números liberados, ou `'todos'` (assim desde 15/11, 19h16).
   - Liberado: guarda a conversa e chama o intermediário. Não liberado: segue a resposta padrão de sempre.
-  - Para abrir a todos, troque a lista por `['todos']`, gere de novo, importe, publique e reinicie.
+  - Para voltar a só o celular de teste: troque a lista pelo hash que está no comentário, gere de novo, importe, publique e reinicie fora dos minutos :00/:05/:10… e longe das 8h.
 - **Conversa:** tabela `cin_cidinho_conversa` (telefone, papel, texto, quando). Guarda só 24 h: as falas mais antigas são apagadas a cada mensagem. Vão para a IA as últimas 12 falas.
 - **Texto fixo, sem IA:** áudio, foto, documento ou mensagem vazia pede para escrever em texto ou chamar o (35) 3504-0397. Depois de **20 respostas em 24 h** para o mesmo número, manda para a recepção.
 - **Falha da IA:** mensagem fixa que manda para a recepção.

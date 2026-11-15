@@ -193,9 +193,9 @@ enviarTexto('Confirmar volta', [2420, 220], TEXTO_VOLTAR);
 // Liberados: SHA-256 do telefone (55 + DDD + número), para o número não ir
 // para o git. Para abrir a todos, troque a lista por ['todos'].
 // Robô: whatsapp/robo/ (intermediário CinCidinhoIA0001, webhook interno).
-const CIDINHO_LIBERADOS = [
-  'a34df2e6d776e0d9b5cb7ebe45db6d8a28d3e8f4756d48cdc86e6a56a9f3854d', // celular de teste do responsável
-];
+// Liberado para todos em 15/11/2026, a pedido do responsável (botão "Dúvidas? WhatsApp" no site).
+// Para voltar a só o celular de teste: troque por ['a34df2e6d776e0d9b5cb7ebe45db6d8a28d3e8f4756d48cdc86e6a56a9f3854d'].
+const CIDINHO_LIBERADOS = ['todos'];
 const CIDINHO_TETO_24H = 20;
 const TEXTO_MIDIA = 'Ainda não consigo ouvir áudio nem ver foto ou documento. 🙏 Escreva sua dúvida em texto, por favor.\n\nSe preferir falar com uma pessoa, chame a recepção da Câmara no WhatsApp *(35) 3504-0397*.';
 const TEXTO_TETO = 'Por hoje eu já respondi bastante por aqui. 🙏 Para continuar, fale com a recepção da Câmara pelo WhatsApp *(35) 3504-0397*.\n\nAgendar, consultar ou cancelar: ' + SITE;

@@ -46,6 +46,14 @@ const PROMPT = ${JSON.stringify(prompt)};
 const CONHECIMENTO = ${JSON.stringify(conhecimento)};
 ${nucleo}
 
+// Teto geral do dia (todas as conversas): protege o custo quando o botão do
+// site trouxer volume. Passou dele, a resposta é a mensagem fixa da recepção.
+const LIMITE_DIARIO = 300;
+const usoDia = ($getWorkflowStaticData('global').uso) || {};
+const diaHoje = new Date().toISOString().slice(0, 10);
+const chamadasHoje = Object.entries(usoDia).filter(([k]) => k.startsWith(diaHoje)).reduce((s, [, v]) => s + (v.chamadas || 0), 0);
+if (chamadasHoje >= LIMITE_DIARIO) return [{ json: { invalido: true, limiteDiario: true } }];
+
 const corpoPedido = $('Receber pedido').first().json.body || {};
 const brutas = Array.isArray(corpoPedido.mensagens) ? corpoPedido.mensagens : [];
 // Só falas válidas, as últimas 20, começando por uma fala da pessoa.
