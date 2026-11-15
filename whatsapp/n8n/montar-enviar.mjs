@@ -9,6 +9,9 @@
 // Respostas (a function grava o resultado em whatsapp_envios):
 //   200 { enviado: true, mensagemId }           -> enviado
 //   200 { enviado: false, motivo: "sem_whatsapp" } -> numero sem WhatsApp
+//   200 { enviado: false, motivo: "saiu" }      -> a pessoa respondeu SAIR
+//                                                  (tabela cin_whatsapp_saida,
+//                                                  do fluxo de entrada)
 //   401 { erro }                                -> pedido recusado (erro)
 //   502 { erro }                                -> WAHA falhou (revisar)
 import { writeFileSync } from 'node:fs';
@@ -74,7 +77,21 @@ no('Pedido válido?', 'n8n-nodes-base.if', 2.2, [440, 200], {
 
 responder('Recusar pedido', [660, 360], 401, "{ erro: 'nao_autorizado' }");
 
-no('Conferir número no WhatsApp', 'n8n-nodes-base.httpRequest', 4.2, [660, 120], {
+// Quem respondeu SAIR (fluxo de entrada) nao recebe mais nada.
+no('Procurar na lista de saída', 'n8n-nodes-base.dataTable', 1.1, [660, 120], {
+  resource: 'row',
+  operation: 'get',
+  dataTableId: { __rl: true, mode: 'name', value: 'cin_whatsapp_saida' },
+  filters: { conditions: [{ keyName: 'telefone', keyValue: `={{ ${corpo}.telefone }}` }] },
+  returnAll: true,
+}, { alwaysOutputData: true, executeOnce: true });
+no('Saiu dos avisos?', 'n8n-nodes-base.if', 2.2, [880, 120], {
+  conditions: condicoes([cond('={{ $json.telefone }}', { type: 'string', operation: 'notEmpty', singleValue: true })]),
+  options: {},
+});
+responder('Pessoa saiu', [1100, 260], 200, "{ enviado: false, motivo: 'saiu' }");
+
+no('Conferir número no WhatsApp', 'n8n-nodes-base.httpRequest', 4.2, [1100, 120], {
   method: 'GET',
   url: `${WAHA}/api/contacts/check-exists`,
   authentication: 'genericCredentialType',
@@ -84,13 +101,13 @@ no('Conferir número no WhatsApp', 'n8n-nodes-base.httpRequest', 4.2, [660, 120]
   options: { timeout: 20000 },
 }, { ...credencialWaha, onError: 'continueErrorOutput' });
 
-no('Número tem WhatsApp?', 'n8n-nodes-base.if', 2.2, [880, 60], {
+no('Número tem WhatsApp?', 'n8n-nodes-base.if', 2.2, [1320, 60], {
   conditions: condicoes([cond('={{ $json.numberExists }}', { type: 'boolean', operation: 'true', singleValue: true })]),
   options: {},
 });
-responder('Sem WhatsApp', [1100, 200], 200, "{ enviado: false, motivo: 'sem_whatsapp' }");
+responder('Sem WhatsApp', [1540, 200], 200, "{ enviado: false, motivo: 'sem_whatsapp' }");
 
-no('Digitando', 'n8n-nodes-base.httpRequest', 4.2, [1100, -40], {
+no('Digitando', 'n8n-nodes-base.httpRequest', 4.2, [1540, -40], {
   method: 'POST',
   url: `${WAHA}/api/startTyping`,
   authentication: 'genericCredentialType',
@@ -101,12 +118,12 @@ no('Digitando', 'n8n-nodes-base.httpRequest', 4.2, [1100, -40], {
   options: { timeout: 10000 },
 }, { ...credencialWaha, onError: 'continueRegularOutput' });
 
-no('Esperar 3 a 6 s', 'n8n-nodes-base.wait', 1.1, [1320, -40], {
+no('Esperar 3 a 6 s', 'n8n-nodes-base.wait', 1.1, [1760, -40], {
   amount: '={{ 3 + Math.floor(Math.random() * 4) }}',
   unit: 'seconds',
 }, { notes: 'O intervalo entre mensagens fica na function (15 a 30 s). Aqui é só o "digitando".', notesInFlow: true });
 
-no('Enviar pelo WAHA', 'n8n-nodes-base.httpRequest', 4.2, [1540, -40], {
+no('Enviar pelo WAHA', 'n8n-nodes-base.httpRequest', 4.2, [1980, -40], {
   method: 'POST',
   url: `${WAHA}/api/sendText`,
   authentication: 'genericCredentialType',
@@ -117,12 +134,15 @@ no('Enviar pelo WAHA', 'n8n-nodes-base.httpRequest', 4.2, [1540, -40], {
   options: { timeout: 30000 },
 }, { ...credencialWaha, onError: 'continueErrorOutput' });
 
-responder('Enviado', [1760, -100], 200, `{ enviado: true, mensagemId: ${ID_WAHA} }`);
-responder('Falha no WAHA', [1760, 140], 502, "{ erro: 'waha', detalhe: String(($json.error && ($json.error.message || JSON.stringify($json.error))) || 'sem detalhe').slice(0, 200) }");
+responder('Enviado', [2200, -100], 200, `{ enviado: true, mensagemId: ${ID_WAHA} }`);
+responder('Falha no WAHA', [2200, 140], 502, "{ erro: 'waha', detalhe: String(($json.error && ($json.error.message || JSON.stringify($json.error))) || 'sem detalhe').slice(0, 200) }");
 
 liga('Receber pedido', 'Hash do token');
 liga('Hash do token', 'Pedido válido?');
-liga('Pedido válido?', 'Conferir número no WhatsApp', 0);
+liga('Pedido válido?', 'Procurar na lista de saída', 0);
+liga('Procurar na lista de saída', 'Saiu dos avisos?');
+liga('Saiu dos avisos?', 'Pessoa saiu', 0);
+liga('Saiu dos avisos?', 'Conferir número no WhatsApp', 1);
 liga('Pedido válido?', 'Recusar pedido', 1);
 liga('Conferir número no WhatsApp', 'Número tem WhatsApp?', 0);
 liga('Conferir número no WhatsApp', 'Falha no WAHA', 1);
