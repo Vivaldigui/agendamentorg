@@ -1,0 +1,624 @@
+{
+  "id": "CinWahaConectar1",
+  "name": "CIN — conectar o celular do WhatsApp (WAHA)",
+  "active": false,
+  "nodes": [
+    {
+      "id": "a0000000-0000-4000-8000-000000000146",
+      "name": "Rodar",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000151",
+      "name": "Dados",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        200
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a0000000-0000-4000-8000-000000000147",
+              "name": "numero_do_chip",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "a0000000-0000-4000-8000-000000000148",
+              "name": "telefone_teste",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "a0000000-0000-4000-8000-000000000149",
+              "name": "waha_url",
+              "value": "http://camara-itanhandu_waha-cin:3000",
+              "type": "string"
+            },
+            {
+              "id": "a0000000-0000-4000-8000-000000000150",
+              "name": "sessao",
+              "value": "cin",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "notes": "1. Com o celular do chip na mão, clique em \"Testar fluxo\".\n2. Abra a saída do nó \"QR Code\" e leia com o WhatsApp do chip (Aparelhos conectados > Conectar aparelho). O QR vale 1 minuto; se passar, rode de novo.\n   Ou preencha numero_do_chip e use o código do nó \"Código de pareamento\" (Conectar com número de telefone).\n3. Rode de novo: com o celular conectado, preencha telefone_teste para receber uma mensagem de teste.",
+      "notesInFlow": true
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000152",
+      "name": "Situação da sessão",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Dados').first().json.waha_url }}/api/sessions/{{ $('Dados').first().json.sessao }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      }
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000154",
+      "name": "Conectado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a0000000-0000-4000-8000-000000000153",
+              "leftValue": "={{ $json.body && $json.body.status }}",
+              "rightValue": "WORKING",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000156",
+      "name": "Tem telefone de teste?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        60
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a0000000-0000-4000-8000-000000000155",
+              "leftValue": "={{ $('Dados').first().json.telefone_teste }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000157",
+      "name": "Conectado — tudo certo",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        140
+      ],
+      "parameters": {},
+      "notes": "O celular está conectado. Para testar o envio, preencha telefone_teste em \"Dados\" e rode de novo.",
+      "notesInFlow": true
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000158",
+      "name": "Conferir número de teste",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        -20
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Dados').first().json.waha_url }}/api/contacts/check-exists",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "={{ ($('Dados').first().json.telefone_teste.replace(/\\D/g, '').length <= 11 ? '55' : '') + $('Dados').first().json.telefone_teste.replace(/\\D/g, '') }}"
+            },
+            {
+              "name": "session",
+              "value": "={{ $('Dados').first().json.sessao }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      }
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000159",
+      "name": "Mandar teste",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        -20
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Dados').first().json.waha_url }}/api/sendText",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ session: $('Dados').first().json.sessao, chatId: $json.chatId, text: 'Teste do WhatsApp do agendamento da CIN em Itanhandu: o celular está conectado e pronto.' }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      }
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000161",
+      "name": "Sessão existe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        340
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a0000000-0000-4000-8000-000000000160",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 404,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000162",
+      "name": "Criar sessão",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        280
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Dados').first().json.waha_url }}/api/sessions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: $('Dados').first().json.sessao, start: true }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      }
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000163",
+      "name": "Reiniciar sessão",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        420
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Dados').first().json.waha_url }}/api/sessions/{{ $('Dados').first().json.sessao }}/restart",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      }
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000164",
+      "name": "Esperar 6 s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        340
+      ],
+      "parameters": {
+        "amount": 6,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000165",
+      "name": "QR Code",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        260
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Dados').first().json.waha_url }}/api/{{ $('Dados').first().json.sessao }}/auth/qr",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "format",
+              "value": "image"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "image/png"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "qrcode"
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      },
+      "notes": "Abra a saída deste nó e clique em \"View\" na imagem para ver o QR Code.",
+      "notesInFlow": true
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000167",
+      "name": "Pedir código?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1540,
+        440
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a0000000-0000-4000-8000-000000000166",
+              "leftValue": "={{ $('Dados').first().json.numero_do_chip }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000168",
+      "name": "Código de pareamento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        420
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Dados').first().json.waha_url }}/api/{{ $('Dados').first().json.sessao }}/auth/request-code",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ phoneNumber: ($('Dados').first().json.numero_do_chip.replace(/\\D/g, '').length <= 11 ? '55' : '') + $('Dados').first().json.numero_do_chip.replace(/\\D/g, '') }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      },
+      "notes": "No celular: WhatsApp > Aparelhos conectados > Conectar aparelho > Conectar com número de telefone, e digite o código.",
+      "notesInFlow": true
+    }
+  ],
+  "connections": {
+    "Rodar": {
+      "main": [
+        [
+          {
+            "node": "Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dados": {
+      "main": [
+        [
+          {
+            "node": "Situação da sessão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Situação da sessão": {
+      "main": [
+        [
+          {
+            "node": "Conectado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conectado?": {
+      "main": [
+        [
+          {
+            "node": "Tem telefone de teste?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sessão existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem telefone de teste?": {
+      "main": [
+        [
+          {
+            "node": "Conferir número de teste",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Conectado — tudo certo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conferir número de teste": {
+      "main": [
+        [
+          {
+            "node": "Mandar teste",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sessão existe?": {
+      "main": [
+        [
+          {
+            "node": "Criar sessão",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reiniciar sessão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar sessão": {
+      "main": [
+        [
+          {
+            "node": "Esperar 6 s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reiniciar sessão": {
+      "main": [
+        [
+          {
+            "node": "Esperar 6 s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esperar 6 s": {
+      "main": [
+        [
+          {
+            "node": "QR Code",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Pedir código?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pedir código?": {
+      "main": [
+        [
+          {
+            "node": "Código de pareamento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveManualExecutions": true
+  },
+  "pinData": {},
+  "tags": []
+}

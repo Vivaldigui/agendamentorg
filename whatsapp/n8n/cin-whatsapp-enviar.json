@@ -1,0 +1,438 @@
+{
+  "id": "CinWhatsEnviar01",
+  "name": "CIN — enviar aviso do agendamento pelo WhatsApp (WAHA)",
+  "active": false,
+  "nodes": [
+    {
+      "id": "c1000000-0000-4000-8000-000000000001",
+      "name": "Receber pedido",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cin-whatsapp-enviar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "c1a0f6e2-5b7d-4c11-9a3e-7d2b8e4f1a01"
+    },
+    {
+      "id": "c1000000-0000-4000-8000-000000000002",
+      "name": "Hash do token",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        220,
+        200
+      ],
+      "parameters": {
+        "action": "hash",
+        "type": "SHA256",
+        "value": "={{ String($json.headers['x-cin-token'] || '') }}",
+        "dataPropertyName": "tokenHash",
+        "encoding": "hex"
+      }
+    },
+    {
+      "id": "c1000000-0000-4000-8000-000000000006",
+      "name": "Pedido válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1000000-0000-4000-8000-000000000003",
+              "leftValue": "={{ $json.tokenHash === 'ae1a8ec113ed84512e665216213c241ca6f65632bfd9937e92f19ee5c2159e12' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c1000000-0000-4000-8000-000000000004",
+              "leftValue": "={{ /^55\\d{10,11}$/.test(String($('Receber pedido').first().json.body.telefone || '')) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c1000000-0000-4000-8000-000000000005",
+              "leftValue": "={{ typeof $('Receber pedido').first().json.body.texto === 'string' && $('Receber pedido').first().json.body.texto.length > 0 && $('Receber pedido').first().json.body.texto.length <= 3000 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "notes": "Confere o hash do cabeçalho X-Cin-Token (o token fica só no Firebase) e o pedido.",
+      "notesInFlow": true
+    },
+    {
+      "id": "c1000000-0000-4000-8000-000000000007",
+      "name": "Recusar pedido",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        360
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ erro: 'nao_autorizado' }) }}",
+        "options": {
+          "responseCode": 401
+        }
+      }
+    },
+    {
+      "id": "c1000000-0000-4000-8000-000000000008",
+      "name": "Conferir número no WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        120
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://camara-itanhandu_waha-cin:3000/api/contacts/check-exists",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "={{ $('Receber pedido').first().json.body.telefone }}"
+            },
+            {
+              "name": "session",
+              "value": "cin"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "c1000000-0000-4000-8000-000000000010",
+      "name": "Número tem WhatsApp?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        60
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1000000-0000-4000-8000-000000000009",
+              "leftValue": "={{ $json.numberExists }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c1000000-0000-4000-8000-000000000011",
+      "name": "Sem WhatsApp",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ enviado: false, motivo: 'sem_whatsapp' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "c1000000-0000-4000-8000-000000000012",
+      "name": "Digitando",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        -40
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://camara-itanhandu_waha-cin:3000/api/startTyping",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ session: 'cin', chatId: $('Conferir número no WhatsApp').first().json.chatId }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c1000000-0000-4000-8000-000000000013",
+      "name": "Esperar 3 a 6 s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        -40
+      ],
+      "parameters": {
+        "amount": "={{ 3 + Math.floor(Math.random() * 4) }}",
+        "unit": "seconds"
+      },
+      "notes": "O intervalo entre mensagens fica na function (15 a 30 s). Aqui é só o \"digitando\".",
+      "notesInFlow": true
+    },
+    {
+      "id": "c1000000-0000-4000-8000-000000000014",
+      "name": "Enviar pelo WAHA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        -40
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://camara-itanhandu_waha-cin:3000/api/sendText",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ session: 'cin', chatId: $('Conferir número no WhatsApp').first().json.chatId, text: $('Receber pedido').first().json.body.texto, linkPreview: false }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "c1000000-0000-4000-8000-000000000015",
+      "name": "Enviado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1760,
+        -100
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ enviado: true, mensagemId: ($json.id && typeof $json.id === 'object' ? ($json.id._serialized || $json.id.id || '') : ($json.id || ($json.key && $json.key.id) || '')) }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "c1000000-0000-4000-8000-000000000016",
+      "name": "Falha no WAHA",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1760,
+        140
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ erro: 'waha', detalhe: String(($json.error && ($json.error.message || JSON.stringify($json.error))) || 'sem detalhe').slice(0, 200) }) }}",
+        "options": {
+          "responseCode": 502
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Receber pedido": {
+      "main": [
+        [
+          {
+            "node": "Hash do token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hash do token": {
+      "main": [
+        [
+          {
+            "node": "Pedido válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pedido válido?": {
+      "main": [
+        [
+          {
+            "node": "Conferir número no WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Recusar pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conferir número no WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Número tem WhatsApp?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Falha no WAHA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Número tem WhatsApp?": {
+      "main": [
+        [
+          {
+            "node": "Digitando",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sem WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Digitando": {
+      "main": [
+        [
+          {
+            "node": "Esperar 3 a 6 s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esperar 3 a 6 s": {
+      "main": [
+        [
+          {
+            "node": "Enviar pelo WAHA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar pelo WAHA": {
+      "main": [
+        [
+          {
+            "node": "Enviado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Falha no WAHA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "pinData": {},
+  "tags": []
+}
