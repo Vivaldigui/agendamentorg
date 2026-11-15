@@ -7,9 +7,13 @@
 // um bloco FIXO, marcado com cache de 1 h e compartilhado entre todas as
 // conversas. Tudo o que muda (data, aviso recebido, agenda do momento) vai
 // numa mensagem de sistema no fim, depois do ponto de cache. Cada modelo tem
-// o seu cache: o do Opus e o do Haiku ficam quentes separadamente.
+// o seu cache: o do Sonnet e o do Haiku ficam quentes separadamente.
+//
+// Desde 15/11/2026 (pedido do responsável, para baratear): Sonnet 5.5 no lugar
+// do Opus 5.5. Metade do preço por token (US$ 2/10 contra 4/20 por milhão;
+// leitura do cache 0,10 contra 0,20). Haiku 5.5 continua nas mensagens simples.
 
-export const MODELO_PRINCIPAL = "claude-opus-5-5";
+export const MODELO_PRINCIPAL = "claude-sonnet-5-5";
 export const MODELO_SIMPLES = "claude-haiku-5-5";
 
 export function normalizarTexto(texto) {
@@ -22,7 +26,7 @@ export function normalizarTexto(texto) {
 }
 
 // Mensagem "simples" = cumprimento, agradecimento ou confirmação, sem dúvida.
-// Qualquer pergunta, número, link ou texto fora da lista vai para o Opus.
+// Qualquer pergunta, número, link ou texto fora da lista vai para o Sonnet.
 const PALAVRAS_SIMPLES = [
   "oi", "oii", "oiii", "ola", "opa", "e ai", "eai", "bom dia", "boa tarde", "boa noite",
   "cidinho", "ok", "okay", "okk", "blz", "beleza", "certo", "ta bom", "ta", "ta certo",
@@ -91,7 +95,7 @@ export function montarPedido({ prompt, conhecimento, mensagens, contexto, vagas,
   };
   const cabecalhos = {};
   if (escolhido === MODELO_PRINCIPAL) {
-    // Recusa do Opus é refeita no servidor por outro modelo, sem a pessoa ficar sem resposta.
+    // Recusa do Sonnet é refeita no servidor por outro modelo, sem a pessoa ficar sem resposta.
     corpo.fallbacks = "default";
     cabecalhos["anthropic-beta"] = "server-side-fallback-2026-07-01";
   }

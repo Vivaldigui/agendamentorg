@@ -3,8 +3,8 @@
 // do n8n) e grava as respostas e a conferência em resultados/.
 //
 // Uso (na pasta whatsapp/robo, depois de npm install):
-//   ANTHROPIC_API_KEY=... [MODELO=auto|claude-opus-5-5|claude-haiku-5-5] node rodar-bateria.mjs [filtro-de-id]
-// MODELO=auto (padrão) faz como o robô: Haiku nas mensagens simples, Opus no resto.
+//   ANTHROPIC_API_KEY=... [MODELO=auto|claude-sonnet-5-5|claude-opus-5-5|claude-haiku-5-5] node rodar-bateria.mjs [filtro-de-id]
+// MODELO=auto (padrão) faz como o robô: Haiku nas mensagens simples, Sonnet no resto.
 // A chave nunca fica no repositório.
 import Anthropic from "@anthropic-ai/sdk";
 import fs from "node:fs";

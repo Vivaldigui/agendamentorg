@@ -6,7 +6,7 @@
 // Uso: node whatsapp/robo/montar-cidinho.mjs
 // Pedido:   POST http://127.0.0.1:5678/webhook/cidinho
 //           { "mensagens": [{ "role": "user"|"assistant", "content": "..." }], "primeira": true|false, "contexto": "opcional" }
-// Resposta: { "texto": "...", "modelo": "claude-opus-5-5"|"claude-haiku-5-5", "falhou": false }
+// Resposta: { "texto": "...", "modelo": "claude-sonnet-5-5"|"claude-haiku-5-5", "falhou": false }
 //           Em falha, "texto" traz a mensagem fixa que manda para a recepção.
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -91,7 +91,7 @@ no("Chamar Anthropic", "n8n-nodes-base.httpRequest", 4.2, [880, 120], {
   sendHeaders: true,
   headerParameters: { parameters: [
     { name: "anthropic-version", value: "2023-06-01" },
-    // Fallback do servidor: se o Opus recusar, outro modelo responde na mesma chamada.
+    // Fallback do servidor: se o Sonnet recusar, outro modelo responde na mesma chamada.
     // O Haiku aceita o cabeçalho e simplesmente não usa.
     { name: "anthropic-beta", value: "server-side-fallback-2026-07-01" }
   ] },
@@ -153,7 +153,7 @@ for (const { de, para, saida } of ligacoes) {
 }
 const fluxo = {
   id: "CinCidinhoIA0001",
-  name: "CIN — Cidinho: intermediário da IA (Opus/Haiku com cache)",
+  name: "CIN — Cidinho: intermediário da IA (Sonnet/Haiku com cache)",
   active: false,
   nodes: nos,
   connections,
