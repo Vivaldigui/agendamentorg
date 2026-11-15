@@ -42,7 +42,21 @@ const PAUSA_MAX_MS = 30000;
 const ORCAMENTO_RODADA_MS = 4 * 60 * 1000;
 const HORA_INICIO_ENVIO = 7;
 const HORA_FIM_ENVIO = 21; // ate 21h59
-const HORA_LEMBRETES = 18;
+// Lembrete no dia do atendimento, 6 h antes do horario. Atendimento cedo (antes
+// das 13h) recebe as 7h, que e o comeco da janela de envio.
+const ANTECEDENCIA_LEMBRETE_MIN = 6 * 60;
+
+function minutosDoDia(hora) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hora || "").trim());
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+// Minuto do dia a partir do qual o lembrete pode sair.
+function inicioDoLembrete(hora) {
+  const minutos = minutosDoDia(hora);
+  if (minutos === null) return null;
+  return Math.max(HORA_INICIO_ENVIO * 60, minutos - ANTECEDENCIA_LEMBRETE_MIN);
+}
 
 function dataISOValida(valor) {
   if (typeof valor !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false;
@@ -52,9 +66,9 @@ function dataISOValida(valor) {
 
 function agoraEmSaoPaulo(ms = Date.now()) {
   const partes = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
-    timeZone: FUSO_HORARIO, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23"
+    timeZone: FUSO_HORARIO, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
   }).formatToParts(new Date(ms)).map((p) => [p.type, p.value]));
-  return { dataISO: `${partes.year}-${partes.month}-${partes.day}`, hora: Number(partes.hour) };
+  return { dataISO: `${partes.year}-${partes.month}-${partes.day}`, hora: Number(partes.hour), minuto: Number(partes.hour) * 60 + Number(partes.minute) };
 }
 
 function somarDias(dataISO, dias) {
@@ -139,16 +153,19 @@ function montarMensagem(tipo, dados) {
         "",
         cancelar,
         "",
-        "🔔 Na véspera, mandamos um lembrete por aqui.",
+        "🔔 No dia do atendimento, mandamos um lembrete por aqui.",
         RODAPE
       );
     case "lembrete":
       return linhas(
-        "🔔 *Lembrete: seu atendimento é amanhã*",
+        "🔔 *Lembrete: seu atendimento é HOJE*",
         "",
-        `${ola} Amanhã é o seu atendimento do *RG (Carteira de Identidade)* na Câmara de Itanhandu.`,
+        `${ola} Hoje é o seu atendimento do *RG (Carteira de Identidade)* na Câmara de Itanhandu.`,
         "",
         detalhes,
+        "",
+        "‼️ *NÃO ESQUEÇA A CERTIDÃO!* ‼️",
+        "Sem a *certidão de nascimento ou de casamento* (original ou cópia autenticada), *não dá para fazer o RG*.",
         "",
         O_QUE_LEVAR,
         "",
@@ -195,13 +212,16 @@ function eventoDoAgendamento(antes, depois, hojeISO) {
 }
 
 // Na hora do envio: a mensagem ainda faz sentido para o agendamento como esta?
-function aindaValido(tipo, envio, dados, hojeISO) {
+function aindaValido(tipo, envio, dados, hojeISO, minutoAgora = 0) {
   if (!dados || dados.avisoWhatsapp !== true || !dados.telefone) return false;
   if (dados.dataISO !== envio.dataISO || (dados.hora || "") !== envio.hora) return false;
   if (dados.dataISO < hojeISO) return false;
   switch (tipo) {
     case "confirmacao": return dados.status === "agendado" && dados.ativo !== false;
-    case "lembrete": return STATUS_VALENDO.has(dados.status) && dados.ativo !== false;
+    case "lembrete":
+      // Lembrete e do dia, e nao sai depois do horario do atendimento.
+      return STATUS_VALENDO.has(dados.status) && dados.ativo !== false
+        && dados.dataISO === hojeISO && minutosDoDia(dados.hora) > minutoAgora;
     case "cancelado_camara": return dados.status === "cancelado";
     case "cancelado_cidadao": return dados.status === "cancelado_cidadao";
     default: return false;
@@ -279,16 +299,19 @@ function criarServicoWhatsappCin({
     return { status: criou ? "na_fila" : "repetido", chave };
   }
 
-  async function enfileirarLembretes(dataAmanhaISO, configBruta) {
+  // Lembretes de hoje cuja hora de sair ja chegou (6 h antes do atendimento).
+  async function enfileirarLembretes(hojeISO, minutoAgora, configBruta) {
     const resumo = { total: 0, na_fila: 0 };
-    if (!dataISOValida(dataAmanhaISO)) throw new Error("Data do lembrete invalida.");
+    if (!dataISOValida(hojeISO)) throw new Error("Data do lembrete invalida.");
     const consulta = await db.collection("dados_cidadaos")
-      .where("dataISO", "==", dataAmanhaISO)
+      .where("dataISO", "==", hojeISO)
       .where("avisoWhatsapp", "==", true)
       .get();
     for (const doc of consulta.docs) {
       const dados = doc.data();
       if (!STATUS_VALENDO.has(dados.status) || dados.ativo === false) continue;
+      const inicio = inicioDoLembrete(dados.hora);
+      if (inicio === null || minutoAgora < inicio || minutoAgora >= minutosDoDia(dados.hora)) continue;
       resumo.total += 1;
       const r = await enfileirar("lembrete", doc.id, dados, configBruta);
       if (r.status === "na_fila") resumo.na_fila += 1;
@@ -322,7 +345,7 @@ function criarServicoWhatsappCin({
   }
 
   // Pega a vez de uma mensagem: relida em transacao, so uma rodada envia.
-  async function reservar(envioRef, hojeISO) {
+  async function reservar(envioRef, hojeISO, minutoAgora) {
     return db.runTransaction(async (t) => {
       const envioDoc = await t.get(envioRef);
       if (!envioDoc.exists) return null;
@@ -331,7 +354,7 @@ function criarServicoWhatsappCin({
       const agRef = db.collection("dados_cidadaos").doc(envio.agendamentoId);
       const agDoc = await t.get(agRef);
       const dados = agDoc.exists ? agDoc.data() : null;
-      if (!aindaValido(envio.tipo, envio, dados, hojeISO)) {
+      if (!aindaValido(envio.tipo, envio, dados, hojeISO, minutoAgora)) {
         t.update(envioRef, { status: "descartado", atualizadoEm: FieldValue.serverTimestamp() });
         return { envio, dados: null };
       }
@@ -340,18 +363,16 @@ function criarServicoWhatsappCin({
     });
   }
 
-  // Uma rodada da rotina: lembretes as 18h e envio da fila, aos poucos.
+  // Uma rodada da rotina: lembretes do dia (6 h antes) e envio da fila, aos poucos.
   async function processarFila(configBruta) {
     const inicio = agora();
     const resumo = { lembretes: null, enviados: 0, descartados: 0, outros: {}, restantes: 0 };
     const config = validarConfiguracao(configBruta);
     if (config.modo === "desligado") return resumo;
-    const { dataISO: hojeISO, hora } = agoraEmSaoPaulo(inicio);
+    const { dataISO: hojeISO, hora, minuto } = agoraEmSaoPaulo(inicio);
     if (hora < HORA_INICIO_ENVIO || hora > HORA_FIM_ENVIO) return resumo;
 
-    if (hora >= HORA_LEMBRETES) {
-      resumo.lembretes = await enfileirarLembretes(somarDias(hojeISO, 1), config);
-    }
+    resumo.lembretes = await enfileirarLembretes(hojeISO, minuto, config);
 
     const consulta = await db.collection(COLECAO_ENVIOS).where("status", "==", "pendente").limit(200).get();
     const fila = consulta.docs
@@ -364,7 +385,7 @@ function criarServicoWhatsappCin({
         resumo.restantes = fila.length - i;
         break;
       }
-      const vez = await reservar(fila[i].ref, hojeISO);
+      const vez = await reservar(fila[i].ref, hojeISO, agoraEmSaoPaulo(agora()).minuto);
       if (!vez) continue;
       if (!vez.dados) { resumo.descartados += 1; continue; }
 
@@ -407,6 +428,7 @@ module.exports = {
   eventoDoAgendamento,
   aindaValido,
   chaveEnvio,
+  inicioDoLembrete,
   validarConfiguracao,
   criarServicoWhatsappCin
 };

@@ -123,8 +123,8 @@ exports.avisarWhatsappAgendamento = onDocumentWritten({
   });
 });
 
-// A cada 5 min, das 7h as 21h55: poe na fila os lembretes de amanha (a partir
-// das 18h) e envia a fila com pausa entre as mensagens.
+// A cada 5 min, das 7h as 21h55: poe na fila o lembrete de quem tem atendimento
+// hoje (6 h antes do horario, nunca antes das 7h) e envia a fila com pausa.
 exports.processarFilaWhatsappCin = onSchedule({
   schedule: "*/5 7-21 * * *",
   timeZone: "America/Sao_Paulo",
@@ -135,7 +135,7 @@ exports.processarFilaWhatsappCin = onSchedule({
 }, async () => {
   if (whatsappCinModo.value() === "desligado") return;
   const resumo = await servicoWhatsappCin.processarFila(configWhatsappCin());
-  if (resumo.lembretes || resumo.enviados || resumo.descartados || resumo.restantes || Object.keys(resumo.outros).length) {
+  if ((resumo.lembretes && resumo.lembretes.na_fila) || resumo.enviados || resumo.descartados || resumo.restantes || Object.keys(resumo.outros).length) {
     console.log("whatsapp-cin: rodada", JSON.stringify(resumo));
   }
 });

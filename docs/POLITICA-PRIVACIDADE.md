@@ -27,7 +27,7 @@ modelo genérico — mas quem responde pela Câmara perante a ANPD é a Câmara.
 - **Apagamos os seus dados 6 meses depois do atendimento**, automaticamente.
 - Não vendemos, não cedemos e não usamos os seus dados para publicidade.
 - Você pode consultar, corrigir ou apagar o seu agendamento a qualquer momento.
-- Pelo WhatsApp, mandamos a confirmação do agendamento, um lembrete na véspera e
+- Pelo WhatsApp, mandamos a confirmação do agendamento, um lembrete no dia do atendimento e
   o aviso se ele for cancelado. Para parar, é só responder **SAIR**.
 
 O texto completo abaixo detalha cada um desses pontos.
@@ -117,7 +117,7 @@ Usamos o telefone informado para mandar, pelo WhatsApp, só mensagens sobre o
 **seu** agendamento:
 
 - a confirmação, logo depois de agendar;
-- um lembrete na véspera do atendimento;
+- um lembrete no dia do atendimento, cerca de 6 horas antes;
 - o aviso de cancelamento, se você ou a Câmara cancelar.
 
 As mensagens levam o primeiro nome, a data e o horário, o endereço, o protocolo e
