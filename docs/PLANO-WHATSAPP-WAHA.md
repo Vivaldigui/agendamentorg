@@ -93,7 +93,9 @@ Para U2/U3: o Cloud Scheduler já tem quatro jobs (o quarto custa ~US$ 0,10/mês
 
 **Decisões de 15/11/2026 (do usuário):** sem aviso de remarcação (poucas vagas, a recepção não remarca). A abertura das 8h gera ~25 agendamentos de uma vez: as confirmações saem aos poucos, sem demorar.
 
-**Montado em 15/11/2026 (código local, sem commit nem deploy):**
+**No ar em modo ensaio desde 15/11/2026** (main 856435e/bdc6821 + 974f408 no GitHub; deploy de `criarAgendamentoCidadao`, `avisarWhatsappAgendamento`, `processarFilaWhatsappCin`, regras e hosting). `functions/.env.agendamento-cin-itanhandu` (fora do git) com `WHATSAPP_CIN_MODO=ensaio`, o celular de teste do responsável e `WHATSAPP_CIN_WEBHOOK_URL` (o deploy não aceita só o padrão do código). Conferido: caixa escondida sem o parâmetro e visível com `?whatsapp=teste`; job do Scheduler `*/5 7-21 * * *` ENABLED; mensagem de exemplo entregue pelo n8n + WAHA ao celular de teste. Falta o teste ponta a ponta com um agendamento real.
+
+**Montado em 15/11/2026:**
 - `functions/whatsapp-cin.js` + `whatsapp-cin.test.js` (12 testes; suíte inteira 512/512).
   - Gatilho `avisarWhatsappAgendamento` em `dados_cidadaos` só **enfileira** em `whatsapp_envios` (confirmação, cancelado pela Câmara, cancelado pelo cidadão).
   - Rotina `processarFilaWhatsappCin` a cada 5 min, das 7h às 21h55: a partir das 18h enfileira os lembretes de amanhã; envia a fila com 15–30 s entre mensagens e no máximo 4 min por rodada. 25 confirmações das 8h saem em 3 rodadas, até ~8h20.
