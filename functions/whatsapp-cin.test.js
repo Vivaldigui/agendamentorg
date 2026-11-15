@@ -309,20 +309,17 @@ test("rodada: recusa do n8n, erro e falha ambigua", async () => {
   }
 });
 
-test("formulario e backend: caixa obrigatoria quando aparece, desmarcada, escondida em ensaio e gravada so marcada", () => {
+test("formulario e backend: aceite do WhatsApp vem da declaracao obrigatoria e e gravado no agendamento", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const site = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
   const backend = fs.readFileSync(path.join(__dirname, "index.js"), "utf8");
-  assert.match(site, /<input type="checkbox" id="aceite-whatsapp" onchange="limparErroAceite\('aceite-whatsapp'\)">/, "comeca desmarcada");
-  assert.match(site, /id="grupo-aceite-whatsapp"/);
-  assert.match(site, /class="[^"]*aceite-whatsapp-oculto[^"]*" id="grupo-aceite-whatsapp"/, "escondida por padrao");
-  assert.match(site, /\.aceite-whatsapp-oculto \{ display: none !important; \}/);
-  assert.match(site, /aceiteWhatsapp: \(document\.getElementById\("aceite-whatsapp"\) \|\| \{\}\)\.checked === true/);
-  assert.match(site, /const pendentes = \["aceite-lgpd", "aceite-whatsapp"\]\.filter\(id => \{\s*if \(id === "aceite-whatsapp" && !whatsappVisivel\) return false;/, "obrigatorio quando aparece");
-  assert.doesNotMatch(site, /<strong>Opcional:<\/strong> quero receber no WhatsApp/, "o aceite do WhatsApp nao e opcional");
-  assert.match(site, /Estou ciente de que vou receber no WhatsApp deste celular/);
-  assert.match(site, /var WHATSAPP_AVISOS_PARA_TODOS = (true|false);/, "chave da caixa para todos");
+  assert.doesNotMatch(site, /id="aceite-whatsapp"/, "sem caixa propria desde 15/11/2026");
+  assert.match(site, /<input type="checkbox" id="aceite-lgpd" onchange="limparErroAceite\('aceite-lgpd'\)">/, "declaracao comeca desmarcada");
+  assert.match(site, /aceiteWhatsapp: \(document\.getElementById\("aceite-lgpd"\) \|\| \{\}\)\.checked === true/);
+  assert.match(site, /const pendentes = \["aceite-lgpd"\]\.filter\(id => \{/);
+  assert.match(site, /no WhatsApp deste celular, pelo número <strong>\(35\) 98421-5361<\/strong>/);
+  assert.match(site, /var WHATSAPP_AVISOS_PARA_TODOS = (true|false);/, "chave do aviso na tela de sucesso");
   const criar = backend.slice(backend.indexOf("exports.criarAgendamentoCidadao"), backend.indexOf("exports.prepararCancelamentoCidadao"));
   assert.match(criar, /const consentimentoWhatsapp = dadosRequisicao\.aceiteWhatsapp === true;/);
   assert.match(criar, /\.\.\.\(consentimentoWhatsapp \? \{ avisoWhatsapp: true, avisoWhatsappEm: criado \} : \{\}\)/);

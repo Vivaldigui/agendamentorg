@@ -104,13 +104,16 @@ test("BUG-04: site recusa as mesmas datas antes de enviar", () => {
 
 // ---- LGPD-04 ----------------------------------------------------------------
 
-test("LGPD-04: caixa do convite e opcional, desmarcada e separada do aceite", () => {
-  assert.match(sitePublico, /<input type="checkbox" id="aceite-avaliacao">/, "Comeca desmarcada.");
-  assert.match(sitePublico, /<strong>Opcional:<\/strong> quero receber no e-mail informado/);
-  // Desde 15/11/2026 o aceite do WhatsApp tambem e obrigatorio quando aparece; o convite continua opcional.
-  assert.match(extrairFuncao(sitePublico, "destacarAceitesPendentes"), /\["aceite-lgpd", "aceite-whatsapp"\]/, "Obrigatorios: agendamento e WhatsApp.");
-  assert.doesNotMatch(extrairFuncao(sitePublico, "destacarAceitesPendentes"), /aceite-avaliacao/, "O convite de avaliacao nao e obrigatorio.");
-  assert.match(sitePublico, /aceiteAvaliacao: Boolean\(email\) && \(document\.getElementById\("aceite-avaliacao"\) \|\| \{\}\)\.checked === true/);
+test("LGPD-04: desde 15/11/2026 so a declaracao obrigatoria, que cobre convite e WhatsApp", () => {
+  // Pedido do responsavel em 15/11/2026: tirar as caixas do convite por e-mail
+  // e do WhatsApp e deixar so a declaracao, que passa a dizer as duas coisas.
+  assert.doesNotMatch(sitePublico, /id="aceite-avaliacao"/, "Sem caixa propria do convite.");
+  assert.doesNotMatch(sitePublico, /id="aceite-whatsapp"/, "Sem caixa propria do WhatsApp.");
+  assert.match(extrairFuncao(sitePublico, "destacarAceitesPendentes"), /\["aceite-lgpd"\]/, "So a declaracao e obrigatoria.");
+  assert.match(sitePublico, /Concordo também em receber, no WhatsApp deste celular, pelo número <strong>\(35\) 98421-5361<\/strong>, e no e-mail informado/);
+  assert.match(sitePublico, /Para parar no WhatsApp, é só responder SAIR\./);
+  assert.match(sitePublico, /aceiteAvaliacao: Boolean\(email\) && \(document\.getElementById\("aceite-lgpd"\) \|\| \{\}\)\.checked === true/);
+  assert.match(sitePublico, /aceiteWhatsapp: \(document\.getElementById\("aceite-lgpd"\) \|\| \{\}\)\.checked === true/);
 });
 
 test("LGPD-04: backend grava o consentimento so com caixa marcada e e-mail", () => {
