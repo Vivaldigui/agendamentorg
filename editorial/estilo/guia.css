@@ -181,6 +181,12 @@ th { background: var(--primary-soft); color: var(--primary-dark); }
 .rodape-guia-interno { max-width: 1120px; margin: 0 auto; }
 .rodape-guia a { display: inline-flex; min-height: 44px; align-items: center; color: white; }
 .cta-fixo { display: none; }
+/* Botao fixo do WhatsApp da CIN para tirar duvidas. */
+.zap-duvidas { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 900; display: inline-flex; align-items: center; gap: 10px; min-height: 56px; padding: 10px 20px 10px 16px; border-radius: 999px; background: #0b7a3e; color: #fff; box-shadow: 0 10px 26px rgba(11, 122, 62, 0.38); font: 700 1rem/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-decoration: none; }
+.zap-duvidas:hover { background: #096834; }
+.zap-duvidas:focus-visible { outline: 3px solid #fbbf24; outline-offset: 3px; }
+.zap-duvidas strong { font-weight: 900; }
+@media print { .zap-duvidas { display: none; } }
 code { padding: 0.1em 0.35em; border-radius: 5px; background: #e8edf3; font-size: 0.9em; }
 
 @media (min-width: 760px) {
@@ -209,6 +215,9 @@ code { padding: 0.1em 0.35em; border-radius: 5px; background: #e8edf3; font-size
     font-weight: 900;
     text-decoration: none;
   }
+  /* No celular o botao do WhatsApp fica acima da barra "Agendar atendimento". */
+  .zap-duvidas { bottom: calc(74px + env(safe-area-inset-bottom, 0px)); }
+  .rodape-guia { padding-bottom: 150px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
