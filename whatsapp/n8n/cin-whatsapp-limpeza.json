@@ -60,7 +60,7 @@
         "dataTableId": {
           "__rl": true,
           "mode": "name",
-          "value": "cin_cidinho_conversa"
+          "value": "cin_cidinho_falas"
         },
         "matchType": "allConditions",
         "filters": {

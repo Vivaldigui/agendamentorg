@@ -1,7 +1,8 @@
 // Gera whatsapp/n8n/cin-whatsapp-limpeza.json: apaga, de hora em hora, o que
 // as tabelas do WhatsApp da CIN guardam com telefone, mesmo quando a pessoa
 // não volta a escrever.
-// - cin_cidinho_conversa: falas do Cidinho com mais de 24 h (coluna quando, data).
+// - cin_cidinho_falas: falas do Cidinho com mais de 24 h (coluna quando, data).
+//   (Até 15/11/2026 era cin_cidinho_conversa, sem a coluna msgid.)
 // - cin_whatsapp_respondidos: marcas da resposta padrão com mais de 2 dias
 //   (coluna em, texto ISO; a marca só serve para "uma resposta por dia").
 // cin_whatsapp_saida NÃO é limpa: é o pedido de SAIR e tem de durar.
@@ -31,7 +32,7 @@ no('Rodar agora', 'n8n-nodes-base.webhook', 2, [0, 300], {
   options: { ipWhitelist: '127.0.0.1,::1,::ffff:127.0.0.1' },
 }, { webhookId: 'c3a1e2d4-6b7f-4c21-9a3e-7d2b8e4f1d03' });
 no('Apagar conversas do Cidinho', 'n8n-nodes-base.dataTable', 1.1, [240, 200], {
-  resource: 'row', operation: 'deleteRows', dataTableId: tabela('cin_cidinho_conversa'),
+  resource: 'row', operation: 'deleteRows', dataTableId: tabela('cin_cidinho_falas'),
   matchType: 'allConditions',
   filters: { conditions: [{ keyName: 'quando', condition: 'lt', keyValue: '={{ new Date(Date.now() - 24 * 3600 * 1000).toISOString() }}' }] },
   options: {},

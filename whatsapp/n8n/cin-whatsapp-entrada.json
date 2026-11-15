@@ -524,7 +524,7 @@
       "parameters": {
         "resource": "table",
         "operation": "create",
-        "tableName": "cin_cidinho_conversa",
+        "tableName": "cin_cidinho_falas",
         "columns": {
           "column": [
             {
@@ -542,6 +542,10 @@
             {
               "name": "quando",
               "type": "date"
+            },
+            {
+              "name": "msgid",
+              "type": "string"
             }
           ]
         },
@@ -566,7 +570,7 @@
         "dataTableId": {
           "__rl": true,
           "mode": "name",
-          "value": "cin_cidinho_conversa"
+          "value": "cin_cidinho_falas"
         },
         "matchType": "allConditions",
         "filters": {
@@ -586,12 +590,363 @@
     },
     {
       "id": "c2000000-0000-4000-8000-000000000028",
+      "name": "Tipo da mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3080,
+        640
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Why Code: separa texto, áudio e outra mídia e acerta o link do áudio num passo só.\nconst p = ($('Hash do segredo').first().json.body || {}).payload || {};\nconst msgid = String(p.id || '');\nconst texto = String(p.body || '').trim().slice(0, 2000);\nconst media = p.media || {};\nconst mime = String(media.mimetype || '').toLowerCase();\nconst audio = p.hasMedia === true && mime.startsWith('audio/');\n// O WAHA monta o link com o endereço dele mesmo (localhost). Troca SEMPRE pelo\n// endereço interno: a chave do WAHA vai junto no pedido e só pode ir para ele.\nconst urlAudio = audio && media.url ? String(media.url).replace(/^https?:\\/\\/[^/]+/, 'http://camara-itanhandu_waha-cin:3000') : '';\nlet tipo = 'midia';\nif (audio) tipo = urlAudio ? 'audio' : 'audio_sem_arquivo';\nelse if (texto) tipo = 'texto';\nconst resposta = tipo === 'midia' ? \"Ainda não consigo ver foto, vídeo nem documento. 🙏 Escreva sua dúvida em texto ou mande um áudio, por favor.\\n\\nSe preferir falar com uma pessoa, chame a recepção da Câmara no WhatsApp *(35) 3504-0397*.\" : (tipo === 'audio_sem_arquivo' ? \"Não consegui entender o seu áudio. 🙏 Pode mandar de novo ou escrever a sua dúvida?\" : '');\nreturn [{ json: { tipo, msgid, texto, urlAudio, resposta } }];"
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000031",
+      "name": "Que tipo?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        3300,
+        640
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c2000000-0000-4000-8000-000000000029",
+                    "leftValue": "={{ $json.tipo }}",
+                    "rightValue": "texto",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "texto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c2000000-0000-4000-8000-000000000030",
+                    "leftValue": "={{ $json.tipo }}",
+                    "rightValue": "audio",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "outro"
+        }
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000032",
+      "name": "Baixar áudio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3520,
+        800
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.urlAudio }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000033",
+      "name": "Transcrever áudio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3740,
+        800
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://sucupira_naturale_whisper:9000/asr",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "task",
+              "value": "transcribe"
+            },
+            {
+              "name": "language",
+              "value": "pt"
+            },
+            {
+              "name": "output",
+              "value": "json"
+            },
+            {
+              "name": "encode",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "audio_file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 90000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000034",
+      "name": "Ler transcrição",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3960,
+        800
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Why Code: mesmo filtro do robô da Sucupira. O Whisper inventa frase em silêncio ou\n// ruído (\"Thank you for watching\", \"Legendas pela comunidade\"); aí pede para repetir.\nconst t = String(($input.first().json || {}).text || '').trim();\nconst c = t.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/\\s+/g, ' ').trim();\nconst palavras = c.split(/[^a-z0-9]+/).filter(Boolean);\nconst EN = new Set(['the', 'you', 'your', 'thank', 'thanks', 'watching', 'watch', 'much', 'same', 'this', 'that', 'with', 'what', 'are', 'is', 'it', 'and', 'of', 'for', 'my', 'subscribe', 'video', 'please']);\nconst PT = new Set(['de', 'que', 'o', 'a', 'os', 'as', 'do', 'da', 'dos', 'das', 'em', 'um', 'uma', 'para', 'pra', 'com', 'nao', 'eu', 'voce', 'vc', 'sim', 'quero', 'qual', 'quando', 'como', 'tem', 'no', 'na', 'se', 'mais', 'por', 'me', 'meu', 'minha', 'ta', 'e', 'esse', 'essa', 'isso', 'aqui', 'ai', 'la', 'bom', 'boa', 'dia', 'tarde', 'noite', 'oi', 'ola', 'obrigado', 'obrigada', 'rg', 'identidade', 'agendar', 'agendamento', 'vaga', 'certidao']);\nconst en = palavras.filter((w) => EN.has(w)).length;\nconst pt = palavras.filter((w) => PT.has(w)).length;\nconst alucinacao = /(thank you|thanks for watching|for watching|subscribe|subtitles?|legendas? (pela|por)|legendado|amara\\.org|obrigad[oa] por assistir|inscreva-se)/.test(c) || (en >= 2 && pt === 0);\nconst audioOk = /[a-z]/.test(c) && !alucinacao;\nreturn [{ json: { audioOk, texto: audioOk ? t.slice(0, 2000) : '', resposta: audioOk ? '' : \"Não consegui entender o seu áudio. 🙏 Pode mandar de novo ou escrever a sua dúvida?\" } }];"
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000036",
+      "name": "Áudio entendido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4180,
+        800
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c2000000-0000-4000-8000-000000000035",
+              "leftValue": "={{ $json.audioOk }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000037",
+      "name": "Fala da pessoa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3520,
+        480
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Why Code: junta o texto (digitado ou transcrito) com o id da mensagem para a tabela.\nconst t = $('Tipo da mensagem').first().json;\nconst texto = $('Ler transcrição').isExecuted ? $('Ler transcrição').first().json.texto : t.texto;\nreturn [{ json: {\n  telefone: $('Telefone').first().json.telefone,\n  papel: 'user',\n  texto: String(texto || '').slice(0, 2000),\n  quando: new Date().toISOString(),\n  msgid: t.msgid || ('sem-id-' + Date.now()),\n} }];"
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000038",
+      "name": "Mensagem nova?",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3740,
+        480
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "rowNotExists",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "cin_cidinho_falas"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "msgid",
+              "keyValue": "={{ $('Fala da pessoa').first().json.msgid }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000044",
+      "name": "Campos da fala",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3960,
+        480
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c2000000-0000-4000-8000-000000000039",
+              "name": "telefone",
+              "value": "={{ $('Fala da pessoa').first().json.telefone }}",
+              "type": "string"
+            },
+            {
+              "id": "c2000000-0000-4000-8000-000000000040",
+              "name": "papel",
+              "value": "={{ $('Fala da pessoa').first().json.papel }}",
+              "type": "string"
+            },
+            {
+              "id": "c2000000-0000-4000-8000-000000000041",
+              "name": "texto",
+              "value": "={{ $('Fala da pessoa').first().json.texto }}",
+              "type": "string"
+            },
+            {
+              "id": "c2000000-0000-4000-8000-000000000042",
+              "name": "quando",
+              "value": "={{ $('Fala da pessoa').first().json.quando }}",
+              "type": "string"
+            },
+            {
+              "id": "c2000000-0000-4000-8000-000000000043",
+              "name": "msgid",
+              "value": "={{ $('Fala da pessoa').first().json.msgid }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000045",
+      "name": "Guardar fala da pessoa",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4180,
+        480
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "cin_cidinho_falas"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000046",
+      "name": "Esperar a pessoa terminar",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        4400,
+        480
+      ],
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 9,
+        "unit": "seconds"
+      },
+      "webhookId": "c2b17d40-8e2a-4f6b-9c1d-5a3e7f9b2c03"
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000047",
       "name": "Conversa recente",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        3080,
-        640
+        4620,
+        480
       ],
       "parameters": {
         "resource": "row",
@@ -599,7 +954,7 @@
         "dataTableId": {
           "__rl": true,
           "mode": "name",
-          "value": "cin_cidinho_conversa"
+          "value": "cin_cidinho_falas"
         },
         "matchType": "allConditions",
         "filters": {
@@ -621,28 +976,28 @@
       "alwaysOutputData": true
     },
     {
-      "id": "c2000000-0000-4000-8000-000000000029",
+      "id": "c2000000-0000-4000-8000-000000000048",
       "name": "Preparar Cidinho",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3300,
-        640
+        4840,
+        480
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Why Code: monta a conversa (24 h, últimas 12 falas), barra mídia e aplica o teto, num passo só.\nconst p = ($('Hash do segredo').first().json.body || {}).payload || {};\nconst texto = String(p.body || '').trim().slice(0, 2000);\nconst midia = p.hasMedia === true || (!texto);\nconst limite = Date.now() - 24 * 3600 * 1000;\nconst falas = $input.all().map((i) => i.json)\n  .filter((r) => r && r.telefone && (r.papel === 'user' || r.papel === 'assistant') && new Date(r.quando).getTime() >= limite)\n  .sort((a, b) => new Date(a.quando) - new Date(b.quando));\nconst respostas = falas.filter((r) => r.papel === 'assistant').length;\nif (midia) return [{ json: { usarIa: false, resposta: \"Ainda não consigo ouvir áudio nem ver foto ou documento. 🙏 Escreva sua dúvida em texto, por favor.\\n\\nSe preferir falar com uma pessoa, chame a recepção da Câmara no WhatsApp *(35) 3504-0397*.\", textoPessoa: texto || '[mídia]' } }];\nif (respostas >= 20) return [{ json: { usarIa: false, resposta: \"Por hoje eu já respondi bastante por aqui. 🙏 Para continuar, fale com a recepção da Câmara pelo WhatsApp *(35) 3504-0397*.\\n\\nAgendar, consultar ou cancelar: https://cin.itanhandu.cam.mg.gov.br\", textoPessoa: texto } }];\n// Últimas 12 falas, juntando falas seguidas do mesmo lado, e a mensagem de agora no fim.\nconst mensagens = [];\nfor (const f of [...falas.slice(-12), { papel: 'user', texto }]) {\n  const ultima = mensagens[mensagens.length - 1];\n  if (ultima && ultima.role === f.papel) ultima.content += '\\n' + f.texto;\n  else mensagens.push({ role: f.papel, content: String(f.texto || '') });\n}\nwhile (mensagens.length && mensagens[0].role !== 'user') mensagens.shift();\nreturn [{ json: { usarIa: true, mensagens, primeira: falas.length === 0, textoPessoa: texto } }];"
+        "jsCode": "// Why Code: decide se esta execução responde (é a última mensagem?), aplica o teto e\n// monta a conversa: as falas desde a última resposta (a rajada) e, antes, as últimas 12.\nconst minha = $('Fala da pessoa').first().json.msgid;\nconst limite = Date.now() - 24 * 3600 * 1000;\nconst falas = $input.all().map((i) => i.json)\n  .filter((r) => r && r.telefone && (r.papel === 'user' || r.papel === 'assistant') && new Date(r.quando).getTime() >= limite)\n  .sort((a, b) => (new Date(a.quando) - new Date(b.quando)) || ((a.id || 0) - (b.id || 0)));\nconst daPessoa = falas.filter((r) => r.papel === 'user');\nconst ultima = daPessoa[daPessoa.length - 1];\n// Chegou outra mensagem depois desta: quem responde é a execução da mais nova.\nif (!ultima || ultima.msgid !== minha) return [{ json: { minhaVez: false } }];\nconst respostas = falas.filter((r) => r.papel === 'assistant').length;\nif (respostas >= 20) return [{ json: { minhaVez: true, usarIa: false, resposta: \"Por hoje eu já respondi bastante por aqui. 🙏 Para continuar, fale com a recepção da Câmara pelo WhatsApp *(35) 3504-0397*.\\n\\nAgendar, consultar ou cancelar: https://cin.itanhandu.cam.mg.gov.br\" } }];\nlet fim = -1;\nfalas.forEach((f, i) => { if (f.papel === 'assistant') fim = i; });\nconst anteriores = falas.slice(0, fim + 1).slice(-12);\nconst rajada = falas.slice(fim + 1);\nconst mensagens = [];\nfor (const f of [...anteriores, ...rajada]) {\n  const ult = mensagens[mensagens.length - 1];\n  if (ult && ult.role === f.papel) ult.content += '\\n' + f.texto;\n  else mensagens.push({ role: f.papel, content: String(f.texto || '') });\n}\nwhile (mensagens.length && mensagens[0].role !== 'user') mensagens.shift();\nreturn [{ json: { minhaVez: true, usarIa: true, mensagens, primeira: respostas === 0, rajada: rajada.length } }];"
       }
     },
     {
-      "id": "c2000000-0000-4000-8000-000000000031",
-      "name": "Usar a IA?",
+      "id": "c2000000-0000-4000-8000-000000000050",
+      "name": "Minha vez?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        3520,
-        640
+        5060,
+        480
       ],
       "parameters": {
         "conditions": {
@@ -654,7 +1009,41 @@
           },
           "conditions": [
             {
-              "id": "c2000000-0000-4000-8000-000000000030",
+              "id": "c2000000-0000-4000-8000-000000000049",
+              "leftValue": "={{ $json.minhaVez }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000052",
+      "name": "Usar a IA?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5280,
+        480
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c2000000-0000-4000-8000-000000000051",
               "leftValue": "={{ $json.usarIa }}",
               "rightValue": "",
               "operator": {
@@ -670,13 +1059,13 @@
       }
     },
     {
-      "id": "c2000000-0000-4000-8000-000000000032",
+      "id": "c2000000-0000-4000-8000-000000000053",
       "name": "Digitando",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3740,
-        560
+        5500,
+        400
       ],
       "parameters": {
         "method": "POST",
@@ -699,13 +1088,13 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "c2000000-0000-4000-8000-000000000033",
+      "id": "c2000000-0000-4000-8000-000000000054",
       "name": "Perguntar ao Cidinho",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3960,
-        560
+        5720,
+        400
       ],
       "parameters": {
         "method": "POST",
@@ -720,19 +1109,19 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "c2000000-0000-4000-8000-000000000035",
+      "id": "c2000000-0000-4000-8000-000000000056",
       "name": "Resposta da IA",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        4180,
-        560
+        5940,
+        400
       ],
       "parameters": {
         "assignments": {
           "assignments": [
             {
-              "id": "c2000000-0000-4000-8000-000000000034",
+              "id": "c2000000-0000-4000-8000-000000000055",
               "name": "resposta",
               "value": "={{ $json.texto || \"Desculpe, não consegui responder agora. 🙏 Para falar com a recepção da Câmara, chame no WhatsApp *(35) 3504-0397*. O agendamento é só pelo site: https://cin.itanhandu.cam.mg.gov.br\" }}",
               "type": "string"
@@ -743,19 +1132,95 @@
       }
     },
     {
-      "id": "c2000000-0000-4000-8000-000000000037",
+      "id": "c2000000-0000-4000-8000-000000000057",
+      "name": "Conferir de novo",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        6160,
+        400
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "cin_cidinho_falas"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "telefone",
+              "condition": "eq",
+              "keyValue": "={{ $('Telefone').first().json.telefone }}"
+            },
+            {
+              "keyName": "papel",
+              "condition": "eq",
+              "keyValue": "user"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1,
+        "orderBy": true,
+        "orderByColumn": "createdAt",
+        "orderByDirection": "DESC"
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000059",
+      "name": "Ainda é a última?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        6380,
+        400
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c2000000-0000-4000-8000-000000000058",
+              "leftValue": "={{ !$json.msgid || $json.msgid === $('Fala da pessoa').first().json.msgid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000061",
       "name": "Resposta fixa",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        3740,
+        5500,
         760
       ],
       "parameters": {
         "assignments": {
           "assignments": [
             {
-              "id": "c2000000-0000-4000-8000-000000000036",
+              "id": "c2000000-0000-4000-8000-000000000060",
               "name": "resposta",
               "value": "={{ $json.resposta }}",
               "type": "string"
@@ -766,13 +1231,36 @@
       }
     },
     {
-      "id": "c2000000-0000-4000-8000-000000000038",
+      "id": "c2000000-0000-4000-8000-000000000063",
+      "name": "Resposta final",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6600,
+        560
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c2000000-0000-4000-8000-000000000062",
+              "name": "resposta",
+              "value": "={{ $('Resposta da IA').isExecuted ? $('Resposta da IA').first().json.resposta : $('Resposta fixa').first().json.resposta }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000064",
       "name": "Enviar resposta do Cidinho",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        4400,
-        640
+        6820,
+        560
       ],
       "parameters": {
         "method": "POST",
@@ -795,28 +1283,28 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "c2000000-0000-4000-8000-000000000039",
-      "name": "Falas para guardar",
+      "id": "c2000000-0000-4000-8000-000000000065",
+      "name": "Resposta para guardar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4620,
-        640
+        7040,
+        560
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Why Code: duas linhas (a pessoa e o Cidinho) a partir de nós diferentes.\nconst telefone = $('Telefone').first().json.telefone;\nconst pessoa = $('Preparar Cidinho').first().json.textoPessoa;\nconst resposta = $('Preparar Cidinho').first().json.usarIa ? $('Resposta da IA').first().json.resposta : $('Resposta fixa').first().json.resposta;\nconst agora = Date.now();\nreturn [\n  { json: { telefone, papel: 'user', texto: pessoa, quando: new Date(agora).toISOString() } },\n  { json: { telefone, papel: 'assistant', texto: resposta, quando: new Date(agora + 1).toISOString() } },\n];"
+        "jsCode": "// Why Code: a fala do Cidinho vai para a tabela (a da pessoa já foi guardada antes).\nconst id = $('Tipo da mensagem').first().json.msgid || String(Date.now());\nreturn [{ json: {\n  telefone: $('Telefone').first().json.telefone,\n  papel: 'assistant',\n  texto: $('Resposta final').first().json.resposta,\n  quando: new Date().toISOString(),\n  msgid: 'resposta-' + id,\n} }];"
       }
     },
     {
-      "id": "c2000000-0000-4000-8000-000000000040",
-      "name": "Guardar conversa",
+      "id": "c2000000-0000-4000-8000-000000000066",
+      "name": "Guardar resposta",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        4840,
-        640
+        7260,
+        560
       ],
       "parameters": {
         "resource": "row",
@@ -824,7 +1312,7 @@
         "dataTableId": {
           "__rl": true,
           "mode": "name",
-          "value": "cin_cidinho_conversa"
+          "value": "cin_cidinho_falas"
         },
         "columns": {
           "mappingMode": "autoMapInputData",
@@ -839,7 +1327,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "c2000000-0000-4000-8000-000000000041",
+      "id": "c2000000-0000-4000-8000-000000000067",
       "name": "Não respondido hoje?",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
@@ -866,7 +1354,7 @@
       }
     },
     {
-      "id": "c2000000-0000-4000-8000-000000000044",
+      "id": "c2000000-0000-4000-8000-000000000070",
       "name": "Campos do respondido",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -878,13 +1366,13 @@
         "assignments": {
           "assignments": [
             {
-              "id": "c2000000-0000-4000-8000-000000000042",
+              "id": "c2000000-0000-4000-8000-000000000068",
               "name": "chave",
               "value": "={{ $('Telefone').first().json.chave }}",
               "type": "string"
             },
             {
-              "id": "c2000000-0000-4000-8000-000000000043",
+              "id": "c2000000-0000-4000-8000-000000000069",
               "name": "em",
               "value": "={{ $('Telefone').first().json.em }}",
               "type": "string"
@@ -895,7 +1383,7 @@
       }
     },
     {
-      "id": "c2000000-0000-4000-8000-000000000045",
+      "id": "c2000000-0000-4000-8000-000000000071",
       "name": "Registrar respondido",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
@@ -923,7 +1411,7 @@
       }
     },
     {
-      "id": "c2000000-0000-4000-8000-000000000046",
+      "id": "c2000000-0000-4000-8000-000000000072",
       "name": "Resposta padrão",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -1128,6 +1616,148 @@
       "main": [
         [
           {
+            "node": "Tipo da mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tipo da mensagem": {
+      "main": [
+        [
+          {
+            "node": "Que tipo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Que tipo?": {
+      "main": [
+        [
+          {
+            "node": "Fala da pessoa",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Baixar áudio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resposta fixa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar áudio": {
+      "main": [
+        [
+          {
+            "node": "Transcrever áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcrever áudio": {
+      "main": [
+        [
+          {
+            "node": "Ler transcrição",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler transcrição": {
+      "main": [
+        [
+          {
+            "node": "Áudio entendido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Áudio entendido?": {
+      "main": [
+        [
+          {
+            "node": "Fala da pessoa",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resposta fixa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fala da pessoa": {
+      "main": [
+        [
+          {
+            "node": "Mensagem nova?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem nova?": {
+      "main": [
+        [
+          {
+            "node": "Campos da fala",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Campos da fala": {
+      "main": [
+        [
+          {
+            "node": "Guardar fala da pessoa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar fala da pessoa": {
+      "main": [
+        [
+          {
+            "node": "Esperar a pessoa terminar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esperar a pessoa terminar": {
+      "main": [
+        [
+          {
             "node": "Conversa recente",
             "type": "main",
             "index": 0
@@ -1147,6 +1777,17 @@
       ]
     },
     "Preparar Cidinho": {
+      "main": [
+        [
+          {
+            "node": "Minha vez?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Minha vez?": {
       "main": [
         [
           {
@@ -1201,7 +1842,29 @@
       "main": [
         [
           {
-            "node": "Enviar resposta do Cidinho",
+            "node": "Conferir de novo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conferir de novo": {
+      "main": [
+        [
+          {
+            "node": "Ainda é a última?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ainda é a última?": {
+      "main": [
+        [
+          {
+            "node": "Resposta final",
             "type": "main",
             "index": 0
           }
@@ -1209,6 +1872,17 @@
       ]
     },
     "Resposta fixa": {
+      "main": [
+        [
+          {
+            "node": "Resposta final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resposta final": {
       "main": [
         [
           {
@@ -1223,18 +1897,18 @@
       "main": [
         [
           {
-            "node": "Falas para guardar",
+            "node": "Resposta para guardar",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Falas para guardar": {
+    "Resposta para guardar": {
       "main": [
         [
           {
-            "node": "Guardar conversa",
+            "node": "Guardar resposta",
             "type": "main",
             "index": 0
           }

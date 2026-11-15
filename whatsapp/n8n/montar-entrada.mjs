@@ -197,7 +197,20 @@ enviarTexto('Confirmar volta', [2420, 220], TEXTO_VOLTAR);
 // Para voltar a só o celular de teste: troque por ['a34df2e6d776e0d9b5cb7ebe45db6d8a28d3e8f4756d48cdc86e6a56a9f3854d'].
 const CIDINHO_LIBERADOS = ['todos'];
 const CIDINHO_TETO_24H = 20;
-const TEXTO_MIDIA = 'Ainda não consigo ouvir áudio nem ver foto ou documento. 🙏 Escreva sua dúvida em texto, por favor.\n\nSe preferir falar com uma pessoa, chame a recepção da Câmara no WhatsApp *(35) 3504-0397*.';
+// Estrutura copiada do robô UAZAPI da Sucupira (15/11/2026):
+// - rajada: cada mensagem é guardada na hora e espera CIDINHO_ESPERA_S segundos;
+//   só a execução da ÚLTIMA mensagem chama a IA, com todas as que chegaram desde a
+//   última resposta. Antes de enviar, confere de novo: se chegou outra mensagem
+//   enquanto a IA pensava, descarta a resposta (a execução mais nova responde tudo);
+// - mensagem repetida (mesmo id do WhatsApp) não é respondida duas vezes;
+// - áudio: baixa do WAHA e transcreve no Whisper local (o mesmo serviço da
+//   Sucupira, na rede interna do Easypanel); o filtro barra o que o Whisper inventa
+//   em silêncio ou ruído e, nesse caso, pede para repetir.
+const CIDINHO_ESPERA_S = 9;
+const WHISPER = 'http://sucupira_naturale_whisper:9000/asr';
+const TABELA_FALAS = 'cin_cidinho_falas';
+const TEXTO_MIDIA = 'Ainda não consigo ver foto, vídeo nem documento. 🙏 Escreva sua dúvida em texto ou mande um áudio, por favor.\n\nSe preferir falar com uma pessoa, chame a recepção da Câmara no WhatsApp *(35) 3504-0397*.';
+const TEXTO_AUDIO = 'Não consegui entender o seu áudio. 🙏 Pode mandar de novo ou escrever a sua dúvida?';
 const TEXTO_TETO = 'Por hoje eu já respondi bastante por aqui. 🙏 Para continuar, fale com a recepção da Câmara pelo WhatsApp *(35) 3504-0397*.\n\nAgendar, consultar ou cancelar: ' + SITE;
 const TEXTO_FALHA_IA = 'Desculpe, não consegui responder agora. 🙏 Para falar com a recepção da Câmara, chame no WhatsApp *(35) 3504-0397*. O agendamento é só pelo site: ' + SITE;
 
@@ -213,52 +226,163 @@ no('Cidinho atende?', 'n8n-nodes-base.if', 2.2, [2420, 560], {
   options: {},
 });
 no('Tabela da conversa', 'n8n-nodes-base.dataTable', 1.1, [2640, 640], {
-  resource: 'table', operation: 'create', tableName: 'cin_cidinho_conversa',
-  columns: colunas([['telefone', 'string'], ['papel', 'string'], ['texto', 'string'], ['quando', 'date']]),
+  resource: 'table', operation: 'create', tableName: TABELA_FALAS,
+  columns: colunas([['telefone', 'string'], ['papel', 'string'], ['texto', 'string'], ['quando', 'date'], ['msgid', 'string']]),
   options: { createIfNotExists: true },
 }, { executeOnce: true });
 // A conversa só vale por 24 h: apaga de todos as falas mais antigas.
 no('Apagar conversa antiga', 'n8n-nodes-base.dataTable', 1.1, [2860, 640], {
-  resource: 'row', operation: 'deleteRows', dataTableId: tabela('cin_cidinho_conversa'),
+  resource: 'row', operation: 'deleteRows', dataTableId: tabela(TABELA_FALAS),
   matchType: 'allConditions',
   filters: { conditions: [{ keyName: 'quando', condition: 'lt', keyValue: '={{ new Date(Date.now() - 24 * 3600 * 1000).toISOString() }}' }] },
   options: {},
 }, { executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput' });
-no('Conversa recente', 'n8n-nodes-base.dataTable', 1.1, [3080, 640], {
-  resource: 'row', operation: 'get', dataTableId: tabela('cin_cidinho_conversa'),
+no('Tipo da mensagem', 'n8n-nodes-base.code', 2, [3080, 640], {
+  mode: 'runOnceForAllItems',
+  language: 'javaScript',
+  jsCode: `// Why Code: separa texto, áudio e outra mídia e acerta o link do áudio num passo só.
+const p = ($('Hash do segredo').first().json.body || {}).payload || {};
+const msgid = String(p.id || '');
+const texto = String(p.body || '').trim().slice(0, 2000);
+const media = p.media || {};
+const mime = String(media.mimetype || '').toLowerCase();
+const audio = p.hasMedia === true && mime.startsWith('audio/');
+// O WAHA monta o link com o endereço dele mesmo (localhost). Troca SEMPRE pelo
+// endereço interno: a chave do WAHA vai junto no pedido e só pode ir para ele.
+const urlAudio = audio && media.url ? String(media.url).replace(/^https?:\\/\\/[^/]+/, '${WAHA}') : '';
+let tipo = 'midia';
+if (audio) tipo = urlAudio ? 'audio' : 'audio_sem_arquivo';
+else if (texto) tipo = 'texto';
+const resposta = tipo === 'midia' ? ${JSON.stringify(TEXTO_MIDIA)} : (tipo === 'audio_sem_arquivo' ? ${JSON.stringify(TEXTO_AUDIO)} : '');
+return [{ json: { tipo, msgid, texto, urlAudio, resposta } }];`,
+});
+no('Que tipo?', 'n8n-nodes-base.switch', 3.2, [3300, 640], {
+  rules: {
+    values: [
+      { conditions: condicoes([cond('={{ $json.tipo }}', { type: 'string', operation: 'equals' }, 'texto')]), renameOutput: true, outputKey: 'texto' },
+      { conditions: condicoes([cond('={{ $json.tipo }}', { type: 'string', operation: 'equals' }, 'audio')]), renameOutput: true, outputKey: 'audio' },
+    ],
+  },
+  options: { fallbackOutput: 'extra', renameFallbackOutput: 'outro' },
+});
+
+// ---- áudio: baixar do WAHA e transcrever no Whisper
+no('Baixar áudio', 'n8n-nodes-base.httpRequest', 4.2, [3520, 800], {
+  method: 'GET',
+  url: '={{ $json.urlAudio }}',
+  authentication: 'genericCredentialType',
+  genericAuthType: 'httpHeaderAuth',
+  options: { timeout: 30000, response: { response: { responseFormat: 'file' } } },
+}, { ...credencialWaha, onError: 'continueRegularOutput' });
+no('Transcrever áudio', 'n8n-nodes-base.httpRequest', 4.2, [3740, 800], {
+  method: 'POST',
+  url: WHISPER,
+  sendQuery: true,
+  queryParameters: { parameters: [
+    { name: 'task', value: 'transcribe' },
+    { name: 'language', value: 'pt' },
+    { name: 'output', value: 'json' },
+    { name: 'encode', value: 'true' },
+  ] },
+  sendBody: true,
+  contentType: 'multipart-form-data',
+  bodyParameters: { parameters: [{ parameterType: 'formBinaryData', name: 'audio_file', inputDataFieldName: 'data' }] },
+  options: { timeout: 90000, response: { response: { responseFormat: 'json' } } },
+}, { onError: 'continueRegularOutput' });
+no('Ler transcrição', 'n8n-nodes-base.code', 2, [3960, 800], {
+  mode: 'runOnceForAllItems',
+  language: 'javaScript',
+  jsCode: `// Why Code: mesmo filtro do robô da Sucupira. O Whisper inventa frase em silêncio ou
+// ruído ("Thank you for watching", "Legendas pela comunidade"); aí pede para repetir.
+const t = String(($input.first().json || {}).text || '').trim();
+const c = t.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/\\s+/g, ' ').trim();
+const palavras = c.split(/[^a-z0-9]+/).filter(Boolean);
+const EN = new Set(['the', 'you', 'your', 'thank', 'thanks', 'watching', 'watch', 'much', 'same', 'this', 'that', 'with', 'what', 'are', 'is', 'it', 'and', 'of', 'for', 'my', 'subscribe', 'video', 'please']);
+const PT = new Set(['de', 'que', 'o', 'a', 'os', 'as', 'do', 'da', 'dos', 'das', 'em', 'um', 'uma', 'para', 'pra', 'com', 'nao', 'eu', 'voce', 'vc', 'sim', 'quero', 'qual', 'quando', 'como', 'tem', 'no', 'na', 'se', 'mais', 'por', 'me', 'meu', 'minha', 'ta', 'e', 'esse', 'essa', 'isso', 'aqui', 'ai', 'la', 'bom', 'boa', 'dia', 'tarde', 'noite', 'oi', 'ola', 'obrigado', 'obrigada', 'rg', 'identidade', 'agendar', 'agendamento', 'vaga', 'certidao']);
+const en = palavras.filter((w) => EN.has(w)).length;
+const pt = palavras.filter((w) => PT.has(w)).length;
+const alucinacao = /(thank you|thanks for watching|for watching|subscribe|subtitles?|legendas? (pela|por)|legendado|amara\\.org|obrigad[oa] por assistir|inscreva-se)/.test(c) || (en >= 2 && pt === 0);
+const audioOk = /[a-z]/.test(c) && !alucinacao;
+return [{ json: { audioOk, texto: audioOk ? t.slice(0, 2000) : '', resposta: audioOk ? '' : ${JSON.stringify(TEXTO_AUDIO)} } }];`,
+});
+no('Áudio entendido?', 'n8n-nodes-base.if', 2.2, [4180, 800], {
+  conditions: condicoes([verdadeiro('={{ $json.audioOk }}')]),
+  options: {},
+});
+
+// ---- rajada: guarda a fala, espera e só a última responde
+no('Fala da pessoa', 'n8n-nodes-base.code', 2, [3520, 480], {
+  mode: 'runOnceForAllItems',
+  language: 'javaScript',
+  jsCode: `// Why Code: junta o texto (digitado ou transcrito) com o id da mensagem para a tabela.
+const t = $('Tipo da mensagem').first().json;
+const texto = $('Ler transcrição').isExecuted ? $('Ler transcrição').first().json.texto : t.texto;
+return [{ json: {
+  telefone: $('Telefone').first().json.telefone,
+  papel: 'user',
+  texto: String(texto || '').slice(0, 2000),
+  quando: new Date().toISOString(),
+  msgid: t.msgid || ('sem-id-' + Date.now()),
+} }];`,
+});
+no('Mensagem nova?', 'n8n-nodes-base.dataTable', 1.1, [3740, 480], {
+  resource: 'row', operation: 'rowNotExists', dataTableId: tabela(TABELA_FALAS),
+  filters: { conditions: [{ keyName: 'msgid', keyValue: "={{ $('Fala da pessoa').first().json.msgid }}" }] },
+});
+no('Campos da fala', 'n8n-nodes-base.set', 3.4, [3960, 480], {
+  assignments: { assignments: ['telefone', 'papel', 'texto', 'quando', 'msgid'].map((c) => campo(c, `={{ $('Fala da pessoa').first().json.${c} }}`)) },
+  options: {},
+});
+no('Guardar fala da pessoa', 'n8n-nodes-base.dataTable', 1.1, [4180, 480], {
+  resource: 'row', operation: 'insert', dataTableId: tabela(TABELA_FALAS), columns: insercao(), options: {},
+});
+no('Esperar a pessoa terminar', 'n8n-nodes-base.wait', 1.1, [4400, 480], {
+  resume: 'timeInterval', amount: CIDINHO_ESPERA_S, unit: 'seconds',
+}, { webhookId: 'c2b17d40-8e2a-4f6b-9c1d-5a3e7f9b2c03' });
+no('Conversa recente', 'n8n-nodes-base.dataTable', 1.1, [4620, 480], {
+  resource: 'row', operation: 'get', dataTableId: tabela(TABELA_FALAS),
   matchType: 'allConditions',
   filters: { conditions: [{ keyName: 'telefone', condition: 'eq', keyValue: `={{ ${M}.telefone }}` }] },
   returnAll: false, limit: 40, orderBy: true, orderByColumn: 'createdAt', orderByDirection: 'DESC',
 }, { executeOnce: true, alwaysOutputData: true });
-no('Preparar Cidinho', 'n8n-nodes-base.code', 2, [3300, 640], {
+no('Preparar Cidinho', 'n8n-nodes-base.code', 2, [4840, 480], {
   mode: 'runOnceForAllItems',
   language: 'javaScript',
-  jsCode: `// Why Code: monta a conversa (24 h, últimas 12 falas), barra mídia e aplica o teto, num passo só.
-const p = ($('Hash do segredo').first().json.body || {}).payload || {};
-const texto = String(p.body || '').trim().slice(0, 2000);
-const midia = p.hasMedia === true || (!texto);
+  jsCode: `// Why Code: decide se esta execução responde (é a última mensagem?), aplica o teto e
+// monta a conversa: as falas desde a última resposta (a rajada) e, antes, as últimas 12.
+const minha = $('Fala da pessoa').first().json.msgid;
 const limite = Date.now() - 24 * 3600 * 1000;
 const falas = $input.all().map((i) => i.json)
   .filter((r) => r && r.telefone && (r.papel === 'user' || r.papel === 'assistant') && new Date(r.quando).getTime() >= limite)
-  .sort((a, b) => new Date(a.quando) - new Date(b.quando));
+  .sort((a, b) => (new Date(a.quando) - new Date(b.quando)) || ((a.id || 0) - (b.id || 0)));
+const daPessoa = falas.filter((r) => r.papel === 'user');
+const ultima = daPessoa[daPessoa.length - 1];
+// Chegou outra mensagem depois desta: quem responde é a execução da mais nova.
+if (!ultima || ultima.msgid !== minha) return [{ json: { minhaVez: false } }];
 const respostas = falas.filter((r) => r.papel === 'assistant').length;
-if (midia) return [{ json: { usarIa: false, resposta: ${JSON.stringify(TEXTO_MIDIA)}, textoPessoa: texto || '[mídia]' } }];
-if (respostas >= ${CIDINHO_TETO_24H}) return [{ json: { usarIa: false, resposta: ${JSON.stringify(TEXTO_TETO)}, textoPessoa: texto } }];
-// Últimas 12 falas, juntando falas seguidas do mesmo lado, e a mensagem de agora no fim.
+if (respostas >= ${CIDINHO_TETO_24H}) return [{ json: { minhaVez: true, usarIa: false, resposta: ${JSON.stringify(TEXTO_TETO)} } }];
+let fim = -1;
+falas.forEach((f, i) => { if (f.papel === 'assistant') fim = i; });
+const anteriores = falas.slice(0, fim + 1).slice(-12);
+const rajada = falas.slice(fim + 1);
 const mensagens = [];
-for (const f of [...falas.slice(-12), { papel: 'user', texto }]) {
-  const ultima = mensagens[mensagens.length - 1];
-  if (ultima && ultima.role === f.papel) ultima.content += '\\n' + f.texto;
+for (const f of [...anteriores, ...rajada]) {
+  const ult = mensagens[mensagens.length - 1];
+  if (ult && ult.role === f.papel) ult.content += '\\n' + f.texto;
   else mensagens.push({ role: f.papel, content: String(f.texto || '') });
 }
 while (mensagens.length && mensagens[0].role !== 'user') mensagens.shift();
-return [{ json: { usarIa: true, mensagens, primeira: falas.length === 0, textoPessoa: texto } }];`,
+return [{ json: { minhaVez: true, usarIa: true, mensagens, primeira: respostas === 0, rajada: rajada.length } }];`,
 });
-no('Usar a IA?', 'n8n-nodes-base.if', 2.2, [3520, 640], {
+no('Minha vez?', 'n8n-nodes-base.if', 2.2, [5060, 480], {
+  conditions: condicoes([verdadeiro('={{ $json.minhaVez }}')]),
+  options: {},
+});
+no('Usar a IA?', 'n8n-nodes-base.if', 2.2, [5280, 480], {
   conditions: condicoes([verdadeiro('={{ $json.usarIa }}')]),
   options: {},
 });
-no('Digitando', 'n8n-nodes-base.httpRequest', 4.2, [3740, 560], {
+no('Digitando', 'n8n-nodes-base.httpRequest', 4.2, [5500, 400], {
   method: 'POST',
   url: `${WAHA}/api/startTyping`,
   authentication: 'genericCredentialType',
@@ -268,7 +392,7 @@ no('Digitando', 'n8n-nodes-base.httpRequest', 4.2, [3740, 560], {
   jsonBody: `={{ JSON.stringify({ session: '${SESSAO}', chatId: ${M}.chatId }) }}`,
   options: { timeout: 10000 },
 }, { ...credencialWaha, onError: 'continueRegularOutput' });
-no('Perguntar ao Cidinho', 'n8n-nodes-base.httpRequest', 4.2, [3960, 560], {
+no('Perguntar ao Cidinho', 'n8n-nodes-base.httpRequest', 4.2, [5720, 400], {
   method: 'POST',
   url: 'http://127.0.0.1:5678/webhook/cidinho',
   sendBody: true,
@@ -276,15 +400,34 @@ no('Perguntar ao Cidinho', 'n8n-nodes-base.httpRequest', 4.2, [3960, 560], {
   jsonBody: "={{ JSON.stringify({ mensagens: $('Preparar Cidinho').first().json.mensagens, primeira: $('Preparar Cidinho').first().json.primeira }) }}",
   options: { timeout: 90000 },
 }, { onError: 'continueRegularOutput' });
-no('Resposta da IA', 'n8n-nodes-base.set', 3.4, [4180, 560], {
+no('Resposta da IA', 'n8n-nodes-base.set', 3.4, [5940, 400], {
   assignments: { assignments: [campo('resposta', `={{ $json.texto || ${JSON.stringify(TEXTO_FALHA_IA)} }}`)] },
   options: {},
 });
-no('Resposta fixa', 'n8n-nodes-base.set', 3.4, [3740, 760], {
+// Enquanto a IA pensava, a pessoa mandou outra mensagem? Então esta resposta é
+// descartada: a execução da mensagem nova responde tudo junto.
+no('Conferir de novo', 'n8n-nodes-base.dataTable', 1.1, [6160, 400], {
+  resource: 'row', operation: 'get', dataTableId: tabela(TABELA_FALAS),
+  matchType: 'allConditions',
+  filters: { conditions: [
+    { keyName: 'telefone', condition: 'eq', keyValue: `={{ ${M}.telefone }}` },
+    { keyName: 'papel', condition: 'eq', keyValue: 'user' },
+  ] },
+  returnAll: false, limit: 1, orderBy: true, orderByColumn: 'createdAt', orderByDirection: 'DESC',
+}, { executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput' });
+no('Ainda é a última?', 'n8n-nodes-base.if', 2.2, [6380, 400], {
+  conditions: condicoes([verdadeiro("={{ !$json.msgid || $json.msgid === $('Fala da pessoa').first().json.msgid }}")]),
+  options: {},
+});
+no('Resposta fixa', 'n8n-nodes-base.set', 3.4, [5500, 760], {
   assignments: { assignments: [campo('resposta', '={{ $json.resposta }}')] },
   options: {},
 });
-no('Enviar resposta do Cidinho', 'n8n-nodes-base.httpRequest', 4.2, [4400, 640], {
+no('Resposta final', 'n8n-nodes-base.set', 3.4, [6600, 560], {
+  assignments: { assignments: [campo('resposta', "={{ $('Resposta da IA').isExecuted ? $('Resposta da IA').first().json.resposta : $('Resposta fixa').first().json.resposta }}")] },
+  options: {},
+});
+no('Enviar resposta do Cidinho', 'n8n-nodes-base.httpRequest', 4.2, [6820, 560], {
   method: 'POST',
   url: `${WAHA}/api/sendText`,
   authentication: 'genericCredentialType',
@@ -294,21 +437,21 @@ no('Enviar resposta do Cidinho', 'n8n-nodes-base.httpRequest', 4.2, [4400, 640],
   jsonBody: `={{ JSON.stringify({ session: '${SESSAO}', chatId: ${M}.chatId, text: $json.resposta, linkPreview: false }) }}`,
   options: { timeout: 30000 },
 }, { ...credencialWaha, onError: 'continueRegularOutput' });
-no('Falas para guardar', 'n8n-nodes-base.code', 2, [4620, 640], {
+no('Resposta para guardar', 'n8n-nodes-base.code', 2, [7040, 560], {
   mode: 'runOnceForAllItems',
   language: 'javaScript',
-  jsCode: `// Why Code: duas linhas (a pessoa e o Cidinho) a partir de nós diferentes.
-const telefone = $('Telefone').first().json.telefone;
-const pessoa = $('Preparar Cidinho').first().json.textoPessoa;
-const resposta = $('Preparar Cidinho').first().json.usarIa ? $('Resposta da IA').first().json.resposta : $('Resposta fixa').first().json.resposta;
-const agora = Date.now();
-return [
-  { json: { telefone, papel: 'user', texto: pessoa, quando: new Date(agora).toISOString() } },
-  { json: { telefone, papel: 'assistant', texto: resposta, quando: new Date(agora + 1).toISOString() } },
-];`,
+  jsCode: `// Why Code: a fala do Cidinho vai para a tabela (a da pessoa já foi guardada antes).
+const id = $('Tipo da mensagem').first().json.msgid || String(Date.now());
+return [{ json: {
+  telefone: $('Telefone').first().json.telefone,
+  papel: 'assistant',
+  texto: $('Resposta final').first().json.resposta,
+  quando: new Date().toISOString(),
+  msgid: 'resposta-' + id,
+} }];`,
 });
-no('Guardar conversa', 'n8n-nodes-base.dataTable', 1.1, [4840, 640], {
-  resource: 'row', operation: 'insert', dataTableId: tabela('cin_cidinho_conversa'), columns: insercao(), options: {},
+no('Guardar resposta', 'n8n-nodes-base.dataTable', 1.1, [7260, 560], {
+  resource: 'row', operation: 'insert', dataTableId: tabela(TABELA_FALAS), columns: insercao(), options: {},
 }, { onError: 'continueRegularOutput' });
 
 no('Não respondido hoje?', 'n8n-nodes-base.dataTable', 1.1, [2200, 400], {
@@ -341,17 +484,35 @@ liga('Hash do telefone', 'Cidinho atende?');
 liga('Cidinho atende?', 'Tabela da conversa', 0);
 liga('Cidinho atende?', 'Não respondido hoje?', 1);
 liga('Tabela da conversa', 'Apagar conversa antiga');
-liga('Apagar conversa antiga', 'Conversa recente');
+liga('Apagar conversa antiga', 'Tipo da mensagem');
+liga('Tipo da mensagem', 'Que tipo?');
+liga('Que tipo?', 'Fala da pessoa', 0);
+liga('Que tipo?', 'Baixar áudio', 1);
+liga('Que tipo?', 'Resposta fixa', 2);
+liga('Baixar áudio', 'Transcrever áudio');
+liga('Transcrever áudio', 'Ler transcrição');
+liga('Ler transcrição', 'Áudio entendido?');
+liga('Áudio entendido?', 'Fala da pessoa', 0);
+liga('Áudio entendido?', 'Resposta fixa', 1);
+liga('Fala da pessoa', 'Mensagem nova?');
+liga('Mensagem nova?', 'Campos da fala');
+liga('Campos da fala', 'Guardar fala da pessoa');
+liga('Guardar fala da pessoa', 'Esperar a pessoa terminar');
+liga('Esperar a pessoa terminar', 'Conversa recente');
 liga('Conversa recente', 'Preparar Cidinho');
-liga('Preparar Cidinho', 'Usar a IA?');
+liga('Preparar Cidinho', 'Minha vez?');
+liga('Minha vez?', 'Usar a IA?', 0);
 liga('Usar a IA?', 'Digitando', 0);
 liga('Usar a IA?', 'Resposta fixa', 1);
 liga('Digitando', 'Perguntar ao Cidinho');
 liga('Perguntar ao Cidinho', 'Resposta da IA');
-liga('Resposta da IA', 'Enviar resposta do Cidinho');
-liga('Resposta fixa', 'Enviar resposta do Cidinho');
-liga('Enviar resposta do Cidinho', 'Falas para guardar');
-liga('Falas para guardar', 'Guardar conversa');
+liga('Resposta da IA', 'Conferir de novo');
+liga('Conferir de novo', 'Ainda é a última?');
+liga('Ainda é a última?', 'Resposta final', 0);
+liga('Resposta fixa', 'Resposta final');
+liga('Resposta final', 'Enviar resposta do Cidinho');
+liga('Enviar resposta do Cidinho', 'Resposta para guardar');
+liga('Resposta para guardar', 'Guardar resposta');
 liga('Confirmar saída', 'Ainda não saiu?');
 liga('Ainda não saiu?', 'Campos de quem saiu');
 liga('Campos de quem saiu', 'Registrar saída');
