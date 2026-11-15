@@ -20,7 +20,14 @@
 //   data de nascimento;
 // - remarcacao nao gera aviso: com poucas vagas, a recepcao nao remarca.
 
+const crypto = require("node:crypto");
+
 const COLECAO_ENVIOS = "whatsapp_envios";
+// Um convite de avaliacao por celular em todo o historico (HMAC do telefone,
+// sem guardar o numero). Familia que agenda varias pessoas no mesmo celular
+// recebe um so.
+const COLECAO_AVALIACAO_DESTINATARIOS = "whatsapp_avaliacao_destinatarios";
+const LINK_AVALIACAO_PADRAO = "https://g.page/r/CfugOJBgujYPEBM/review";
 const SITE = "https://cin.itanhandu.cam.mg.gov.br";
 const LINK_DOCUMENTOS = `${SITE}/cin/dia-do-atendimento/`;
 const LINK_CANCELAR = `${SITE}/cin/consultar-ou-cancelar/`;
@@ -28,7 +35,7 @@ const ENDERECO = "Rua Eng. Paulo Franco da Rosa, 298, Centro";
 const TELEFONE_CAMARA = "(35) 3504-0397";
 const RODAPE = "Para não receber mais avisos por aqui, responda SAIR.";
 const MODOS = new Set(["desligado", "ensaio", "ativo"]);
-const TIPOS = new Set(["confirmacao", "lembrete", "cancelado_camara", "cancelado_cidadao"]);
+const TIPOS = new Set(["confirmacao", "lembrete", "cancelado_camara", "cancelado_cidadao", "avaliacao"]);
 const STATUS_VALENDO = new Set(["agendado", "remarcado"]);
 const DIAS_SEMANA = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
 const FUSO_HORARIO = "America/Sao_Paulo";
@@ -45,6 +52,9 @@ const HORA_FIM_ENVIO = 21; // ate 21h59
 // Lembrete no dia do atendimento, 6 h antes do horario. Atendimento cedo (antes
 // das 13h) recebe as 7h, que e o comeco da janela de envio.
 const ANTECEDENCIA_LEMBRETE_MIN = 6 * 60;
+// Convite de avaliacao: a partir das 17h do dia, para quem a recepcao marcou
+// "Compareceu" (mesma hora do convite por e-mail).
+const HORA_AVALIACAO = 17;
 
 function minutosDoDia(hora) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(hora || "").trim());
@@ -128,7 +138,7 @@ const O_QUE_LEVAR = [
   `Mais detalhes: ${LINK_DOCUMENTOS}`
 ];
 
-function montarMensagem(tipo, dados) {
+function montarMensagem(tipo, dados, extras = {}) {
   const nome = primeiroNome(dados.nome);
   const ola = nome ? `Olá, *${nome}*!` : "Olá!";
   const quando = `*${dataPorExtenso(dados.dataISO)}, às ${horaFalada(dados.hora)}*`;
@@ -194,10 +204,26 @@ function montarMensagem(tipo, dados) {
         "",
         RODAPE
       );
+    case "avaliacao":
+      return linhas(
+        "⭐ *Como foi o seu atendimento?*",
+        "",
+        `${ola} Você fez seu *RG (Carteira de Identidade)* na Câmara de Itanhandu. Se puder, conte como foi no Google. Leva menos de 1 minuto:`,
+        `👉 ${extras.googleUrl || LINK_AVALIACAO_PADRAO}`,
+        "",
+        "É voluntário e nos ajuda a melhorar o atendimento. Este é um convite único.",
+        "",
+        RODAPE
+      );
     default:
       throw new Error(`Tipo de mensagem desconhecido: ${tipo}`);
   }
 }
+
+// O convite vai primeiro pelo WhatsApp; o e-mail (avaliacao-google.js, 18h) so
+// sai para quem o WhatsApp nao alcancou. Estes status contam como alcancado
+// (ou ainda a caminho): o e-mail nao repete.
+const CONVITE_WHATSAPP_ALCANCOU = new Set(["pendente", "enviando", "enviado", "revisar", "ja_convidado"]);
 
 // Decide, pela mudanca no documento de dados_cidadaos, qual aviso entra na fila.
 function eventoDoAgendamento(antes, depois, hojeISO) {
@@ -224,6 +250,7 @@ function aindaValido(tipo, envio, dados, hojeISO, minutoAgora = 0) {
         && dados.dataISO === hojeISO && minutosDoDia(dados.hora) > minutoAgora;
     case "cancelado_camara": return dados.status === "cancelado";
     case "cancelado_cidadao": return dados.status === "cancelado_cidadao";
+    case "avaliacao": return dados.status === "compareceu";
     default: return false;
   }
 }
@@ -247,7 +274,8 @@ function validarConfiguracao(config) {
   if (modo === "ensaio" && telefonesTeste.size === 0) {
     throw new Error("Modo ensaio sem WHATSAPP_CIN_TELEFONES_TESTE.");
   }
-  return { modo, webhookUrl, token, telefonesTeste };
+  const googleUrl = /^https:\/\/[^\s]+$/.test(String(config.googleUrl || "")) ? String(config.googleUrl) : LINK_AVALIACAO_PADRAO;
+  return { modo, webhookUrl, token, telefonesTeste, googleUrl };
 }
 
 // O gatilho nao precisa do token: valida so o modo e a lista de teste.
@@ -270,7 +298,8 @@ function criarServicoWhatsappCin({
   sortear = Math.random
 }) {
   // Poe uma mensagem na fila. Nao envia nada.
-  async function enfileirar(tipo, agendamentoId, dados, configBruta) {
+  // opcoes.chaveTelefone: so para o convite de avaliacao (um por celular).
+  async function enfileirar(tipo, agendamentoId, dados, configBruta, opcoes = {}) {
     if (!TIPOS.has(tipo)) throw new Error(`Tipo de mensagem desconhecido: ${tipo}`);
     const config = configuracaoDaFila(configBruta);
     if (config.modo === "desligado") return { status: "desligado" };
@@ -281,22 +310,50 @@ function criarServicoWhatsappCin({
 
     const chave = chaveEnvio(tipo, agendamentoId, dados);
     const envioRef = db.collection(COLECAO_ENVIOS).doc(chave);
-    const criou = await db.runTransaction(async (t) => {
+    const telRef = opcoes.chaveTelefone
+      ? db.collection(COLECAO_AVALIACAO_DESTINATARIOS).doc(opcoes.chaveTelefone)
+      : null;
+    const resultado = await db.runTransaction(async (t) => {
       const atual = await t.get(envioRef);
-      if (atual.exists) return false;
+      const telDoc = telRef ? await t.get(telRef) : null;
+      if (atual.exists) return "repetido";
+      const jaConvidado = Boolean(telDoc && telDoc.exists);
+      if (telRef && !jaConvidado) t.set(telRef, { agendamentoId, criadoEm: FieldValue.serverTimestamp() });
       t.set(envioRef, {
         tipo,
         agendamentoId,
         dataISO: dados.dataISO,
         hora: dados.hora || "",
         modo: config.modo,
-        status: "pendente",
+        // ja_convidado fica registrado (fora da fila) para o e-mail nao repetir.
+        status: jaConvidado ? "ja_convidado" : "pendente",
         ordem: agora(),
         criadoEm: FieldValue.serverTimestamp()
       });
-      return true;
+      return jaConvidado ? "ja_convidado" : "na_fila";
     });
-    return { status: criou ? "na_fila" : "repetido", chave };
+    return { status: resultado, chave };
+  }
+
+  // Convites de avaliacao de hoje: todos que compareceram (o e-mail e reserva).
+  async function enfileirarAvaliacoes(hojeISO, config) {
+    const resumo = { total: 0, na_fila: 0 };
+    if (!dataISOValida(hojeISO)) throw new Error("Data da avaliacao invalida.");
+    const consulta = await db.collection("dados_cidadaos")
+      .where("dataISO", "==", hojeISO)
+      .where("avisoWhatsapp", "==", true)
+      .get();
+    for (const doc of consulta.docs) {
+      const dados = doc.data();
+      if (dados.status !== "compareceu") continue;
+      const telefone = telefoneWhatsApp(dados.telefone);
+      if (!telefone) continue;
+      resumo.total += 1;
+      const chaveTelefone = crypto.createHmac("sha256", config.token).update(telefone, "utf8").digest("hex");
+      const r = await enfileirar("avaliacao", doc.id, dados, config, { chaveTelefone });
+      if (r.status === "na_fila") resumo.na_fila += 1;
+    }
+    return resumo;
   }
 
   // Lembretes de hoje cuja hora de sair ja chegou (6 h antes do atendimento).
@@ -366,13 +423,14 @@ function criarServicoWhatsappCin({
   // Uma rodada da rotina: lembretes do dia (6 h antes) e envio da fila, aos poucos.
   async function processarFila(configBruta) {
     const inicio = agora();
-    const resumo = { lembretes: null, enviados: 0, descartados: 0, outros: {}, restantes: 0 };
+    const resumo = { lembretes: null, avaliacoes: null, enviados: 0, descartados: 0, outros: {}, restantes: 0 };
     const config = validarConfiguracao(configBruta);
     if (config.modo === "desligado") return resumo;
     const { dataISO: hojeISO, hora, minuto } = agoraEmSaoPaulo(inicio);
     if (hora < HORA_INICIO_ENVIO || hora > HORA_FIM_ENVIO) return resumo;
 
     resumo.lembretes = await enfileirarLembretes(hojeISO, minuto, config);
+    if (hora >= HORA_AVALIACAO) resumo.avaliacoes = await enfileirarAvaliacoes(hojeISO, config);
 
     const consulta = await db.collection(COLECAO_ENVIOS).where("status", "==", "pendente").limit(200).get();
     const fila = consulta.docs
@@ -392,7 +450,7 @@ function criarServicoWhatsappCin({
       if (enviouAlgum) await esperar(PAUSA_MIN_MS + Math.floor(sortear() * (PAUSA_MAX_MS - PAUSA_MIN_MS)));
       const telefone = telefoneWhatsApp(vez.dados.telefone);
       const resultado = telefone
-        ? await enviarAoN8n(config, { chave: fila[i].ref.id, tipo: vez.envio.tipo, telefone, texto: montarMensagem(vez.envio.tipo, vez.dados) })
+        ? await enviarAoN8n(config, { chave: fila[i].ref.id, tipo: vez.envio.tipo, telefone, texto: montarMensagem(vez.envio.tipo, vez.dados, { googleUrl: config.googleUrl }) })
         : { status: "sem_celular" };
       enviouAlgum = true;
       await fila[i].ref.update({ ...resultado, atualizadoEm: FieldValue.serverTimestamp() });
@@ -405,11 +463,13 @@ function criarServicoWhatsappCin({
     return resumo;
   }
 
-  return { enfileirar, enfileirarLembretes, processarFila };
+  return { enfileirar, enfileirarLembretes, enfileirarAvaliacoes, processarFila };
 }
 
 module.exports = {
   COLECAO_ENVIOS,
+  COLECAO_AVALIACAO_DESTINATARIOS,
+  CONVITE_WHATSAPP_ALCANCOU,
   LINK_DOCUMENTOS,
   LINK_CANCELAR,
   RODAPE,

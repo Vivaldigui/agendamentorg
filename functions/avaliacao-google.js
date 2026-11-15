@@ -2,6 +2,8 @@
 
 const crypto = require("node:crypto");
 
+const { COLECAO_ENVIOS: COLECAO_WHATSAPP, CONVITE_WHATSAPP_ALCANCOU, chaveEnvio: chaveWhatsapp } = require("./whatsapp-cin");
+
 const COLECAO = "pedidos_avaliacao_google";
 const COLECAO_DESTINATARIOS = "destinatarios_avaliacao_google";
 const TERMINAIS = new Set(["enviando", "enviado", "revisar"]);
@@ -75,6 +77,20 @@ function criarServicoAvaliacao({ db, Timestamp, fetchImpl = fetch, logger = cons
       const elegivel = dados && dados.dataISO === dataAtendimento &&
         dados.status === "compareceu" && !dados.anonimizadoLGPD && emailValido(dados.email) &&
         dados.consentimentoAvaliacao === true;
+      // O WhatsApp vem primeiro (whatsapp-cin.js, 17h): quem ja foi convidado
+      // por la nao recebe o e-mail (decisao de 15/11/2026).
+      const whatsappSnap = elegivel
+        ? await tx.get(db.collection(COLECAO_WHATSAPP).doc(chaveWhatsapp("avaliacao", cadastroRef.id, dados)))
+        : null;
+      if (whatsappSnap && whatsappSnap.exists && CONVITE_WHATSAPP_ALCANCOU.has(whatsappSnap.data().status)) {
+        tx.set(pedidoRef, {
+          estado: "cancelado",
+          motivo: "convidado_pelo_whatsapp",
+          dataAtendimento,
+          alteradoEm: Timestamp.fromMillis(agora())
+        });
+        return null;
+      }
       if (!elegivel) {
         if (pedidoSnap.exists) {
           tx.set(pedidoRef, {

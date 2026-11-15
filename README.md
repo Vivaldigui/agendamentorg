@@ -67,7 +67,7 @@ agendamentorg/
 
 ### Convite de avaliação Google via n8n
 
-A integração opcional envia um convite por e-mail às 17h para quem estiver
+A integração opcional envia um convite por e-mail às 18h (reserva do convite pelo WhatsApp das 17h; só sai para quem o WhatsApp não alcançou) para quem estiver
 marcado como **Compareceu** no dia e tiver e-mail válido. A fila é persistente,
 revalida o cadastro antes do envio e impede disparos concorrentes.
 O link do Google já está definido; a integração começa desativada até configurar
@@ -105,7 +105,7 @@ Desde 16/10/2026 o painel não grava em `dados_cidadaos`, `vagas_ocupadas`, `cpf
 | `prepararAgendaSemanalAutomatica` | Cron de segunda às 07:50, 07:55 e 07:59 — prepara a semana, aquece a leitura e publica às 08:00 |
 | `anonimizarDadosAntigosLGPD` | Cron mensal `0 3 1 * *` — anonimiza todo registro com atendimento há mais de 6 meses, continuando de onde parou (`configuracoes/lgpd.proximaDataISO`) |
 | `executarManutencaoDiaria` | Cron diário `0 2 * * *` — limpa agenda passada, auxiliares expirados e bloqueios vencidos ou liberados |
-| `enviarAvaliacoesGooglePendentes` | Cron diário `0 17 * * *` (southamerica-east1) — convite de avaliação só para quem compareceu e marcou a caixa opcional do convite |
+| `enviarAvaliacoesGooglePendentes` | Cron diário `0 18 * * *` (southamerica-east1) — convite de avaliação por e-mail só para quem compareceu, marcou a caixa opcional do convite e não foi convidado pelo WhatsApp (`functions/whatsapp-cin.js`, 17h) |
 
 ---
 
@@ -211,7 +211,7 @@ Desde 24/08/2026 o caminho crítico do pico roda em **`southamerica-east1`**, ju
 
 O site mantém **dois clientes de Functions** e roteia por nome (`clienteFunctions` em `public/index.html`). Chamar uma callable na região errada devolve `not-found` — erro que só apareceria às 08:00 de uma segunda-feira. Há trava automatizada comparando a lista do site com as funções que o backend de fato moveu.
 
-São quatro jobs no Cloud Scheduler: manutenção diária, abertura semanal, anonimização mensal e convites de avaliação (17:00). A franquia gratuita é de três jobs por conta de faturamento; o quarto custa cerca de US$ 0,10 por mês, e outros projetos na mesma conta de faturamento também contam. No primeiro deploy desta consolidação, confirme a exclusão das funções antigas `limparDatasPassadasAgenda`, `limparAuxiliaresExpirados` e `limparSessoesAcessoPublico`; caso contrário, seus jobs antigos continuarão existentes.
+São quatro jobs no Cloud Scheduler: manutenção diária, abertura semanal, anonimização mensal e convites de avaliação por e-mail (18:00), mais a fila do WhatsApp da CIN (a cada 5 min). A franquia gratuita é de três jobs por conta de faturamento; o quarto custa cerca de US$ 0,10 por mês, e outros projetos na mesma conta de faturamento também contam. No primeiro deploy desta consolidação, confirme a exclusão das funções antigas `limparDatasPassadasAgenda`, `limparAuxiliaresExpirados` e `limparSessoesAcessoPublico`; caso contrário, seus jobs antigos continuarão existentes.
 
 ### Abertura semanal automática
 
