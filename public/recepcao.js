@@ -1833,6 +1833,8 @@ async function registrarLog(acao, detalhes) {
 function acaoLogLabel(acao) {
     return ({
         alterar_status: "Status atualizado",
+        rg_pronto: "RG pronto (aviso WhatsApp)",
+        rg_pronto_desfeito: "RG pronto desfeito",
         atualizar_observacao: "Observação atualizada",
         whatsapp_lembrete: "Lembrete WhatsApp",
         lembrete_lote: "Lembrete em lote",
@@ -3355,7 +3357,7 @@ async function copiarContatoFila(botao) {
 // eventual (config/relatorios). As credenciais de estacionamento sairam em
 // 16/10/2026. A configuracao saiu da lista para que
 // a tela de operacao nao carregue mais dez blocos numa rolagem so.
-const VISTAS_PAINEL = ["hoje", "lista", "config", "relatorios"];
+const VISTAS_PAINEL = ["hoje", "lista", "retirada", "config", "relatorios"];
 
 function mostrarVistaPainel(vista) {
     const anterior = vistaPainelAtual;
@@ -3374,8 +3376,143 @@ function mostrarVistaPainel(vista) {
     if (vistaPainelAtual === "hoje") renderFilaHoje();
     if (vistaPainelAtual === "config") atualizarEstadoConfigHub();
     if (vistaPainelAtual === "relatorios") iniciarRelatorios();
+    if (vistaPainelAtual === "retirada") iniciarRgPronto();
     if (anterior !== vistaPainelAtual) window.scrollTo({ top: 0 });
     atualizarFaixaEstado();
+}
+
+// ---- RG pronto para retirar ---------------------------------------------
+// A carteira chega na Camara com o nome completo na carta. A recepcao busca
+// o nome entre os atendimentos realizados (status compareceu) e marca pela
+// callable marcarRgProntoAdmin; o servidor poe o aviso na fila do WhatsApp
+// (functions/whatsapp-cin.js, tipo rg_pronto). Leitura sob demanda, como os
+// relatorios: so na primeira vez que a aba e aberta.
+let rgProntoCandidatos = [];
+let rgProntoCarregado = false;
+let rgProntoCarregando = false;
+
+function normalizarNomeBusca(valor) {
+    return String(valor || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// Todas as partes digitadas precisam aparecer no nome (em qualquer ordem);
+// "de", "da", "dos"... nao contam. Nome identico vem primeiro.
+function filtrarCandidatosRg(candidatos, busca) {
+    const ignorar = new Set(["de", "da", "do", "das", "dos", "e"]);
+    const alvo = normalizarNomeBusca(busca);
+    const partes = alvo.split(" ").filter(p => p.length > 1 && !ignorar.has(p));
+    if (partes.length < 2) return [];
+    return candidatos
+        .map(c => {
+            const nome = normalizarNomeBusca(c.dados.nome);
+            const palavras = new Set(nome.split(" "));
+            if (!partes.every(p => palavras.has(p))) return null;
+            return { ...c, exato: nome === alvo };
+        })
+        .filter(Boolean)
+        .sort((a, b) => (b.exato - a.exato) || String(b.dados.dataISO || "").localeCompare(String(a.dados.dataISO || "")))
+        .slice(0, 20);
+}
+
+function iniciarRgPronto() {
+    if (!rgProntoCarregado && !rgProntoCarregando) carregarRgPronto();
+    const campo = document.getElementById("busca-rg-pronto");
+    if (campo) campo.focus();
+}
+
+async function carregarRgPronto() {
+    if (rgProntoCarregando) return;
+    rgProntoCarregando = true;
+    const info = document.getElementById("rg-pronto-info");
+    if (info) info.textContent = "Carregando atendimentos realizados...";
+    try {
+        const snap = await db.collection("dados_cidadaos").where("status", "==", "compareceu").get({ source: "server" });
+        rgProntoCandidatos = snap.docs
+            .map(doc => ({ id: doc.id, dados: doc.data() || {} }))
+            .filter(c => c.dados.nome);
+        rgProntoCarregado = true;
+        if (info) info.textContent = `${rgProntoCandidatos.length} atendimentos realizados nos últimos 6 meses (os mais antigos já não têm nome, pela LGPD).`;
+        buscarRgPronto();
+    } catch (e) {
+        if (info) info.textContent = "Não foi possível carregar os atendimentos. Tente Atualizar.";
+        avisoPainel("Erro ao carregar os atendimentos realizados.");
+    } finally {
+        rgProntoCarregando = false;
+    }
+}
+
+function celularFinal(telefone) {
+    const d = String(telefone || "").replace(/\D/g, "");
+    return d.length >= 10 ? `celular final ${d.slice(-4)}` : "sem celular";
+}
+
+function linhaRgPronto(c) {
+    const d = c.dados;
+    const pronto = d.rgPronto === true;
+    const quando = pronto && d.rgProntoEm ? new Date(d.rgProntoEm).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+    const situacao = pronto
+        ? `<span class="badge-status st-compareceu"><i class="fa-solid fa-check" aria-hidden="true"></i> Pronto · aviso enviado ${textoSeguro(quando)}</span>`
+        : `<span class="badge-status st-agendado"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i> Aguardando</span>`;
+    const acao = pronto
+        ? `<button type="button" class="btn btn-sm btn-secundario" data-acao="desfazerRgPronto" data-id="${textoSeguro(c.id)}"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Desfazer</button>`
+        : `<button type="button" class="btn btn-sm btn-primario" data-acao="marcarRgPronto" data-id="${textoSeguro(c.id)}"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> RG pronto</button>`;
+    return `<tr>
+        <td><div class="ld-nome-rg">${textoSeguro(d.nome)}</div><div class="ld-meta"><span class="protocolo">${textoSeguro(d.protocolo || "")}</span><span>${textoSeguro(celularFinal(d.telefone))}</span></div></td>
+        <td>${textoSeguro(dataBrISO(d.dataISO))}${d.hora ? " " + textoSeguro(d.hora) : ""}</td>
+        <td>${situacao}</td>
+        <td><div class="acoes-linha">${acao}</div></td>
+    </tr>`;
+}
+
+function buscarRgPronto() {
+    const corpo = document.getElementById("rg-pronto-corpo");
+    const marcados = document.getElementById("rg-pronto-marcados");
+    if (!corpo || !marcados) return;
+    const busca = (document.getElementById("busca-rg-pronto") || {}).value || "";
+    if (!rgProntoCarregado) {
+        corpo.innerHTML = `<tr><td colspan="4" class="td-vazio">Carregando...</td></tr>`;
+    } else {
+        const achados = filtrarCandidatosRg(rgProntoCandidatos, busca);
+        corpo.innerHTML = achados.length
+            ? achados.map(linhaRgPronto).join("")
+            : `<tr><td colspan="4" class="td-vazio">${normalizarNomeBusca(busca).split(" ").filter(p => p.length > 1).length < 2 ? "Digite pelo menos duas partes do nome." : "Nenhum atendimento realizado com esse nome. Confira a grafia ou se a pessoa foi marcada como Compareceu."}</td></tr>`;
+    }
+    const prontos = rgProntoCandidatos
+        .filter(c => c.dados.rgPronto === true)
+        .sort((a, b) => String(b.dados.rgProntoEm || "").localeCompare(String(a.dados.rgProntoEm || "")))
+        .slice(0, 30);
+    marcados.innerHTML = prontos.length
+        ? prontos.map(linhaRgPronto).join("")
+        : `<tr><td colspan="4" class="td-vazio">Nenhum ainda.</td></tr>`;
+}
+
+async function alterarRgPronto(id, desfazer) {
+    const c = rgProntoCandidatos.find(item => item.id === id);
+    if (!c) return avisoPainel("Cadastro não encontrado. Clique em Atualizar.");
+    const nome = c.dados.nome;
+    const pergunta = desfazer
+        ? `Desfazer o RG pronto de ${nome}? Se o aviso ainda não saiu, ele é cancelado.`
+        : (c.dados.telefone
+            ? `Marcar o RG de ${nome} como pronto? A pessoa recebe no WhatsApp (${celularFinal(c.dados.telefone)}) o aviso para retirar.`
+            : `Marcar o RG de ${nome} como pronto? Este cadastro não tem celular: o aviso não vai sair, avise por outro meio.`);
+    if (!(await confirmarPainel(pergunta, { titulo: desfazer ? "Desfazer RG pronto" : "RG pronto para retirar", textoConfirmar: desfazer ? "Desfazer" : "Marcar e avisar" }))) return;
+    try {
+        const marcar = functions.httpsCallable("marcarRgProntoAdmin");
+        const resposta = await marcar({ agendamentoId: id, desfazer });
+        const r = (resposta && resposta.data) || {};
+        Object.assign(c.dados, r.atualizacao || {});
+        buscarRgPronto();
+        mostrarToast(desfazer
+            ? `RG pronto de ${nome} desfeito.`
+            : (r.jaMarcado ? `${nome} já estava marcado como RG pronto.` : `RG de ${nome} marcado como pronto. O aviso sai pelo WhatsApp nos próximos minutos.`));
+    } catch (e) {
+        const codigo = String((e && e.code) || "").replace(/^functions\//, "");
+        if (codigo === "permission-denied" || codigo === "unauthenticated") avisoPainel("Sessão sem permissão. Entre novamente.");
+        else if (codigo === "failed-precondition") avisoPainel(String(e.message || "Não foi possível marcar este cadastro."));
+        else if (codigo === "not-found") avisoPainel("Cadastro não encontrado. Clique em Atualizar.");
+        else avisoPainel("Erro ao marcar RG pronto.");
+    }
 }
 
 // Relatorios sob demanda (reformulacao de 16/10/2026). A abertura do painel
@@ -4521,6 +4658,9 @@ const ACOES_CLIQUE = {
     enviarVerificacaoEmail, conferirEmailVerificado,
     carregarMetricasAbertura,
     vista: el => mostrarVistaPainel(el.dataset.vista),
+    carregarRgPronto,
+    marcarRgPronto: el => alterarRgPronto(el.dataset.id, false),
+    desfazerRgPronto: el => alterarRgPronto(el.dataset.id, true),
     "menu-perfil": () => alternarMenuPerfil(),
     abrirAtalhos, fecharAtalhos,
 
@@ -4594,7 +4734,7 @@ function buscarNaLista() {
 }
 
 const ACOES_CAMPO = {
-    renderFilaHoje, renderTabelaAgendamentos, buscarNaLista, atualizarPreviaAvisoPopup,
+    renderFilaHoje, renderTabelaAgendamentos, buscarNaLista, buscarRgPronto, atualizarPreviaAvisoPopup,
     alternarProgramacaoData, alternarProgramacaoAviso, alternarProgLoteFlex,
     alterarVigenciaGrade: el => alterarVigenciaGrade(el),
     alterarDataInicioGrade: el => alterarDataInicioGrade(el),

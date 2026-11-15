@@ -2261,6 +2261,57 @@ const STATUS_ATENDIMENTO_PAINEL = new Set(["agendado", "compareceu", "vai_voltar
 const BLOQUEIO_FALTA_MESES = 6;
 const MOTIVO_BLOQUEIO_FALTA = "Não comparecimento";
 
+// RG pronto para retirar (aba "RG pronto" do painel). A carteira chega na
+// Camara com o nome completo na carta; a recepcao acha o cadastro pelo nome e
+// marca. O gatilho avisarWhatsappAgendamento poe o aviso na fila do WhatsApp
+// (functions/whatsapp-cin.js, tipo rg_pronto). Desfazer antes do envio descarta
+// o aviso; marcar de novo gera outro.
+exports.marcarRgProntoAdmin = onCall(callableOptions, async (request) => {
+  const adminEmail = await assertAdmin(request);
+  const agendamentoId = String(request.data && request.data.agendamentoId || "").trim();
+  const desfazer = Boolean(request.data && request.data.desfazer === true);
+  if (!agendamentoId || agendamentoId.length > 128 || agendamentoId.includes("/")) {
+    throw new HttpsError("invalid-argument", "Agendamento invalido.");
+  }
+  const agRef = db.collection("dados_cidadaos").doc(agendamentoId);
+  const agora = new Date().toISOString();
+  let retorno = null;
+
+  await db.runTransaction(async (t) => {
+    const agDoc = await t.get(agRef);
+    if (!agDoc.exists) {
+      throw new HttpsError("not-found", "Agendamento nao encontrado.");
+    }
+    const dados = agDoc.data();
+    if (!dados.nome) {
+      throw new HttpsError("failed-precondition", "Cadastro anonimizado: nao tem mais nome nem telefone.");
+    }
+    if (!desfazer && dados.status !== "compareceu") {
+      throw new HttpsError("failed-precondition", "So da para marcar RG pronto de quem esta como Compareceu.");
+    }
+    if (!desfazer && dados.rgPronto === true) {
+      retorno = { agendamentoId, jaMarcado: true, atualizacao: { rgPronto: true, rgProntoEm: dados.rgProntoEm || "" } };
+      return;
+    }
+    const atualizacao = desfazer
+      ? { rgPronto: false, rgProntoDesfeitoEm: agora, rgProntoDesfeitoPor: adminEmail }
+      : { rgPronto: true, rgProntoEm: agora, rgProntoPor: adminEmail };
+    t.set(agRef, atualizacao, { merge: true });
+    t.set(db.collection("logs_admin").doc(), {
+      acao: desfazer ? "rg_pronto_desfeito" : "rg_pronto",
+      agendamentoId,
+      protocolo: dados.protocolo || "",
+      detalhes: { comCelular: Boolean(dados.telefone) },
+      adminEmail,
+      criadoEm: FieldValue.serverTimestamp(),
+      criado: agora
+    });
+    retorno = { agendamentoId, jaMarcado: false, atualizacao };
+  });
+
+  return retorno;
+});
+
 exports.alterarStatusAdmin = onCall(callableOptions, async (request) => {
   const adminEmail = await assertAdmin(request);
   const agendamentoId = String(request.data && request.data.agendamentoId || "").trim();

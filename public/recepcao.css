@@ -833,3 +833,8 @@ td.td-vazio .btn { margin-top: 12px; }
     .topbar, .nav, .faixa, .barra-ferramentas, .td-acoes, .th-acoes, .drawer, .drawer-fundo, .toast-container, .proximo, .resumo-dia, .vista-acoes { display: none !important; }
     body { background: #fff; }
 }
+
+/* Aba RG pronto para retirar */
+.campo-busca-rg { flex: 1 1 100%; max-width: 640px; }
+.ld-nome-rg { font-weight: 650; color: var(--ink); }
+.rg-pronto-titulo { margin: 24px 0 8px; font-size: 1rem; display: flex; align-items: center; gap: 8px; }

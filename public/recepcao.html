@@ -56,6 +56,7 @@
                     <div class="nav-in" role="tablist">
                         <button type="button" class="btn-vista ativo" id="btn-vista-hoje" role="tab" aria-selected="true" aria-controls="vista-hoje" data-acao="vista" data-vista="hoje"><i class="fa-solid fa-calendar-day" aria-hidden="true"></i><span class="nav-rotulo-longo">Atendimentos do dia</span><span class="nav-rotulo-curto">Hoje</span></button>
                         <button type="button" class="btn-vista" id="btn-vista-lista" role="tab" aria-selected="false" aria-controls="vista-lista" data-acao="vista" data-vista="lista"><i class="fa-solid fa-table-list" aria-hidden="true"></i><span class="nav-rotulo-longo">Agendamentos</span><span class="nav-rotulo-curto">Agenda</span></button>
+                        <button type="button" class="btn-vista" id="btn-vista-retirada" role="tab" aria-selected="false" aria-controls="vista-retirada" data-acao="vista" data-vista="retirada"><i class="fa-solid fa-id-card" aria-hidden="true"></i><span class="nav-rotulo-longo">RG pronto</span><span class="nav-rotulo-curto">RG pronto</span></button>
                         <button type="button" class="btn-vista" id="btn-vista-config" role="tab" aria-selected="false" aria-controls="vista-config" data-acao="vista" data-vista="config"><i class="fa-solid fa-gear" aria-hidden="true"></i><span class="nav-rotulo-longo">Configuração</span><span class="nav-rotulo-curto">Ajustes</span></button>
                         <button type="button" class="btn-vista" id="btn-vista-relatorios" role="tab" aria-selected="false" aria-controls="vista-relatorios" data-acao="vista" data-vista="relatorios"><i class="fa-solid fa-chart-column" aria-hidden="true"></i><span class="nav-rotulo-longo">Relatórios</span><span class="nav-rotulo-curto">Relatórios</span></button>
                     </div>
@@ -482,6 +483,41 @@
                     </div>
                     <button type="button" class="btn btn-config espaco-topo" data-acao="salvarPreferenciasOperacionais"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Salvar preferências</button>
                 </div>
+            </div>
+        </section>
+
+        <section id="vista-retirada" role="tabpanel" aria-labelledby="btn-vista-retirada" hidden>
+            <div class="vista-cabecalho">
+                <div>
+                    <h1>RG pronto para retirar</h1>
+                    <p>Digite o nome completo que vem na carta do RG, ache o cadastro e marque. A pessoa recebe no WhatsApp o aviso de que pode retirar de segunda a sexta, das 8h às 12h e das 14h às 17h.</p>
+                </div>
+                <div class="acoes-cabecalho">
+                    <button type="button" class="btn btn-secundario" data-acao="carregarRgPronto"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Atualizar</button>
+                </div>
+            </div>
+            <div class="barra-dia">
+                <div class="campo-busca campo-busca-rg">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                    <label class="sr-only" for="busca-rg-pronto">Nome completo como está na carta do RG</label>
+                    <input id="busca-rg-pronto" type="search" autocomplete="off" placeholder="Nome completo como está na carta" data-input="buscarRgPronto">
+                </div>
+            </div>
+            <p class="texto-ajuda" id="rg-pronto-info">Carregando atendimentos realizados...</p>
+            <div class="tabela-wrap">
+                <table class="tabela-dia">
+                    <caption class="sr-only">Cadastros encontrados pelo nome</caption>
+                    <thead><tr><th scope="col">Cidadão</th><th scope="col">Atendimento</th><th scope="col">RG</th><th scope="col" class="th-acoes">Ações</th></tr></thead>
+                    <tbody id="rg-pronto-corpo"><tr><td colspan="4" class="td-vazio">Digite pelo menos duas partes do nome.</td></tr></tbody>
+                </table>
+            </div>
+            <h3 class="rg-pronto-titulo"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Marcados como prontos</h3>
+            <div class="tabela-wrap">
+                <table class="tabela-dia">
+                    <caption class="sr-only">Últimos marcados como RG pronto</caption>
+                    <thead><tr><th scope="col">Cidadão</th><th scope="col">Atendimento</th><th scope="col">RG</th><th scope="col" class="th-acoes">Ações</th></tr></thead>
+                    <tbody id="rg-pronto-marcados"><tr><td colspan="4" class="td-vazio">Nenhum ainda.</td></tr></tbody>
+                </table>
             </div>
         </section>
 

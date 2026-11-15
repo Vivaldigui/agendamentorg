@@ -35,7 +35,14 @@ const ENDERECO = "Rua Eng. Paulo Franco da Rosa, 298, Centro";
 const TELEFONE_CAMARA = "(35) 3504-0397";
 const RODAPE = "Para não receber mais avisos por aqui, responda SAIR.";
 const MODOS = new Set(["desligado", "ensaio", "ativo"]);
-const TIPOS = new Set(["confirmacao", "lembrete", "cancelado_camara", "cancelado_cidadao", "avaliacao"]);
+const TIPOS = new Set(["confirmacao", "lembrete", "cancelado_camara", "cancelado_cidadao", "avaliacao", "rg_pronto"]);
+// Aviso de "RG pronto para retirar": a recepcao marca no painel (aba RG pronto)
+// quando a carteira chega. Vai para todo cadastro com celular, mesmo sem o
+// aceite do WhatsApp (agendamentos antes de 15/11/2026): o telefone foi pedido
+// "para a Camara entrar em contato", e e exatamente isso. Quem respondeu SAIR
+// nao recebe (o n8n confere).
+const TIPOS_SEM_ACEITE = new Set(["rg_pronto"]);
+const HORARIO_RETIRADA = "de segunda a sexta, das *8h às 12h* e das *14h às 17h*";
 const STATUS_VALENDO = new Set(["agendado", "remarcado"]);
 const DIAS_SEMANA = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
 const FUSO_HORARIO = "America/Sao_Paulo";
@@ -237,6 +244,23 @@ function montarMensagem(tipo, dados, extras = {}) {
         "",
         RODAPE
       );
+    case "rg_pronto":
+      return linhas(
+        escolher(["🎉 *Seu RG está pronto!*", "🎉 *Sua carteira de identidade chegou!*", "📬 *Seu RG está pronto para retirar*"], v),
+        "",
+        `${ola} ${escolher([
+          "A sua *Carteira de Identidade (CIN)* chegou na Câmara de Itanhandu e já pode ser retirada.",
+          "A sua *Carteira de Identidade (CIN)* já está na Câmara de Itanhandu, pronta para retirar.",
+          "Chegou na Câmara de Itanhandu a sua *Carteira de Identidade (CIN)*. Já pode buscar."
+        ], v / 3)}`,
+        "",
+        `🕗 *Retirada:* ${HORARIO_RETIRADA}`,
+        `📍 ${ENDERECO}`,
+        "",
+        `📞 Dúvidas: ${TELEFONE_CAMARA}`,
+        "",
+        RODAPE
+      );
     case "avaliacao":
       return linhas(
         "⭐ *Como foi o seu atendimento?*",
@@ -260,6 +284,9 @@ const CONVITE_WHATSAPP_ALCANCOU = new Set(["pendente", "enviando", "enviado", "r
 
 // Decide, pela mudanca no documento de dados_cidadaos, qual aviso entra na fila.
 function eventoDoAgendamento(antes, depois, hojeISO) {
+  // RG pronto: a recepcao marcou no painel (o atendimento ja passou).
+  if (depois && depois.rgPronto === true && (!antes || antes.rgPronto !== true)
+    && depois.status === "compareceu" && depois.telefone) return "rg_pronto";
   if (!depois || depois.avisoWhatsapp !== true) return null;
   if (!dataISOValida(depois.dataISO) || depois.dataISO < hojeISO) return null;
   if (!antes) return depois.status === "agendado" ? "confirmacao" : null;
@@ -272,6 +299,10 @@ function eventoDoAgendamento(antes, depois, hojeISO) {
 
 // Na hora do envio: a mensagem ainda faz sentido para o agendamento como esta?
 function aindaValido(tipo, envio, dados, hojeISO, minutoAgora = 0) {
+  if (tipo === "rg_pronto") {
+    // Desmarcado no painel antes de sair, ou cadastro anonimizado: descarta.
+    return Boolean(dados && dados.telefone && dados.rgPronto === true && dados.status === "compareceu");
+  }
   if (!dados || dados.avisoWhatsapp !== true || !dados.telefone) return false;
   if (dados.dataISO !== envio.dataISO || (dados.hora || "") !== envio.hora) return false;
   if (dados.dataISO < hojeISO) return false;
@@ -289,6 +320,9 @@ function aindaValido(tipo, envio, dados, hojeISO, minutoAgora = 0) {
 }
 
 function chaveEnvio(tipo, agendamentoId, dados) {
+  // RG pronto: a chave leva a hora da marcacao, para uma nova marcacao (depois
+  // de desfazer) gerar outro aviso.
+  if (tipo === "rg_pronto") return `rg_pronto_${agendamentoId}_${String(dados.rgProntoEm || "").replace(/\D/g, "").slice(0, 14)}`;
   const hora = String(dados.hora || "").replace(/\D/g, "");
   return `${tipo}_${agendamentoId}_${dados.dataISO}_${hora}`;
 }
@@ -336,7 +370,7 @@ function criarServicoWhatsappCin({
     if (!TIPOS.has(tipo)) throw new Error(`Tipo de mensagem desconhecido: ${tipo}`);
     const config = configuracaoDaFila(configBruta);
     if (config.modo === "desligado") return { status: "desligado" };
-    if (!dados || dados.avisoWhatsapp !== true) return { status: "sem_aceite" };
+    if (!dados || (dados.avisoWhatsapp !== true && !TIPOS_SEM_ACEITE.has(tipo))) return { status: "sem_aceite" };
     const telefone = telefoneWhatsApp(dados.telefone);
     if (!telefone) return { status: "sem_celular" };
     if (config.modo === "ensaio" && !config.telefonesTeste.has(telefone)) return { status: "fora_do_ensaio" };

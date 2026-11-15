@@ -205,7 +205,7 @@ test("credenciais de estacionamento sairam do painel e a colecao esta fechada", 
   assert.doesNotMatch(html, /credencia/i);
   const semRotulosDeLog = painelJs.replace(/^\s*credencial_\w+: "[^"]*",?$/gm, "");
   assert.doesNotMatch(semRotulosDeLog.replace(/\/\/[^\n]*/g, ""), /credencia/i);
-  assert.match(painelJs, /const VISTAS_PAINEL = \["hoje", "lista", "config", "relatorios"\];/);
+  assert.match(painelJs, /const VISTAS_PAINEL = \["hoje", "lista", "retirada", "config", "relatorios"\];/);
   const regras = fs.readFileSync(path.join(__dirname, "..", "firestore.rules"), "utf8");
   assert.match(regras, /match \/credenciais_estacionamento\/\{documentId\} \{\s*allow read, write: if false;/);
 });

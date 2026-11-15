@@ -469,3 +469,83 @@ test("variacoes: a variante 0 e o texto de referencia e as outras mudam saudacao
   }
   assert.equal(varianteDaChave("x"), varianteDaChave("x"), "mesma chave, mesmo texto");
 });
+
+test("rg pronto: evento, mensagem, envio sem aceite e descarte ao desfazer", async () => {
+  const atendido = { ...AG, dataISO: "2026-10-01", status: "compareceu", avisoWhatsapp: undefined };
+  const marcado = { ...atendido, rgPronto: true, rgProntoEm: "2026-11-16T13:05:00.000Z" };
+  assert.equal(eventoDoAgendamento(atendido, marcado, HOJE), "rg_pronto", "atendimento passado e sem aceite");
+  assert.equal(eventoDoAgendamento(marcado, { ...marcado, observacaoAdmin: "x" }, HOJE), null, "so na marcacao");
+  assert.equal(eventoDoAgendamento(atendido, { ...marcado, status: "vai_voltar" }, HOJE), null);
+  const { telefone, ...semTelefone } = marcado;
+  assert.equal(eventoDoAgendamento(atendido, semTelefone, HOJE), null);
+
+  for (let v = 0; v < 9; v += 1) {
+    const texto = montarMensagem("rg_pronto", marcado, { variante: v });
+    assert.match(texto, /8h às 12h\* e das \*14h às 17h/);
+    assert.match(texto, /Rua Eng\. Paulo Franco da Rosa, 298/);
+    assert.match(texto, /Maria/);
+    assert.ok(texto.endsWith(RODAPE));
+    assert.doesNotMatch(texto, /https?:\/\//, "sem link");
+    assert.doesNotMatch(texto, /123\.456|1960/);
+  }
+
+  const { registros, chamadas, servico } = ambiente();
+  const config = { ...CONFIG, modo: "ativo" };
+  registros.set("dados_cidadaos/r1", marcado);
+  const fila = await servico.enfileirar("rg_pronto", "r1", marcado, config);
+  assert.equal(fila.status, "na_fila", "vai mesmo sem o aceite do WhatsApp");
+  assert.match(fila.chave, /^rg_pronto_r1_20261116130500/);
+  const r = await servico.processarFila(config);
+  assert.equal(r.enviados, 1);
+  assert.match(chamadas[0].corpo.texto, /pronta|chegou|pronto/i);
+
+  // Marcou, desfez antes da rodada: descartado. Marcou de novo: outro aviso.
+  const b = ambiente();
+  b.registros.set("dados_cidadaos/r2", marcado);
+  await b.servico.enfileirar("rg_pronto", "r2", marcado, config);
+  b.registros.set("dados_cidadaos/r2", { ...marcado, rgPronto: false });
+  const r2 = await b.servico.processarFila(config);
+  assert.equal(r2.descartados, 1);
+  assert.equal(b.chamadas.length, 0);
+  const remarcado = { ...marcado, rgProntoEm: "2026-11-16T14:00:00.000Z" };
+  b.registros.set("dados_cidadaos/r2", remarcado);
+  assert.equal((await b.servico.enfileirar("rg_pronto", "r2", remarcado, config)).status, "na_fila");
+});
+
+test("rg pronto: backend so marca quem compareceu e registra no historico", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const backend = fs.readFileSync(path.join(__dirname, "index.js"), "utf8");
+  const trecho = backend.slice(backend.indexOf("exports.marcarRgProntoAdmin"), backend.indexOf("exports.alterarStatusAdmin"));
+  assert.match(trecho, /const adminEmail = await assertAdmin\(request\);/);
+  assert.match(trecho, /dados\.status !== "compareceu"/);
+  assert.match(trecho, /acao: desfazer \? "rg_pronto_desfeito" : "rg_pronto"/);
+});
+
+test("painel: aba RG pronto acha pelo nome e chama a callable", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const vm = require("node:vm");
+  const js = fs.readFileSync(path.join(__dirname, "..", "public", "recepcao.js"), "utf8");
+  const html = fs.readFileSync(path.join(__dirname, "..", "public", "recepcao.html"), "utf8");
+  assert.match(html, /id="btn-vista-retirada"[^>]*data-vista="retirada"/);
+  assert.match(html, /<section id="vista-retirada"/);
+  assert.match(html, /data-input="buscarRgPronto"/);
+  assert.match(js, /functions\.httpsCallable\("marcarRgProntoAdmin"\)/);
+  assert.match(js, /marcarRgPronto: el => alterarRgPronto\(el\.dataset\.id, false\)/);
+  const trecho = (nome) => {
+    const i = js.indexOf(`function ${nome}(`);
+    let fim = js.indexOf("\nfunction ", i + 10);
+    return js.slice(i, fim);
+  };
+  const ctx = {};
+  vm.runInNewContext(trecho("normalizarNomeBusca") + "\n" + trecho("filtrarCandidatosRg") + "\nthis.f = filtrarCandidatosRg;", ctx);
+  const c = [
+    { id: "1", dados: { nome: "José da Silva Araújo", dataISO: "2026-10-01" } },
+    { id: "2", dados: { nome: "Maria José Silva", dataISO: "2026-10-05" } },
+    { id: "3", dados: { nome: "Jose Silva Araujo", dataISO: "2026-09-01" } }
+  ];
+  assert.deepEqual(Array.from(ctx.f(c, "JOSE DA SILVA ARAUJO"), x => x.id), ["1", "3"], "sem acento e sem caixa; identico primeiro");
+  assert.deepEqual(Array.from(ctx.f(c, "silva maria"), x => x.id), ["2"], "qualquer ordem");
+  assert.deepEqual(Array.from(ctx.f(c, "silva"), x => x.id), [], "precisa de duas partes do nome");
+});
