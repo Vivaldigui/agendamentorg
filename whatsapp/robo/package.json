@@ -1,0 +1,8 @@
+{
+  "name": "robo-whatsapp-cin",
+  "private": true,
+  "type": "module",
+  "description": "Bateria de perguntas do robô do WhatsApp da CIN (estudo). Não é publicado.",
+  "scripts": { "bateria": "node rodar-bateria.mjs" },
+  "dependencies": { "@anthropic-ai/sdk": "1.8.0" }
+}

@@ -9,8 +9,9 @@
 // - "SAIR" (ou PARAR, PARE, STOP): poe o numero em cin_whatsapp_saida e confirma.
 //   O fluxo de envio consulta essa tabela e nao manda mais nada.
 // - "VOLTAR": tira o numero da tabela e confirma.
-// - Qualquer outra mensagem: uma resposta padrao por dia e por numero (ate o
-//   robo de IA existir), registrada em cin_whatsapp_respondidos.
+// - Qualquer outra mensagem: o Cidinho (robo de IA, whatsapp/robo/) responde aos
+//   numeros liberados em CIDINHO_LIBERADOS; os demais recebem uma resposta padrao
+//   por dia e por numero, registrada em cin_whatsapp_respondidos.
 // - Ignora grupo, status, canal e mensagem do proprio numero.
 import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -187,7 +188,129 @@ no('Apagar saída', 'n8n-nodes-base.dataTable', 1.1, [2200, 220], {
 }, { alwaysOutputData: true });
 enviarTexto('Confirmar volta', [2420, 220], TEXTO_VOLTAR);
 
-// ---- qualquer outra mensagem: resposta padrao uma vez por dia
+// ---- qualquer outra mensagem: o Cidinho (robô de IA) responde aos números
+// liberados; os demais recebem a resposta padrão uma vez por dia.
+// Liberados: SHA-256 do telefone (55 + DDD + número), para o número não ir
+// para o git. Para abrir a todos, troque a lista por ['todos'].
+// Robô: whatsapp/robo/ (intermediário CinCidinhoIA0001, webhook interno).
+const CIDINHO_LIBERADOS = [
+  'a34df2e6d776e0d9b5cb7ebe45db6d8a28d3e8f4756d48cdc86e6a56a9f3854d', // celular de teste do responsável
+];
+const CIDINHO_TETO_24H = 20;
+const TEXTO_MIDIA = 'Ainda não consigo ouvir áudio nem ver foto ou documento. 🙏 Escreva sua dúvida em texto, por favor.\n\nSe preferir falar com uma pessoa, chame a recepção da Câmara no WhatsApp *(35) 3504-0397*.';
+const TEXTO_TETO = 'Por hoje eu já respondi bastante por aqui. 🙏 Para continuar, fale com a recepção da Câmara pelo WhatsApp *(35) 3504-0397*.\n\nAgendar, consultar ou cancelar: ' + SITE;
+const TEXTO_FALHA_IA = 'Desculpe, não consegui responder agora. 🙏 Para falar com a recepção da Câmara, chame no WhatsApp *(35) 3504-0397*. O agendamento é só pelo site: ' + SITE;
+
+no('Hash do telefone', 'n8n-nodes-base.crypto', 1, [2200, 560], {
+  action: 'hash',
+  type: 'SHA256',
+  value: `={{ String(${M}.telefone || '') }}`,
+  dataPropertyName: 'telefoneHash',
+  encoding: 'hex',
+});
+no('Cidinho atende?', 'n8n-nodes-base.if', 2.2, [2420, 560], {
+  conditions: condicoes([verdadeiro(`={{ ${JSON.stringify(CIDINHO_LIBERADOS)}.includes('todos') || ${JSON.stringify(CIDINHO_LIBERADOS)}.includes($json.telefoneHash) }}`)]),
+  options: {},
+});
+no('Tabela da conversa', 'n8n-nodes-base.dataTable', 1.1, [2640, 640], {
+  resource: 'table', operation: 'create', tableName: 'cin_cidinho_conversa',
+  columns: colunas([['telefone', 'string'], ['papel', 'string'], ['texto', 'string'], ['quando', 'date']]),
+  options: { createIfNotExists: true },
+}, { executeOnce: true });
+// A conversa só vale por 24 h: apaga de todos as falas mais antigas.
+no('Apagar conversa antiga', 'n8n-nodes-base.dataTable', 1.1, [2860, 640], {
+  resource: 'row', operation: 'deleteRows', dataTableId: tabela('cin_cidinho_conversa'),
+  matchType: 'allConditions',
+  filters: { conditions: [{ keyName: 'quando', condition: 'lt', keyValue: '={{ new Date(Date.now() - 24 * 3600 * 1000).toISOString() }}' }] },
+  options: {},
+}, { executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput' });
+no('Conversa recente', 'n8n-nodes-base.dataTable', 1.1, [3080, 640], {
+  resource: 'row', operation: 'get', dataTableId: tabela('cin_cidinho_conversa'),
+  matchType: 'allConditions',
+  filters: { conditions: [{ keyName: 'telefone', condition: 'eq', keyValue: `={{ ${M}.telefone }}` }] },
+  returnAll: false, limit: 40, orderBy: true, orderByColumn: 'createdAt', orderByDirection: 'DESC',
+}, { executeOnce: true, alwaysOutputData: true });
+no('Preparar Cidinho', 'n8n-nodes-base.code', 2, [3300, 640], {
+  mode: 'runOnceForAllItems',
+  language: 'javaScript',
+  jsCode: `// Why Code: monta a conversa (24 h, últimas 12 falas), barra mídia e aplica o teto, num passo só.
+const p = ($('Hash do segredo').first().json.body || {}).payload || {};
+const texto = String(p.body || '').trim().slice(0, 2000);
+const midia = p.hasMedia === true || (!texto);
+const limite = Date.now() - 24 * 3600 * 1000;
+const falas = $input.all().map((i) => i.json)
+  .filter((r) => r && r.telefone && (r.papel === 'user' || r.papel === 'assistant') && new Date(r.quando).getTime() >= limite)
+  .sort((a, b) => new Date(a.quando) - new Date(b.quando));
+const respostas = falas.filter((r) => r.papel === 'assistant').length;
+if (midia) return [{ json: { usarIa: false, resposta: ${JSON.stringify(TEXTO_MIDIA)}, textoPessoa: texto || '[mídia]' } }];
+if (respostas >= ${CIDINHO_TETO_24H}) return [{ json: { usarIa: false, resposta: ${JSON.stringify(TEXTO_TETO)}, textoPessoa: texto } }];
+// Últimas 12 falas, juntando falas seguidas do mesmo lado, e a mensagem de agora no fim.
+const mensagens = [];
+for (const f of [...falas.slice(-12), { papel: 'user', texto }]) {
+  const ultima = mensagens[mensagens.length - 1];
+  if (ultima && ultima.role === f.papel) ultima.content += '\\n' + f.texto;
+  else mensagens.push({ role: f.papel, content: String(f.texto || '') });
+}
+while (mensagens.length && mensagens[0].role !== 'user') mensagens.shift();
+return [{ json: { usarIa: true, mensagens, textoPessoa: texto } }];`,
+});
+no('Usar a IA?', 'n8n-nodes-base.if', 2.2, [3520, 640], {
+  conditions: condicoes([verdadeiro('={{ $json.usarIa }}')]),
+  options: {},
+});
+no('Digitando', 'n8n-nodes-base.httpRequest', 4.2, [3740, 560], {
+  method: 'POST',
+  url: `${WAHA}/api/startTyping`,
+  authentication: 'genericCredentialType',
+  genericAuthType: 'httpHeaderAuth',
+  sendBody: true,
+  specifyBody: 'json',
+  jsonBody: `={{ JSON.stringify({ session: '${SESSAO}', chatId: ${M}.chatId }) }}`,
+  options: { timeout: 10000 },
+}, { ...credencialWaha, onError: 'continueRegularOutput' });
+no('Perguntar ao Cidinho', 'n8n-nodes-base.httpRequest', 4.2, [3960, 560], {
+  method: 'POST',
+  url: 'http://127.0.0.1:5678/webhook/cidinho',
+  sendBody: true,
+  specifyBody: 'json',
+  jsonBody: "={{ JSON.stringify({ mensagens: $('Preparar Cidinho').first().json.mensagens }) }}",
+  options: { timeout: 90000 },
+}, { onError: 'continueRegularOutput' });
+no('Resposta da IA', 'n8n-nodes-base.set', 3.4, [4180, 560], {
+  assignments: { assignments: [campo('resposta', `={{ $json.texto || ${JSON.stringify(TEXTO_FALHA_IA)} }}`)] },
+  options: {},
+});
+no('Resposta fixa', 'n8n-nodes-base.set', 3.4, [3740, 760], {
+  assignments: { assignments: [campo('resposta', '={{ $json.resposta }}')] },
+  options: {},
+});
+no('Enviar resposta do Cidinho', 'n8n-nodes-base.httpRequest', 4.2, [4400, 640], {
+  method: 'POST',
+  url: `${WAHA}/api/sendText`,
+  authentication: 'genericCredentialType',
+  genericAuthType: 'httpHeaderAuth',
+  sendBody: true,
+  specifyBody: 'json',
+  jsonBody: `={{ JSON.stringify({ session: '${SESSAO}', chatId: ${M}.chatId, text: $json.resposta }) }}`,
+  options: { timeout: 30000 },
+}, { ...credencialWaha, onError: 'continueRegularOutput' });
+no('Falas para guardar', 'n8n-nodes-base.code', 2, [4620, 640], {
+  mode: 'runOnceForAllItems',
+  language: 'javaScript',
+  jsCode: `// Why Code: duas linhas (a pessoa e o Cidinho) a partir de nós diferentes.
+const telefone = $('Telefone').first().json.telefone;
+const pessoa = $('Preparar Cidinho').first().json.textoPessoa;
+const resposta = $('Usar a IA?').first().json.usarIa ? $('Resposta da IA').first().json.resposta : $('Resposta fixa').first().json.resposta;
+const agora = Date.now();
+return [
+  { json: { telefone, papel: 'user', texto: pessoa, quando: new Date(agora).toISOString() } },
+  { json: { telefone, papel: 'assistant', texto: resposta, quando: new Date(agora + 1).toISOString() } },
+];`,
+});
+no('Guardar conversa', 'n8n-nodes-base.dataTable', 1.1, [4840, 640], {
+  resource: 'row', operation: 'insert', dataTableId: tabela('cin_cidinho_conversa'), columns: insercao(), options: {},
+}, { onError: 'continueRegularOutput' });
+
 no('Não respondido hoje?', 'n8n-nodes-base.dataTable', 1.1, [2200, 400], {
   resource: 'row', operation: 'rowNotExists', dataTableId: tabela('cin_whatsapp_respondidos'),
   filters: { conditions: [{ keyName: 'chave', keyValue: `={{ ${M}.chave }}` }] },
@@ -213,7 +336,22 @@ liga('Telefone do LID', 'Telefone');
 liga('Telefone', 'Comando');
 liga('Comando', 'Confirmar saída', 0);
 liga('Comando', 'Apagar saída', 1);
-liga('Comando', 'Não respondido hoje?', 2);
+liga('Comando', 'Hash do telefone', 2);
+liga('Hash do telefone', 'Cidinho atende?');
+liga('Cidinho atende?', 'Tabela da conversa', 0);
+liga('Cidinho atende?', 'Não respondido hoje?', 1);
+liga('Tabela da conversa', 'Apagar conversa antiga');
+liga('Apagar conversa antiga', 'Conversa recente');
+liga('Conversa recente', 'Preparar Cidinho');
+liga('Preparar Cidinho', 'Usar a IA?');
+liga('Usar a IA?', 'Digitando', 0);
+liga('Usar a IA?', 'Resposta fixa', 1);
+liga('Digitando', 'Perguntar ao Cidinho');
+liga('Perguntar ao Cidinho', 'Resposta da IA');
+liga('Resposta da IA', 'Enviar resposta do Cidinho');
+liga('Resposta fixa', 'Enviar resposta do Cidinho');
+liga('Enviar resposta do Cidinho', 'Falas para guardar');
+liga('Falas para guardar', 'Guardar conversa');
 liga('Confirmar saída', 'Ainda não saiu?');
 liga('Ainda não saiu?', 'Campos de quem saiu');
 liga('Campos de quem saiu', 'Registrar saída');
