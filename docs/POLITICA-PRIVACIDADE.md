@@ -27,6 +27,8 @@ modelo genérico — mas quem responde pela Câmara perante a ANPD é a Câmara.
 - **Apagamos os seus dados 6 meses depois do atendimento**, automaticamente.
 - Não vendemos, não cedemos e não usamos os seus dados para publicidade.
 - Você pode consultar, corrigir ou apagar o seu agendamento a qualquer momento.
+- Pelo WhatsApp, mandamos a confirmação do agendamento, um lembrete na véspera e
+  o aviso se ele for cancelado. Para parar, é só responder **SAIR**.
 
 O texto completo abaixo detalha cada um desses pontos.
 
@@ -68,7 +70,7 @@ Ao agendar, você informa:
 | Nome completo | identificar você no atendimento | sim |
 | CPF | localizar o seu agendamento e evitar duplicidade | sim |
 | Data de nascimento | confirmar sua identidade na consulta e no cancelamento | sim |
-| Telefone / WhatsApp | entrar em contato se houver mudança no atendimento | sim |
+| Telefone / WhatsApp | entrar em contato se houver mudança no atendimento e mandar os avisos do agendamento pelo WhatsApp (item 5-A) | sim |
 | E-mail | enviar o comprovante, se você quiser | **não** |
 
 O sistema também gera um **protocolo**, que fica guardado no seu próprio aparelho
@@ -106,7 +108,31 @@ interna.
 - **Google (Firebase).** O sistema funciona sobre a infraestrutura de nuvem do
   Google, que atua como operadora. Os dados do agendamento ficam armazenados em
   servidores localizados em São Paulo, no Brasil.
+- **Meta (WhatsApp).** Os avisos do agendamento (item 5-A) passam pelo WhatsApp.
 - **Órgãos públicos**, quando houver obrigação legal ou determinação judicial.
+
+### 5-A. Avisos pelo WhatsApp
+
+Usamos o telefone informado para mandar, pelo WhatsApp, só mensagens sobre o
+**seu** agendamento:
+
+- a confirmação, logo depois de agendar;
+- um lembrete na véspera do atendimento;
+- o aviso de cancelamento, se você ou a Câmara cancelar.
+
+As mensagens levam o primeiro nome, a data e o horário, o endereço, o protocolo e
+a lista de documentos. **Nunca levam CPF nem data de nascimento.** Não mandamos
+propaganda nem mensagem de outro assunto.
+
+Para não receber mais, responda **SAIR**. Para voltar a receber, responda
+**VOLTAR**.
+
+Os avisos fazem parte do próprio serviço de agendamento e seguem o mesmo
+fundamento legal do item 2. O envio passa pelo WhatsApp, serviço da Meta, e por
+um servidor contratado para isso [[PREENCHER: quem é o contratado e onde fica o
+servidor]]. O sistema guarda, por mensagem, só o tipo do aviso, a data e se ela
+foi entregue, sem o telefone e sem o texto, por [[PREENCHER: prazo; sugerido 6
+meses, como o agendamento]].
 
 ### 6. Como protegemos
 
@@ -177,5 +203,13 @@ Quando a página for construída:
   preenchimento durante a sessão. Definir o texto final da política e a forma de
   explicar a duração desse armazenamento antes de publicar; esta nota não é
   texto de política aprovado.
+- **Avisos pelo WhatsApp (15/11/2026):** a caixa do WhatsApp no formulário é
+  obrigatória (decisão do responsável). Como a base é a execução de política
+  pública, e não o consentimento (item 2), o texto da caixa deve dizer que a
+  pessoa **está ciente** de que vai receber os avisos, e não que "concorda". O
+  item 5-A precisa dos dados do servidor e do prazo de guarda de
+  `whatsapp_envios`, que hoje **não é apagada** por nenhuma rotina. Quando o robô
+  de IA entrar, acrescentar: o texto das conversas vai à Anthropic, nos EUA
+  (transferência internacional), só o texto, sem foto nem áudio.
 - `firebase.json` não muda: a página herda os headers de `**` e o `Cache-Control`
   de `**/*.html`.
