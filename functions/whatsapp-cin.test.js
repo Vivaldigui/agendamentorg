@@ -68,7 +68,7 @@ test("toda mensagem tem nome, data, rodape e nunca CPF nem nascimento", () => {
   assert.match(montarMensagem("confirmacao", AG), /Protocolo: \*CIN-ABC123\*/);
   for (const tipo of ["confirmacao", "lembrete"]) {
     const texto = montarMensagem(tipo, AG);
-    assert.match(texto, /\*Certidão de nascimento ou de casamento\*, \*original\*/, tipo);
+    assert.match(texto, /\*Certidão de nascimento ou de casamento\*, \*original ou cópia autenticada\*/, tipo);
     assert.match(texto, /\*Número do CPF\*/, tipo);
     assert.match(texto, /\*Comprovante de endereço\*/, tipo);
   }

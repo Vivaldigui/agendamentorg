@@ -105,7 +105,7 @@ function listaTelefonesTeste(texto) {
 // no WhatsApp.
 const O_QUE_LEVAR = [
   "📄 *O que levar:*",
-  "• *Certidão de nascimento ou de casamento*, *original* e de acordo com o seu estado civil:",
+  "• *Certidão de nascimento ou de casamento*, *original ou cópia autenticada*, sem rasgos nem rasuras, de acordo com o seu estado civil:",
   "   – solteiro(a) ou união estável: *nascimento*",
   "   – casado(a): *casamento*",
   "   – viúvo(a) ou divorciado(a): *casamento com a averbação*",
