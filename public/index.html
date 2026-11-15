@@ -571,10 +571,10 @@
                     </span>
                 </label>
                 <!-- Avisos no WhatsApp (functions/whatsapp-cin.js). Em ensaio, a caixa so aparece com ?whatsapp=teste no endereco. -->
-                <label class="form-grupo checkbox-termo checkbox-opcional so-preencher aceite-whatsapp-oculto" id="grupo-aceite-whatsapp">
-                    <input type="checkbox" id="aceite-whatsapp">
+                <label class="form-grupo checkbox-termo so-preencher aceite-whatsapp-oculto" id="grupo-aceite-whatsapp">
+                    <input type="checkbox" id="aceite-whatsapp" onchange="limparErroAceite('aceite-whatsapp')">
                     <span style="font-size:0.85rem; color:var(--gray-600); line-height:1.4; font-weight:500; margin:0;">
-                        <strong>Opcional:</strong> quero receber no WhatsApp deste celular a confirmação do agendamento e um lembrete na véspera. Para parar, é só responder SAIR.
+                        Concordo em receber no WhatsApp deste celular a confirmação do agendamento e um lembrete na véspera. Para parar, é só responder SAIR.
                     </span>
                 </label>
                 <script>try { if (new URLSearchParams(location.search).get("whatsapp") === "teste") document.getElementById("grupo-aceite-whatsapp").classList.remove("aceite-whatsapp-oculto"); } catch (e) {}</script>
@@ -2421,7 +2421,12 @@
     }
 
     function destacarAceitesPendentes() {
-        const pendentes = ["aceite-lgpd"].filter(id => {
+        // O aceite do WhatsApp e obrigatorio quando a caixa aparece (em ensaio,
+        // so com ?whatsapp=teste no endereco).
+        const grupoWhatsapp = document.getElementById("grupo-aceite-whatsapp");
+        const whatsappVisivel = Boolean(grupoWhatsapp) && !grupoWhatsapp.classList.contains("aceite-whatsapp-oculto");
+        const pendentes = ["aceite-lgpd", "aceite-whatsapp"].filter(id => {
+            if (id === "aceite-whatsapp" && !whatsappVisivel) return false;
             const check = document.getElementById(id);
             const box = check ? check.closest(".checkbox-termo") : null;
             const faltando = check && !check.checked;
@@ -2563,7 +2568,7 @@
     const CAMPOS_DADOS_AGENDAMENTO = ["inp-nome", "inp-cpf", "inp-nasc", "inp-tel", "inp-email"];
     // A declaracao tambem volta marcada: foi a propria pessoa que marcou, nesta
     // mesma aba. A sessao some ao fechar a aba ou ao concluir o agendamento.
-    const ACEITES_DADOS_AGENDAMENTO = ["aceite-lgpd"];
+    const ACEITES_DADOS_AGENDAMENTO = ["aceite-lgpd", "aceite-whatsapp"];
 
     function persistirDadosAgendamento() {
         try {
@@ -2684,7 +2689,7 @@
         }
         validarNascimentoAgendamento();
         if (destacarAceitesPendentes()) {
-            aviso("É necessário marcar a caixa de declaração para continuar.");
+            aviso("É necessário marcar as caixas de declaração para continuar.");
             return;
         }
 
@@ -3297,7 +3302,7 @@
         }
         validarNascimentoAgendamento();
         if (destacarAceitesPendentes()) {
-            aviso("É necessário marcar a caixa de declaração no final do formulário para continuar.");
+            aviso("É necessário marcar as caixas de declaração no final do formulário para continuar.");
             return;
         }
 

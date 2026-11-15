@@ -60,13 +60,19 @@ test("formatos de data, hora, nome e telefone", () => {
 test("toda mensagem tem nome, data, rodape e nunca CPF nem nascimento", () => {
   for (const tipo of ["confirmacao", "lembrete", "cancelado_camara", "cancelado_cidadao"]) {
     const texto = montarMensagem(tipo, AG);
-    assert.match(texto, /^Olá, Maria!/, tipo);
+    assert.match(texto, /^(✅|🔔|🚫) \*[^*]+\*\n\nOlá, \*Maria\*!/, tipo);
     assert.match(texto, /\*sexta-feira, 20\/11, às 9h30\*/, tipo);
     assert.ok(texto.endsWith(RODAPE), tipo);
     assert.doesNotMatch(texto, /123\.456|12345678909|1960|04\/05/, `${tipo} vazou dado pessoal`);
   }
-  assert.match(montarMensagem("confirmacao", AG), /Protocolo: CIN-ABC123/);
-  assert.match(montarMensagem("lembrete", AG), /é amanhã/);
+  assert.match(montarMensagem("confirmacao", AG), /Protocolo: \*CIN-ABC123\*/);
+  for (const tipo of ["confirmacao", "lembrete"]) {
+    const texto = montarMensagem(tipo, AG);
+    assert.match(texto, /\*Certidão de nascimento ou de casamento\*, \*original\*/, tipo);
+    assert.match(texto, /\*Número do CPF\*/, tipo);
+    assert.match(texto, /\*Comprovante de endereço\*/, tipo);
+  }
+  assert.match(montarMensagem("lembrete", AG), /seu atendimento é amanhã/);
   assert.ok(montarMensagem("lembrete", AG).includes(LINK_CANCELAR));
   assert.match(montarMensagem("cancelado_camara", AG), /\(35\) 3504-0397/);
   assert.throws(() => montarMensagem("remarcado", AG), "remarcacao nao gera aviso");
@@ -220,7 +226,7 @@ test("rodada: confirmacao de quem ja cancelou e descartada; o cancelamento sai",
   assert.equal(r.descartados, 1);
   assert.equal(r.enviados, 1);
   assert.equal(chamadas.length, 1);
-  assert.match(chamadas[0].corpo.texto, /cancelado, como você pediu/);
+  assert.match(chamadas[0].corpo.texto, /\*cancelado\*, como você pediu/);
 });
 
 test("rodada: fora do horario nao envia nada", async () => {
@@ -270,17 +276,19 @@ test("rodada: recusa do n8n, erro e falha ambigua", async () => {
   }
 });
 
-test("formulario e backend: caixa opcional, desmarcada, escondida em ensaio e gravada so marcada", () => {
+test("formulario e backend: caixa obrigatoria quando aparece, desmarcada, escondida em ensaio e gravada so marcada", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const site = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
   const backend = fs.readFileSync(path.join(__dirname, "index.js"), "utf8");
-  assert.match(site, /<input type="checkbox" id="aceite-whatsapp">/, "comeca desmarcada");
+  assert.match(site, /<input type="checkbox" id="aceite-whatsapp" onchange="limparErroAceite\('aceite-whatsapp'\)">/, "comeca desmarcada");
   assert.match(site, /id="grupo-aceite-whatsapp"/);
   assert.match(site, /class="[^"]*aceite-whatsapp-oculto[^"]*" id="grupo-aceite-whatsapp"/, "escondida por padrao");
   assert.match(site, /\.aceite-whatsapp-oculto \{ display: none !important; \}/);
   assert.match(site, /aceiteWhatsapp: \(document\.getElementById\("aceite-whatsapp"\) \|\| \{\}\)\.checked === true/);
-  assert.match(site, /\["aceite-lgpd"\]\.filter/, "o aceite do WhatsApp nao e obrigatorio");
+  assert.match(site, /const pendentes = \["aceite-lgpd", "aceite-whatsapp"\]\.filter\(id => \{\s*if \(id === "aceite-whatsapp" && !whatsappVisivel\) return false;/, "obrigatorio quando aparece");
+  assert.doesNotMatch(site, /<strong>Opcional:<\/strong> quero receber no WhatsApp/, "o aceite do WhatsApp nao e opcional");
+  assert.match(site, /Concordo em receber no WhatsApp deste celular/);
   const criar = backend.slice(backend.indexOf("exports.criarAgendamentoCidadao"), backend.indexOf("exports.prepararCancelamentoCidadao"));
   assert.match(criar, /const consentimentoWhatsapp = dadosRequisicao\.aceiteWhatsapp === true;/);
   assert.match(criar, /\.\.\.\(consentimentoWhatsapp \? \{ avisoWhatsapp: true, avisoWhatsappEm: criado \} : \{\}\)/);

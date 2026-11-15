@@ -101,57 +101,79 @@ function listaTelefonesTeste(texto) {
   return new Set(String(texto || "").split(/[,;\s]+/).map(telefoneWhatsApp).filter(Boolean));
 }
 
+// Documentos que a pessoa leva (confirmacao e lembrete). Asteriscos = negrito
+// no WhatsApp.
+const O_QUE_LEVAR = [
+  "📄 *O que levar:*",
+  "• *Certidão de nascimento ou de casamento*, *original* e de acordo com o seu estado civil:",
+  "   – solteiro(a) ou união estável: *nascimento*",
+  "   – casado(a): *casamento*",
+  "   – viúvo(a) ou divorciado(a): *casamento com a averbação*",
+  "• *Número do CPF*",
+  "• *Comprovante de endereço*",
+  `Mais detalhes: ${LINK_DOCUMENTOS}`
+];
+
 function montarMensagem(tipo, dados) {
   const nome = primeiroNome(dados.nome);
-  const ola = nome ? `Olá, ${nome}!` : "Olá!";
+  const ola = nome ? `Olá, *${nome}*!` : "Olá!";
   const quando = `*${dataPorExtenso(dados.dataISO)}, às ${horaFalada(dados.hora)}*`;
-  const protocolo = dados.protocolo ? `Protocolo: ${dados.protocolo}` : null;
-  const linhas = (...partes) => partes.filter((parte) => parte !== null).join("\n");
+  const detalhes = [
+    `📅 ${quando}`,
+    `📍 ${ENDERECO}`,
+    ...(dados.protocolo ? [`🔖 Protocolo: *${dados.protocolo}*`] : [])
+  ];
+  const cancelar = `⚠️ *Não vai poder ir?* Cancele para liberar a vaga: ${LINK_CANCELAR}`;
+  const linhas = (...partes) => partes.flat().join("\n");
 
   switch (tipo) {
     case "confirmacao":
       return linhas(
-        `${ola} Seu agendamento do RG (Carteira de Identidade) na Câmara de Itanhandu está confirmado.`,
+        "✅ *Agendamento confirmado*",
         "",
-        quando,
-        `Endereço: ${ENDERECO}`,
-        protocolo,
+        `${ola} Seu agendamento do *RG (Carteira de Identidade)* na Câmara de Itanhandu está confirmado.`,
         "",
-        `O que levar: ${LINK_DOCUMENTOS}`,
+        detalhes,
         "",
-        `Se não puder ir, cancele para liberar a vaga: ${LINK_CANCELAR}`,
+        O_QUE_LEVAR,
         "",
-        "Na véspera, mandamos um lembrete por aqui.",
+        cancelar,
+        "",
+        "🔔 Na véspera, mandamos um lembrete por aqui.",
         RODAPE
       );
     case "lembrete":
       return linhas(
-        `${ola} Lembrete: seu atendimento do RG na Câmara de Itanhandu é amanhã.`,
+        "🔔 *Lembrete: seu atendimento é amanhã*",
         "",
-        quando,
-        `Endereço: ${ENDERECO}`,
-        protocolo,
+        `${ola} Amanhã é o seu atendimento do *RG (Carteira de Identidade)* na Câmara de Itanhandu.`,
         "",
-        `O que levar: ${LINK_DOCUMENTOS}`,
+        detalhes,
         "",
-        `Se não puder ir, cancele para liberar a vaga: ${LINK_CANCELAR}`,
+        O_QUE_LEVAR,
+        "",
+        cancelar,
         "",
         RODAPE
       );
     case "cancelado_camara":
       return linhas(
-        `${ola} Seu agendamento do RG de ${quando} foi cancelado pela Câmara de Itanhandu.`,
+        "🚫 *Agendamento cancelado*",
         "",
-        `Para marcar outro dia: ${SITE}`,
-        `Dúvidas: ${TELEFONE_CAMARA}`,
+        `${ola} Seu agendamento do RG de ${quando} foi *cancelado pela Câmara de Itanhandu*.`,
+        "",
+        `🗓️ Para marcar outro dia: ${SITE}`,
+        `📞 Dúvidas: ${TELEFONE_CAMARA}`,
         "",
         RODAPE
       );
     case "cancelado_cidadao":
       return linhas(
-        `${ola} Seu agendamento do RG de ${quando} foi cancelado, como você pediu.`,
+        "🚫 *Agendamento cancelado*",
         "",
-        `Para marcar outro dia: ${SITE}`,
+        `${ola} Seu agendamento do RG de ${quando} foi *cancelado*, como você pediu.`,
+        "",
+        `🗓️ Para marcar outro dia: ${SITE}`,
         "",
         RODAPE
       );

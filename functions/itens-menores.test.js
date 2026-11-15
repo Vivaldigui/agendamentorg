@@ -107,7 +107,9 @@ test("BUG-04: site recusa as mesmas datas antes de enviar", () => {
 test("LGPD-04: caixa do convite e opcional, desmarcada e separada do aceite", () => {
   assert.match(sitePublico, /<input type="checkbox" id="aceite-avaliacao">/, "Comeca desmarcada.");
   assert.match(sitePublico, /<strong>Opcional:<\/strong> quero receber no e-mail informado/);
-  assert.match(extrairFuncao(sitePublico, "destacarAceitesPendentes"), /\["aceite-lgpd"\]/, "So o aceite do agendamento e obrigatorio.");
+  // Desde 15/11/2026 o aceite do WhatsApp tambem e obrigatorio quando aparece; o convite continua opcional.
+  assert.match(extrairFuncao(sitePublico, "destacarAceitesPendentes"), /\["aceite-lgpd", "aceite-whatsapp"\]/, "Obrigatorios: agendamento e WhatsApp.");
+  assert.doesNotMatch(extrairFuncao(sitePublico, "destacarAceitesPendentes"), /aceite-avaliacao/, "O convite de avaliacao nao e obrigatorio.");
   assert.match(sitePublico, /aceiteAvaliacao: Boolean\(email\) && \(document\.getElementById\("aceite-avaliacao"\) \|\| \{\}\)\.checked === true/);
 });
 
