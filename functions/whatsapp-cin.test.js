@@ -309,7 +309,8 @@ test("formulario e backend: caixa obrigatoria quando aparece, desmarcada, escond
   assert.match(site, /aceiteWhatsapp: \(document\.getElementById\("aceite-whatsapp"\) \|\| \{\}\)\.checked === true/);
   assert.match(site, /const pendentes = \["aceite-lgpd", "aceite-whatsapp"\]\.filter\(id => \{\s*if \(id === "aceite-whatsapp" && !whatsappVisivel\) return false;/, "obrigatorio quando aparece");
   assert.doesNotMatch(site, /<strong>Opcional:<\/strong> quero receber no WhatsApp/, "o aceite do WhatsApp nao e opcional");
-  assert.match(site, /Concordo em receber no WhatsApp deste celular/);
+  assert.match(site, /Estou ciente de que vou receber no WhatsApp deste celular/);
+  assert.match(site, /var WHATSAPP_AVISOS_PARA_TODOS = (true|false);/, "chave da caixa para todos");
   const criar = backend.slice(backend.indexOf("exports.criarAgendamentoCidadao"), backend.indexOf("exports.prepararCancelamentoCidadao"));
   assert.match(criar, /const consentimentoWhatsapp = dadosRequisicao\.aceiteWhatsapp === true;/);
   assert.match(criar, /\.\.\.\(consentimentoWhatsapp \? \{ avisoWhatsapp: true, avisoWhatsappEm: criado \} : \{\}\)/);
