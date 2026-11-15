@@ -3,8 +3,10 @@ const { initializeApp } = require("firebase-admin/app");
 const { FieldPath, FieldValue, Timestamp, getFirestore } = require("firebase-admin/firestore");
 const { HttpsError, onCall, onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { defineBoolean, defineString, defineSecret } = require("firebase-functions/params");
 const { criarServicoAvaliacao, dataEmSaoPaulo } = require("./avaliacao-google");
+const { criarServicoWhatsappCin, eventoDoAgendamento } = require("./whatsapp-cin");
 const {
   dataISOValida,
   somarDiasISO,
@@ -80,6 +82,62 @@ exports.enviarAvaliacoesGooglePendentes = onSchedule({
     dedupeKey: avaliacaoDestinatarioChave.value(),
     googleUrl: avaliacaoGoogleUrl.value()
   });
+});
+
+// Avisos de utilidade pelo WhatsApp de teste da CIN (n8n da Camara + WAHA).
+// docs/PLANO-WHATSAPP-WAHA.md. Modo: desligado | ensaio | ativo.
+const whatsappCinModo = defineString("WHATSAPP_CIN_MODO", { default: "desligado" });
+const whatsappCinTelefonesTeste = defineString("WHATSAPP_CIN_TELEFONES_TESTE", { default: "" });
+const whatsappCinWebhookUrl = defineString("WHATSAPP_CIN_WEBHOOK_URL", {
+  default: "https://camara-itanhandu-n8n.kip816.easypanel.host/webhook/cin-whatsapp-enviar"
+});
+const whatsappCinToken = defineSecret("WHATSAPP_CIN_N8N_TOKEN");
+const servicoWhatsappCin = criarServicoWhatsappCin({ db, FieldValue });
+
+function configWhatsappCin() {
+  return {
+    modo: whatsappCinModo.value(),
+    telefonesTeste: whatsappCinTelefonesTeste.value(),
+    webhookUrl: whatsappCinWebhookUrl.value(),
+    token: whatsappCinToken.value()
+  };
+}
+
+// Gatilho no documento do agendamento: so poe na fila a confirmacao e os dois
+// cancelamentos, sem tocar nas callables nem no caminho da abertura das vagas.
+// Nada e enviado aqui: a rajada das 8h sai aos poucos pela rotina abaixo.
+exports.avisarWhatsappAgendamento = onDocumentWritten({
+  document: "dados_cidadaos/{agendamentoId}",
+  region: "southamerica-east1",
+  maxInstances: 5,
+  timeoutSeconds: 60
+}, async (event) => {
+  if (whatsappCinModo.value() === "desligado") return;
+  const antes = event.data && event.data.before.exists ? event.data.before.data() : null;
+  const depois = event.data && event.data.after.exists ? event.data.after.data() : null;
+  const tipo = eventoDoAgendamento(antes, depois, hojeSaoPauloISO());
+  if (!tipo) return;
+  await servicoWhatsappCin.enfileirar(tipo, event.params.agendamentoId, depois, {
+    modo: whatsappCinModo.value(),
+    telefonesTeste: whatsappCinTelefonesTeste.value()
+  });
+});
+
+// A cada 5 min, das 7h as 21h55: poe na fila os lembretes de amanha (a partir
+// das 18h) e envia a fila com pausa entre as mensagens.
+exports.processarFilaWhatsappCin = onSchedule({
+  schedule: "*/5 7-21 * * *",
+  timeZone: "America/Sao_Paulo",
+  region: "southamerica-east1",
+  maxInstances: 1,
+  timeoutSeconds: 300,
+  secrets: [whatsappCinToken]
+}, async () => {
+  if (whatsappCinModo.value() === "desligado") return;
+  const resumo = await servicoWhatsappCin.processarFila(configWhatsappCin());
+  if (resumo.lembretes || resumo.enviados || resumo.descartados || resumo.restantes || Object.keys(resumo.outros).length) {
+    console.log("whatsapp-cin: rodada", JSON.stringify(resumo));
+  }
 });
 
 const CANCELAMENTO_TTL_MS = 30 * 60 * 1000;
@@ -1405,6 +1463,10 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, comMetricaAbert
   // Convite para avaliar o atendimento: consentimento proprio, opcional, e so
   // faz sentido com e-mail (LGPD-04).
   const consentimentoAvaliacao = dadosRequisicao.aceiteAvaliacao === true && Boolean(email);
+  // Avisos do agendamento no WhatsApp (confirmacao, lembrete e cancelamento):
+  // consentimento proprio e opcional. Fica fora do hash de
+  // idempotencia, como o do convite.
+  const consentimentoWhatsapp = dadosRequisicao.aceiteWhatsapp === true;
   // CONTENCAO B4. O booleano vinha do cliente e nada ligava quem chamava ao CPF
   // informado: com substituirAnterior=true bastava conhecer um CPF para liberar a
   // vaga da vitima, inativar o agendamento dela e criar outro com dados proprios.
@@ -1646,7 +1708,8 @@ exports.criarAgendamentoCidadao = onCall(agendamentoPicoOptions, comMetricaAbert
       status: "agendado",
       criado,
       statusAtualizadoEm: criado,
-      ...(consentimentoAvaliacao ? { consentimentoAvaliacao: true, consentimentoAvaliacaoEm: criado } : {})
+      ...(consentimentoAvaliacao ? { consentimentoAvaliacao: true, consentimentoAvaliacaoEm: criado } : {}),
+      ...(consentimentoWhatsapp ? { avisoWhatsapp: true, avisoWhatsappEm: criado } : {})
     });
     t.create(operacaoRef, {
       tipo: "criar_agendamento",

@@ -99,6 +99,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Fila dos avisos de WhatsApp (functions/whatsapp-cin.js): so o servidor.
+    match /whatsapp_envios/{documentId} {
+      allow read, write: if false;
+    }
+
     match /configuracoes/{document=**} {
       allow read: if isAdmin();
       allow write: if isAdmin();
