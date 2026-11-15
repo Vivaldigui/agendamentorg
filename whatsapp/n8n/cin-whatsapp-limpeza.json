@@ -1,0 +1,182 @@
+{
+  "id": "CinWhatsLimpeza1",
+  "name": "CIN — limpeza das tabelas do WhatsApp (24 h e 2 dias)",
+  "active": false,
+  "nodes": [
+    {
+      "id": "c3000000-0000-4000-8000-000000000001",
+      "name": "De hora em hora",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1,
+              "triggerAtMinute": 17
+            }
+          ]
+        }
+      },
+      "notes": "Minuto 17: longe das rodadas de envio (:00, :05, :10…).",
+      "notesInFlow": true
+    },
+    {
+      "id": "c3000000-0000-4000-8000-000000000002",
+      "name": "Rodar agora",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cin-limpeza",
+        "responseMode": "lastNode",
+        "options": {
+          "ipWhitelist": "127.0.0.1,::1,::ffff:127.0.0.1"
+        }
+      },
+      "webhookId": "c3a1e2d4-6b7f-4c21-9a3e-7d2b8e4f1d03"
+    },
+    {
+      "id": "c3000000-0000-4000-8000-000000000003",
+      "name": "Apagar conversas do Cidinho",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        200
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "cin_cidinho_conversa"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "quando",
+              "condition": "lt",
+              "keyValue": "={{ new Date(Date.now() - 24 * 3600 * 1000).toISOString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "c3000000-0000-4000-8000-000000000004",
+      "name": "Apagar respondidos antigos",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        200
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "cin_whatsapp_respondidos"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "em",
+              "condition": "lt",
+              "keyValue": "={{ new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "c3000000-0000-4000-8000-000000000005",
+      "name": "Resumo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Why Code: devolve só quantas linhas cada passo apagou.\nconst conta = (nome) => $(nome).all().filter((i) => i.json && Object.keys(i.json).length).length;\nreturn [{ json: { conversas: conta('Apagar conversas do Cidinho'), respondidos: conta('Apagar respondidos antigos'), em: new Date().toISOString() } }];"
+      }
+    }
+  ],
+  "connections": {
+    "De hora em hora": {
+      "main": [
+        [
+          {
+            "node": "Apagar conversas do Cidinho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rodar agora": {
+      "main": [
+        [
+          {
+            "node": "Apagar conversas do Cidinho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar conversas do Cidinho": {
+      "main": [
+        [
+          {
+            "node": "Apagar respondidos antigos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar respondidos antigos": {
+      "main": [
+        [
+          {
+            "node": "Resumo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "pinData": {},
+  "tags": []
+}
