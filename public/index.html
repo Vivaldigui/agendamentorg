@@ -570,14 +570,18 @@
                         <strong>Opcional:</strong> quero receber no e-mail informado, depois do atendimento, um convite para avaliar o atendimento da Câmara no Google. Sem marcar, o e-mail é usado só para o agendamento.
                     </span>
                 </label>
-                <!-- Avisos no WhatsApp (functions/whatsapp-cin.js). Em ensaio, a caixa so aparece com ?whatsapp=teste no endereco. -->
+                <!-- Avisos no WhatsApp (functions/whatsapp-cin.js). A caixa aparece para todos com WHATSAPP_AVISOS_PARA_TODOS = true; em ensaio (false), so com ?whatsapp=teste no endereco. -->
                 <label class="form-grupo checkbox-termo so-preencher aceite-whatsapp-oculto" id="grupo-aceite-whatsapp">
                     <input type="checkbox" id="aceite-whatsapp" onchange="limparErroAceite('aceite-whatsapp')">
                     <span style="font-size:0.85rem; color:var(--gray-600); line-height:1.4; font-weight:500; margin:0;">
-                        Concordo em receber no WhatsApp deste celular a confirmação do agendamento e um lembrete na véspera. Para parar, é só responder SAIR.
+                        Estou ciente de que vou receber no WhatsApp deste celular a confirmação do agendamento, um lembrete na véspera e o aviso se ele for cancelado. Para parar, é só responder SAIR.
                     </span>
                 </label>
-                <script>try { if (new URLSearchParams(location.search).get("whatsapp") === "teste") document.getElementById("grupo-aceite-whatsapp").classList.remove("aceite-whatsapp-oculto"); } catch (e) {}</script>
+                <script>
+                    // Liga a caixa do WhatsApp para todo mundo. Junto com WHATSAPP_CIN_MODO=ativo nas functions.
+                    var WHATSAPP_AVISOS_PARA_TODOS = true;
+                    try { if (WHATSAPP_AVISOS_PARA_TODOS || new URLSearchParams(location.search).get("whatsapp") === "teste") document.getElementById("grupo-aceite-whatsapp").classList.remove("aceite-whatsapp-oculto"); } catch (e) {}
+                </script>
                 <fieldset class="estado-civil so-preencher" aria-describedby="estado-civil-ajuda">
                     <legend>Qual é o seu estado civil? <span style="color:var(--danger)">*</span></legend>
                     <p class="estado-civil-ajuda" id="estado-civil-ajuda">Serve para mostrar, depois de agendar, qual certidão você deve levar. Essa resposta não é enviada nem guardada.</p>
