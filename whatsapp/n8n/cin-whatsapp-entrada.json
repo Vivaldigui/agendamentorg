@@ -1,0 +1,796 @@
+{
+  "id": "CinWhatsEntrada1",
+  "name": "CIN — receber mensagens do WhatsApp (SAIR e resposta padrão)",
+  "active": false,
+  "nodes": [
+    {
+      "id": "c2000000-0000-4000-8000-000000000001",
+      "name": "Receber do WAHA",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cin-whatsapp-entrada",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "c2b17d40-8e2a-4f6b-9c1d-5a3e7f9b2c02"
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000002",
+      "name": "Hash do segredo",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "action": "hash",
+        "type": "SHA256",
+        "value": "={{ String($json.headers['x-cin-entrada'] || '') }}",
+        "dataPropertyName": "segredoHash",
+        "encoding": "hex"
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000003",
+      "name": "Ler mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Why Code: normaliza o comando (acentos, pontuacao, caixa) e filtra o evento do WAHA num passo so.\nconst entrada = $('Hash do segredo').first().json;\nconst corpo = entrada.body || {};\nconst p = corpo.payload || {};\nconst de = String(p.from || '');\nconst autorizado = entrada.segredoHash === '7ee64e43f403e0f523a65fcffe619a7bb9c3cd402574f694e9093be55e383af5';\nconst valido = autorizado && corpo.event === 'message' && corpo.session === 'cin' && p.fromMe !== true\n  && /@(c\\.us|lid|s\\.whatsapp\\.net)$/.test(de);\nconst normal = String(p.body || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n  .toUpperCase().replace(/[^A-Z]+/g, ' ').trim();\nlet comando = 'outro';\nif (['SAIR', 'PARAR', 'PARE', 'STOP'].includes(normal)) comando = 'sair';\nelse if (['VOLTAR', 'VOLTA'].includes(normal)) comando = 'voltar';\nreturn [{ json: { valido, autorizado, chatId: de, ehLid: de.endsWith('@lid'), comando } }];"
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000005",
+      "name": "Mensagem válida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c2000000-0000-4000-8000-000000000004",
+              "leftValue": "={{ $json.valido }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000006",
+      "name": "Tabela de quem saiu",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "resource": "table",
+        "operation": "create",
+        "tableName": "cin_whatsapp_saida",
+        "columns": {
+          "column": [
+            {
+              "name": "telefone",
+              "type": "string"
+            },
+            {
+              "name": "em",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {
+          "createIfNotExists": true
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000007",
+      "name": "Tabela de respondidos",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "resource": "table",
+        "operation": "create",
+        "tableName": "cin_whatsapp_respondidos",
+        "columns": {
+          "column": [
+            {
+              "name": "chave",
+              "type": "string"
+            },
+            {
+              "name": "em",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {
+          "createIfNotExists": true
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000009",
+      "name": "É LID?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1320,
+        220
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c2000000-0000-4000-8000-000000000008",
+              "leftValue": "={{ $('Ler mensagem').first().json.ehLid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000010",
+      "name": "Telefone do LID",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        140
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'http://camara-itanhandu_waha-cin:3000/api/cin/lids/' + encodeURIComponent($('Ler mensagem').first().json.chatId) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000011",
+      "name": "Telefone",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        220
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Why Code: mesma regra de telefoneWhatsApp em functions/whatsapp-cin.js (55 + DDD + nono digito).\nconst m = $('Ler mensagem').first().json;\nconst lid = $input.first().json || {};\nconst origem = m.ehLid ? String(lid.pn || lid.phoneNumber || '') : m.chatId;\nlet d = origem.split('@')[0].replace(/\\D/g, '');\nif (d.length > 11 && d.startsWith('55')) d = d.slice(2);\nif (d.length === 10 && /^[6-9]/.test(d.slice(2))) d = d.slice(0, 2) + '9' + d.slice(2);\nconst telefone = /^[1-9]{2}9\\d{8}$/.test(d) ? '55' + d : '';\nconst hoje = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });\nreturn [{ json: { ...m, telefone, chave: (telefone || m.chatId) + '_' + hoje, em: new Date().toISOString() } }];"
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000014",
+      "name": "Comando",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1980,
+        220
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c2000000-0000-4000-8000-000000000012",
+                    "leftValue": "={{ $json.comando }}",
+                    "rightValue": "sair",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "sair"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c2000000-0000-4000-8000-000000000013",
+                    "leftValue": "={{ $json.comando }}",
+                    "rightValue": "voltar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "voltar"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "outro"
+        }
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000015",
+      "name": "Confirmar saída",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2200,
+        40
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://camara-itanhandu_waha-cin:3000/api/sendText",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ session: 'cin', chatId: $('Telefone').first().json.chatId, text: \"✅ *Pronto!* Você não vai mais receber avisos do agendamento do RG por aqui.\\n\\nSe mudar de ideia, responda *VOLTAR*.\" }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000016",
+      "name": "Ainda não saiu?",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2420,
+        40
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "rowNotExists",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "cin_whatsapp_saida"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "telefone",
+              "keyValue": "={{ $('Telefone').first().json.telefone }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000019",
+      "name": "Campos de quem saiu",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2640,
+        40
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c2000000-0000-4000-8000-000000000017",
+              "name": "telefone",
+              "value": "={{ $('Telefone').first().json.telefone }}",
+              "type": "string"
+            },
+            {
+              "id": "c2000000-0000-4000-8000-000000000018",
+              "name": "em",
+              "value": "={{ $('Telefone').first().json.em }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000020",
+      "name": "Registrar saída",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2860,
+        40
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "cin_whatsapp_saida"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000021",
+      "name": "Apagar saída",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2200,
+        220
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "cin_whatsapp_saida"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "telefone",
+              "keyValue": "={{ $('Telefone').first().json.telefone }}"
+            }
+          ]
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000022",
+      "name": "Confirmar volta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        220
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://camara-itanhandu_waha-cin:3000/api/sendText",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ session: 'cin', chatId: $('Telefone').first().json.chatId, text: \"🔔 *Pronto!* Você volta a receber por aqui os avisos do agendamento do RG.\\n\\nPara parar, responda *SAIR*.\" }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000023",
+      "name": "Não respondido hoje?",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2200,
+        400
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "rowNotExists",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "cin_whatsapp_respondidos"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chave",
+              "keyValue": "={{ $('Telefone').first().json.chave }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000026",
+      "name": "Campos do respondido",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2420,
+        400
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c2000000-0000-4000-8000-000000000024",
+              "name": "chave",
+              "value": "={{ $('Telefone').first().json.chave }}",
+              "type": "string"
+            },
+            {
+              "id": "c2000000-0000-4000-8000-000000000025",
+              "name": "em",
+              "value": "={{ $('Telefone').first().json.em }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000027",
+      "name": "Registrar respondido",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2640,
+        400
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "cin_whatsapp_respondidos"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000028",
+      "name": "Resposta padrão",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://camara-itanhandu_waha-cin:3000/api/sendText",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ session: 'cin', chatId: $('Telefone').first().json.chatId, text: \"Olá! 👋 Este número envia os *avisos do agendamento do RG* da Câmara de Itanhandu e ainda não responde mensagens.\\n\\n🗓️ Agendar, consultar ou cancelar: https://cin.itanhandu.cam.mg.gov.br\\n📄 O que levar: https://cin.itanhandu.cam.mg.gov.br/cin/dia-do-atendimento/\\n📞 Dúvidas: (35) 3504-0397\\n\\nPara não receber mais avisos, responda *SAIR*.\" }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Receber do WAHA": {
+      "main": [
+        [
+          {
+            "node": "Hash do segredo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hash do segredo": {
+      "main": [
+        [
+          {
+            "node": "Tabela de quem saiu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela de quem saiu": {
+      "main": [
+        [
+          {
+            "node": "Tabela de respondidos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tabela de respondidos": {
+      "main": [
+        [
+          {
+            "node": "Ler mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler mensagem": {
+      "main": [
+        [
+          {
+            "node": "Mensagem válida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem válida?": {
+      "main": [
+        [
+          {
+            "node": "É LID?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É LID?": {
+      "main": [
+        [
+          {
+            "node": "Telefone do LID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telefone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telefone do LID": {
+      "main": [
+        [
+          {
+            "node": "Telefone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telefone": {
+      "main": [
+        [
+          {
+            "node": "Comando",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comando": {
+      "main": [
+        [
+          {
+            "node": "Confirmar saída",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Apagar saída",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Não respondido hoje?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmar saída": {
+      "main": [
+        [
+          {
+            "node": "Ainda não saiu?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ainda não saiu?": {
+      "main": [
+        [
+          {
+            "node": "Campos de quem saiu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Campos de quem saiu": {
+      "main": [
+        [
+          {
+            "node": "Registrar saída",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apagar saída": {
+      "main": [
+        [
+          {
+            "node": "Confirmar volta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Não respondido hoje?": {
+      "main": [
+        [
+          {
+            "node": "Campos do respondido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Campos do respondido": {
+      "main": [
+        [
+          {
+            "node": "Registrar respondido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar respondido": {
+      "main": [
+        [
+          {
+            "node": "Resposta padrão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "pinData": {},
+  "tags": []
+}

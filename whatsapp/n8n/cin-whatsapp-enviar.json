@@ -112,11 +112,92 @@
     },
     {
       "id": "c1000000-0000-4000-8000-000000000008",
+      "name": "Procurar na lista de saída",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        120
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "cin_whatsapp_saida"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "telefone",
+              "keyValue": "={{ $('Receber pedido').first().json.body.telefone }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "c1000000-0000-4000-8000-000000000010",
+      "name": "Saiu dos avisos?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        120
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1000000-0000-4000-8000-000000000009",
+              "leftValue": "={{ $json.telefone }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c1000000-0000-4000-8000-000000000011",
+      "name": "Pessoa saiu",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        260
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ enviado: false, motivo: 'saiu' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "c1000000-0000-4000-8000-000000000012",
       "name": "Conferir número no WhatsApp",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        660,
+        1100,
         120
       ],
       "parameters": {
@@ -150,12 +231,12 @@
       "onError": "continueErrorOutput"
     },
     {
-      "id": "c1000000-0000-4000-8000-000000000010",
+      "id": "c1000000-0000-4000-8000-000000000014",
       "name": "Número tem WhatsApp?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        880,
+        1320,
         60
       ],
       "parameters": {
@@ -168,7 +249,7 @@
           },
           "conditions": [
             {
-              "id": "c1000000-0000-4000-8000-000000000009",
+              "id": "c1000000-0000-4000-8000-000000000013",
               "leftValue": "={{ $json.numberExists }}",
               "rightValue": "",
               "operator": {
@@ -184,12 +265,12 @@
       }
     },
     {
-      "id": "c1000000-0000-4000-8000-000000000011",
+      "id": "c1000000-0000-4000-8000-000000000015",
       "name": "Sem WhatsApp",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1100,
+        1540,
         200
       ],
       "parameters": {
@@ -201,12 +282,12 @@
       }
     },
     {
-      "id": "c1000000-0000-4000-8000-000000000012",
+      "id": "c1000000-0000-4000-8000-000000000016",
       "name": "Digitando",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1100,
+        1540,
         -40
       ],
       "parameters": {
@@ -230,12 +311,12 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "c1000000-0000-4000-8000-000000000013",
+      "id": "c1000000-0000-4000-8000-000000000017",
       "name": "Esperar 3 a 6 s",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        1320,
+        1760,
         -40
       ],
       "parameters": {
@@ -246,12 +327,12 @@
       "notesInFlow": true
     },
     {
-      "id": "c1000000-0000-4000-8000-000000000014",
+      "id": "c1000000-0000-4000-8000-000000000018",
       "name": "Enviar pelo WAHA",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1540,
+        1980,
         -40
       ],
       "parameters": {
@@ -275,12 +356,12 @@
       "onError": "continueErrorOutput"
     },
     {
-      "id": "c1000000-0000-4000-8000-000000000015",
+      "id": "c1000000-0000-4000-8000-000000000019",
       "name": "Enviado",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1760,
+        2200,
         -100
       ],
       "parameters": {
@@ -292,12 +373,12 @@
       }
     },
     {
-      "id": "c1000000-0000-4000-8000-000000000016",
+      "id": "c1000000-0000-4000-8000-000000000020",
       "name": "Falha no WAHA",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1760,
+        2200,
         140
       ],
       "parameters": {
@@ -336,7 +417,7 @@
       "main": [
         [
           {
-            "node": "Conferir número no WhatsApp",
+            "node": "Procurar na lista de saída",
             "type": "main",
             "index": 0
           }
@@ -344,6 +425,35 @@
         [
           {
             "node": "Recusar pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procurar na lista de saída": {
+      "main": [
+        [
+          {
+            "node": "Saiu dos avisos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Saiu dos avisos?": {
+      "main": [
+        [
+          {
+            "node": "Pessoa saiu",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Conferir número no WhatsApp",
             "type": "main",
             "index": 0
           }

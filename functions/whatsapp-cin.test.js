@@ -16,6 +16,7 @@ const {
   listaTelefonesTeste,
   montarMensagem,
   eventoDoAgendamento,
+  inicioDoLembrete,
   validarConfiguracao,
   criarServicoWhatsappCin
 } = require("./whatsapp-cin");
@@ -53,8 +54,8 @@ test("formatos de data, hora, nome e telefone", () => {
   assert.equal(telefoneWhatsApp("(35) 3504-0397"), "", "fixo nao tem WhatsApp para avisar");
   assert.equal(telefoneWhatsApp("123"), "");
   assert.deepEqual([...listaTelefonesTeste("35998765432, 5511987654321")], [TEL, "5511987654321"]);
-  assert.deepEqual(agoraEmSaoPaulo(AS_8H05), { dataISO: HOJE, hora: 8 });
-  assert.deepEqual(agoraEmSaoPaulo(Date.parse("2026-11-17T01:30:00Z")), { dataISO: HOJE, hora: 22 });
+  assert.deepEqual(agoraEmSaoPaulo(AS_8H05), { dataISO: HOJE, hora: 8, minuto: 8 * 60 + 5 });
+  assert.deepEqual(agoraEmSaoPaulo(Date.parse("2026-11-17T01:30:00Z")), { dataISO: HOJE, hora: 22, minuto: 22 * 60 + 30 });
 });
 
 test("toda mensagem tem nome, data, rodape e nunca CPF nem nascimento", () => {
@@ -68,11 +69,13 @@ test("toda mensagem tem nome, data, rodape e nunca CPF nem nascimento", () => {
   assert.match(montarMensagem("confirmacao", AG), /Protocolo: \*CIN-ABC123\*/);
   for (const tipo of ["confirmacao", "lembrete"]) {
     const texto = montarMensagem(tipo, AG);
-    assert.match(texto, /\*Certidão de nascimento ou de casamento\*, \*original\*/, tipo);
+    assert.match(texto, /\*Certidão de nascimento ou de casamento\*, \*original ou cópia autenticada\*/, tipo);
     assert.match(texto, /\*Número do CPF\*/, tipo);
     assert.match(texto, /\*Comprovante de endereço\*/, tipo);
   }
-  assert.match(montarMensagem("lembrete", AG), /seu atendimento é amanhã/);
+  assert.match(montarMensagem("lembrete", AG), /seu atendimento é HOJE/);
+  assert.match(montarMensagem("lembrete", AG), /NÃO ESQUEÇA A CERTIDÃO/);
+  assert.match(montarMensagem("confirmacao", AG), /No dia do atendimento, mandamos um lembrete/);
   assert.ok(montarMensagem("lembrete", AG).includes(LINK_CANCELAR));
   assert.match(montarMensagem("cancelado_camara", AG), /\(35\) 3504-0397/);
   assert.throws(() => montarMensagem("remarcado", AG), "remarcacao nao gera aviso");
@@ -237,25 +240,42 @@ test("rodada: fora do horario nao envia nada", async () => {
   assert.equal(noite.chamadas.length, 0);
 });
 
-test("rodada: lembretes de amanha entram as 18h e so de agendamento valendo", async () => {
-  const as18h = Date.parse("2026-11-16T21:00:00Z");
-  const { registros, chamadas, servico } = ambiente({ agora: as18h });
-  agendar(registros, "a", { dataISO: "2026-11-17" });
-  agendar(registros, "b", { dataISO: "2026-11-17", status: "remarcado", ativo: true });
-  agendar(registros, "c", { dataISO: "2026-11-17", status: "cancelado", ativo: false });
-  agendar(registros, "d", { dataISO: "2026-11-17", avisoWhatsapp: false });
-  agendar(registros, "e", { dataISO: "2026-11-18" });
+test("lembrete: sai no dia, 6 h antes; atendimento cedo recebe as 7h", () => {
+  assert.equal(inicioDoLembrete("14:30"), 8 * 60 + 30);
+  assert.equal(inicioDoLembrete("16:35"), 10 * 60 + 35);
+  assert.equal(inicioDoLembrete("09:00"), 7 * 60, "nunca antes das 7h");
+  assert.equal(inicioDoLembrete("x"), null);
+});
+
+test("rodada: lembretes de hoje entram 6 h antes e so de agendamento valendo", async () => {
+  // 16/11 08:30 em Sao Paulo.
+  const { registros, chamadas, servico } = ambiente({ agora: Date.parse("2026-11-16T11:30:00Z") });
+  agendar(registros, "a", { dataISO: HOJE, hora: "14:30" });
+  agendar(registros, "b", { dataISO: HOJE, hora: "15:00", status: "remarcado", ativo: true });
+  agendar(registros, "c", { dataISO: HOJE, hora: "14:30", status: "cancelado", ativo: false });
+  agendar(registros, "d", { dataISO: HOJE, hora: "14:30", avisoWhatsapp: false });
+  agendar(registros, "e", { dataISO: "2026-11-17", hora: "14:30" });
+  agendar(registros, "f", { dataISO: HOJE, hora: "09:00" });
   const r = await servico.processarFila(CONFIG);
-  assert.deepEqual(r.lembretes, { total: 2, na_fila: 2 });
+  assert.deepEqual(r.lembretes, { total: 2, na_fila: 2 }, "a (14h30) e f (9h, desde as 7h); b so as 9h");
   assert.equal(r.enviados, 2);
   assert.ok(chamadas.every((c) => c.corpo.tipo === "lembrete"));
+  assert.match(chamadas[0].corpo.texto, /é HOJE/);
+  assert.match(chamadas[0].corpo.texto, /NÃO ESQUEÇA A CERTIDÃO/);
   const deNovo = await servico.processarFila(CONFIG);
-  assert.deepEqual(deNovo.lembretes, { total: 2, na_fila: 0 }, "rodada das 18h05 nao repete");
+  assert.deepEqual(deNovo.lembretes, { total: 2, na_fila: 0 }, "a rodada seguinte nao repete");
   assert.equal(chamadas.length, 2);
+});
 
-  const as17h = ambiente({ agora: Date.parse("2026-11-16T20:00:00Z") });
-  agendar(as17h.registros, "a", { dataISO: "2026-11-17" });
-  assert.equal((await as17h.servico.processarFila(CONFIG)).lembretes, null, "antes das 18h, nada de lembrete");
+test("rodada: lembrete nao sai depois do horario do atendimento", async () => {
+  // 16/11 09:05 em Sao Paulo: o lembrete das 9h ficou na fila e o horario passou.
+  const a = ambiente({ agora: Date.parse("2026-11-16T12:05:00Z") });
+  const dados = agendar(a.registros, "f", { dataISO: HOJE, hora: "09:00" });
+  await a.servico.enfileirar("lembrete", "f", dados, CONFIG);
+  const r = await a.servico.processarFila(CONFIG);
+  assert.equal(r.descartados, 1);
+  assert.equal(a.chamadas.length, 0);
+  assert.deepEqual(r.lembretes, { total: 0, na_fila: 0 });
 });
 
 test("rodada: recusa do n8n, erro e falha ambigua", async () => {
