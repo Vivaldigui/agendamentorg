@@ -574,13 +574,15 @@
                 <label class="form-grupo checkbox-termo so-preencher aceite-whatsapp-oculto" id="grupo-aceite-whatsapp">
                     <input type="checkbox" id="aceite-whatsapp" onchange="limparErroAceite('aceite-whatsapp')">
                     <span style="font-size:0.85rem; color:var(--gray-600); line-height:1.4; font-weight:500; margin:0;">
-                        Estou ciente de que vou receber no WhatsApp deste celular a confirmação do agendamento, um lembrete no dia do atendimento, o aviso se ele for cancelado e, depois do atendimento, um convite para avaliá-lo. Para parar, é só responder SAIR.
+                        Estou ciente de que vou receber no WhatsApp deste celular a confirmação do agendamento, um lembrete no dia do atendimento, o aviso se ele for cancelado e, depois do atendimento, um convite para avaliá-lo, pelo número <strong>(35) 98421-5361</strong>. Para parar, é só responder SAIR.
                     </span>
                 </label>
                 <script>
                     // Liga a caixa do WhatsApp para todo mundo. Junto com WHATSAPP_CIN_MODO=ativo nas functions.
                     var WHATSAPP_AVISOS_PARA_TODOS = true;
                     try { if (WHATSAPP_AVISOS_PARA_TODOS || new URLSearchParams(location.search).get("whatsapp") === "teste") document.getElementById("grupo-aceite-whatsapp").classList.remove("aceite-whatsapp-oculto"); } catch (e) {}
+                    // O aviso com o numero fica na tela de sucesso, mais abaixo; quando ela carregar, segue a mesma regra.
+                    document.addEventListener("DOMContentLoaded", function () { try { var g = document.getElementById("grupo-aceite-whatsapp"); var a = document.getElementById("aviso-whatsapp-cin"); if (g && a && !g.classList.contains("aceite-whatsapp-oculto")) a.classList.remove("aceite-whatsapp-oculto"); } catch (e) {} });
                 </script>
                 <fieldset class="estado-civil so-preencher" aria-describedby="estado-civil-ajuda">
                     <legend>Qual é o seu estado civil? <span style="color:var(--danger)">*</span></legend>
@@ -618,7 +620,7 @@
                         <p style="margin:10px 0 0; font-size:0.85rem; color:#92400e; background:var(--warning-light); border-radius:8px; padding:8px 10px; line-height:1.45;">
                             <i class="fa-solid fa-triangle-exclamation"></i>
                             <strong>Anote este código antes de sair.</strong> Ele é a única forma de consultar ou cancelar seu agendamento pelo site.
-                            <strong>Nada é enviado automaticamente</strong> — use os botões abaixo para salvar no WhatsApp ou em PDF.
+                            A confirmação também chega pelo WhatsApp em alguns minutos, mas <strong>não conte só com ela</strong>: use os botões abaixo para salvar no WhatsApp ou em PDF.
                         </p>
                         <label class="filtro-check" style="display:flex; align-items:flex-start; gap:8px; margin:10px 0 0; padding:0; text-align:left; cursor:pointer;">
                             <input type="checkbox" id="aceite-protocolo" onchange="confirmarGuardaProtocolo()" style="margin-top:3px; min-width:20px; min-height:20px;">
@@ -626,6 +628,15 @@
                         </label>
                     </div>
                     <p style="margin:8px 0 0; font-size:0.95rem; color:var(--gray-800);"><i class="fa-solid fa-location-dot" style="color:var(--primary);"></i> <strong>Câmara Municipal de Itanhandu</strong></p>
+                </div>
+                <!-- Numero do WhatsApp dos avisos (functions/whatsapp-cin.js). Aparece junto com a caixa do WhatsApp. -->
+                <div class="aviso-whatsapp-cin aceite-whatsapp-oculto" id="aviso-whatsapp-cin" style="margin:16px 0 0; padding:14px 16px; background:var(--success-light, #ecfdf5); border:1px solid var(--success, #16a34a); border-radius:12px; text-align:left;">
+                    <p style="margin:0 0 6px; font-size:1rem; color:var(--gray-800); line-height:1.45;"><span style="color:var(--success);"><i class="fa-solid fa-mobile-screen-button"></i></span> Em alguns minutos chega a <strong>confirmação no WhatsApp</strong>, do número <strong style="white-space:nowrap;">(35) 98421-5361</strong>. No dia do atendimento, chega um lembrete.</p>
+                    <p style="margin:0 0 10px; font-size:0.9rem; color:var(--gray-600); line-height:1.4;"><strong>Salve esse número</strong> nos seus contatos para reconhecer as mensagens e os links funcionarem.</p>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <a class="btn-acao-sucesso cinza" style="margin:0;" href="/assets/cin-itanhandu.vcf" download="CIN Itanhandu.vcf"><i class="fa-solid fa-address-book"></i> Salvar contato</a>
+                        <a class="btn-acao-sucesso whatsapp" style="margin:0;" href="https://wa.me/5535984215361" target="_blank" rel="noopener noreferrer"><i class="fa-regular fa-comment"></i> Abrir conversa</a>
+                    </div>
                 </div>
                 <div class="acoes-sucesso">
                     <button class="btn-acao-sucesso whatsapp" onclick="enviarConfirmacaoWhatsApp()"><svg class="icone-marca" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3A9 9 0 0 0 4.3 16.7L3.2 20.8l4.2-1.1A9 9 0 1 0 12 3Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M9.1 8.2c.3 2 1.2 3.5 2.4 4.6 1.2 1.1 2.6 1.8 4.2 2.1" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg> Enviar no WhatsApp</button>

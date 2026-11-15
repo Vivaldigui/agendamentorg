@@ -63,8 +63,11 @@ test("o site nao promete mais entrega automatica do comprovante", () => {
   // Nao existe envio no backend; a legenda antiga levava a pessoa a fechar a
   // aba achando que receberia o codigo.
   assert.doesNotMatch(sitePublico, /para receber o comprovante/i);
-  assert.match(sitePublico, /Nada é enviado automaticamente/,
-    "A tela de sucesso precisa dizer explicitamente que nada e enviado.");
+  // Desde 15/11/2026 a confirmacao vai pelo WhatsApp, mas pode falhar: a tela
+  // continua mandando guardar o codigo.
+  assert.match(sitePublico, /Anote este código antes de sair./);
+  assert.match(sitePublico, /não conte só com ela<\/strong>: use os botões abaixo para salvar/,
+    "A tela de sucesso precisa dizer que o WhatsApp nao substitui guardar o codigo.");
 });
 
 test("o protocolo sobrevive ao fechamento da aba", () => {
