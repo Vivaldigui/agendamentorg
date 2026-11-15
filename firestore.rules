@@ -104,6 +104,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Contagem do dia e disjuntor do envio pelo WhatsApp: so o servidor.
+    match /whatsapp_controle/{documentId} {
+      allow read, write: if false;
+    }
+
     match /whatsapp_avaliacao_destinatarios/{documentId} {
       allow read, write: if false;
     }

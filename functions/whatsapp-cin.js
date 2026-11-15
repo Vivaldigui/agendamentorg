@@ -40,13 +40,24 @@ const STATUS_VALENDO = new Set(["agendado", "remarcado"]);
 const DIAS_SEMANA = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
 const FUSO_HORARIO = "America/Sao_Paulo";
 
-// Ritmo do envio. A rotina roda a cada 5 min e para de enviar com 4 min de
-// trabalho, para nunca encavalar com a seguinte: ~10 a 16 mensagens por rodada.
-// Com ~25 agendamentos na abertura das 8h, as confirmacoes saem em tres
-// rodadas (8h05, 8h10, 8h15) e terminam por volta das 8h20.
-const PAUSA_MIN_MS = 15000;
-const PAUSA_MAX_MS = 30000;
-const ORCAMENTO_RODADA_MS = 4 * 60 * 1000;
+// Ritmo do envio (numero novo, sem API oficial: cuidado com bloqueio).
+// - Pausa de 45 a 90 s entre mensagens. A rotina roda a cada 5 min e so comeca
+//   uma mensagem se a pausa e o envio cabem em 3,5 min, longe do limite de 300 s
+//   da function: ~3 a 4 mensagens por rodada. Com ~25 agendamentos na abertura
+//   das 8h, as confirmacoes terminam por volta das 8h40.
+// - Teto de 60 mensagens por dia (contagem em whatsapp_controle/dia_AAAA-MM-DD);
+//   o que passar fica na fila para o dia seguinte.
+// - Disjuntor: 3 falhas seguidas (erro ou revisar, o que inclui o WhatsApp
+//   desconectado) param o envio e gravam whatsapp_controle/disjuntor com
+//   ativo: true. Nada sai ate alguem apagar esse documento (ou por ativo: false)
+//   no console do Firebase, depois de conferir o celular e o WAHA.
+const PAUSA_MIN_MS = 45000;
+const PAUSA_MAX_MS = 90000;
+const ORCAMENTO_RODADA_MS = 3.5 * 60 * 1000;
+const LIMITE_DIARIO = 60;
+const FALHAS_PARA_DISJUNTOR = 3;
+const COLECAO_CONTROLE = "whatsapp_controle";
+const STATUS_FALHA = new Set(["erro", "revisar"]);
 const HORA_INICIO_ENVIO = 7;
 const HORA_FIM_ENVIO = 21; // ate 21h59
 // Lembrete no dia do atendimento, 6 h antes do horario. Atendimento cedo (antes
@@ -134,13 +145,27 @@ const O_QUE_LEVAR = [
   "   – casado(a): *casamento*",
   "   – viúvo(a) ou divorciado(a): *casamento com a averbação*",
   "• *Número do CPF*",
-  "• *Comprovante de endereço*",
-  `Mais detalhes: ${LINK_DOCUMENTOS}`
+  "• *Comprovante de endereço*"
 ];
+// Um link so por mensagem (o de cancelar): mensagem de numero novo cheia de
+// links tem cara de propaganda.
+
+// Variacoes de texto, para nao sair a mesma mensagem para todo mundo. A
+// variante 0 e o texto de referencia; a rotina escolhe pela chave do envio.
+function escolher(lista, variante) {
+  const n = Math.abs(Math.floor(Number(variante) || 0));
+  return lista[n % lista.length];
+}
+function varianteDaChave(chave) {
+  return parseInt(require("node:crypto").createHash("sha1").update(String(chave)).digest("hex").slice(0, 8), 16);
+}
 
 function montarMensagem(tipo, dados, extras = {}) {
   const nome = primeiroNome(dados.nome);
-  const ola = nome ? `Olá, *${nome}*!` : "Olá!";
+  const v = extras.variante || 0;
+  const ola = escolher(nome
+    ? [`Olá, *${nome}*!`, `Oi, *${nome}*!`, `*${nome}*, tudo bem?`]
+    : ["Olá!", "Oi!", "Tudo bem?"], v);
   const quando = `*${dataPorExtenso(dados.dataISO)}, às ${horaFalada(dados.hora)}*`;
   const detalhes = [
     `📅 ${quando}`,
@@ -153,9 +178,13 @@ function montarMensagem(tipo, dados, extras = {}) {
   switch (tipo) {
     case "confirmacao":
       return linhas(
-        "✅ *Agendamento confirmado*",
+        escolher(["✅ *Agendamento confirmado*", "✅ *Seu agendamento está confirmado*", "📌 *Agendamento confirmado*"], v),
         "",
-        `${ola} Seu agendamento do *RG (Carteira de Identidade)* na Câmara de Itanhandu está confirmado.`,
+        `${ola} ${escolher([
+          "Seu agendamento do *RG (Carteira de Identidade)* na Câmara de Itanhandu está confirmado.",
+          "Está confirmado o seu agendamento do *RG (Carteira de Identidade)* na Câmara de Itanhandu.",
+          "Recebemos e confirmamos o seu agendamento do *RG (Carteira de Identidade)* na Câmara de Itanhandu."
+        ], v / 3)}`,
         "",
         detalhes,
         "",
@@ -163,14 +192,18 @@ function montarMensagem(tipo, dados, extras = {}) {
         "",
         cancelar,
         "",
-        "🔔 No dia do atendimento, mandamos um lembrete por aqui.",
+        escolher(["🔔 No dia do atendimento, mandamos um lembrete por aqui.", "🔔 No dia do atendimento, você recebe um lembrete por aqui.", "🔔 No dia, mandamos um lembrete por aqui."], v / 9),
         RODAPE
       );
     case "lembrete":
       return linhas(
-        "🔔 *Lembrete: seu atendimento é HOJE*",
+        escolher(["🔔 *Lembrete: seu atendimento é HOJE*", "🔔 *Seu atendimento é HOJE*", "⏰ *Lembrete: seu atendimento é HOJE*"], v),
         "",
-        `${ola} Hoje é o seu atendimento do *RG (Carteira de Identidade)* na Câmara de Itanhandu.`,
+        `${ola} ${escolher([
+          "Hoje é o seu atendimento do *RG (Carteira de Identidade)* na Câmara de Itanhandu.",
+          "O seu atendimento do *RG (Carteira de Identidade)* na Câmara de Itanhandu é hoje.",
+          "Passando para lembrar: hoje é o seu atendimento do *RG (Carteira de Identidade)* na Câmara de Itanhandu."
+        ], v / 3)}`,
         "",
         detalhes,
         "",
@@ -429,6 +462,24 @@ function criarServicoWhatsappCin({
     const { dataISO: hojeISO, hora, minuto } = agoraEmSaoPaulo(inicio);
     if (hora < HORA_INICIO_ENVIO || hora > HORA_FIM_ENVIO) return resumo;
 
+    const disjuntorRef = db.collection(COLECAO_CONTROLE).doc("disjuntor");
+    const contagemRef = db.collection(COLECAO_CONTROLE).doc(`dia_${hojeISO}`);
+    const controle = await db.runTransaction(async (t) => {
+      const d = await t.get(disjuntorRef);
+      const c = await t.get(contagemRef);
+      return {
+        disjuntor: d.exists && d.data().ativo === true,
+        enviadosHoje: c.exists ? Number(c.data().enviados) || 0 : 0
+      };
+    });
+    if (controle.disjuntor) {
+      resumo.disjuntor = true;
+      logger.error("whatsapp-cin: disjuntor ligado, nada sai (apague whatsapp_controle/disjuntor depois de conferir o celular e o WAHA)");
+      return resumo;
+    }
+    let enviadosHoje = controle.enviadosHoje;
+    let falhasSeguidas = 0;
+
     resumo.lembretes = await enfileirarLembretes(hojeISO, minuto, config);
     if (hora >= HORA_AVALIACAO) resumo.avaliacoes = await enfileirarAvaliacoes(hojeISO, config);
 
@@ -439,7 +490,14 @@ function criarServicoWhatsappCin({
 
     let enviouAlgum = false;
     for (let i = 0; i < fila.length; i += 1) {
-      if (agora() - inicio > ORCAMENTO_RODADA_MS) {
+      if (enviadosHoje >= LIMITE_DIARIO) {
+        resumo.limiteDiario = true;
+        resumo.restantes = fila.length - i;
+        break;
+      }
+      // A pausa e sorteada antes: so comeca a mensagem se pausa + envio cabem.
+      const pausa = enviouAlgum ? PAUSA_MIN_MS + Math.floor(sortear() * (PAUSA_MAX_MS - PAUSA_MIN_MS)) : 0;
+      if (agora() - inicio + pausa > ORCAMENTO_RODADA_MS) {
         resumo.restantes = fila.length - i;
         break;
       }
@@ -447,17 +505,42 @@ function criarServicoWhatsappCin({
       if (!vez) continue;
       if (!vez.dados) { resumo.descartados += 1; continue; }
 
-      if (enviouAlgum) await esperar(PAUSA_MIN_MS + Math.floor(sortear() * (PAUSA_MAX_MS - PAUSA_MIN_MS)));
+      if (pausa) await esperar(pausa);
       const telefone = telefoneWhatsApp(vez.dados.telefone);
       const resultado = telefone
-        ? await enviarAoN8n(config, { chave: fila[i].ref.id, tipo: vez.envio.tipo, telefone, texto: montarMensagem(vez.envio.tipo, vez.dados, { googleUrl: config.googleUrl }) })
+        ? await enviarAoN8n(config, {
+          chave: fila[i].ref.id,
+          tipo: vez.envio.tipo,
+          telefone,
+          texto: montarMensagem(vez.envio.tipo, vez.dados, { googleUrl: config.googleUrl, variante: varianteDaChave(fila[i].ref.id) })
+        })
         : { status: "sem_celular" };
       enviouAlgum = true;
       await fila[i].ref.update({ ...resultado, atualizadoEm: FieldValue.serverTimestamp() });
-      if (resultado.status === "enviado") resumo.enviados += 1;
-      else {
-        resumo.outros[resultado.status] = (resumo.outros[resultado.status] || 0) + 1;
-        logger.warn("whatsapp-cin: envio nao concluido", { chave: fila[i].ref.id, status: resultado.status, detalhe: resultado.detalhe || "" });
+      if (resultado.status === "enviado") {
+        resumo.enviados += 1;
+        enviadosHoje += 1;
+        falhasSeguidas = 0;
+        await db.runTransaction(async (t) => {
+          t.set(contagemRef, { dataISO: hojeISO, enviados: enviadosHoje, atualizadoEm: FieldValue.serverTimestamp() });
+        });
+        continue;
+      }
+      resumo.outros[resultado.status] = (resumo.outros[resultado.status] || 0) + 1;
+      logger.warn("whatsapp-cin: envio nao concluido", { chave: fila[i].ref.id, status: resultado.status, detalhe: resultado.detalhe || "" });
+      falhasSeguidas = STATUS_FALHA.has(resultado.status) ? falhasSeguidas + 1 : 0;
+      if (falhasSeguidas >= FALHAS_PARA_DISJUNTOR) {
+        await db.runTransaction(async (t) => {
+          t.set(disjuntorRef, {
+            ativo: true,
+            motivo: `${falhasSeguidas} falhas seguidas; ultima: ${resultado.status} ${resultado.detalhe || ""}`.trim().slice(0, 300),
+            em: FieldValue.serverTimestamp()
+          });
+        });
+        resumo.disjuntor = true;
+        resumo.restantes = fila.length - i - 1;
+        logger.error("whatsapp-cin: disjuntor ligado depois de falhas seguidas; envio parado", { ultima: resultado.status, detalhe: resultado.detalhe || "" });
+        break;
       }
     }
     return resumo;
@@ -495,6 +578,10 @@ async function limparEnviosAntigos(db, corteISO, { pagina = LIMPEZA_PAGINA, maxi
 
 module.exports = {
   limparEnviosAntigos,
+  COLECAO_CONTROLE,
+  LIMITE_DIARIO,
+  FALHAS_PARA_DISJUNTOR,
+  varianteDaChave,
   COLECAO_ENVIOS,
   COLECAO_AVALIACAO_DESTINATARIOS,
   CONVITE_WHATSAPP_ALCANCOU,

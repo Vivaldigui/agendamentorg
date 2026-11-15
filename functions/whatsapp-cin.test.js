@@ -9,6 +9,9 @@ const {
   RODAPE,
   PAUSA_MIN_MS,
   PAUSA_MAX_MS,
+  LIMITE_DIARIO,
+  FALHAS_PARA_DISJUNTOR,
+  varianteDaChave,
   agoraEmSaoPaulo,
   dataPorExtenso,
   horaFalada,
@@ -202,22 +205,31 @@ test("rodada: 25 confirmacoes da abertura saem aos poucos, na ordem, sem estoura
     await servico.enfileirar("confirmacao", id, agendar(registros, id, {}), config);
   }
   const primeira = await servico.processarFila(config);
-  assert.ok(primeira.enviados >= 8 && primeira.enviados < 25, `rodada mandou ${primeira.enviados}`);
+  assert.ok(primeira.enviados >= 3 && primeira.enviados <= 5, `rodada mandou ${primeira.enviados}`);
   assert.equal(primeira.restantes, 25 - primeira.enviados);
   assert.ok(pausas.every((ms) => ms >= PAUSA_MIN_MS && ms <= PAUSA_MAX_MS), "pausa entre mensagens");
   assert.equal(pausas.length, primeira.enviados - 1, "sem pausa antes da primeira");
   assert.deepEqual(chamadas.map((c) => c.corpo.chave.split("_")[1]), [...Array(primeira.enviados).keys()].map((i) => `ag${String(i).padStart(2, "0")}`));
   assert.equal(chamadas[0].options.headers["X-Cin-Token"], CONFIG.token);
   assert.equal(chamadas[0].corpo.telefone, TEL);
-  assert.match(chamadas[0].corpo.texto, /está confirmado/);
+  assert.match(chamadas[0].corpo.texto, /confirma/i);
 
-  // Rodadas a cada 5 min (8h05, 8h10, 8h15...): a fila acaba ate a terceira.
+  // Rodadas a cada 5 min (8h05, 8h10...): com 45 a 90 s entre mensagens, as 25
+  // confirmacoes acabam em ate 8 rodadas (~8h40).
   let total = primeira.enviados;
-  for (let rodada = 2; rodada <= 3 && total < 25; rodada += 1) {
+  let rodadas = 1;
+  while (total < 25 && rodadas < 8) {
     total += (await servico.processarFila(config)).enviados;
+    rodadas += 1;
   }
-  assert.equal(total, 25, "tres rodadas terminam a fila");
+  assert.equal(total, 25, `${rodadas} rodadas terminam a fila`);
   assert.equal(chamadas.length, 25, "ninguem recebe duas vezes");
+  assert.equal(registros.get(`whatsapp_controle/dia_${HOJE}`).enviados, 25, "contagem do dia");
+  const textos = new Set(chamadas.map((c) => c.corpo.texto.replace(/ag\d+|CIN-ABC123/g, "")));
+  assert.ok(textos.size >= 3, `textos variam (${textos.size} versoes)`);
+  for (const c of chamadas) {
+    assert.equal((c.corpo.texto.match(/https?:\/\//g) || []).length, 1, "um link so (o de cancelar)");
+  }
 });
 
 test("rodada: confirmacao de quem ja cancelou e descartada; o cancelamento sai", async () => {
@@ -403,4 +415,57 @@ test("manutencao diaria chama a limpeza da fila com o prazo da LGPD", () => {
   const manutencao = index.slice(index.indexOf("exports.executarManutencaoDiaria"), index.indexOf("async function limparFilaWhatsappAntiga"));
   assert.match(manutencao, /await limparFilaWhatsappAntiga\(\);/);
   assert.match(index, /subtrairMesesISO\(hojeSaoPauloISO\(\), LGPD_RETENCAO_MESES\);\s*let apagados = 0;\s*try \{\s*apagados = await limparEnviosAntigos\(db, corte\);/);
+});
+
+test("rodada: teto de mensagens por dia deixa o resto na fila", async () => {
+  const { registros, chamadas, servico } = ambiente();
+  const config = { ...CONFIG, modo: "ativo" };
+  registros.set(`whatsapp_controle/dia_${HOJE}`, { enviados: LIMITE_DIARIO - 1 });
+  for (const id of ["a1", "a2", "a3"]) await servico.enfileirar("confirmacao", id, agendar(registros, id, {}), config);
+  const r = await servico.processarFila(config);
+  assert.equal(r.enviados, 1);
+  assert.equal(r.limiteDiario, true);
+  assert.equal(r.restantes, 2);
+  assert.equal(chamadas.length, 1);
+  assert.equal(registros.get(`whatsapp_controle/dia_${HOJE}`).enviados, LIMITE_DIARIO);
+});
+
+test("rodada: disjuntor para depois de falhas seguidas e segura as rodadas seguintes", async () => {
+  const a = ambiente({ resposta: { ok: false, status: 502, corpo: {} } });
+  const config = { ...CONFIG, modo: "ativo" };
+  for (const id of ["b1", "b2", "b3", "b4", "b5"]) await a.servico.enfileirar("confirmacao", id, agendar(a.registros, id, {}), config);
+  const r = await a.servico.processarFila(config);
+  assert.equal(r.disjuntor, true);
+  assert.equal(a.chamadas.length, FALHAS_PARA_DISJUNTOR, "para na terceira falha");
+  assert.equal(a.registros.get("whatsapp_controle/disjuntor").ativo, true);
+  const depois = await a.servico.processarFila(config);
+  assert.equal(depois.disjuntor, true);
+  assert.equal(a.chamadas.length, FALHAS_PARA_DISJUNTOR, "nada sai com o disjuntor ligado");
+  assert.equal(a.registros.get("whatsapp_envios/confirmacao_b4_2026-11-20_0930").status, "pendente", "o resto espera na fila");
+});
+
+test("rodada: numero sem WhatsApp ou que saiu nao arma o disjuntor", async () => {
+  const a = ambiente({ resposta: { ok: true, status: 200, corpo: { enviado: false, motivo: "sem_whatsapp" } } });
+  const config = { ...CONFIG, modo: "ativo" };
+  for (const id of ["c1", "c2", "c3", "c4"]) await a.servico.enfileirar("confirmacao", id, agendar(a.registros, id, {}), config);
+  const r = await a.servico.processarFila(config);
+  assert.notEqual(r.disjuntor, true);
+  assert.equal(a.registros.has("whatsapp_controle/disjuntor"), false);
+});
+
+test("variacoes: a variante 0 e o texto de referencia e as outras mudam saudacao e abertura", () => {
+  assert.equal(montarMensagem("confirmacao", AG), montarMensagem("confirmacao", AG, { variante: 0 }));
+  assert.match(montarMensagem("confirmacao", AG, { variante: 1 }), /Oi, \*Maria\*!/);
+  assert.match(montarMensagem("confirmacao", AG, { variante: 2 }), /\*Maria\*, tudo bem\?/);
+  assert.match(montarMensagem("lembrete", AG, { variante: 4 }), /é hoje\./);
+  for (let v = 0; v < 27; v += 1) {
+    for (const tipo of ["confirmacao", "lembrete"]) {
+      const t = montarMensagem(tipo, AG, { variante: v });
+      assert.match(t, /\*sexta-feira, 20\/11, às 9h30\*/);
+      assert.match(t, /Protocolo: \*CIN-ABC123\*/);
+      assert.ok(t.endsWith(RODAPE));
+      assert.equal((t.match(/https?:\/\//g) || []).length, 1);
+    }
+  }
+  assert.equal(varianteDaChave("x"), varianteDaChave("x"), "mesma chave, mesmo texto");
 });
