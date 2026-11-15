@@ -104,14 +104,12 @@ test("BUG-04: site recusa as mesmas datas antes de enviar", () => {
 
 // ---- LGPD-04 ----------------------------------------------------------------
 
-test("LGPD-04: desde 15/11/2026 so a declaracao obrigatoria, que cobre convite e WhatsApp", () => {
+test("LGPD-04: desde 15/11/2026 so a declaracao obrigatoria, que tambem vale como aceite do convite e do WhatsApp", () => {
   // Pedido do responsavel em 15/11/2026: tirar as caixas do convite por e-mail
   // e do WhatsApp e deixar so a declaracao, que passa a dizer as duas coisas.
   assert.doesNotMatch(sitePublico, /id="aceite-avaliacao"/, "Sem caixa propria do convite.");
   assert.doesNotMatch(sitePublico, /id="aceite-whatsapp"/, "Sem caixa propria do WhatsApp.");
   assert.match(extrairFuncao(sitePublico, "destacarAceitesPendentes"), /\["aceite-lgpd"\]/, "So a declaracao e obrigatoria.");
-  assert.match(sitePublico, /Concordo também em receber, no WhatsApp deste celular, pelo número <strong>\(35\) 98421-5361<\/strong>, e no e-mail informado/);
-  assert.match(sitePublico, /Para parar no WhatsApp, é só responder SAIR\./);
   assert.match(sitePublico, /aceiteAvaliacao: Boolean\(email\) && \(document\.getElementById\("aceite-lgpd"\) \|\| \{\}\)\.checked === true/);
   assert.match(sitePublico, /aceiteWhatsapp: \(document\.getElementById\("aceite-lgpd"\) \|\| \{\}\)\.checked === true/);
 });

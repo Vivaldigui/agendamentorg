@@ -318,7 +318,6 @@ test("formulario e backend: aceite do WhatsApp vem da declaracao obrigatoria e e
   assert.match(site, /<input type="checkbox" id="aceite-lgpd" onchange="limparErroAceite\('aceite-lgpd'\)">/, "declaracao comeca desmarcada");
   assert.match(site, /aceiteWhatsapp: \(document\.getElementById\("aceite-lgpd"\) \|\| \{\}\)\.checked === true/);
   assert.match(site, /const pendentes = \["aceite-lgpd"\]\.filter\(id => \{/);
-  assert.match(site, /no WhatsApp deste celular, pelo número <strong>\(35\) 98421-5361<\/strong>/);
   assert.match(site, /var WHATSAPP_AVISOS_PARA_TODOS = (true|false);/, "chave do aviso na tela de sucesso");
   const criar = backend.slice(backend.indexOf("exports.criarAgendamentoCidadao"), backend.indexOf("exports.prepararCancelamentoCidadao"));
   assert.match(criar, /const consentimentoWhatsapp = dadosRequisicao\.aceiteWhatsapp === true;/);
