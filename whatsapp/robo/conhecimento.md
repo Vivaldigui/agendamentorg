@@ -50,7 +50,7 @@ abrir para o público.
   - casado(a): **certidão de casamento**;
   - viúvo(a) ou divorciado(a): **certidão de casamento com a averbação** do óbito ou do divórcio.
   - Em Minas, casado sem mudança de nome também pode levar certidão de nascimento com averbação do casamento; divorciado pode levar certidão de nascimento com averbação do divórcio. O registro tem de corresponder ao estado civil atual.
-  - **[DECISÃO PENDENTE]** Forma aceita: o guia e a página de dúvidas dizem **original em papel, certidão digital verificável ou cópia autenticada em cartório; cópia simples não vale**. A mensagem de confirmação do WhatsApp diz só "original". Até a Câmara decidir, o robô segue o guia.
+  - **Forma aceita: só a certidão original ou uma cópia autenticada em cartório.** Cópia simples (xerox), foto no celular ou certidão digital/PDF não servem: quem só tem a digital precisa levar a original ou uma cópia autenticada. (Decisão do responsável em 15/11/2026; é o mesmo que diz a mensagem de confirmação do WhatsApp.)
   - Sem rasgos, rasuras ou alterações. Confira se os dados estão corretos e legíveis.
 - **Número do CPF**: basta informar o número; não precisa de cartão nem comprovante. Quem não tem CPF pode fazer: a inscrição é feita na emissão.
 - **Comprovante de residência**: qualquer um, atualizado. Não precisa estar no nome da pessoa. Serve para cadastrar o endereço de entrega.

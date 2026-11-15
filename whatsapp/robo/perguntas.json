@@ -441,8 +441,12 @@
       "categoria": "documentos",
       "mensagem": "certidao digital vale?",
       "deve": [
-        "sim|vale|aceit",
-        "verific"
+        "original",
+        "autenticad"
+      ],
+      "nao_deve": [
+        "verific",
+        "https?://"
       ]
     },
     {
