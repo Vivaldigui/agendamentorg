@@ -67,8 +67,10 @@ const avaliacaoDestinatarioChave = defineSecret("AVALIACAO_DESTINATARIO_CHAVE");
 const servicoAvaliacaoGoogle = criarServicoAvaliacao({ db, Timestamp });
 const registrarMetricaAbertura = criarRegistradorMetricas({ db, FieldValue });
 
+// 18h: uma hora depois do convite pelo WhatsApp (17h), que tem prioridade; o
+// e-mail so vai para quem o WhatsApp nao alcancou.
 exports.enviarAvaliacoesGooglePendentes = onSchedule({
-  schedule: "0 17 * * *",
+  schedule: "0 18 * * *",
   timeZone: "America/Sao_Paulo",
   region: "southamerica-east1",
   maxInstances: 1,
@@ -99,7 +101,8 @@ function configWhatsappCin() {
     modo: whatsappCinModo.value(),
     telefonesTeste: whatsappCinTelefonesTeste.value(),
     webhookUrl: whatsappCinWebhookUrl.value(),
-    token: whatsappCinToken.value()
+    token: whatsappCinToken.value(),
+    googleUrl: avaliacaoGoogleUrl.value()
   };
 }
 
@@ -135,7 +138,7 @@ exports.processarFilaWhatsappCin = onSchedule({
 }, async () => {
   if (whatsappCinModo.value() === "desligado") return;
   const resumo = await servicoWhatsappCin.processarFila(configWhatsappCin());
-  if ((resumo.lembretes && resumo.lembretes.na_fila) || resumo.enviados || resumo.descartados || resumo.restantes || Object.keys(resumo.outros).length) {
+  if ((resumo.lembretes && resumo.lembretes.na_fila) || (resumo.avaliacoes && resumo.avaliacoes.na_fila) || resumo.enviados || resumo.descartados || resumo.restantes || Object.keys(resumo.outros).length) {
     console.log("whatsapp-cin: rodada", JSON.stringify(resumo));
   }
 });

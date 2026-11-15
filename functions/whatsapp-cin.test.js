@@ -4,6 +4,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   COLECAO_ENVIOS,
+  COLECAO_AVALIACAO_DESTINATARIOS,
   LINK_CANCELAR,
   RODAPE,
   PAUSA_MIN_MS,
@@ -315,4 +316,46 @@ test("formulario e backend: caixa obrigatoria quando aparece, desmarcada, escond
   assert.match(criar, /\.\.\.\(consentimentoWhatsapp \? \{ avisoWhatsapp: true, avisoWhatsappEm: criado \} : \{\}\)/);
   const regras = fs.readFileSync(path.join(__dirname, "..", "firestore.rules"), "utf8");
   assert.match(regras, /match \/whatsapp_envios\/\{documentId\} \{\s*allow read, write: if false;/);
+});
+
+test("avaliacao: texto com o link, voluntario e sem dado pessoal", () => {
+  const texto = montarMensagem("avaliacao", AG, { googleUrl: "https://g.page/r/exemplo/review" });
+  assert.match(texto, /^⭐ \*Como foi o seu atendimento\?\*\n\nOlá, \*Maria\*!/);
+  assert.match(texto, /👉 https:\/\/g\.page\/r\/exemplo\/review/);
+  assert.match(texto, /É voluntário/);
+  assert.ok(texto.endsWith(RODAPE));
+  assert.doesNotMatch(texto, /123\.456|1960|CIN-ABC/);
+  assert.match(montarMensagem("avaliacao", AG), /g\.page\/r\/CfugOJBgujYPEBM\/review/, "link padrao");
+});
+
+test("rodada: convite de avaliacao as 17h para todos que compareceram, um por celular", async () => {
+  // 16/11 17:10 em Sao Paulo.
+  const config = { ...CONFIG, modo: "ativo", googleUrl: "https://g.page/r/exemplo/review" };
+  const { registros, chamadas, servico } = ambiente({ agora: Date.parse("2026-11-16T20:10:00Z") });
+  agendar(registros, "a", { dataISO: HOJE, status: "compareceu" });
+  agendar(registros, "b", { dataISO: HOJE, status: "compareceu", telefone: "(11) 97777-6666", consentimentoAvaliacao: true, email: "b@exemplo.test" });
+  agendar(registros, "c", { dataISO: HOJE, status: "agendado", telefone: "(11) 96666-5555" });
+  agendar(registros, "d", { dataISO: HOJE, status: "compareceu" }); // mesmo celular de "a" (familia)
+  agendar(registros, "f", { dataISO: HOJE, status: "compareceu", telefone: "(11) 98888-7777" });
+  agendar(registros, "g", { dataISO: HOJE, status: "nao_compareceu", telefone: "(11) 95555-4444" });
+  const r = await servico.processarFila(config);
+  assert.deepEqual(r.avaliacoes, { total: 4, na_fila: 3 }, "a, b e f; d e o mesmo celular de a; b vai pelo WhatsApp mesmo com e-mail");
+  assert.equal(r.enviados, 3);
+  assert.equal(registros.get(`${COLECAO_ENVIOS}/avaliacao_d_${HOJE}_0930`).status, "ja_convidado", "registrado para o e-mail nao repetir");
+  assert.ok(chamadas.every((c) => c.corpo.tipo === "avaliacao"));
+  assert.match(chamadas[0].corpo.texto, /g\.page\/r\/exemplo\/review/);
+  const destinatarios = [...registros.keys()].filter((k) => k.startsWith(`${COLECAO_AVALIACAO_DESTINATARIOS}/`));
+  assert.equal(destinatarios.length, 3);
+  assert.ok(destinatarios.every((k) => !k.includes("98765") && !k.includes("98888")), "sem o numero em claro");
+  const deNovo = await servico.processarFila(config);
+  assert.deepEqual(deNovo.avaliacoes, { total: 4, na_fila: 0 });
+  assert.equal(chamadas.length, 3);
+});
+
+test("rodada: antes das 17h nao entra convite de avaliacao", async () => {
+  const a = ambiente({ agora: Date.parse("2026-11-16T19:55:00Z") });
+  agendar(a.registros, "a", { dataISO: HOJE, status: "compareceu" });
+  const r = await a.servico.processarFila(CONFIG);
+  assert.equal(r.avaliacoes, null);
+  assert.equal(a.chamadas.length, 0);
 });

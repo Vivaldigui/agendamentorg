@@ -3,6 +3,10 @@
 Link de avaliação configurado:
 https://g.page/r/CfugOJBgujYPEBM/review
 
+**Desde 15/11/2026 o WhatsApp tem prioridade:** o convite sai às 17h pelo WhatsApp da CIN
+(`functions/whatsapp-cin.js`) para todos que compareceram, e este e-mail passou para as **18h**,
+só para quem o WhatsApp não alcançou (sem WhatsApp, respondeu SAIR, erro, modo de teste).
+
 Webhook de produção:
 https://sucupira-naturale-n8n.kip816.easypanel.host/webhook/cin-avaliacao-google
 

@@ -136,6 +136,23 @@ test("processa às 17h todos os comparecimentos do dia com email valido", async 
   assert.equal(a.pedido("sem-email"), undefined);
 });
 
+test("WhatsApp tem prioridade: e-mail so para quem o WhatsApp nao alcancou", async () => {
+  const chave = "whatsapp_envios/avaliacao_ag1_2026-09-16_";
+  for (const status of ["enviado", "pendente", "enviando", "revisar", "ja_convidado"]) {
+    const a = ambiente();
+    a.registros.set(chave, { tipo: "avaliacao", agendamentoId: "ag1", status });
+    await a.processarData(DATA, CONFIG);
+    assert.equal(a.chamadas.length, 0, `${status}: nao manda o e-mail`);
+    assert.equal(a.pedido().motivo, "convidado_pelo_whatsapp");
+  }
+  for (const status of ["sem_whatsapp", "saiu", "erro", "descartado"]) {
+    const a = ambiente();
+    a.registros.set(chave, { tipo: "avaliacao", agendamentoId: "ag1", status });
+    await a.processarData(DATA, CONFIG);
+    assert.equal(a.chamadas.length, 1, `${status}: o e-mail e a reserva`);
+  }
+});
+
 test("revalida o cadastro dentro da transacao e nao envia registro inelegivel", async () => {
   for (const alteracao of [
     { status: "cancelado" },
@@ -289,9 +306,9 @@ test("workflow aceita confirmacao recente no lote das 17h e confirma o SMTP", ()
   assert.throws(() => executarNode("Preparar convite", { body: { ...body, confirmadoEm: new Date(Date.now() + 10 * 60 * 1000).toISOString() } }));
 });
 
-test("scheduler está configurado para 17h de São Paulo", () => {
+test("scheduler está configurado para 18h de São Paulo (depois do WhatsApp das 17h)", () => {
   const index = fs.readFileSync(require.resolve("./index"), "utf8");
-  assert.match(index, /schedule:\s*"0 17 \* \* \*"/);
+  assert.match(index, /exports\.enviarAvaliacoesGooglePendentes = onSchedule\(\{\s*schedule:\s*"0 18 \* \* \*"/);
   assert.match(index, /timeZone:\s*"America\/Sao_Paulo"/);
   assert.doesNotMatch(index, /exports\.agendarAvaliacaoGoogle/);
 });
