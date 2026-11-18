@@ -1,7 +1,7 @@
 # Plano: mensagens curtas no WhatsApp da CIN (Cidinho e avisos)
 
 18/11/2026. Pedido: "as mensagens estão muito grandes, poluídas, muita informação, ninguém lê".
-Nada aplicado ainda.
+**Aplicado em 18/11/2026 ~15h15** (main 1191ce2 + 9cf3ce5): functions `processarFilaWhatsappCin` e `avisarWhatsappAgendamento` publicadas; fluxos `CinWhatsEntrada1` e `CinCidinhoIA0001` importados, publicados e n8n reiniciado. Decisões do responsável: certidão por estado civil só na opção 2; SAIR só na confirmação (e no RG pronto, que vai também para quem não marcou a caixa); **só números**, sem lista nem botões. A opção 6 (ou ATENDENTE) avisa o responsável pelo WhatsApp (5535999901497), uma vez por conversa de 24 h, com o telefone, link wa.me e as últimas mensagens da pessoa.
 
 ## O que está errado hoje
 
