@@ -33,7 +33,7 @@ const LINK_DOCUMENTOS = `${SITE}/cin/dia-do-atendimento/`;
 const LINK_CANCELAR = `${SITE}/cin/consultar-ou-cancelar/`;
 const ENDERECO = "Rua Eng. Paulo Franco da Rosa, 298, Centro";
 const TELEFONE_CAMARA = "(35) 3504-0397";
-const RODAPE = "Para não receber mais avisos por aqui, responda SAIR.";
+const RODAPE = "Para parar os avisos, *SAIR*.";
 const MODOS = new Set(["desligado", "ensaio", "ativo"]);
 const TIPOS = new Set(["confirmacao", "lembrete", "cancelado_camara", "cancelado_cidadao", "avaliacao", "rg_pronto"]);
 // Aviso de "RG pronto para retirar": a recepcao marca no painel (aba RG pronto)
@@ -42,7 +42,7 @@ const TIPOS = new Set(["confirmacao", "lembrete", "cancelado_camara", "cancelado
 // "para a Camara entrar em contato", e e exatamente isso. Quem respondeu SAIR
 // nao recebe (o n8n confere).
 const TIPOS_SEM_ACEITE = new Set(["rg_pronto"]);
-const HORARIO_RETIRADA = "de segunda a sexta, das *8h às 12h* e das *14h às 17h*";
+const HORARIO_RETIRADA = "Seg a sex, *8h às 12h* e *14h às 17h*";
 const STATUS_VALENDO = new Set(["agendado", "remarcado"]);
 const DIAS_SEMANA = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
 const FUSO_HORARIO = "America/Sao_Paulo";
@@ -143,20 +143,6 @@ function listaTelefonesTeste(texto) {
   return new Set(String(texto || "").split(/[,;\s]+/).map(telefoneWhatsApp).filter(Boolean));
 }
 
-// Documentos que a pessoa leva (confirmacao e lembrete). Asteriscos = negrito
-// no WhatsApp.
-const O_QUE_LEVAR = [
-  "📄 *O que levar:*",
-  "• *Certidão de nascimento ou de casamento*, *original ou cópia autenticada*, sem rasgos nem rasuras, de acordo com o seu estado civil:",
-  "   – solteiro(a) ou união estável: *nascimento*",
-  "   – casado(a): *casamento*",
-  "   – viúvo(a) ou divorciado(a): *casamento com a averbação*",
-  "• *Número do CPF*",
-  "• *Comprovante de endereço*"
-];
-// Um link so por mensagem (o de cancelar): mensagem de numero novo cheia de
-// links tem cara de propaganda.
-
 // Variacoes de texto, para nao sair a mesma mensagem para todo mundo. A
 // variante 0 e o texto de referencia; a rotina escolhe pela chave do envio.
 function escolher(lista, variante) {
@@ -167,110 +153,71 @@ function varianteDaChave(chave) {
   return parseInt(require("node:crypto").createHash("sha1").update(String(chave)).digest("hex").slice(0, 8), 16);
 }
 
+// Mensagens curtas desde 18/11/2026 (pedido do responsavel: "ninguem le"): o mais
+// importante na 1a linha, no maximo ~6 linhas, um link so. O detalhe da certidao
+// por estado civil saiu daqui e ficou na opcao 2 do menu do Cidinho. SAIR so na
+// confirmacao (primeiro contato) e no RG pronto (vai tambem para quem nao marcou a
+// caixa); o comando continua valendo em qualquer mensagem.
 function montarMensagem(tipo, dados, extras = {}) {
   const nome = primeiroNome(dados.nome);
   const v = extras.variante || 0;
-  const ola = escolher(nome
-    ? [`Olá, *${nome}*!`, `Oi, *${nome}*!`, `*${nome}*, tudo bem?`]
-    : ["Olá!", "Oi!", "Tudo bem?"], v);
-  const quando = `*${dataPorExtenso(dados.dataISO)}, às ${horaFalada(dados.hora)}*`;
-  const detalhes = [
-    `📅 ${quando}`,
-    `📍 ${ENDERECO}`,
-    ...(dados.protocolo ? [`🔖 Protocolo: *${dados.protocolo}*`] : [])
-  ];
-  const cancelar = `⚠️ *Não vai poder ir?* Cancele para liberar a vaga: ${LINK_CANCELAR}`;
+  const dia = dataPorExtenso(dados.dataISO).replace("-feira", "");
+  const quando = `${dia}, às ${horaFalada(dados.hora)}`;
   const linhas = (...partes) => partes.flat().join("\n");
+  // "Maria, seu RG..." (sigla no comeco, como "RG", nao vira minuscula).
+  const comNome = (texto) => {
+    if (!nome) return texto;
+    const sigla = /^\p{Lu}{2}/u.test(texto);
+    return `${nome}, ${sigla ? texto : texto.charAt(0).toLocaleLowerCase("pt-BR") + texto.slice(1)}`;
+  };
 
   switch (tipo) {
     case "confirmacao":
       return linhas(
-        escolher(["✅ *Agendamento confirmado*", "✅ *Seu agendamento está confirmado*", "📌 *Agendamento confirmado*"], v),
+        `✅ *${comNome(escolher(["Seu RG está agendado", "Seu RG foi agendado", "Agendamento do RG confirmado"], v))}: ${quando}*`,
+        `📍 Câmara de Itanhandu – ${ENDERECO}`,
+        ...(dados.protocolo ? [`Código: ${dados.protocolo}`] : []),
         "",
-        `${ola} ${escolher([
-          "Seu agendamento do *RG (Carteira de Identidade)* na Câmara de Itanhandu está confirmado.",
-          "Está confirmado o seu agendamento do *RG (Carteira de Identidade)* na Câmara de Itanhandu.",
-          "Recebemos e confirmamos o seu agendamento do *RG (Carteira de Identidade)* na Câmara de Itanhandu."
-        ], v / 3)}`,
+        "Leve:",
+        "• *Certidão original* ou autenticada (nascimento ou casamento)",
+        "• Número do CPF",
+        "• Comprovante de endereço",
         "",
-        detalhes,
-        "",
-        O_QUE_LEVAR,
-        "",
-        cancelar,
-        "",
-        escolher(["🔔 No dia do atendimento, mandamos um lembrete por aqui.", "🔔 No dia do atendimento, você recebe um lembrete por aqui.", "🔔 No dia, mandamos um lembrete por aqui."], v / 9),
-        RODAPE
+        `Não pode ir? Cancele aqui: ${LINK_CANCELAR}`,
+        `Dúvida? Responda *MENU*. ${RODAPE}`
       );
     case "lembrete":
       return linhas(
-        escolher(["🔔 *Lembrete: seu atendimento é HOJE*", "🔔 *Seu atendimento é HOJE*", "⏰ *Lembrete: seu atendimento é HOJE*"], v),
+        `⏰ *${comNome(escolher(["Seu RG é hoje", "Hoje é o seu RG", "Seu atendimento do RG é hoje"], v))}, às ${horaFalada(dados.hora)}*`,
+        `📍 Câmara de Itanhandu. Chegue 5 minutos antes.`,
         "",
-        `${ola} ${escolher([
-          "Hoje é o seu atendimento do *RG (Carteira de Identidade)* na Câmara de Itanhandu.",
-          "O seu atendimento do *RG (Carteira de Identidade)* na Câmara de Itanhandu é hoje.",
-          "Passando para lembrar: hoje é o seu atendimento do *RG (Carteira de Identidade)* na Câmara de Itanhandu."
-        ], v / 3)}`,
+        "📄 *Sem a certidão original (ou autenticada), não dá para fazer.*",
+        "Leve também o CPF e o comprovante de endereço.",
         "",
-        detalhes,
-        "",
-        "‼️ *NÃO ESQUEÇA A CERTIDÃO!* ‼️",
-        "Sem a *certidão de nascimento ou de casamento* (original ou cópia autenticada), *não dá para fazer o RG*.",
-        "",
-        O_QUE_LEVAR,
-        "",
-        cancelar,
-        "",
-        RODAPE
+        `Não vai? Cancele: ${LINK_CANCELAR}`
       );
     case "cancelado_camara":
       return linhas(
-        "🚫 *Agendamento cancelado*",
-        "",
-        `${ola} Seu agendamento do RG de ${quando} foi *cancelado pela Câmara de Itanhandu*.`,
-        "",
-        `🗓️ Para marcar outro dia: ${SITE}`,
-        `📞 Dúvidas: ${TELEFONE_CAMARA}`,
-        "",
-        RODAPE
+        comNome(`A Câmara *cancelou* seu RG de ${quando}.`),
+        `Para marcar de novo: ${SITE}`,
+        `Dúvidas: ${TELEFONE_CAMARA}`
       );
     case "cancelado_cidadao":
       return linhas(
-        "🚫 *Agendamento cancelado*",
-        "",
-        `${ola} Seu agendamento do RG de ${quando} foi *cancelado*, como você pediu.`,
-        "",
-        `🗓️ Para marcar outro dia: ${SITE}`,
-        "",
-        RODAPE
+        `${comNome(`Seu RG de ${quando} foi *cancelado*.`)}`,
+        `Novas vagas toda segunda, às 8h: ${SITE}`
       );
     case "rg_pronto":
       return linhas(
-        escolher(["🎉 *Seu RG está pronto!*", "🎉 *Sua carteira de identidade chegou!*", "📬 *Seu RG está pronto para retirar*"], v),
-        "",
-        `${ola} ${escolher([
-          "A sua *Carteira de Identidade (CIN)* chegou na Câmara de Itanhandu e já pode ser retirada.",
-          "A sua *Carteira de Identidade (CIN)* já está na Câmara de Itanhandu, pronta para retirar.",
-          "Chegou na Câmara de Itanhandu a sua *Carteira de Identidade (CIN)*. Já pode buscar."
-        ], v / 3)}`,
-        "",
-        `🕗 *Retirada:* ${HORARIO_RETIRADA}`,
-        `📍 ${ENDERECO}`,
-        "",
-        `📞 Dúvidas: ${TELEFONE_CAMARA}`,
+        `🎉 *${comNome(escolher(["Seu RG chegou!", "Seu RG está pronto!", "Sua identidade chegou!"], v))}* Já pode buscar na Câmara.`,
+        `${HORARIO_RETIRADA}. ${ENDERECO}.`,
         "",
         RODAPE
       );
     case "avaliacao":
       return linhas(
-        "⭐ *Como foi o seu atendimento?*",
-        "",
-        `${ola} Você fez seu *RG (Carteira de Identidade)* na Câmara de Itanhandu. Se puder, conte como foi no Google. Leva menos de 1 minuto:`,
-        `👉 ${extras.googleUrl || LINK_AVALIACAO_PADRAO}`,
-        "",
-        "É voluntário e nos ajuda a melhorar o atendimento. Este é um convite único.",
-        "",
-        RODAPE
+        `${comNome("Como foi o seu atendimento do RG?")} Conte no Google, leva 1 minuto:`,
+        extras.googleUrl || LINK_AVALIACAO_PADRAO
       );
     default:
       throw new Error(`Tipo de mensagem desconhecido: ${tipo}`);

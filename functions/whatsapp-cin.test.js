@@ -62,25 +62,37 @@ test("formatos de data, hora, nome e telefone", () => {
   assert.deepEqual(agoraEmSaoPaulo(Date.parse("2026-11-17T01:30:00Z")), { dataISO: HOJE, hora: 22, minuto: 22 * 60 + 30 });
 });
 
-test("toda mensagem tem nome, data, rodape e nunca CPF nem nascimento", () => {
-  for (const tipo of ["confirmacao", "lembrete", "cancelado_camara", "cancelado_cidadao"]) {
-    const texto = montarMensagem(tipo, AG);
-    assert.match(texto, /^(✅|🔔|🚫) \*[^*]+\*\n\nOlá, \*Maria\*!/, tipo);
-    assert.match(texto, /\*sexta-feira, 20\/11, às 9h30\*/, tipo);
-    assert.ok(texto.endsWith(RODAPE), tipo);
-    assert.doesNotMatch(texto, /123\.456|12345678909|1960|04\/05/, `${tipo} vazou dado pessoal`);
+test("mensagens curtas: nome, data, nada de CPF nem nascimento", () => {
+  for (const tipo of ["confirmacao", "lembrete", "cancelado_camara", "cancelado_cidadao", "rg_pronto", "avaliacao"]) {
+    for (let v = 0; v < 3; v += 1) {
+      const texto = montarMensagem(tipo, AG, { variante: v });
+      assert.match(texto, /Maria/, tipo);
+      assert.ok(texto.split("\n").length <= 11, `${tipo} longo demais`);
+      assert.ok((texto.match(/https?:\/\//g) || []).length <= 1, `${tipo} com mais de um link`);
+      assert.doesNotMatch(texto, /‼️|⚠️/, tipo);
+      assert.doesNotMatch(texto, /123\.456|12345678909|1960|04\/05/, `${tipo} vazou dado pessoal`);
+    }
   }
-  assert.match(montarMensagem("confirmacao", AG), /Protocolo: \*CIN-ABC123\*/);
-  for (const tipo of ["confirmacao", "lembrete"]) {
-    const texto = montarMensagem(tipo, AG);
-    assert.match(texto, /\*Certidão de nascimento ou de casamento\*, \*original ou cópia autenticada\*/, tipo);
-    assert.match(texto, /\*Número do CPF\*/, tipo);
-    assert.match(texto, /\*Comprovante de endereço\*/, tipo);
+  for (const tipo of ["confirmacao", "cancelado_camara", "cancelado_cidadao"]) {
+    assert.match(montarMensagem(tipo, AG), /sexta, 20\/11, às 9h30/, tipo);
   }
-  assert.match(montarMensagem("lembrete", AG), /seu atendimento é HOJE/);
-  assert.match(montarMensagem("lembrete", AG), /NÃO ESQUEÇA A CERTIDÃO/);
-  assert.match(montarMensagem("confirmacao", AG), /No dia do atendimento, mandamos um lembrete/);
-  assert.ok(montarMensagem("lembrete", AG).includes(LINK_CANCELAR));
+  const confirmacao = montarMensagem("confirmacao", AG);
+  assert.match(confirmacao, /^✅ \*Maria, seu RG está agendado: sexta, 20\/11, às 9h30\*/);
+  assert.match(confirmacao, /Código: CIN-ABC123/);
+  assert.match(confirmacao, /\*Certidão original\* ou autenticada \(nascimento ou casamento\)/);
+  assert.match(confirmacao, /Número do CPF/);
+  assert.match(confirmacao, /Comprovante de endereço/);
+  assert.match(confirmacao, /Responda \*MENU\*/);
+  assert.ok(confirmacao.includes(LINK_CANCELAR));
+  assert.ok(confirmacao.endsWith(RODAPE), "SAIR na confirmacao");
+  const lembrete = montarMensagem("lembrete", AG);
+  assert.match(lembrete, /^⏰ \*Maria, seu RG é hoje, às 9h30\*/);
+  assert.match(lembrete, /Sem a certidão original \(ou autenticada\), não dá para fazer/);
+  assert.ok(lembrete.includes(LINK_CANCELAR));
+  for (const tipo of ["lembrete", "cancelado_camara", "cancelado_cidadao", "avaliacao"]) {
+    assert.ok(!montarMensagem(tipo, AG).includes("SAIR"), `${tipo} sem rodape SAIR`);
+  }
+  assert.match(montarMensagem("confirmacao", { ...AG, nome: "" }), /^✅ \*Seu RG está agendado:/);
   assert.match(montarMensagem("cancelado_camara", AG), /\(35\) 3504-0397/);
   assert.throws(() => montarMensagem("remarcado", AG), "remarcacao nao gera aviso");
 });
@@ -242,7 +254,7 @@ test("rodada: confirmacao de quem ja cancelou e descartada; o cancelamento sai",
   assert.equal(r.descartados, 1);
   assert.equal(r.enviados, 1);
   assert.equal(chamadas.length, 1);
-  assert.match(chamadas[0].corpo.texto, /\*cancelado\*, como você pediu/);
+  assert.match(chamadas[0].corpo.texto, /foi \*cancelado\*\./);
 });
 
 test("rodada: fora do horario nao envia nada", async () => {
@@ -273,8 +285,8 @@ test("rodada: lembretes de hoje entram 6 h antes e so de agendamento valendo", a
   assert.deepEqual(r.lembretes, { total: 2, na_fila: 2 }, "a (14h30) e f (9h, desde as 7h); b so as 9h");
   assert.equal(r.enviados, 2);
   assert.ok(chamadas.every((c) => c.corpo.tipo === "lembrete"));
-  assert.match(chamadas[0].corpo.texto, /é HOJE/);
-  assert.match(chamadas[0].corpo.texto, /NÃO ESQUEÇA A CERTIDÃO/);
+  assert.match(chamadas[0].corpo.texto, /RG é hoje|hoje é o seu RG|RG é hoje/);
+  assert.match(chamadas[0].corpo.texto, /Sem a certidão original/);
   const deNovo = await servico.processarFila(CONFIG);
   assert.deepEqual(deNovo.lembretes, { total: 2, na_fila: 0 }, "a rodada seguinte nao repete");
   assert.equal(chamadas.length, 2);
@@ -326,12 +338,10 @@ test("formulario e backend: aceite do WhatsApp vem da declaracao obrigatoria e e
   assert.match(regras, /match \/whatsapp_envios\/\{documentId\} \{\s*allow read, write: if false;/);
 });
 
-test("avaliacao: texto com o link, voluntario e sem dado pessoal", () => {
+test("avaliacao: texto curto com o link e sem dado pessoal", () => {
   const texto = montarMensagem("avaliacao", AG, { googleUrl: "https://g.page/r/exemplo/review" });
-  assert.match(texto, /^⭐ \*Como foi o seu atendimento\?\*\n\nOlá, \*Maria\*!/);
-  assert.match(texto, /👉 https:\/\/g\.page\/r\/exemplo\/review/);
-  assert.match(texto, /É voluntário/);
-  assert.ok(texto.endsWith(RODAPE));
+  assert.match(texto, /^Maria, como foi o seu atendimento do RG\?/);
+  assert.match(texto, /https:\/\/g\.page\/r\/exemplo\/review/);
   assert.doesNotMatch(texto, /123\.456|1960|CIN-ABC/);
   assert.match(montarMensagem("avaliacao", AG), /g\.page\/r\/CfugOJBgujYPEBM\/review/, "link padrao");
 });
@@ -449,19 +459,18 @@ test("rodada: numero sem WhatsApp ou que saiu nao arma o disjuntor", async () =>
   assert.equal(a.registros.has("whatsapp_controle/disjuntor"), false);
 });
 
-test("variacoes: a variante 0 e o texto de referencia e as outras mudam saudacao e abertura", () => {
+test("variacoes: a variante 0 e o texto de referencia e as outras mudam a primeira linha", () => {
   assert.equal(montarMensagem("confirmacao", AG), montarMensagem("confirmacao", AG, { variante: 0 }));
-  assert.match(montarMensagem("confirmacao", AG, { variante: 1 }), /Oi, \*Maria\*!/);
-  assert.match(montarMensagem("confirmacao", AG, { variante: 2 }), /\*Maria\*, tudo bem\?/);
-  assert.match(montarMensagem("lembrete", AG, { variante: 4 }), /é hoje\./);
+  assert.match(montarMensagem("confirmacao", AG, { variante: 1 }), /Maria, seu RG foi agendado/);
+  assert.match(montarMensagem("confirmacao", AG, { variante: 2 }), /Maria, agendamento do RG confirmado/);
+  assert.match(montarMensagem("lembrete", AG, { variante: 1 }), /Maria, hoje é o seu RG, às 9h30/);
   for (let v = 0; v < 27; v += 1) {
     for (const tipo of ["confirmacao", "lembrete"]) {
       const t = montarMensagem(tipo, AG, { variante: v });
-      assert.match(t, /\*sexta-feira, 20\/11, às 9h30\*/);
-      assert.match(t, /Protocolo: \*CIN-ABC123\*/);
-      assert.ok(t.endsWith(RODAPE));
+      assert.match(t, /9h30/);
       assert.equal((t.match(/https?:\/\//g) || []).length, 1);
     }
+    assert.match(montarMensagem("confirmacao", AG, { variante: v }), /sexta, 20\/11, às 9h30\*\n.*\nCódigo: CIN-ABC123/);
   }
   assert.equal(varianteDaChave("x"), varianteDaChave("x"), "mesma chave, mesmo texto");
 });
@@ -477,7 +486,7 @@ test("rg pronto: evento, mensagem, envio sem aceite e descarte ao desfazer", asy
 
   for (let v = 0; v < 9; v += 1) {
     const texto = montarMensagem("rg_pronto", marcado, { variante: v });
-    assert.match(texto, /8h às 12h\* e das \*14h às 17h/);
+    assert.match(texto, /8h às 12h\* e \*14h às 17h/);
     assert.match(texto, /Rua Eng\. Paulo Franco da Rosa, 298/);
     assert.match(texto, /Maria/);
     assert.ok(texto.endsWith(RODAPE));

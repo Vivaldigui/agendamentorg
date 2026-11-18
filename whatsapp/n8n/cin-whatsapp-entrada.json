@@ -987,7 +987,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Why Code: decide se esta execução responde (é a última mensagem?), aplica o teto e\n// monta a conversa: as falas desde a última resposta (a rajada) e, antes, as últimas 12.\nconst minha = $('Fala da pessoa').first().json.msgid;\nconst limite = Date.now() - 24 * 3600 * 1000;\nconst falas = $input.all().map((i) => i.json)\n  .filter((r) => r && r.telefone && (r.papel === 'user' || r.papel === 'assistant') && new Date(r.quando).getTime() >= limite)\n  .sort((a, b) => (new Date(a.quando) - new Date(b.quando)) || ((a.id || 0) - (b.id || 0)));\nconst daPessoa = falas.filter((r) => r.papel === 'user');\nconst ultima = daPessoa[daPessoa.length - 1];\n// Chegou outra mensagem depois desta: quem responde é a execução da mais nova.\nif (!ultima || ultima.msgid !== minha) return [{ json: { minhaVez: false } }];\nconst respostas = falas.filter((r) => r.papel === 'assistant').length;\nif (respostas >= 20) return [{ json: { minhaVez: true, usarIa: false, resposta: \"Por hoje eu já respondi bastante por aqui. 🙏 Para continuar, fale com a recepção da Câmara pelo WhatsApp *(35) 3504-0397*.\\n\\nAgendar, consultar ou cancelar: https://cin.itanhandu.cam.mg.gov.br\" } }];\nlet fim = -1;\nfalas.forEach((f, i) => { if (f.papel === 'assistant') fim = i; });\nconst anteriores = falas.slice(0, fim + 1).slice(-12);\nconst rajada = falas.slice(fim + 1);\nconst mensagens = [];\nfor (const f of [...anteriores, ...rajada]) {\n  const ult = mensagens[mensagens.length - 1];\n  if (ult && ult.role === f.papel) ult.content += '\\n' + f.texto;\n  else mensagens.push({ role: f.papel, content: String(f.texto || '') });\n}\nwhile (mensagens.length && mensagens[0].role !== 'user') mensagens.shift();\nreturn [{ json: { minhaVez: true, usarIa: true, mensagens, primeira: respostas === 0, rajada: rajada.length } }];"
+        "jsCode": "// Why Code: decide se esta execução responde (é a última mensagem?), aplica o teto e\n// monta a conversa: as falas desde a última resposta (a rajada) e, antes, as últimas 12.\nconst minha = $('Fala da pessoa').first().json.msgid;\nconst limite = Date.now() - 24 * 3600 * 1000;\nconst falas = $input.all().map((i) => i.json)\n  .filter((r) => r && r.telefone && (r.papel === 'user' || r.papel === 'assistant') && new Date(r.quando).getTime() >= limite)\n  .sort((a, b) => (new Date(a.quando) - new Date(b.quando)) || ((a.id || 0) - (b.id || 0)));\nconst daPessoa = falas.filter((r) => r.papel === 'user');\nconst ultima = daPessoa[daPessoa.length - 1];\n// Chegou outra mensagem depois desta: quem responde é a execução da mais nova.\nif (!ultima || ultima.msgid !== minha) return [{ json: { minhaVez: false } }];\nconst respostas = falas.filter((r) => r.papel === 'assistant').length;\nif (respostas >= 20) return [{ json: { minhaVez: true, usarIa: false, resposta: \"Por hoje eu já respondi bastante por aqui. 🙏 Para continuar, fale com a recepção da Câmara pelo WhatsApp *(35) 3504-0397*.\\n\\nAgendar, consultar ou cancelar: https://cin.itanhandu.cam.mg.gov.br\" } }];\nlet fim = -1;\nfalas.forEach((f, i) => { if (f.papel === 'assistant') fim = i; });\nconst anteriores = falas.slice(0, fim + 1).slice(-12);\nconst rajada = falas.slice(fim + 1);\nconst primeira = respostas === 0;\n// Menu: só cumprimento (ou MENU) mostra as opções; só um número de 1 a 6 escolhe.\nconst juntas = rajada.map((f) => String(f.texto || '')).join(' ');\nconst normal = juntas.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();\nconst palavras = normal.split(/[^a-z0-9]+/).filter(Boolean);\nconst CUMPRIMENTO = new Set([\"oi\",\"oii\",\"oiii\",\"ola\",\"opa\",\"e\",\"ai\",\"eai\",\"bom\",\"boa\",\"dia\",\"tarde\",\"noite\",\"cidinho\",\"menu\",\"opcoes\",\"opcao\",\"inicio\",\"ajuda\",\"tudo\",\"bem\"]);\nconst soNumero = /^\\s*([1-6])\\s*(\\ufe0f)?\\s*(\\u20e3)?\\s*[.)]?\\s*$/.exec(juntas);\nlet opcao = soNumero ? Number(soNumero[1]) : 0;\nif (!opcao && palavras.length === 1 && palavras[0] === 'atendente') opcao = 6;\nconst ehMenu = !opcao && juntas.length <= 40 && !juntas.includes('?') && palavras.length > 0 && palavras.every((w) => CUMPRIMENTO.has(w));\nconst fixas = {\"2\":\"📄 *O que levar:*\\n• *Certidão original* ou autenticada em cartório:\\n   – solteiro: nascimento\\n   – casado: casamento\\n   – viúvo ou divorciado: casamento com averbação\\n• Número do CPF\\n• Comprovante de endereço\\nXerox, foto e PDF da certidão não valem.\",\"3\":\"Consulte ou cancele aqui (precisa do CPF, data de nascimento e código CIN-):\\nhttps://cin.itanhandu.cam.mg.gov.br/cin/consultar-ou-cancelar/\\nNão dá para trocar o dia: cancele e agende de novo na segunda, às 8h.\",\"4\":\"A criança *precisa ir*, com pai, mãe ou responsável (com RG ou CNH).\\nLeve a *certidão de nascimento* dela. Menor de 3 anos: 1 foto 3x4 de fundo branco.\\nAvó, tio e outros: levem também o termo de guarda.\",\"5\":\"A carteira chega *pelos Correios* em até 15 dias úteis.\\nAcompanhe no *MG App*. Zona rural: busque na Câmara 15 dias depois.\",\"6\":\"Pronto! ✅ Avisei a equipe da Câmara. Uma pessoa vai falar com você assim que possível.\\nSe preferir, chame a recepção: *(35) 3504-0397*.\"};\nif (ehMenu) return [{ json: { minhaVez: true, usarIa: false, resposta: primeira ? \"Oi! Sou o *Cidinho*, do RG da Câmara de Itanhandu. 👋\\nResponda com o número:\\n\\n1️⃣ Agendar / tem vaga?\\n2️⃣ O que levar\\n3️⃣ Consultar ou cancelar\\n4️⃣ RG de criança\\n5️⃣ Prazo e entrega\\n6️⃣ Falar com uma pessoa\\n\\nOu escreva sua dúvida.\" : \"Responda com o número:\\n\\n1️⃣ Agendar / tem vaga?\\n2️⃣ O que levar\\n3️⃣ Consultar ou cancelar\\n4️⃣ RG de criança\\n5️⃣ Prazo e entrega\\n6️⃣ Falar com uma pessoa\\n\\nOu escreva sua dúvida.\" } }];\nif (opcao >= 2) {\n  // Opção 6 avisa o responsável uma vez por conversa de 24 h.\n  const jaAvisou = falas.some((f) => f.papel === 'assistant' && f.texto === fixas[6]);\n  return [{ json: { minhaVez: true, usarIa: false, resposta: fixas[opcao], avisarDono: opcao === 6 && !jaAvisou, ultimas: daPessoa.slice(-4, -1).map((f) => String(f.texto || '').slice(0, 200)) } }];\n}\nconst mensagens = [];\nfor (const f of [...anteriores, ...rajada]) {\n  const ult = mensagens[mensagens.length - 1];\n  if (ult && ult.role === f.papel) ult.content += '\\n' + f.texto;\n  else mensagens.push({ role: f.papel, content: String(f.texto || '') });\n}\nwhile (mensagens.length && mensagens[0].role !== 'user') mensagens.shift();\n// Opção 1: a IA responde com a agenda do momento, como se a pessoa tivesse perguntado.\nif (opcao === 1 && mensagens.length) mensagens[mensagens.length - 1].content = \"Quero agendar o RG. Tem vaga?\";\nreturn [{ json: { minhaVez: true, usarIa: true, mensagens, primeira, rajada: rajada.length } }];"
       }
     },
     {
@@ -1327,7 +1327,109 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "c2000000-0000-4000-8000-000000000067",
+      "id": "c2000000-0000-4000-8000-000000000068",
+      "name": "Avisar o responsável?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        7480,
+        560
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c2000000-0000-4000-8000-000000000067",
+              "leftValue": "={{ $('Preparar Cidinho').isExecuted && $('Preparar Cidinho').first().json.avisarDono === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000069",
+      "name": "Número do responsável",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        7700,
+        480
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://camara-itanhandu_waha-cin:3000/api/contacts/check-exists",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "5535999901497"
+            },
+            {
+              "name": "session",
+              "value": "cin"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000070",
+      "name": "Avisar o responsável",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        7920,
+        480
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://camara-itanhandu_waha-cin:3000/api/sendText",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const t = String($('Telefone').first().json.telefone || '');\n  const tel = t.length === 13 ? '(' + t.slice(2, 4) + ') ' + t.slice(4, 9) + '-' + t.slice(9) : (t || $('Telefone').first().json.chatId);\n  const ultimas = ($('Preparar Cidinho').first().json.ultimas || []).filter(Boolean);\n  const linhas = ['🔔 *Pedido de atendimento no WhatsApp do RG*', '', 'Uma pessoa respondeu *6* (falar com uma pessoa).', 'Telefone: ' + tel];\n  if (t) linhas.push('https://wa.me/' + t);\n  if (ultimas.length) linhas.push('', 'Antes ela escreveu:', ...ultimas.map((u) => '• ' + u));\n  return JSON.stringify({ session: 'cin', chatId: $json.chatId || '5535999901497@c.us', text: linhas.join('\n'), linkPreview: false });\n})() }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c2000000-0000-4000-8000-000000000071",
       "name": "Não respondido hoje?",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
@@ -1354,7 +1456,7 @@
       }
     },
     {
-      "id": "c2000000-0000-4000-8000-000000000070",
+      "id": "c2000000-0000-4000-8000-000000000074",
       "name": "Campos do respondido",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -1366,13 +1468,13 @@
         "assignments": {
           "assignments": [
             {
-              "id": "c2000000-0000-4000-8000-000000000068",
+              "id": "c2000000-0000-4000-8000-000000000072",
               "name": "chave",
               "value": "={{ $('Telefone').first().json.chave }}",
               "type": "string"
             },
             {
-              "id": "c2000000-0000-4000-8000-000000000069",
+              "id": "c2000000-0000-4000-8000-000000000073",
               "name": "em",
               "value": "={{ $('Telefone').first().json.em }}",
               "type": "string"
@@ -1383,7 +1485,7 @@
       }
     },
     {
-      "id": "c2000000-0000-4000-8000-000000000071",
+      "id": "c2000000-0000-4000-8000-000000000075",
       "name": "Registrar respondido",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
@@ -1411,7 +1513,7 @@
       }
     },
     {
-      "id": "c2000000-0000-4000-8000-000000000072",
+      "id": "c2000000-0000-4000-8000-000000000076",
       "name": "Resposta padrão",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -1909,6 +2011,39 @@
         [
           {
             "node": "Guardar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar resposta": {
+      "main": [
+        [
+          {
+            "node": "Avisar o responsável?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Avisar o responsável?": {
+      "main": [
+        [
+          {
+            "node": "Número do responsável",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Número do responsável": {
+      "main": [
+        [
+          {
+            "node": "Avisar o responsável",
             "type": "main",
             "index": 0
           }

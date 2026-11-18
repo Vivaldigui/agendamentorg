@@ -212,7 +212,57 @@ const TABELA_FALAS = 'cin_cidinho_falas';
 const TEXTO_MIDIA = 'Ainda não consigo ver foto, vídeo nem documento. 🙏 Escreva sua dúvida em texto ou mande um áudio, por favor.\n\nSe preferir falar com uma pessoa, chame a recepção da Câmara no WhatsApp *(35) 3504-0397*.';
 const TEXTO_AUDIO = 'Não consegui entender o seu áudio. 🙏 Pode mandar de novo ou escrever a sua dúvida?';
 const TEXTO_TETO = 'Por hoje eu já respondi bastante por aqui. 🙏 Para continuar, fale com a recepção da Câmara pelo WhatsApp *(35) 3504-0397*.\n\nAgendar, consultar ou cancelar: ' + SITE;
-const TEXTO_FALHA_IA = 'Desculpe, não consegui responder agora. 🙏 Para falar com a recepção da Câmara, chame no WhatsApp *(35) 3504-0397*. O agendamento é só pelo site: ' + SITE;
+// ---- menu com números (18/11/2026, pedido do responsável: respostas curtas).
+// Botões do WAHA estão descontinuados; a lista pode parar a qualquer hora. Números
+// funcionam em qualquer celular. Opções 2 a 6 têm resposta fixa (sem IA); a 1
+// vai para a IA porque depende da agenda do momento. A 6 avisa o responsável.
+const MENU_OPCOES = [
+  'Responda com o número:',
+  '',
+  '1️⃣ Agendar / tem vaga?',
+  '2️⃣ O que levar',
+  '3️⃣ Consultar ou cancelar',
+  '4️⃣ RG de criança',
+  '5️⃣ Prazo e entrega',
+  '6️⃣ Falar com uma pessoa',
+  '',
+  'Ou escreva sua dúvida.',
+].join('\n');
+const MENU_APRESENTACAO = 'Oi! Sou o *Cidinho*, do RG da Câmara de Itanhandu. 👋\n' + MENU_OPCOES;
+const OPCAO_1_PERGUNTA = 'Quero agendar o RG. Tem vaga?';
+const OPCOES_FIXAS = {
+  2: [
+    '📄 *O que levar:*',
+    '• *Certidão original* ou autenticada em cartório:',
+    '   – solteiro: nascimento',
+    '   – casado: casamento',
+    '   – viúvo ou divorciado: casamento com averbação',
+    '• Número do CPF',
+    '• Comprovante de endereço',
+    'Xerox, foto e PDF da certidão não valem.',
+  ].join('\n'),
+  3: [
+    'Consulte ou cancele aqui (precisa do CPF, data de nascimento e código CIN-):',
+    `${SITE}/cin/consultar-ou-cancelar/`,
+    'Não dá para trocar o dia: cancele e agende de novo na segunda, às 8h.',
+  ].join('\n'),
+  4: [
+    'A criança *precisa ir*, com pai, mãe ou responsável (com RG ou CNH).',
+    'Leve a *certidão de nascimento* dela. Menor de 3 anos: 1 foto 3x4 de fundo branco.',
+    'Avó, tio e outros: levem também o termo de guarda.',
+  ].join('\n'),
+  5: [
+    'A carteira chega *pelos Correios* em até 15 dias úteis.',
+    'Acompanhe no *MG App*. Zona rural: busque na Câmara 15 dias depois.',
+  ].join('\n'),
+  6: [
+    'Pronto! ✅ Avisei a equipe da Câmara. Uma pessoa vai falar com você assim que possível.',
+    'Se preferir, chame a recepção: *(35) 3504-0397*.',
+  ].join('\n'),
+};
+// Quem recebe o aviso da opção 6 (pedido do responsável em 18/11/2026).
+const AVISO_ATENDIMENTO_PARA = '5535999901497';
+const TEXTO_FALHA_IA ='Desculpe, não consegui responder agora. 🙏 Para falar com a recepção da Câmara, chame no WhatsApp *(35) 3504-0397*. O agendamento é só pelo site: ' + SITE;
 
 no('Hash do telefone', 'n8n-nodes-base.crypto', 1, [2200, 560], {
   action: 'hash',
@@ -365,6 +415,23 @@ let fim = -1;
 falas.forEach((f, i) => { if (f.papel === 'assistant') fim = i; });
 const anteriores = falas.slice(0, fim + 1).slice(-12);
 const rajada = falas.slice(fim + 1);
+const primeira = respostas === 0;
+// Menu: só cumprimento (ou MENU) mostra as opções; só um número de 1 a 6 escolhe.
+const juntas = rajada.map((f) => String(f.texto || '')).join(' ');
+const normal = juntas.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
+const palavras = normal.split(/[^a-z0-9]+/).filter(Boolean);
+const CUMPRIMENTO = new Set(${JSON.stringify(['oi', 'oii', 'oiii', 'ola', 'opa', 'e', 'ai', 'eai', 'bom', 'boa', 'dia', 'tarde', 'noite', 'cidinho', 'menu', 'opcoes', 'opcao', 'inicio', 'ajuda', 'tudo', 'bem'])});
+const soNumero = /^\\s*([1-6])\\s*(\\ufe0f)?\\s*(\\u20e3)?\\s*[.)]?\\s*$/.exec(juntas);
+let opcao = soNumero ? Number(soNumero[1]) : 0;
+if (!opcao && palavras.length === 1 && palavras[0] === 'atendente') opcao = 6;
+const ehMenu = !opcao && juntas.length <= 40 && !juntas.includes('?') && palavras.length > 0 && palavras.every((w) => CUMPRIMENTO.has(w));
+const fixas = ${JSON.stringify(OPCOES_FIXAS)};
+if (ehMenu) return [{ json: { minhaVez: true, usarIa: false, resposta: primeira ? ${JSON.stringify(MENU_APRESENTACAO)} : ${JSON.stringify(MENU_OPCOES)} } }];
+if (opcao >= 2) {
+  // Opção 6 avisa o responsável uma vez por conversa de 24 h.
+  const jaAvisou = falas.some((f) => f.papel === 'assistant' && f.texto === fixas[6]);
+  return [{ json: { minhaVez: true, usarIa: false, resposta: fixas[opcao], avisarDono: opcao === 6 && !jaAvisou, ultimas: daPessoa.slice(-4, -1).map((f) => String(f.texto || '').slice(0, 200)) } }];
+}
 const mensagens = [];
 for (const f of [...anteriores, ...rajada]) {
   const ult = mensagens[mensagens.length - 1];
@@ -372,7 +439,9 @@ for (const f of [...anteriores, ...rajada]) {
   else mensagens.push({ role: f.papel, content: String(f.texto || '') });
 }
 while (mensagens.length && mensagens[0].role !== 'user') mensagens.shift();
-return [{ json: { minhaVez: true, usarIa: true, mensagens, primeira: respostas === 0, rajada: rajada.length } }];`,
+// Opção 1: a IA responde com a agenda do momento, como se a pessoa tivesse perguntado.
+if (opcao === 1 && mensagens.length) mensagens[mensagens.length - 1].content = ${JSON.stringify(OPCAO_1_PERGUNTA)};
+return [{ json: { minhaVez: true, usarIa: true, mensagens, primeira, rajada: rajada.length } }];`,
 });
 no('Minha vez?', 'n8n-nodes-base.if', 2.2, [5060, 480], {
   conditions: condicoes([verdadeiro('={{ $json.minhaVez }}')]),
@@ -454,6 +523,40 @@ no('Guardar resposta', 'n8n-nodes-base.dataTable', 1.1, [7260, 560], {
   resource: 'row', operation: 'insert', dataTableId: tabela(TABELA_FALAS), columns: insercao(), options: {},
 }, { onError: 'continueRegularOutput' });
 
+// ---- opção 6: avisa o responsável (uma vez por conversa de 24 h)
+no('Avisar o responsável?', 'n8n-nodes-base.if', 2.2, [7480, 560], {
+  conditions: condicoes([verdadeiro("={{ $('Preparar Cidinho').isExecuted && $('Preparar Cidinho').first().json.avisarDono === true }}")]),
+  options: {},
+});
+// O WhatsApp pode guardar o número sem o nono dígito: o WAHA diz o chatId certo.
+no('Número do responsável', 'n8n-nodes-base.httpRequest', 4.2, [7700, 480], {
+  method: 'GET',
+  url: `${WAHA}/api/contacts/check-exists`,
+  authentication: 'genericCredentialType',
+  genericAuthType: 'httpHeaderAuth',
+  sendQuery: true,
+  queryParameters: { parameters: [{ name: 'phone', value: AVISO_ATENDIMENTO_PARA }, { name: 'session', value: SESSAO }] },
+  options: { timeout: 15000 },
+}, { ...credencialWaha, onError: 'continueRegularOutput' });
+no('Avisar o responsável', 'n8n-nodes-base.httpRequest', 4.2, [7920, 480], {
+  method: 'POST',
+  url: `${WAHA}/api/sendText`,
+  authentication: 'genericCredentialType',
+  genericAuthType: 'httpHeaderAuth',
+  sendBody: true,
+  specifyBody: 'json',
+  jsonBody: `={{ (() => {
+  const t = String(${M}.telefone || '');
+  const tel = t.length === 13 ? '(' + t.slice(2, 4) + ') ' + t.slice(4, 9) + '-' + t.slice(9) : (t || ${M}.chatId);
+  const ultimas = ($('Preparar Cidinho').first().json.ultimas || []).filter(Boolean);
+  const linhas = ['🔔 *Pedido de atendimento no WhatsApp do RG*', '', 'Uma pessoa respondeu *6* (falar com uma pessoa).', 'Telefone: ' + tel];
+  if (t) linhas.push('https://wa.me/' + t);
+  if (ultimas.length) linhas.push('', 'Antes ela escreveu:', ...ultimas.map((u) => '• ' + u));
+  return JSON.stringify({ session: '${SESSAO}', chatId: $json.chatId || '${AVISO_ATENDIMENTO_PARA}@c.us', text: linhas.join('\n'), linkPreview: false });
+})() }}`,
+  options: { timeout: 30000 },
+}, { ...credencialWaha, onError: 'continueRegularOutput' });
+
 no('Não respondido hoje?', 'n8n-nodes-base.dataTable', 1.1, [2200, 400], {
   resource: 'row', operation: 'rowNotExists', dataTableId: tabela('cin_whatsapp_respondidos'),
   filters: { conditions: [{ keyName: 'chave', keyValue: `={{ ${M}.chave }}` }] },
@@ -513,6 +616,9 @@ liga('Resposta fixa', 'Resposta final');
 liga('Resposta final', 'Enviar resposta do Cidinho');
 liga('Enviar resposta do Cidinho', 'Resposta para guardar');
 liga('Resposta para guardar', 'Guardar resposta');
+liga('Guardar resposta', 'Avisar o responsável?');
+liga('Avisar o responsável?', 'Número do responsável', 0);
+liga('Número do responsável', 'Avisar o responsável');
 liga('Confirmar saída', 'Ainda não saiu?');
 liga('Ainda não saiu?', 'Campos de quem saiu');
 liga('Campos de quem saiu', 'Registrar saída');
