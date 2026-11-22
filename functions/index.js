@@ -7,6 +7,7 @@ const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { defineBoolean, defineString, defineSecret } = require("firebase-functions/params");
 const { criarServicoAvaliacao, dataEmSaoPaulo } = require("./avaliacao-google");
 const { criarServicoWhatsappCin, eventoDoAgendamento, limparEnviosAntigos } = require("./whatsapp-cin");
+const { criarServicoRoboAgendamento } = require("./whatsapp-cin-robo");
 const {
   dataISOValida,
   somarDiasISO,
@@ -141,6 +142,28 @@ exports.processarFilaWhatsappCin = onSchedule({
   if ((resumo.lembretes && resumo.lembretes.na_fila) || (resumo.avaliacoes && resumo.avaliacoes.na_fila) || resumo.enviados || resumo.descartados || resumo.restantes || Object.keys(resumo.outros).length) {
     console.log("whatsapp-cin: rodada", JSON.stringify(resumo));
   }
+});
+
+// Consulta e cancelamento pelo protocolo, chamados pelo Cidinho (n8n da Camara)
+// quando a pessoa manda o codigo CIN- no WhatsApp. So o n8n chama: token no
+// cabecalho X-Cin-Robo, conferido pelo SHA-256 em WHATSAPP_CIN_ROBO_TOKEN_SHA256
+// (vazio = tudo recusado). Regras em functions/whatsapp-cin-robo.js.
+const whatsappCinRoboTokenSha256 = defineString("WHATSAPP_CIN_ROBO_TOKEN_SHA256", { default: "" });
+exports.cinRoboAgendamento = onRequest({
+  region: "southamerica-east1",
+  maxInstances: 3,
+  timeoutSeconds: 30
+}, async (req, res) => {
+  const servico = criarServicoRoboAgendamento({
+    db,
+    hashTokenEsperado: whatsappCinRoboTokenSha256.value(),
+    cpfDocId,
+    agendamentoEstaAtivo,
+    horarioFuturo: horarioAgendamentoFuturo,
+    hojeISO: hojeSaoPauloISO,
+    registrar: (dados) => console.log("whatsapp-cin-robo:", JSON.stringify(dados))
+  });
+  await servico.atender(req, res);
 });
 
 const CANCELAMENTO_TTL_MS = 30 * 60 * 1000;

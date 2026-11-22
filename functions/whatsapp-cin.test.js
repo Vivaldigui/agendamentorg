@@ -79,7 +79,7 @@ test("mensagens curtas: nome, data, nada de CPF nem nascimento", () => {
   const confirmacao = montarMensagem("confirmacao", AG);
   assert.match(confirmacao, /^✅ \*Maria, seu RG está agendado: sexta, 20\/11, às 9h30\*/);
   assert.match(confirmacao, /Código: CIN-ABC123/);
-  assert.match(confirmacao, /\*Certidão original\* ou autenticada \(nascimento ou casamento\)/);
+  assert.match(confirmacao, /\*Certidão\* original, digital ou autenticada \(nascimento ou casamento\)/);
   assert.match(confirmacao, /Número do CPF/);
   assert.match(confirmacao, /Comprovante de endereço/);
   assert.match(confirmacao, /Responda \*MENU\*/);
@@ -87,7 +87,7 @@ test("mensagens curtas: nome, data, nada de CPF nem nascimento", () => {
   assert.ok(confirmacao.endsWith(RODAPE), "SAIR na confirmacao");
   const lembrete = montarMensagem("lembrete", AG);
   assert.match(lembrete, /^⏰ \*Maria, seu RG é hoje, às 9h30\*/);
-  assert.match(lembrete, /Sem a certidão original \(ou autenticada\), não dá para fazer/);
+  assert.match(lembrete, /Sem a certidão \(original, digital ou autenticada\), não dá para fazer/);
   assert.ok(lembrete.includes(LINK_CANCELAR));
   for (const tipo of ["lembrete", "cancelado_camara", "cancelado_cidadao", "avaliacao"]) {
     assert.ok(!montarMensagem(tipo, AG).includes("SAIR"), `${tipo} sem rodape SAIR`);
@@ -103,6 +103,8 @@ test("evento: criacao e cancelamentos; remarcacao nao avisa", () => {
   assert.equal(eventoDoAgendamento(null, { ...AG, dataISO: "2026-11-10" }, HOJE), null, "data passada");
   assert.equal(eventoDoAgendamento(AG, { ...AG, status: "cancelado", ativo: false }, HOJE), "cancelado_camara");
   assert.equal(eventoDoAgendamento(AG, { ...AG, status: "cancelado_cidadao", ativo: false }, HOJE), "cancelado_cidadao");
+  assert.equal(eventoDoAgendamento(AG, { ...AG, status: "cancelado_cidadao", ativo: false, canceladoPor: "whatsapp" }, HOJE), null,
+    "cancelado pela conversa do WhatsApp: o Cidinho ja confirmou, sem aviso repetido");
   assert.equal(eventoDoAgendamento(AG, { ...AG, status: "remarcado", ativo: true, dataISO: "2026-11-23" }, HOJE), null);
   assert.equal(eventoDoAgendamento(AG, { ...AG, observacaoAdmin: "x" }, HOJE), null, "outra alteracao");
   assert.equal(eventoDoAgendamento(AG, { ...AG, status: "compareceu" }, HOJE), null);
@@ -286,7 +288,7 @@ test("rodada: lembretes de hoje entram 6 h antes e so de agendamento valendo", a
   assert.equal(r.enviados, 2);
   assert.ok(chamadas.every((c) => c.corpo.tipo === "lembrete"));
   assert.match(chamadas[0].corpo.texto, /RG é hoje|hoje é o seu RG|RG é hoje/);
-  assert.match(chamadas[0].corpo.texto, /Sem a certidão original/);
+  assert.match(chamadas[0].corpo.texto, /Sem a certidão \(original, digital ou autenticada\)/);
   const deNovo = await servico.processarFila(CONFIG);
   assert.deepEqual(deNovo.lembretes, { total: 2, na_fila: 0 }, "a rodada seguinte nao repete");
   assert.equal(chamadas.length, 2);
@@ -552,5 +554,6 @@ test("painel: aba RG pronto acha pelo nome e chama a callable", () => {
   ];
   assert.deepEqual(Array.from(ctx.f(c, "JOSE DA SILVA ARAUJO"), x => x.id), ["1", "3"], "sem acento e sem caixa; identico primeiro");
   assert.deepEqual(Array.from(ctx.f(c, "silva maria"), x => x.id), ["2"], "qualquer ordem");
-  assert.deepEqual(Array.from(ctx.f(c, "silva"), x => x.id), [], "precisa de duas partes do nome");
+  assert.deepEqual(Array.from(ctx.f(c, "silva"), x => x.id), ["2", "1", "3"], "uma palavra ja basta; mais recente primeiro");
+  assert.deepEqual(Array.from(ctx.f(c, "si"), x => x.id), [], "menos de 3 letras nao busca");
 });

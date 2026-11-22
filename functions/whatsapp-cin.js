@@ -179,7 +179,7 @@ function montarMensagem(tipo, dados, extras = {}) {
         ...(dados.protocolo ? [`Código: ${dados.protocolo}`] : []),
         "",
         "Leve:",
-        "• *Certidão original* ou autenticada (nascimento ou casamento)",
+        "• *Certidão* original, digital ou autenticada (nascimento ou casamento)",
         "• Número do CPF",
         "• Comprovante de endereço",
         "",
@@ -191,7 +191,7 @@ function montarMensagem(tipo, dados, extras = {}) {
         `⏰ *${comNome(escolher(["Seu RG é hoje", "Hoje é o seu RG", "Seu atendimento do RG é hoje"], v))}, às ${horaFalada(dados.hora)}*`,
         `📍 Câmara de Itanhandu. Chegue 5 minutos antes.`,
         "",
-        "📄 *Sem a certidão original (ou autenticada), não dá para fazer.*",
+        "📄 *Sem a certidão (original, digital ou autenticada), não dá para fazer.*",
         "Leve também o CPF e o comprovante de endereço.",
         "",
         `Não vai? Cancele: ${LINK_CANCELAR}`
@@ -239,7 +239,9 @@ function eventoDoAgendamento(antes, depois, hojeISO) {
   if (!antes) return depois.status === "agendado" ? "confirmacao" : null;
   if (antes.status !== depois.status) {
     if (depois.status === "cancelado") return "cancelado_camara";
-    if (depois.status === "cancelado_cidadao") return "cancelado_cidadao";
+    // Cancelado pela conversa do WhatsApp (whatsapp-cin-robo.js): o Cidinho ja
+    // confirmou ali mesmo, e o aviso repetiria a mesma coisa (22/11/2026).
+    if (depois.status === "cancelado_cidadao") return depois.canceladoPor === "whatsapp" ? null : "cancelado_cidadao";
   }
   return null;
 }

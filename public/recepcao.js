@@ -3396,23 +3396,160 @@ function normalizarNomeBusca(valor) {
         .toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
 }
 
-// Todas as partes digitadas precisam aparecer no nome (em qualquer ordem);
-// "de", "da", "dos"... nao contam. Nome identico vem primeiro.
+// Busca da aba, a cada tecla, a partir de 3 letras (uma palavra ja basta).
+// Cada parte digitada casa com uma palavra diferente do nome, em qualquer
+// ordem; "de, da, do, das, dos, e" nao contam. Nivel de cada parte:
+//   3 = palavra inteira, sem acento e sem caixa;
+//   2 = comeco de palavra (so a ultima parte, que pode estar pela metade);
+//   1 = parecida: mesma pronuncia nas grafias comuns (Luis/Luiz,
+//       Sousa/Souza, Rafael/Raphael, Thiago/Tiago, letra dobrada, h mudo...)
+//       ou erro de digitacao pequeno: 1 letra em palavras de 4+, 2 em
+//       palavras de 8+ (duas letras vizinhas trocadas contam 1).
+// Com 3+ palavras digitadas, uma pode ficar sem par (a carta pode ter um
+// sobrenome a mais que o cadastro), desde que o primeiro nome do cadastro
+// case. Ordem: nome identico ao digitado, pior nivel entre as partes (parte
+// sem par conta como parecida), soma dos niveis, atendimento mais recente;
+// no maximo 20. Devolve { ...c, exato, nivel, parecido }: exato = nome
+// identico; parecido = nivel 1, e a linha ganha a etiqueta "Nome parecido".
+// Os auxiliares ficam aqui dentro porque os testes rodam esta funcao e
+// normalizarNomeBusca sozinhas (functions/rg-pronto-busca.test.js). Cada
+// cadastro preparado fica guardado na propria funcao (WeakMap pelo objeto do
+// candidato, some junto com a lista ao clicar em Atualizar); sem essa
+// memoria a busca da o mesmo resultado, so refaz o trabalho.
 function filtrarCandidatosRg(candidatos, busca) {
-    const ignorar = new Set(["de", "da", "do", "das", "dos", "e"]);
+    const PARTICULAS = ["de", "da", "do", "das", "dos", "e"];
     const alvo = normalizarNomeBusca(busca);
-    const partes = alvo.split(" ").filter(p => p.length > 1 && !ignorar.has(p));
-    if (partes.length < 2) return [];
-    return candidatos
-        .map(c => {
-            const nome = normalizarNomeBusca(c.dados.nome);
-            const palavras = new Set(nome.split(" "));
-            if (!partes.every(p => palavras.has(p))) return null;
-            return { ...c, exato: nome === alvo };
-        })
-        .filter(Boolean)
-        .sort((a, b) => (b.exato - a.exato) || String(b.dados.dataISO || "").localeCompare(String(a.dados.dataISO || "")))
-        .slice(0, 20);
+    if (alvo.replace(/ /g, "").length < 3) return [];
+
+    // Pronuncia aproximada de uma palavra ja normalizada (so a-z).
+    const fonetica = p => p
+        .replace(/ph/g, "f").replace(/th/g, "t")                // Raphael, Thiago
+        .replace(/ch(?=[lr])/g, "k").replace(/[cs]h/g, "x")     // Christiane; Michele, Shirley
+        .replace(/y/g, "i").replace(/w/g, "v")                  // Thays, Wagner
+        .replace(/qu(?=[ei])/g, "k").replace(/q/g, "k")         // Henrique, Raquel
+        .replace(/c(?=[ei])/g, "s").replace(/c/g, "k")          // Fransisca, Katia/Catia
+        .replace(/g(?=[ei])/g, "j").replace(/gu(?=[ei])/g, "g") // Geovana/Jeovana, Guilherme
+        .replace(/(?!^)z/g, "s")                                // Souza, Luiz; Zelia nao vira Celia
+        .replace(/(^|[^ln])h/g, "$1")                           // Helena/Elena, Jhonatan; lh e nh ficam
+        .replace(/m$/, "n")                                     // William/Willian
+        .replace(/(.)\1+/g, "$1");                              // Mattos/Matos, Isabella/Isabela
+
+    // Distancia de edicao com troca de vizinhas (Damerau restrita); para de
+    // calcular assim que passa do limite.
+    const distancia = (a, b, limite) => {
+        if (Math.abs(a.length - b.length) > limite) return limite + 1;
+        let anterior = [];
+        let linha = Array.from({ length: b.length + 1 }, (_, j) => j);
+        for (let i = 1; i <= a.length; i++) {
+            const nova = [i];
+            let menor = i;
+            for (let j = 1; j <= b.length; j++) {
+                let v = Math.min(linha[j] + 1, nova[j - 1] + 1, linha[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+                if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, anterior[j - 2] + 1);
+                nova[j] = v;
+                if (v < menor) menor = v;
+            }
+            if (menor > limite) return limite + 1;
+            anterior = linha;
+            linha = nova;
+        }
+        return linha[b.length];
+    };
+
+    // Nivel da parte digitada q contra a palavra w do nome (0 = nao casa).
+    // Parecida exige a mesma primeira letra de pronuncia: Maria nao vira Daria.
+    const comparar = (q, w) => {
+        if (w.n === q.n) return 3;
+        if (q.ultima && w.n.startsWith(q.n)) return 2;
+        if (q.n.length < 3) return 0;
+        if (w.f === q.f || (q.ultima && q.f.length >= 3 && w.f.startsWith(q.f))) return 1;
+        if (!q.limite || !w.f || w.f[0] !== q.f[0]) return 0;
+        return distancia(q.n, w.n, q.limite) <= q.limite || distancia(q.f, w.f, q.limite) <= q.limite ? 1 : 0;
+    };
+
+    // Partes digitadas. A ultima pode estar pela metade: se ainda pode virar
+    // particula ("d", "da", "do"...), espera a proxima letra. Inicial solta no
+    // meio ("Maria A. Silva") nao conta.
+    const pedacos = alvo.split(" ");
+    const partes = [];
+    pedacos.forEach((n, i) => {
+        const ultima = i === pedacos.length - 1;
+        if (ultima ? PARTICULAS.some(p => p.startsWith(n)) : n.length < 2 || PARTICULAS.includes(n)) return;
+        partes.push({ n, f: fonetica(n), ultima, limite: n.length >= 8 ? 2 : n.length >= 4 ? 1 : 0 });
+    });
+    if (!partes.length) return [];
+    // Quantas partes podem ficar sem par: uma, com 3+ palavras de 3+ letras.
+    const folga = partes.filter(q => q.n.length >= 3).length >= 3 ? 1 : 0;
+
+    const memoria = filtrarCandidatosRg.memoria || (filtrarCandidatosRg.memoria = new WeakMap());
+    const preparar = c => {
+        const nome = String((c && c.dados && c.dados.nome) || "");
+        let p = memoria.get(c);
+        if (!p || p.nome !== nome) {
+            const normal = normalizarNomeBusca(nome);
+            const palavras = normal.split(" ")
+                .filter(n => n.length > 1 && !PARTICULAS.includes(n))
+                .map(n => ({ n, f: fonetica(n) }));
+            p = { nome, normal, palavras };
+            if (c && typeof c === "object") memoria.set(c, p);
+        }
+        return p;
+    };
+    // Nivel por parte e por palavra: muitos nomes repetem Maria, Silva...
+    const vistos = partes.map(() => new Map());
+    const nivel = (i, w) => {
+        let v = vistos[i].get(w.n);
+        if (v === undefined) vistos[i].set(w.n, v = comparar(partes[i], w));
+        return v;
+    };
+
+    const achados = [];
+    for (const c of candidatos) {
+        const nome = preparar(c);
+        const palavras = nome.palavras;
+        // Com que palavras do nome cada parte casa, e em que nivel.
+        const opcoes = [];
+        let semPar = 0;
+        for (let i = 0; i < partes.length && semPar <= folga; i++) {
+            const lista = [];
+            for (let j = 0; j < palavras.length; j++) {
+                const v = nivel(i, palavras[j]);
+                if (v) lista.push([j, v]);
+            }
+            if (!lista.length) semPar++;
+            opcoes.push(lista);
+        }
+        if (semPar > folga) continue;
+        // Melhor combinacao, cada parte com uma palavra diferente: maior pior
+        // nivel, depois maior soma. Parte sem par so se o primeiro nome casou.
+        const usada = palavras.map(() => false);
+        let melhor = null;
+        const combinar = (i, casadas, pior, soma) => {
+            if (casadas + partes.length - i < partes.length - folga) return;
+            if (i === partes.length) {
+                if (casadas < partes.length && !usada[0]) return;
+                const nv = casadas < partes.length ? 1 : pior;
+                if (!melhor || nv > melhor.nivel || (nv === melhor.nivel && soma > melhor.soma)) melhor = { nivel: nv, soma };
+                return;
+            }
+            for (const [j, v] of opcoes[i]) {
+                if (usada[j]) continue;
+                usada[j] = true;
+                combinar(i + 1, casadas + 1, Math.min(pior, v), soma + v);
+                usada[j] = false;
+            }
+            combinar(i + 1, casadas, pior, soma);
+        };
+        combinar(0, 0, 3, 0);
+        if (!melhor) continue;
+        const d = c.dados || {};
+        achados.push({ c, exato: nome.normal === alvo, nivel: melhor.nivel, soma: melhor.soma, quando: `${d.dataISO || ""} ${d.hora || ""}` });
+    }
+    return achados
+        .sort((a, b) => (b.exato - a.exato) || (b.nivel - a.nivel) || (b.soma - a.soma)
+            || (a.quando < b.quando ? 1 : a.quando > b.quando ? -1 : 0))
+        .slice(0, 20)
+        .map(x => ({ ...x.c, exato: x.exato, nivel: x.nivel, parecido: x.nivel === 1 }));
 }
 
 function iniciarRgPronto() {
@@ -3457,8 +3594,12 @@ function linhaRgPronto(c) {
     const acao = pronto
         ? `<button type="button" class="btn btn-sm btn-secundario" data-acao="desfazerRgPronto" data-id="${textoSeguro(c.id)}"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Desfazer</button>`
         : `<button type="button" class="btn btn-sm btn-primario" data-acao="marcarRgPronto" data-id="${textoSeguro(c.id)}"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> RG pronto</button>`;
+    // Achado so por semelhanca (filtrarCandidatosRg): conferir antes de avisar.
+    const parecido = c.parecido
+        ? '<span class="etiqueta nota" title="O nome do cadastro não é igual ao digitado. Confira antes de marcar."><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Nome parecido</span>'
+        : "";
     return `<tr>
-        <td><div class="ld-nome-rg">${textoSeguro(d.nome)}</div><div class="ld-meta"><span class="protocolo">${textoSeguro(d.protocolo || "")}</span><span>${textoSeguro(celularFinal(d.telefone))}</span></div></td>
+        <td><div class="ld-nome-rg">${textoSeguro(d.nome)}</div><div class="ld-meta"><span class="protocolo">${textoSeguro(d.protocolo || "")}</span><span>${textoSeguro(celularFinal(d.telefone))}</span>${parecido}</div></td>
         <td>${textoSeguro(dataBrISO(d.dataISO))}${d.hora ? " " + textoSeguro(d.hora) : ""}</td>
         <td>${situacao}</td>
         <td><div class="acoes-linha">${acao}</div></td>
@@ -3476,7 +3617,7 @@ function buscarRgPronto() {
         const achados = filtrarCandidatosRg(rgProntoCandidatos, busca);
         corpo.innerHTML = achados.length
             ? achados.map(linhaRgPronto).join("")
-            : `<tr><td colspan="4" class="td-vazio">${normalizarNomeBusca(busca).split(" ").filter(p => p.length > 1).length < 2 ? "Digite pelo menos duas partes do nome." : "Nenhum atendimento realizado com esse nome. Confira a grafia ou se a pessoa foi marcada como Compareceu."}</td></tr>`;
+            : `<tr><td colspan="4" class="td-vazio">${normalizarNomeBusca(busca).replace(/ /g, "").length < 3 ? "Digite pelo menos 3 letras do nome." : "Nenhum atendimento realizado com esse nome. Confira a grafia ou se a pessoa foi marcada como Compareceu."}</td></tr>`;
     }
     const prontos = rgProntoCandidatos
         .filter(c => c.dados.rgPronto === true)
