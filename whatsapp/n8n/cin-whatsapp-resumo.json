@@ -1,0 +1,310 @@
+{
+  "id": "CinWhatsResumo1",
+  "name": "CIN — resumo diário do WhatsApp para o responsável (21h10)",
+  "active": false,
+  "nodes": [
+    {
+      "id": "c4000000-0000-4000-8000-000000000001",
+      "name": "Todo dia às 21h10",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 21,
+              "triggerAtMinute": 10
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c4000000-0000-4000-8000-000000000002",
+      "name": "Rodar agora",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cin-resumo",
+        "responseMode": "lastNode",
+        "options": {
+          "ipWhitelist": "127.0.0.1,::1,::ffff:127.0.0.1"
+        }
+      },
+      "webhookId": "c4a1e2d4-6b7f-4c21-9a3e-7d2b8e4f1d04"
+    },
+    {
+      "id": "c4000000-0000-4000-8000-000000000003",
+      "name": "Eventos de hoje",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        200
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "cin_cidinho_eventos"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "dia",
+              "condition": "eq",
+              "keyValue": "={{ new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c4000000-0000-4000-8000-000000000004",
+      "name": "Situação dos avisos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://southamerica-east1-agendamento-cin-itanhandu.cloudfunctions.net/cinRoboAgendamento",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ acao: \"status\" }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinRoboToken0001",
+          "name": "Robô da CIN (functions)"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c4000000-0000-4000-8000-000000000005",
+      "name": "Sessão do WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://camara-itanhandu_waha-cin:3000/api/sessions/cin",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c4000000-0000-4000-8000-000000000006",
+      "name": "Montar resumo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Why Code: conta os eventos do dia (sem texto nem telefone) e monta o resumo.\nconst linhas = $('Eventos de hoje').all().map((i) => i.json).filter((r) => r && r.tipo);\nconst conta = {};\nconst pessoas = new Set();\nfor (const r of linhas) {\n  conta[r.tipo] = (conta[r.tipo] || 0) + 1;\n  if (r.pessoa && r.tipo === 'resposta') pessoas.add(r.pessoa);\n}\nconst n = (t) => conta[t] || 0;\nconst avisos = $('Situação dos avisos').first().json || {};\nconst sessao = $('Sessão do WhatsApp').first().json || {};\nconst dia = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', day: '2-digit', month: '2-digit' });\nconst opcoes = [2, 3, 4, 5, 6].map((o) => o + ': ' + n('opcao_' + o)).join(', ');\nconst mudancas = Object.keys(conta).filter((t) => t.startsWith('sessao_') && t !== 'sessao_working').reduce((s, t) => s + conta[t], 0);\nconst disjuntor = avisos.ok === true ? (avisos.disjuntor ? '*LIGADO* ⚠️ (apague whatsapp_controle/disjuntor depois de conferir o celular)' : 'desligado') : 'sem resposta';\nconst texto = [\n  '📊 *WhatsApp do RG — ' + dia + '*',\n  'Pessoas que o Cidinho atendeu: ' + pessoas.size + ' · respostas: ' + n('resposta'),\n  'Menu: ' + n('menu') + ' · opções ' + opcoes + ' · IA: ' + (n('ia') + n('opcao_1')),\n  'Consultas pelo código: ' + n('consulta') + ' · cancelamentos: ' + n('cancelamento') + (n('protocolo_nao_encontrado') ? ' · código não achado: ' + n('protocolo_nao_encontrado') : ''),\n  'Pedidos de atendimento (6): ' + n('alerta_atendimento') + ' · alertas da abertura: ' + n('alerta_site'),\n  'Você respondeu pelo celular (robô em pausa): ' + n('pausa_humano'),\n  'Mídia: ' + n('midia') + ' · teto do dia: ' + n('teto'),\n  'Falhas: envio ' + n('falha_envio') + ' · IA ' + n('falha_ia') + ' · áudio ' + n('falha_audio') + ' · consulta ' + n('falha_agendamento'),\n  'Avisos do agendamento hoje: ' + (avisos.ok === true ? avisos.enviadosHoje : '?') + ' · disjuntor: ' + disjuntor,\n  'WhatsApp: ' + (sessao.status || 'sem resposta') + (mudancas ? ' · ' + mudancas + ' mudança(s) de estado hoje' : ''),\n].join('\\n');\nreturn [{ json: { texto } }];"
+      }
+    },
+    {
+      "id": "c4000000-0000-4000-8000-000000000007",
+      "name": "Número do responsável",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://camara-itanhandu_waha-cin:3000/api/contacts/check-exists",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "5535999901497"
+            },
+            {
+              "name": "session",
+              "value": "cin"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c4000000-0000-4000-8000-000000000008",
+      "name": "Enviar resumo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://camara-itanhandu_waha-cin:3000/api/sendText",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ session: 'cin', chatId: $json.chatId || '5535999901497@c.us', text: $('Montar resumo').first().json.texto, linkPreview: false }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CinWahaKey000001",
+          "name": "WAHA da CIN"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Todo dia às 21h10": {
+      "main": [
+        [
+          {
+            "node": "Eventos de hoje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rodar agora": {
+      "main": [
+        [
+          {
+            "node": "Eventos de hoje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Eventos de hoje": {
+      "main": [
+        [
+          {
+            "node": "Situação dos avisos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Situação dos avisos": {
+      "main": [
+        [
+          {
+            "node": "Sessão do WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sessão do WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Montar resumo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar resumo": {
+      "main": [
+        [
+          {
+            "node": "Número do responsável",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Número do responsável": {
+      "main": [
+        [
+          {
+            "node": "Enviar resumo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all"
+  },
+  "pinData": {},
+  "tags": []
+}

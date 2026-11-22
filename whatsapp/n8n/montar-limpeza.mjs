@@ -12,6 +12,7 @@
 import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validarFluxo } from './validar-fluxo.mjs';
 
 const aqui = dirname(fileURLToPath(import.meta.url));
 let n = 0;
@@ -43,20 +44,38 @@ no('Apagar respondidos antigos', 'n8n-nodes-base.dataTable', 1.1, [480, 200], {
   filters: { conditions: [{ keyName: 'em', condition: 'lt', keyValue: '={{ new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString() }}' }] },
   options: {},
 }, { executeOnce: true, alwaysOutputData: true });
+// 22/11/2026: pausas do robo (24 h depois que o responsavel responde pelo celular)
+// vencidas ha mais de um dia, e eventos do resumo diario com mais de 35 dias (sem
+// texto nem telefone). As tabelas nascem no fluxo de entrada; antes disso, o passo
+// segue sem erro.
+no('Apagar pausas vencidas', 'n8n-nodes-base.dataTable', 1.1, [720, 200], {
+  resource: 'row', operation: 'deleteRows', dataTableId: tabela('cin_cidinho_pausa'),
+  matchType: 'allConditions',
+  filters: { conditions: [{ keyName: 'ate', condition: 'lt', keyValue: '={{ new Date(Date.now() - 24 * 3600 * 1000).toISOString() }}' }] },
+  options: {},
+}, { executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput' });
+no('Apagar eventos antigos', 'n8n-nodes-base.dataTable', 1.1, [960, 200], {
+  resource: 'row', operation: 'deleteRows', dataTableId: tabela('cin_cidinho_eventos'),
+  matchType: 'allConditions',
+  filters: { conditions: [{ keyName: 'dia', condition: 'lt', keyValue: "={{ new Date(Date.now() - 35 * 864e5).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) }}" }] },
+  options: {},
+}, { executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput' });
 // Resposta do "Rodar agora": só contagens, sem telefone nem texto.
-no('Resumo', 'n8n-nodes-base.code', 2, [720, 200], {
+no('Resumo', 'n8n-nodes-base.code', 2, [1200, 200], {
   mode: 'runOnceForAllItems',
   language: 'javaScript',
   jsCode: `// Why Code: devolve só quantas linhas cada passo apagou.
-const conta = (nome) => $(nome).all().filter((i) => i.json && Object.keys(i.json).length).length;
-return [{ json: { conversas: conta('Apagar conversas do Cidinho'), respondidos: conta('Apagar respondidos antigos'), em: new Date().toISOString() } }];`,
+const conta = (nome) => $(nome).all().filter((i) => i.json && Object.keys(i.json).length && !i.json.error).length;
+return [{ json: { conversas: conta('Apagar conversas do Cidinho'), respondidos: conta('Apagar respondidos antigos'), pausas: conta('Apagar pausas vencidas'), eventos: conta('Apagar eventos antigos'), em: new Date().toISOString() } }];`,
 });
 
 const ligacoes = [
   ['De hora em hora', 'Apagar conversas do Cidinho'],
   ['Rodar agora', 'Apagar conversas do Cidinho'],
   ['Apagar conversas do Cidinho', 'Apagar respondidos antigos'],
-  ['Apagar respondidos antigos', 'Resumo'],
+  ['Apagar respondidos antigos', 'Apagar pausas vencidas'],
+  ['Apagar pausas vencidas', 'Apagar eventos antigos'],
+  ['Apagar eventos antigos', 'Resumo'],
 ];
 const connections = {};
 for (const [de, para] of ligacoes) {
@@ -74,5 +93,6 @@ const fluxo = {
   pinData: {},
   tags: [],
 };
+validarFluxo(fluxo);
 writeFileSync(join(aqui, 'cin-whatsapp-limpeza.json'), `${JSON.stringify(fluxo, null, 2)}\n`);
 console.log(`cin-whatsapp-limpeza.json: ${nos.length} nós`);

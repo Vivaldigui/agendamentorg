@@ -11,6 +11,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { validarFluxo } from "../n8n/validar-fluxo.mjs";
 
 const aqui = dirname(fileURLToPath(import.meta.url));
 const ler = (f) => readFileSync(join(aqui, f), "utf8");
@@ -50,7 +51,8 @@ ${nucleo}
 // site trouxer volume. Passou dele, a resposta é a mensagem fixa da recepção.
 const LIMITE_DIARIO = 300;
 const usoDia = ($getWorkflowStaticData('global').uso) || {};
-const diaHoje = new Date().toISOString().slice(0, 10);
+// Dia de São Paulo (antes era o dia UTC, que virava às 21h).
+const diaHoje = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 const chamadasHoje = Object.entries(usoDia).filter(([k]) => k.startsWith(diaHoje)).reduce((s, [, v]) => s + (v.chamadas || 0), 0);
 if (chamadasHoje >= LIMITE_DIARIO) return [{ json: { invalido: true, limiteDiario: true } }];
 
@@ -68,7 +70,7 @@ if (!mensagens.length || mensagens[mensagens.length - 1].role !== 'user') {
 const agenda = $input.first().json;
 const vagas = agenda && Array.isArray(agenda.dias) ? agenda : null;
 // "primeira": a entrada diz se não há fala anterior nas últimas 24 h (regra fixa da apresentação).
-const contexto = [contextoDaConversa(corpoPedido.primeira === true), typeof corpoPedido.contexto === 'string' ? corpoPedido.contexto.slice(0, 500) : '']
+const contexto = [contextoDaConversa(corpoPedido.primeira === true), typeof corpoPedido.contexto === 'string' ? corpoPedido.contexto.slice(0, 800) : '']
   .filter(Boolean).join('\\n');
 const { corpo, modelo } = montarPedido({ prompt: PROMPT, conhecimento: CONHECIMENTO, mensagens, contexto, vagas, agora: Date.now() });
 return [{ json: { corpo, modelo } }];`;
@@ -98,7 +100,8 @@ no("Chamar Anthropic", "n8n-nodes-base.httpRequest", 4.2, [880, 120], {
   sendBody: true,
   specifyBody: "json",
   jsonBody: "={{ JSON.stringify($json.corpo) }}",
-  options: { timeout: 60000 }
+  // 40 s por tentativa: com a nova tentativa, 40 + 2 + 40 s ainda cabem nos 90 s que a entrada espera.
+  options: { timeout: 40000 }
 }, { credentials: { httpHeaderAuth: { id: "CinAnthropic0001", name: "Anthropic do Cidinho" } }, onError: "continueErrorOutput", retryOnFail: true, maxTries: 2, waitBetweenTries: 2000 });
 
 const codigoResposta = `// Why Code: lê a resposta e soma o uso por dia e modelo (staticData), sem guardar texto nem telefone.
@@ -108,7 +111,8 @@ const modelo = $('Montar pedido').first().json.modelo;
 const texto = (!r || r.stop_reason === 'refusal') ? '' : (r.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
 const u = (r && r.usage) || {};
 const dados = $getWorkflowStaticData('global');
-const dia = new Date().toISOString().slice(0, 10);
+const diaSP = (ms) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+const dia = diaSP(Date.now());
 dados.uso = dados.uso || {};
 const chave = dia + ' ' + modelo;
 const s = dados.uso[chave] || { chamadas: 0, entrada: 0, cache_leitura: 0, cache_escrita: 0, saida: 0, recusas: 0 };
@@ -120,7 +124,7 @@ s.saida += u.output_tokens || 0;
 if (!texto) s.recusas += 1;
 dados.uso[chave] = s;
 // Guarda só os últimos 60 dias.
-for (const k of Object.keys(dados.uso)) if (k.slice(0, 10) < new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10)) delete dados.uso[k];
+for (const k of Object.keys(dados.uso)) if (k.slice(0, 10) < diaSP(Date.now() - 60 * 864e5)) delete dados.uso[k];
 return [{ json: { texto: texto || RESPOSTA_DE_FALHA, modelo: (r && r.model) || modelo, falhou: !texto } }];`;
 no("Resposta e uso", "n8n-nodes-base.code", 2, [1100, 60], { jsCode: codigoResposta });
 
@@ -162,5 +166,6 @@ const fluxo = {
   pinData: {},
   tags: []
 };
+validarFluxo(fluxo);
 writeFileSync(join(aqui, "cidinho.json"), `${JSON.stringify(fluxo, null, 2)}\n`);
 console.log(`cidinho.json: ${nos.length} nós, ${ligacoes.length} ligações, ${(JSON.stringify(fluxo).length / 1024).toFixed(0)} KB`);

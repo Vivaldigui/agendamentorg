@@ -17,6 +17,7 @@
 import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validarFluxo } from './validar-fluxo.mjs';
 
 const hashToken = String(process.argv[2] || '').trim().toLowerCase();
 if (!/^[0-9a-f]{64}$/.test(hashToken)) {
@@ -169,5 +170,6 @@ const fluxo = {
   pinData: {},
   tags: [],
 };
+validarFluxo(fluxo);
 writeFileSync(join(aqui, 'cin-whatsapp-enviar.json'), `${JSON.stringify(fluxo, null, 2)}\n`);
 console.log(`cin-whatsapp-enviar.json: ${nos.length} nós, ${ligacoes.length} ligações`);

@@ -11,6 +11,7 @@ abrir para o público.
 - A **Polícia Civil de Minas Gerais** emite a Carteira de Identidade Nacional (CIN), o "novo RG".
 - A **Câmara Municipal de Itanhandu** sedia e opera o Posto de Identificação, por um acordo: cede o servidor e comprou os equipamentos, mesmo não sendo obrigação do Legislativo. Por isso as vagas são limitadas.
 - Este número de WhatsApp é **só do agendamento da CIN**. O WhatsApp geral da Câmara, onde a recepção atende, é o **(35) 3504-0397**.
+- Para falar com uma pessoa por este número, a pessoa responde **6**: a equipe atende de **terça a sexta, das 14h às 17h**.
 
 ## Endereço e horário
 
@@ -19,18 +20,19 @@ abrir para o público.
 - Atendimento da CIN: **terça a sexta, das 14h às 17h, só com hora marcada**. Os horários que aparecem para reserva vão de 14h30 a 16h45 (podem variar).
 - Chegar **5 minutos antes** e aguardar sentado até ser chamado. Não há etapa prévia no balcão.
 - O atendimento presencial leva **cerca de 15 minutos**. A carteira não sai na hora.
+- No atendimento, a pessoa **não recebe protocolo nem comprovante**. Depois, acompanha a entrega pelo MG App (ver "Prazo e entrega").
 - Atrasou: aguarde a pessoa que está sendo atendida; o posto atende até 17h. Se perceber que não vai conseguir chegar, avise pelo (35) 3504-0397.
 
 ## Agendamento
 
-- **Só pelo site**: https://cin.itanhandu.cam.mg.gov.br. A Câmara **não** agenda por telefone, WhatsApp ou pessoalmente. Este robô também **não** agenda, não cancela e não muda horário.
+- **Só pelo site**: https://cin.itanhandu.cam.mg.gov.br. A Câmara **não** agenda por telefone, WhatsApp ou pessoalmente. Este robô também **não** agenda e não muda horário; consultar e cancelar por aqui, só com o código `CIN-` (ver "Consultar, cancelar").
 - **As vagas abrem toda segunda-feira, às 8h**, para atendimento de **terça a sexta da mesma semana**.
 - Geralmente são **24 vagas por semana**. Pode haver mais, menos ou semana sem atendimento (feriado, férias, pausa definida pela recepção). O aviso aparece na página.
 - Quando acabam, é preciso esperar a próxima segunda. **Não existe lista de espera.**
 - Dá para preencher os dados antes das 8h; a vaga só fica reservada quando a pessoa escolhe o horário e confirma.
 - Os dados do formulário são de **quem vai fazer o RG** (para criança, os dados da criança). Outra pessoa pode preencher.
 - Ao confirmar, o site mostra o **comprovante com o código `CIN-`**. Dá para salvar em PDF ou compartilhar pelo WhatsApp.
-- Quem marcou a caixa do WhatsApp recebe por este número a confirmação, um lembrete na véspera (a partir das 18h) e o aviso se o agendamento for cancelado.
+- Por este número saem os avisos do agendamento: a **confirmação**, logo depois de agendar, com dia, hora e o código `CIN-`; um **lembrete no dia do atendimento, 6 horas antes do horário**; o aviso se o agendamento for **cancelado**; no fim do dia do atendimento, um **convite para avaliar** o atendimento no Google; e o aviso **"Seu RG chegou"** quando a carteira chega à Câmara para ser retirada.
 - Agendar é **gratuito**. Desconfie de qualquer cobrança para reservar vaga.
 - Atende moradores de **Itanhandu e de qualquer cidade** (Passa Quatro, Itamonte, Pouso Alto, Virgínia e outras). Não precisa morar em Itanhandu. O atendimento é só em Itanhandu.
 - Cada celular pode ter no máximo **2 agendamentos ativos**, e cada CPF, um.
@@ -38,9 +40,11 @@ abrir para o público.
 ## Consultar, cancelar e "remarcar"
 
 - Consultar ou cancelar: https://cin.itanhandu.cam.mg.gov.br/cin/consultar-ou-cancelar/ — pede **CPF, data de nascimento e o código `CIN-`** do comprovante. Agendamento antigo sem código usa o telefone cadastrado.
+- O código `CIN-` está no comprovante do site e também na **mensagem de confirmação que chegou por este WhatsApp**.
+- **Pelo WhatsApp:** a pessoa manda o código do agendamento (começa com `CIN-`) e o sistema mostra o dia e o horário; para cancelar, ela responde *CANCELAR* em seguida. Só funciona no celular que está no cadastro do agendamento; de outro celular, use o site ou fale com a recepção.
 - **Não existe troca de dia ou de horário pelo site, nem pelo WhatsApp.** Quem não puder ir deve **cancelar** (libera a vaga para outra pessoa) e fazer um **novo agendamento quando houver vaga**, normalmente na abertura da segunda-feira seguinte, às 8h. Cancelar não cria outro horário sozinho.
 - **Falta sem cancelar** (ou sem avisar antes) **bloqueia novo agendamento por 6 meses**. Quem foi bloqueado e precisa agendar fala com a Câmara pelo (35) 3504-0397.
-- Perdeu o código `CIN-`: peça ajuda pelo (35) 3504-0397.
+- Perdeu o código `CIN-`: procure a mensagem de confirmação neste WhatsApp; se não achar, peça ajuda pelo (35) 3504-0397.
 - Perdeu o horário: fale com a Câmara pelo (35) 3504-0397.
 
 ## Documentos para levar
@@ -50,7 +54,7 @@ abrir para o público.
   - casado(a): **certidão de casamento**;
   - viúvo(a) ou divorciado(a): **certidão de casamento com a averbação** do óbito ou do divórcio.
   - Em Minas, casado sem mudança de nome também pode levar certidão de nascimento com averbação do casamento; divorciado pode levar certidão de nascimento com averbação do divórcio. O registro tem de corresponder ao estado civil atual.
-  - **Forma aceita: só a certidão original ou uma cópia autenticada em cartório.** Cópia simples (xerox), foto no celular ou certidão digital/PDF não servem: quem só tem a digital precisa levar a original ou uma cópia autenticada. (Decisão do responsável em 15/11/2026; é o mesmo que diz a mensagem de confirmação do WhatsApp.)
+  - **Formas aceitas: a certidão original em papel, a certidão digital verificável (a emitida pelo cartório, que pode ser conferida) ou uma cópia autenticada em cartório.** Cópia simples (xerox) e foto da certidão de papel não servem. (Decisão do responsável em 22/11/2026, igual ao guia do site e às mensagens do WhatsApp.)
   - Sem rasgos, rasuras ou alterações. Confira se os dados estão corretos e legíveis.
 - **Número do CPF**: basta informar o número; não precisa de cartão nem comprovante. Quem não tem CPF pode fazer: a inscrição é feita na emissão.
 - **Comprovante de residência**: qualquer um, atualizado. Não precisa estar no nome da pessoa. Serve para cadastrar o endereço de entrega.
@@ -85,6 +89,7 @@ abrir para o público.
 - Prazo informado pelo Governo de Minas: **até 15 dias úteis** para emissão e entrega. Pode aumentar se houver pendência.
 - A carteira vai **pelos Correios** para o endereço informado no atendimento. São até **3 tentativas**; depois fica **20 dias** no centro de distribuição e volta para a unidade emissora.
 - **Zona rural**: a carteira chega à Câmara; procure a Câmara para retirar **15 dias depois** da emissão.
+- Retirada na Câmara: **segunda a sexta, das 8h às 12h e das 14h às 17h**.
 - Acompanhar: **MG App** ou https://cidadao.mg.gov.br/ → Carteira de Identidade → Consultar situação de entrega.
 - Não chegou ou demorou: (35) 3504-0397 ou vá à Câmara.
 - Retirada por outra pessoa pode ser permitida, com autorização e documento; consulte a Câmara antes.
@@ -114,3 +119,4 @@ abrir para o público.
 - Gratuidade e 2ª via: https://cin.itanhandu.cam.mg.gov.br/cin/gratuidade-e-segunda-via/
 - Prazo e entrega: https://cin.itanhandu.cam.mg.gov.br/cin/prazo-e-entrega/
 - Guia completo: https://cin.itanhandu.cam.mg.gov.br/cin/
+- Avaliar o atendimento no Google: https://g.page/r/CfugOJBgujYPEBM/review
