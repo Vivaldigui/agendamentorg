@@ -86,6 +86,10 @@ let agendaGradesAtendimento = [];
 let agendaPublicacaoDatas = {};
 let agendaAutomacaoSemanal = { ativa: true, horaAbertura: "08:00", diasSemana: [2, 3, 4, 5], semanasPausadas: [], datasBloqueadas: [], periodosBloqueados: [] };
 let agendaDatasAutomaticas = [];
+// Aviso de novas vagas como esta no banco. Salvar a automacao precisa
+// conhece-lo para nao deixar o site anunciando uma semana que foi pulada.
+let agendaDataNovasVagas = "";
+let agendaAvisoNovasVagasProgramado = null;
 // Aviso em pop-up do site. Espelha functions/aviso-popup.js.
 const LIMITE_TITULO_AVISO_POPUP = 80;
 const LIMITE_MENSAGEM_AVISO_POPUP = 600;
@@ -644,6 +648,8 @@ function adicionarSemanaPausada() {
     agendaAutomacaoSemanal.semanasPausadas = [...new Set([...(agendaAutomacaoSemanal.semanasPausadas || []), segunda])].sort();
     input.value = "";
     renderAutomacaoSemanal();
+    // A semana so entra na lista da tela; sem salvar, a automacao abre normalmente.
+    mostrarToast(`Semana de ${dataBrISO(segunda)} marcada. Clique em "Salvar automação e exceções" para valer.`, "aviso");
 }
 
 function removerSemanaPausada(indice) {
@@ -704,6 +710,39 @@ function dataPermitidaPelaAutomacao(cfg, dataISO) {
     return !cfg.periodosBloqueados.some(periodo => dataISO >= periodo.inicio && dataISO <= periodo.fim);
 }
 
+function semanaTemAtendimentoPainel(cfg, segundaISO) {
+    for (let i = 0; i < 5; i++) {
+        if (dataPermitidaPelaAutomacao(cfg, somarDiasISO(segundaISO, i))) return true;
+    }
+    return false;
+}
+
+// Espelho de proximaSemanaComAtendimento (functions/agenda-automation.js),
+// mas incluindo a propria semana informada.
+function primeiraSemanaComAtendimentoPainel(cfg, segundaISO, limiteSemanas = 104) {
+    let segunda = segundaDaSemanaPainel(segundaISO);
+    if (!segunda) return "";
+    for (let i = 0; i < limiteSemanas; i++) {
+        if (semanaTemAtendimentoPainel(cfg, segunda)) return segunda;
+        segunda = somarDiasISO(segunda, 7);
+    }
+    return "";
+}
+
+// Se o aviso anuncia uma semana que a nova configuracao pulou (pausa, dias
+// ou ferias bloqueadas), devolve a data que deve entrar no lugar, em dd/mm/aaaa.
+// Sem isso o site seguia anunciando "Novas vagas em 30/11" ate a execucao
+// automatica da propria segunda pulada.
+function avisoCorrigidoPelaAutomacao(cfg, valorAviso, hoje = hojeISO()) {
+    if (!cfg.ativa) return null;
+    const anunciada = dataConfigParaInput(valorAviso);
+    if (!anunciada || anunciada < hoje) return null;
+    const segunda = segundaDaSemanaPainel(anunciada);
+    if (!segunda || semanaTemAtendimentoPainel(cfg, segunda)) return null;
+    const proxima = primeiraSemanaComAtendimentoPainel(cfg, segunda);
+    return proxima ? dataBrISO(proxima) : null;
+}
+
 async function salvarAutomacaoSemanal() {
     if (!exigirAgendaGestaoCarregada()) return;
     const cfg = automacaoDaTela();
@@ -731,25 +770,42 @@ async function salvarAutomacaoSemanal() {
         }
     }
 
+    const conteudo = {
+        automacaoSemanal: cfg,
+        dias: [...dias].sort(),
+        publicacaoDatas: publicacoes,
+        datasGeradasAutomaticamente: [...geradas].sort(),
+        atualizado: new Date().toISOString()
+    };
+    const avisoTopoCorrigido = avisoCorrigidoPelaAutomacao(cfg, agendaDataNovasVagas);
+    if (avisoTopoCorrigido) conteudo.dataNovasVagas = avisoTopoCorrigido;
+    const avisoProgramadoCorrigido = agendaAvisoNovasVagasProgramado
+        ? avisoCorrigidoPelaAutomacao(cfg, agendaAvisoNovasVagasProgramado.dataNovasVagas)
+        : null;
+    if (avisoProgramadoCorrigido) {
+        conteudo.avisoNovasVagasProgramado = { ...agendaAvisoNovasVagasProgramado, dataNovasVagas: avisoProgramadoCorrigido };
+    }
+
     try {
-        await gravarAgendaConfig({
-            automacaoSemanal: cfg,
-            dias: [...dias].sort(),
-            publicacaoDatas: publicacoes,
-            datasGeradasAutomaticamente: [...geradas].sort(),
-            atualizado: new Date().toISOString()
-        });
+        await gravarAgendaConfig(conteudo);
+        if (avisoTopoCorrigido) agendaDataNovasVagas = avisoTopoCorrigido;
+        if (avisoProgramadoCorrigido) agendaAvisoNovasVagasProgramado = conteudo.avisoNovasVagasProgramado;
+        if (avisoTopoCorrigido || avisoProgramadoCorrigido) {
+            document.getElementById("cfg-data-novas-vagas").value = dataConfigParaInput(avisoProgramadoCorrigido || avisoTopoCorrigido);
+        }
         agendaAutomacaoSemanal = cfg;
         agendaDias = [...dias].sort();
         agendaPublicacaoDatas = publicacoes;
         agendaDatasAutomaticas = [...geradas].sort();
         renderAutomacaoSemanal();
         renderAgendaDatas();
-        await registrarLog("agenda_salvar_automacao_semanal", { removidas, mantidasPorSeguranca, automacao: cfg });
+        const avisoNovo = avisoProgramadoCorrigido || avisoTopoCorrigido || "";
+        await registrarLog("agenda_salvar_automacao_semanal", { removidas, mantidasPorSeguranca, automacao: cfg, avisoNovasVagasCorrigidoPara: avisoNovo });
+        const textoAviso = avisoNovo ? ` O aviso do site passou a anunciar novas vagas em ${avisoNovo}.` : "";
         if (mantidasPorSeguranca.length) {
-            mostrarToast("Configuração salva. Datas já publicadas foram mantidas para proteger agendamentos existentes; revise-as manualmente.", "aviso");
+            mostrarToast(`Configuração salva. Datas já publicadas foram mantidas para proteger agendamentos existentes; revise-as manualmente.${textoAviso}`, "aviso");
         } else {
-            mostrarToast(removidas.length ? `Automação salva; ${removidas.length} data(s) ainda não publicada(s) foram removidas.` : "Automação semanal salva.");
+            mostrarToast((removidas.length ? `Automação salva; ${removidas.length} data(s) ainda não publicada(s) foram removidas.` : "Automação semanal salva.") + textoAviso);
         }
     } catch (e) {
         mostrarToast("Erro ao salvar a automação semanal.", "erro");
@@ -2188,6 +2244,8 @@ async function carregarAgendaGestao() {
             : null;
         preencherFormularioAvisoPopup(agendaAvisoPopup);
         const avisoProgramado = cfg.avisoNovasVagasProgramado && typeof cfg.avisoNovasVagasProgramado === "object" ? cfg.avisoNovasVagasProgramado : null;
+        agendaDataNovasVagas = String(cfg.dataNovasVagas || "");
+        agendaAvisoNovasVagasProgramado = avisoProgramado ? { ...avisoProgramado } : null;
         const agora = agoraSaoPauloInput();
         document.getElementById("cfg-data-novas-vagas").value = dataConfigParaInput(
             avisoProgramado && avisoProgramado.publicarEm && avisoProgramado.publicarEm <= agora
@@ -2424,6 +2482,8 @@ async function salvarAvisoNovasVagas() {
     }
     try {
         await db.collection("configuracoes").doc("agenda").set(payload, { merge: true });
+        if (payload.dataNovasVagas) agendaDataNovasVagas = payload.dataNovasVagas;
+        agendaAvisoNovasVagasProgramado = payload.avisoNovasVagasProgramado || null;
         avisoPainel(modo === "programar" ? "Aviso de novas vagas programado." : "Aviso de novas vagas atualizado.");
         registrarLog("agenda_salvar_aviso_novas_vagas", {
             dataNovasVagas: dataBrISO(data),
