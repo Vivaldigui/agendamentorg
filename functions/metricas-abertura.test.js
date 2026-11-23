@@ -215,6 +215,19 @@ test("resumo da abertura: pico, primeiro e ultimo agendamento, recusados", () =>
   assert.equal(r.primeiroAgendamento, "2026-10-19T08:00");
   assert.equal(r.ultimoAgendamento, "2026-10-19T08:01");
   assert.deepEqual(r.pico, { minuto: "2026-10-19T08:00", quantidade: 30 });
+  assert.equal(r.cpfJaAgendado + r.cpfBloqueado + r.limiteExcedido + r.muitasTentativas, r.recusados);
+});
+
+test("recusados aparecem separados por motivo no painel", () => {
+  // 23/11/2026: 77 de 96 pedidos recusados e o painel nao dizia por que.
+  const detalhe = new Function(`${extrairFuncao(painelJs, "detalheRecusados")}; return detalheRecusados;`)();
+  assert.equal(
+    detalhe({ cpfJaAgendado: 60, cpfBloqueado: 5, limiteExcedido: 0, muitasTentativas: 12 }),
+    "<br><small>60 já agendado · 5 bloqueado por falta · 12 muitas tentativas</small>"
+  );
+  assert.equal(detalhe({ cpfJaAgendado: 0, cpfBloqueado: 0, limiteExcedido: 3, muitasTentativas: 0 }), "<br><small>3 por limite</small>");
+  assert.equal(detalhe({ cpfJaAgendado: 0, cpfBloqueado: 0, limiteExcedido: 0, muitasTentativas: 0 }), "");
+  assert.match(extrairFuncao(painelJs, "carregarMetricasAbertura"), /\$\{r\.recusados\}\$\{detalheRecusados\(r\)\}/);
 });
 
 test("REGRESSAO: recusa ao ler metricas nao encerra a sessao do painel", () => {
