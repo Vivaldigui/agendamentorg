@@ -3712,12 +3712,28 @@ function resumoAbertura(segunda, total) {
         agendados: total.sucesso,
         perderamHorario: total.conflitoHorario,
         recusados: total.cpfJaAgendado + total.cpfBloqueado + total.limiteExcedido + total.muitasTentativas,
+        cpfJaAgendado: total.cpfJaAgendado,
+        cpfBloqueado: total.cpfBloqueado,
         limiteExcedido: total.limiteExcedido,
+        muitasTentativas: total.muitasTentativas,
         outros: total.horarioIndisponivel + total.dadosInvalidos + total.erro,
         primeiroAgendamento: comSucesso[0] || "",
         ultimoAgendamento: comSucesso[comSucesso.length - 1] || "",
         pico
     };
+}
+
+// "Recusados" junta motivos que pedem respostas diferentes (abertura de
+// 23/11/2026: 77 de 96 pedidos recusados sem saber por que). Mostra cada
+// motivo que ocorreu, na ordem em que o backend confere.
+function detalheRecusados(r) {
+    const partes = [
+        [r.cpfJaAgendado, "já agendado"],
+        [r.cpfBloqueado, "bloqueado por falta"],
+        [r.limiteExcedido, "por limite"],
+        [r.muitasTentativas, "muitas tentativas"]
+    ].filter(([n]) => n > 0).map(([n, rotulo]) => `${n} ${rotulo}`);
+    return partes.length ? `<br><small>${partes.join(" · ")}</small>` : "";
 }
 
 async function carregarMetricasAbertura() {
@@ -3739,7 +3755,7 @@ async function carregarMetricasAbertura() {
                 <td data-label="Tentativas">${r.tentativas}</td>
                 <td data-label="Agendados">${r.agendados}</td>
                 <td data-label="Perderam o horário">${r.perderamHorario}</td>
-                <td data-label="Recusados">${r.recusados}${r.limiteExcedido ? ` <small>(${r.limiteExcedido} por limite)</small>` : ""}</td>
+                <td data-label="Recusados">${r.recusados}${detalheRecusados(r)}</td>
                 <td data-label="Outros">${r.outros}</td>
                 <td data-label="1º → último agendamento">${textoSeguro(minutoMetricaLegivel(r.primeiroAgendamento))} → ${textoSeguro(minutoMetricaLegivel(r.ultimoAgendamento))}</td>
                 <td data-label="Pico de tentativas">${r.pico ? `${textoSeguro(minutoMetricaLegivel(r.pico.minuto))} (${r.pico.quantidade})` : "—"}</td>
